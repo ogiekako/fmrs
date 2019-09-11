@@ -1,0 +1,27 @@
+[package]
+name = "fmrs"
+version = "0.1.0"
+authors = ["Keigo Oka <ogiekako@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = "1.4.0"
+
+# The core APIs, including the Serialize and Deserialize traits. Always
+# required when using Serde. The "derive" feature is only required when
+# using #[derive(Serialize, Deserialize)] to make Serde work with structs
+# and enums defined in your crate.
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8"
+bincode = "1.2.0"
+
+arr_macro = "0.1.2"
+rand = "0.7.1"
+
+url = "2.1.0"
+percent-encoding = "2.1.0"
+
+[dev-dependencies]
+pretty_assertions = "0.6.1"

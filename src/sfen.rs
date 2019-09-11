@@ -1,0 +1,389 @@
+/// SFEN format defined in
+/// https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
+use crate::board::*;
+use crate::piece::*;
+use crate::position::*;
+
+pub const START: &'static str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
+// The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
+pub const RYUO: &'static str =
+    "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
+// <img src="http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201">
+
+// http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
+
+type Result<T> = std::result::Result<T, ParseError>;
+
+#[derive(Debug)]
+pub struct ParseError {
+    s: String,
+    msg: String,
+}
+fn err<T>(s: &str, msg: &str) -> Result<T> {
+    Err(ParseError {
+        s: s.into(),
+        msg: msg.into(),
+    })
+}
+
+fn encode_piece(c: Color, mut k: Kind) -> String {
+    let mut res = String::new();
+    if let Some(x) = k.unpromote() {
+        res.push('+');
+        k = x;
+    }
+    let mut ch = match k {
+        Pawn => 'P',
+        Lance => 'L',
+        Knight => 'N',
+        Silver => 'S',
+        Gold => 'G',
+        Bishop => 'B',
+        Rook => 'R',
+        King => 'K',
+        _ => panic!("Unexpected piece {:?}", k),
+    };
+    if c == White {
+        ch = ch.to_lowercase().next().unwrap();
+    }
+    res.push(ch);
+    res
+}
+
+fn decode_hand_kind(ch: char) -> Result<(Color, Kind)> {
+    for c in Color::iter() {
+        for k in Kind::iter() {
+            if !k.is_hand_piece() {
+                continue;
+            }
+            if encode_piece(c, k).chars().next().unwrap() == ch {
+                return Ok((c, k));
+            }
+        }
+    }
+    err(&ch.to_string(), "Illegal hand kind {}")
+}
+
+// Encoded string doesn't include optional move count data.
+pub fn encode_position(board: &Position) -> String {
+    let mut res = String::new();
+    for row in 0..9 {
+        let mut count_empty = 0;
+        for col in (0..9).rev() {
+            if let Some((c, k)) = board.get(Square::new(col, row)) {
+                if count_empty > 0 {
+                    res.push_str(&count_empty.to_string());
+                }
+                count_empty = 0;
+                res.push_str(&encode_piece(c, k));
+            } else {
+                count_empty += 1;
+            }
+        }
+        if count_empty > 0 {
+            res.push_str(&count_empty.to_string());
+        }
+        if row < 8 {
+            res.push('/');
+        }
+    }
+    res.push(' ');
+
+    res.push(match board.turn() {
+        Black => 'b',
+        White => 'w',
+    });
+    res.push(' ');
+
+    let mut has_hand = false;
+    // The pieces are always listed in the order rook, bishop, gold, silver, knight, lance, pawn;
+    // and with all black pieces before all white pieces.
+    for c in [Black, White].iter() {
+        let c = *c;
+        for k in [Rook, Bishop, Gold, Silver, Knight, Lance, Pawn].iter() {
+            let k = *k;
+            if !k.is_hand_piece() {
+                continue;
+            }
+            let n = board.hands().count(c, k);
+            if n > 1 {
+                res.push_str(&n.to_string());
+            }
+            if n > 0 {
+                has_hand = true;
+                res.push_str(&encode_piece(c, k));
+            }
+        }
+    }
+    if !has_hand {
+        res.push('-');
+    }
+    res
+}
+
+// Ingore optional move count if any.
+pub fn decode_position(sfen: &str) -> Result<Position> {
+    let v: Vec<&str> = sfen.split(' ').collect();
+    if v.len() < 3 {
+        return err(sfen, "Insufficient number of fields");
+    }
+    let rows: Vec<&str> = v[0].split('/').collect();
+    if rows.len() != 9 {
+        return err(sfen, "There should be exactly 9 rows");
+    }
+    let mut board = Position::new();
+    for row in 0..9 {
+        let mut col = 9isize;
+        let mut promote = false;
+        for ch in rows[row].chars() {
+            if ch == '+' {
+                if promote {
+                    return err(sfen, "+ shouldn't continue twice");
+                }
+                promote = true;
+                continue;
+            }
+            if let Some(n) = ch.to_digit(10) {
+                if promote {
+                    return err(sfen, "Illegal occurence of +");
+                }
+                col -= n as isize;
+                continue;
+            }
+            let mut found = false;
+            'outer: for c in Color::iter() {
+                for k in Kind::iter() {
+                    if k.unpromote().is_some() {
+                        continue;
+                    }
+                    if encode_piece(c, k).chars().next().unwrap() == ch {
+                        found = true;
+                        col -= 1;
+                        if col < 0 {
+                            return err(sfen, "Too long row");
+                        }
+
+                        board.set(
+                            Square::new(col as usize, row),
+                            c,
+                            if promote { k.promote().unwrap() } else { k },
+                        );
+                        promote = false;
+                        break 'outer;
+                    }
+                }
+            }
+            if !found {
+                return err(sfen, &format!("Illegal character {:?}", ch));
+            }
+        }
+        if col != 0 {
+            return err(sfen, "Illegal row length");
+        }
+    }
+
+    match v[1] {
+        "b" => board.set_turn(Black),
+        "w" => board.set_turn(White),
+        _ => return err(sfen, &format!("Illegal turn string {}", v[1])),
+    }
+
+    if v[2] == "-" {
+        return Ok(board);
+    }
+
+    let mut hand_count = 0;
+    for ch in v[2].chars() {
+        if let Some(n) = ch.to_digit(10) {
+            hand_count = hand_count * 10 + n;
+            if hand_count >= 100 {
+                return err(sfen, &"Hand counts should be less than 100");
+            }
+            continue;
+        }
+        if hand_count == 0 {
+            hand_count = 1;
+        }
+        let (c, k) = decode_hand_kind(ch)?;
+        for _ in 0..hand_count {
+            board.inc_hands(c, k);
+        }
+        hand_count = 0;
+    }
+    Ok(board)
+}
+
+#[test]
+fn test_encode() {
+    let mut board = Position::new();
+
+    board.set(Square::new(0, 0), White, Lance);
+    board.set(Square::new(3, 1), Black, Pawn);
+    board.set(Square::new(6, 1), Black, ProRook);
+    board.set(Square::new(7, 1), White, Lance);
+    board.set(Square::new(0, 2), White, Pawn);
+    board.set(Square::new(1, 2), White, Pawn);
+    board.set(Square::new(3, 2), Black, Gold);
+    board.set(Square::new(4, 2), Black, Bishop);
+    board.set(Square::new(5, 2), White, Pawn);
+    board.set(Square::new(8, 2), White, Pawn);
+    board.set(Square::new(4, 3), White, Pawn);
+    board.set(Square::new(6, 3), White, Silver);
+    board.set(Square::new(7, 3), White, Pawn);
+    board.set(Square::new(8, 3), White, King);
+    board.set(Square::new(2, 4), Black, Gold);
+    board.set(Square::new(5, 4), Black, Pawn);
+    board.set(Square::new(7, 4), White, Knight);
+    board.set(Square::new(8, 4), Black, Knight);
+    board.set(Square::new(0, 5), Black, Pawn);
+    board.set(Square::new(1, 5), Black, Pawn);
+    board.set(Square::new(4, 5), Black, Pawn);
+    board.set(Square::new(6, 5), Black, Pawn);
+    board.set(Square::new(8, 5), Black, Pawn);
+    board.set(Square::new(6, 6), Black, Silver);
+    board.set(Square::new(7, 6), Black, Pawn);
+    board.set(Square::new(1, 7), White, ProRook);
+    board.set(Square::new(5, 7), Black, Gold);
+    board.set(Square::new(6, 7), Black, Silver);
+    board.set(Square::new(7, 7), Black, King);
+    board.set(Square::new(0, 8), Black, Lance);
+    board.set(Square::new(4, 8), White, ProPawn);
+    board.set(Square::new(7, 8), Black, Knight);
+    board.set(Square::new(8, 8), Black, Lance);
+    board.inc_hands(Black, Silver);
+    board.inc_hands(White, Bishop);
+    board.inc_hands(White, Gold);
+    board.inc_hands(White, Knight);
+    board.inc_hands(White, Pawn);
+    board.inc_hands(White, Pawn);
+    board.inc_hands(White, Pawn);
+
+    board.set_turn(White);
+
+    assert_eq!(
+        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
+        &encode_position(&board)
+    );
+}
+
+#[test]
+fn test_decode() {
+    assert_eq!(
+        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
+        &encode_position(
+            &decode_position(
+                "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p"
+            )
+            .expect("Failed to decode")
+        )
+    );
+    assert_eq!(
+        "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -",
+        &encode_position(
+            &decode_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -")
+                .expect("Failed to decode")
+        )
+    );
+    assert_eq!(
+        "3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p",
+        &encode_position(
+            &decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
+                .expect("Failed to decode")
+        )
+    );
+}
+
+fn decode_pos(s: &str) -> Result<Square> {
+    let cs: Vec<char> = s.chars().collect();
+    if cs.len() != 2 {
+        return err(s, "{} should have length 2");
+    }
+    for r in vec!['a', '1'] {
+        let col = (cs[0] as usize).wrapping_sub('1' as usize);
+        let row = (cs[1] as usize).wrapping_sub(r as usize);
+
+        if row < 9 && col < 9 {
+            return Ok(Square::new(col, row));
+        }
+    }
+    err(s, "Illegal pos")
+}
+
+fn decode_move(s: &str) -> Result<Movement> {
+    let cs: Vec<char> = s.chars().collect();
+    if cs.len() < 4 {
+        return err(s, "Move too short");
+    }
+    Ok(if cs[1] == '*' {
+        Movement::Drop(decode_pos(&s[2..])?, decode_hand_kind(cs[0])?.1)
+    } else {
+        let mut promote = false;
+        if cs.len() > 4 {
+            promote = true;
+            if cs[4] != '+' {
+                return err(s, "Invalid move");
+            }
+        }
+        Movement::Move {
+            from: decode_pos(&s[0..2])?,
+            to: decode_pos(&s[2..4])?,
+            promote,
+        }
+    })
+}
+
+// USI format defined in http://hgm.nubati.net/usi.html.
+// e.g. "4e3c+ P*3d 7g7f"
+// As an original extension, it also allows forms like "4533", which means "4e3c".
+pub fn decode_moves(sfen: &str) -> Result<Vec<Movement>> {
+    if sfen.is_empty() {
+        return Ok(vec![]);
+    }
+    sfen.split(' ').map(decode_move).collect()
+}
+
+#[test]
+fn test_decode_moves() {
+    assert_eq!(
+        vec![
+            Move {
+                from: Square::new(0, 5),
+                to: Square::new(4, 1),
+                promote: true,
+            },
+            Move {
+                from: Square::new(3, 0),
+                to: Square::new(4, 1),
+                promote: false,
+            },
+            Drop(Square::new(3, 1), Silver),
+        ],
+        decode_moves("1f5b+ 4a5b S*4b").unwrap()
+    );
+}
+
+extern crate percent_encoding;
+const FLAGMENT: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC.remove(b'-');
+fn to_url(sfen: &str) -> String {
+    let s = percent_encoding::utf8_percent_encode(sfen, FLAGMENT);
+    let s = format!("{}", s);
+    let t = percent_encoding::utf8_percent_encode(&s, FLAGMENT);
+    format!("http://sfenreader.appspot.com/sfen?sfen={}%201", t)
+}
+
+pub fn encode_position_url(board: &Position) -> String {
+    to_url(&encode_position(board))
+}
+
+#[test]
+fn test_encode_position_url() {
+    use pretty_assertions::assert_eq;
+
+    let board = decode_position(START).unwrap();
+    assert_eq!(encode_position_url(&board),
+    "http://sfenreader.appspot.com/sfen?sfen=lnsgkgsnl%252F1r5b1%252Fppppppppp%252F9%252F9%252F9%252FPPPPPPPPP%252F1B5R1%252FLNSGKGSNL%2520b%2520-%201");
+
+    let board = decode_position(RYUO).unwrap();
+    assert_eq!(encode_position_url(&board),
+    "http://sfenreader.appspot.com/sfen?sfen=8l%252F1l%252BR2P3%252Fp2pBG1pp%252Fkps1p4%252FNn1P2G2%252FP1P1P2PP%252F1PS6%252F1KSG3%252Br1%252FLN2%252Bp3L%2520w%2520Sbgn3p%201")
+}

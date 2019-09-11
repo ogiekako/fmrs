@@ -1,0 +1,110 @@
+use crate::piece::*;
+use crate::position::*;
+
+type Solution = Vec<Movement>;
+
+pub fn solve(board: &Position, size_limit: Option<usize>) -> Result<Vec<Solution>, String> {
+    if board.turn() != Black {
+        return Err("The turn should be from black".into());
+    }
+    if board.checked(White) {
+        return Err("on black's turn, white is already checked.".into());
+    }
+    Ok(solve_inner(board, size_limit))
+}
+
+use std::collections::{HashMap, VecDeque};
+
+fn solve_inner(board: &Position, limit: Option<usize>) -> Vec<Solution> {
+    debug_assert_ne!(board.turn() == Black, board.checked(White));
+
+    // position -> (min step, undo tokens)
+    let mut memo = HashMap::new();
+    memo.insert(board.clone(), (0, vec![]));
+    let mut queue = VecDeque::new();
+    queue.push_back((0, board.clone()));
+
+    let mut goal_step = None;
+    let mut goals = vec![];
+    while let Some((step, board)) = queue.pop_front() {
+        let n_step = step + 1;
+        debug_assert!(memo.get(&board).is_some());
+
+        if let Some(s) = goal_step {
+            if s < step {
+                break;
+            }
+        }
+
+        let mut movable = false;
+        for (np, token) in board.next_positions().unwrap() {
+            movable = true;
+            if goal_step.is_some() {
+                break;
+            }
+
+            if let Some((min_step, tokens)) = memo.get_mut(&np) {
+                if *min_step == n_step {
+                    tokens.push(token);
+                }
+                continue;
+            }
+            // TODO: Use RC to avoid cloning.
+            memo.insert(np.clone(), (n_step, vec![token]));
+            queue.push_back((n_step, np));
+        }
+        if !movable && board.turn() == White {
+            // Checkmate
+            goals.push(board);
+            goal_step = Some(step);
+        }
+    }
+    let mut res = vec![];
+    for mut g in goals.into_iter() {
+        update(&mut res, &mut vec![], &memo, &mut g, limit);
+    }
+    res
+}
+
+fn update(
+    res: &mut Vec<Solution>,
+    mut rev_sol: &mut Solution,
+    memo: &HashMap<Position, (usize, Vec<UndoToken>)>,
+    g: &mut Position,
+    limit: Option<usize>,
+) {
+    if let Some(lim) = limit {
+        if lim <= res.len() {
+            return;
+        }
+    }
+    let (step, toks) = memo.get(&g).unwrap();
+    if *step == 0 {
+        res.push(rev_sol.clone().into_iter().rev().collect());
+        return;
+    }
+    for tok in toks {
+        let mv = g.undo(tok);
+
+        rev_sol.push(mv);
+        update(res, &mut rev_sol, memo, g, limit);
+        let mv = rev_sol.pop().unwrap();
+
+        g.do_move(&mv);
+    }
+}
+
+#[test]
+fn test_solve() {
+    use crate::sfen;
+
+    for tc in vec![
+        ("3+pks3/9/4+P4/9/9/8B/9/9/9 b S2rb4g2s4n4l16p 1", vec!["1f5b+ 4a5b S*4b"]),
+    ] {
+        let board = sfen::decode_position(tc.0).expect("Failed to parse");
+        let want = Ok(tc.1.into_iter().map(|x|sfen::decode_moves(x).unwrap()).collect());
+        eprintln!("Solving {:?}", board);
+        let got = solve(&board, None);
+        assert_eq!(got, want);
+    }
+}
