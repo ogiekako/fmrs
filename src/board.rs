@@ -180,9 +180,15 @@ fn test_bitboard_subsets() {
     );
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Square {
     x: usize,
+}
+
+impl fmt::Debug for Square {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Square {}{}", self.col() + 1, self.row() + 1)
+    }
 }
 
 impl Square {

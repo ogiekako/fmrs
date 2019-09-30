@@ -293,7 +293,11 @@ fn test_decode() {
     );
 }
 
-fn decode_pos(s: &str) -> Result<Square> {
+fn encode_square(pos: Square) -> String {
+    format!("{}{}", pos.col() + 1, pos.row() + 1)
+}
+
+fn decode_square(s: &str) -> Result<Square> {
     let cs: Vec<char> = s.chars().collect();
     if cs.len() != 2 {
         return err(s, "{} should have length 2");
@@ -315,7 +319,7 @@ fn decode_move(s: &str) -> Result<Movement> {
         return err(s, "Move too short");
     }
     Ok(if cs[1] == '*' {
-        Movement::Drop(decode_pos(&s[2..])?, decode_hand_kind(cs[0])?.1)
+        Movement::Drop(decode_square(&s[2..])?, decode_hand_kind(cs[0])?.1)
     } else {
         let mut promote = false;
         if cs.len() > 4 {
@@ -325,8 +329,8 @@ fn decode_move(s: &str) -> Result<Movement> {
             }
         }
         Movement::Move {
-            from: decode_pos(&s[0..2])?,
-            to: decode_pos(&s[2..4])?,
+            from: decode_square(&s[0..2])?,
+            to: decode_square(&s[2..4])?,
             promote,
         }
     })
@@ -360,6 +364,18 @@ fn test_decode_moves() {
         ],
         decode_moves("1f5b+ 4a5b S*4b").unwrap()
     );
+}
+
+pub fn encode_move(m: &Movement) -> String {
+    match m {
+        &Drop(pos, k) => format!("{}*{}", encode_piece(Black, k), encode_square(pos)),
+        &Move { from, to, promote } => format!(
+            "{}{}{}",
+            encode_square(from),
+            encode_square(to),
+            if promote { "+" } else { "" }
+        ),
+    }
 }
 
 extern crate percent_encoding;

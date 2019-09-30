@@ -60,8 +60,7 @@ impl Hands {
     }
 }
 
-
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Movement {
     Drop(Square, Kind),
     Move {
@@ -71,6 +70,12 @@ pub enum Movement {
     },
 }
 pub use Movement::*;
+
+impl fmt::Debug for Movement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", sfen::encode_move(self))
+    }
+}
 
 pub enum UndoToken {
     UnDrop(Square),
@@ -232,7 +237,11 @@ impl Position {
     }
 
     #[inline]
-    fn attackers_to_with_king(&self, to: Square, c: Color) -> impl Iterator<Item = (Square, Kind)> + '_ {
+    fn attackers_to_with_king(
+        &self,
+        to: Square,
+        c: Color,
+    ) -> impl Iterator<Item = (Square, Kind)> + '_ {
         let occupied = self.occupied();
         Kind::iter().flat_map(move |k| {
             let b = movable_positions(occupied, to, c.opposite(), k) & self.piece_bb(c, k);
@@ -317,7 +326,11 @@ impl Position {
                         }
                     }
                     if k == King {
-                        if self.attackers_to_with_king(to, turn.opposite()).next().is_some() {
+                        if self
+                            .attackers_to_with_king(to, turn.opposite())
+                            .next()
+                            .is_some()
+                        {
                             return false;
                         }
                     }
@@ -342,7 +355,8 @@ impl Position {
                     continue;
                 }
                 let froms = self.piece_bb(Black, k);
-                let goal = (!self.color_bb[Black.index()]) & movable_positions(occu, king_pos, White, k);
+                let goal =
+                    (!self.color_bb[Black.index()]) & movable_positions(occu, king_pos, White, k);
                 for from in froms {
                     for to in goal & movable_positions(occu, from, Black, k) {
                         res.push((
@@ -431,6 +445,11 @@ impl Position {
             let mut hidden = BitBoard::new();
             for (pos, k) in attackers.iter() {
                 if k.is_line_piece() {
+                    if let Some(k) = k.unpromote() {
+                        if !attacks_from(*pos, Black, k).get(king_pos) {
+                            continue;
+                        }
+                    }
                     if let Some(p) = hidden_square(*pos, king_pos) {
                         hidden.set(p);
                     }
@@ -439,11 +458,14 @@ impl Position {
             let hidden = hidden;
             // Pin
             if attackers.len() == 1 && attackers[0].1.is_line_piece() {
-                let k = attackers[0].1.maybe_unpromote();
-                let pin_bb = movable_positions(occu, attackers[0].0, Black, k)
-                    & movable_positions(occu, king_pos, White, k);
-                for pin_pos in pin_bb {
-                    res.append(&mut self.movements_to(pin_pos, White));
+                let (pos, k) = attackers[0];
+                if let Some(mut pin_bb) =
+                    PIN[pos.index()][king_pos.index()][Black.index()][line_piece_index(k).unwrap()]
+                {
+                    pin_bb.unset(pos);
+                    for pin_pos in pin_bb {
+                        res.append(&mut self.movements_to(pin_pos, White));
+                    }
                 }
             }
             // Capture
@@ -482,7 +504,6 @@ impl Position {
     // Generate only valid sequence on tsume shogi.
     #[inline]
     pub fn next_positions(&self) -> Result<Vec<(Position, UndoToken)>, String> {
-        dbg!(self);
         Ok(self
             .move_candidates()?
             .iter()
@@ -607,44 +628,52 @@ fn test_pin() {
             }
         };
     );
-    let board = sfen::decode_position("3ll4/7B1/3Pp1p2/3+P5/4k4/4r4/3K2G+r1/4L4/8+B b 3g4s4nl14p 1").unwrap();
-    assert_eq!(board.pinned(board.king(Black).unwrap(), Black), map!{
-        Square::new(2, 6) => bitboard!{
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            "....****.",
-            ".........",
-            ".........",
+    let board =
+        sfen::decode_position("3ll4/7B1/3Pp1p2/3+P5/4k4/4r4/3K2G+r1/4L4/8+B b 3g4s4nl14p 1")
+            .unwrap();
+    assert_eq!(
+        board.pinned(board.king(Black).unwrap(), Black),
+        map! {
+            Square::new(2, 6) => bitboard!{
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                "....****.",
+                ".........",
+                ".........",
+            }
         }
-    });
-    assert_eq!(board.pinned(board.king(White).unwrap(), White), map!{
-        Square::new(4, 5) => bitboard!{
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            "....*....",
-            "....*....",
-            "....*....",
-            ".........",
-        },
-        Square::new(2, 2) => bitboard!{
-            ".........",
-            ".......*.",
-            "......*..",
-            ".....*...",
-            ".........",
-            ".........",
-            ".........",
-            ".........",
-            ".........",
+    );
+    assert_eq!(
+        board.pinned(board.king(White).unwrap(), White),
+        map! {
+            Square::new(4, 5) => bitboard!{
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                "....*....",
+                "....*....",
+                "....*....",
+                ".........",
+            },
+            Square::new(2, 2) => bitboard!{
+                ".........",
+                ".......*.",
+                "......*..",
+                ".....*...",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+            }
         }
-    });
+    );
 }
 
 #[test]
@@ -686,18 +715,15 @@ fn test_next_positions() {
             ],
         ),
         // White moves
-        (
-            "7lk/7nP/9/9/9/9/9/9/8K w 2R2B4G4S3N3L17P 1",
-            vec![
-                "1112"
-            ]
-        ),
+        ("7lk/7nP/9/9/9/9/9/9/8K w 2R2B4G4S3N3L17P 1", vec!["1112"]),
         (
             "9/9/6B2/5n3/2G1kn3/5n3/3K5/9/4L4 w 2RB3G4SN3L18P 1",
-            vec![
-                "4658+", "4557", "4557+"
-            ]
-        )
+            vec!["4658+", "4557", "4557+"],
+        ),
+        (
+            "9/9/9/3bkb3/5+R3/3+R5/9/9/9 w 4g4s4n4l18p 1",
+            vec!["5463", "5453", "5443", "5445"],
+        ),
     ] {
         let board = sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
         let mut got = board
@@ -720,7 +746,6 @@ fn test_next_positions() {
         assert_eq!(got, want);
     }
 }
-
 
 #[test]
 fn test_do_move_undo() {

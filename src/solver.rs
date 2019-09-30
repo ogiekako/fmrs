@@ -99,10 +99,31 @@ fn test_solve() {
     use crate::sfen;
 
     for tc in vec![
-        ("3+pks3/9/4+P4/9/9/8B/9/9/9 b S2rb4g2s4n4l16p 1", vec!["1f5b+ 4a5b S*4b"]),
+        (
+            "3+pks3/9/4+P4/9/9/8B/9/9/9 b S2rb4g2s4n4l16p 1",
+            vec!["1f5b+ 4a5b S*4b"],
+        ),
+        (
+            "9/9/9/3bkb3/9/3+R1+R3/9/9/9 b 4g4s4n4l18p 1",
+            vec!["4644 5463 4433 6354 B*63", "6664 5443 6473 4354 B*43"],
+        ),
+        (
+            "9/6b2/7k1/5b3/7sL/9/9/9/9 b Rr4g3s4n3l18p 1",
+            vec!["1513+ 2324 1323 2414 R*13"],
+        ),
+        // http://cavesfairy.g1.xrea.com/pub/qgfairy/
+        (
+            // 06-07
+            "9/9/9/9/7bb/1ppssssp1/K5k2/+RL1l1gg2/rL3gg1+l b 4N15P 1",
+            vec!["N*29 3829 P*38 3747 N*59 4859 P*48 4757 N*69 6869+ P*58 5767 P*68 6778 P*79 6979 8886 7877 P*78 7768 P*69 5969 7877 6867 P*68 6758 P*59 4959 6867 5857 P*58 5748 P*49 3949 5857 4847 P*48 4738 P*39 2939 4847 3837 P*38 3728 3837 3938 P*29 2817 P*18 1716 N*28 3828 1817 1627 2928 2737 G*38"]
+        ),
     ] {
         let board = sfen::decode_position(tc.0).expect("Failed to parse");
-        let want = Ok(tc.1.into_iter().map(|x|sfen::decode_moves(x).unwrap()).collect());
+        let want = Ok(tc
+            .1
+            .into_iter()
+            .map(|x| sfen::decode_moves(x).unwrap())
+            .collect());
         eprintln!("Solving {:?}", board);
         let got = solve(&board, None);
         assert_eq!(got, want);
