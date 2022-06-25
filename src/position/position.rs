@@ -1,65 +1,6 @@
 use crate::board::*;
 use crate::piece::*;
 
-// Hands represents hands of both side.
-// The number of pawns should be less than 256. (8 bits)
-// The number of other kinds should be less than 16. (4 bits)
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Ord, PartialOrd)]
-pub struct Hands {
-    // 0-7  : black pawn, 8-11 : black lance, 28-31: black rook
-    // 32-39: white pawn, 40-43: white lance, 60-63: white rook
-    x: u64,
-}
-
-impl Hands {
-    pub fn new() -> Hands {
-        Hands { x: 0 }
-    }
-    #[inline]
-    pub fn max_count(k: Kind) -> usize {
-        debug_assert!(k.is_hand_piece());
-        if k == Pawn {
-            255
-        } else {
-            15
-        }
-    }
-    #[inline]
-    fn shift_of(c: Color, k: Kind) -> usize {
-        let i = if k == Pawn { 0 } else { k.index() * 4 + 4 };
-        if c == Color::White {
-            i + 32
-        } else {
-            i
-        }
-    }
-    #[inline]
-    fn bit_of(c: Color, k: Kind) -> u64 {
-        1 << (Hands::shift_of(c, k) as u64)
-    }
-    #[inline]
-    pub fn count(&self, c: Color, k: Kind) -> usize {
-        debug_assert!(k.is_hand_piece());
-        (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
-    }
-    #[inline]
-    fn inc(&mut self, c: Color, k: Kind) {
-        debug_assert!(self.count(c, k) <= Hands::max_count(k));
-        self.x += Hands::bit_of(c, k);
-    }
-    #[inline]
-    fn dec(&mut self, c: Color, k: Kind) {
-        debug_assert!(self.count(c, k) > 0);
-        self.x -= Hands::bit_of(c, k);
-    }
-    #[inline]
-    fn kinds(self, c: Color) -> impl Iterator<Item = Kind> {
-        KINDS[0..NUM_HAND_KIND]
-            .iter()
-            .filter_map(move |&k| if self.count(c, k) > 0 { Some(k) } else { None })
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Movement {
     Drop(Square, Kind),
@@ -138,6 +79,8 @@ fn test_position_size() {
 
 use std::collections::HashMap;
 
+use super::hands::Hands;
+
 impl Position {
     pub fn new() -> Position {
         Position {
@@ -157,7 +100,7 @@ impl Position {
         &self.hands
     }
     pub fn inc_hands(&mut self, c: Color, k: Kind) {
-        self.hands.inc(c, k);
+        self.hands.add(c, k);
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         for c in Color::iter() {
@@ -520,7 +463,7 @@ impl Position {
         match m {
             Movement::Drop(pos, k) => {
                 let (pos, k) = (*pos, *k);
-                self.hands.dec(c, k);
+                self.hands.remove(c, k);
                 self.set(pos, c, k);
                 token = UnDrop(pos);
             }
@@ -534,7 +477,7 @@ impl Position {
                     for capt_k in Kind::iter() {
                         if self.kind_bb[capt_k.index()].get(to) {
                             self.unset(to, c.opposite(), capt_k);
-                            self.hands.inc(c, capt_k.maybe_unpromote());
+                            self.hands.add(c, capt_k.maybe_unpromote());
                             capture = Some(capt_k);
                             break;
                         }
@@ -569,7 +512,7 @@ impl Position {
                     .expect(&format!("{:?} doesn't contain any piece", pos));
                 debug_assert_eq!(prev_turn, c);
                 self.unset(pos, c, k);
-                self.hands.inc(c, k.maybe_unpromote());
+                self.hands.add(c, k.maybe_unpromote());
                 Movement::Drop(pos, k.maybe_unpromote())
             }
             &UnMove {
@@ -592,7 +535,7 @@ impl Position {
                 self.set(from, c, prev_k);
                 if let Some(captured_k) = capture {
                     self.set(to, c.opposite(), captured_k);
-                    self.hands.dec(c, captured_k.maybe_unpromote());
+                    self.hands.remove(c, captured_k.maybe_unpromote());
                 }
                 Movement::Move { from, to, promote }
             }
