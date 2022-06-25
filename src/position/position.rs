@@ -12,34 +12,6 @@ pub enum UndoToken {
     },
 }
 
-fn promotable(pos: Square, c: Color) -> bool {
-    match c {
-        Black => pos.row() < 3,
-        White => pos.row() >= 6,
-    }
-}
-
-fn add_move(moves: &mut Vec<(Movement, Kind)>, from: Square, to: Square, c: Color, k: Kind) {
-    moves.push((
-        Movement::Move {
-            from,
-            to,
-            promote: false,
-        },
-        k,
-    ));
-    if (promotable(from, c) || promotable(to, c)) && k.promote().is_some() {
-        moves.push((
-            Movement::Move {
-                from,
-                to,
-                promote: true,
-            },
-            k,
-        ))
-    }
-}
-
 #[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Position {
     kind_bb: [BitBoard; NUM_KIND],
@@ -577,6 +549,34 @@ impl Position {
         self.color_bb[c.index()].unset(pos);
         debug_assert!(self.kind_bb[k.index()].get(pos));
         self.kind_bb[k.index()].unset(pos);
+    }
+}
+
+fn promotable(pos: Square, c: Color) -> bool {
+    match c {
+        Black => pos.row() < 3,
+        White => pos.row() >= 6,
+    }
+}
+
+fn add_move(moves: &mut Vec<(Movement, Kind)>, from: Square, to: Square, c: Color, k: Kind) {
+    moves.push((
+        Movement::Move {
+            from,
+            to,
+            promote: false,
+        },
+        k,
+    ));
+    if (promotable(from, c) || promotable(to, c)) && k.promote().is_some() {
+        moves.push((
+            Movement::Move {
+                from,
+                to,
+                promote: true,
+            },
+            k,
+        ))
     }
 }
 
