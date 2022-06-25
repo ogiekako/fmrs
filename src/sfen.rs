@@ -6,12 +6,6 @@ use crate::board::*;
 use crate::piece::*;
 use crate::position::*;
 
-pub const START: &'static str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
-// The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
-pub const RYUO: &'static str =
-    "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
-// http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
-
 type Result<T> = std::result::Result<T, ParseError>;
 
 #[derive(Debug)]
@@ -314,7 +308,7 @@ fn decode_square(s: &str) -> Result<Square> {
     err(s, "Illegal pos")
 }
 
-fn decode_move(s: &str) -> Result<Movement> {
+pub fn decode_move(s: &str) -> Result<Movement> {
     let cs: Vec<char> = s.chars().collect();
     if cs.len() < 4 {
         return err(s, "Move too short");
@@ -347,30 +341,12 @@ pub fn decode_moves(sfen: &str) -> Result<Vec<Movement>> {
     sfen.split(' ').map(decode_move).collect()
 }
 
-#[test]
-fn test_decode_moves() {
-    assert_eq!(
-        vec![
-            Move {
-                from: Square::new(0, 5),
-                to: Square::new(4, 1),
-                promote: true,
-            },
-            Move {
-                from: Square::new(3, 0),
-                to: Square::new(4, 1),
-                promote: false,
-            },
-            Drop(Square::new(3, 1), Silver),
-        ],
-        decode_moves("1f5b+ 4a5b S*4b").unwrap()
-    );
-}
-
 pub fn encode_move(m: &Movement) -> String {
     match m {
-        &Drop(pos, k) => format!("{}*{}", encode_piece(Black, k), encode_square(pos)),
-        &Move { from, to, promote } => format!(
+        &Movement::Drop(pos, k) => {
+            format!("{}*{}", encode_piece(Color::Black, k), encode_square(pos))
+        }
+        &Movement::Move { from, to, promote } => format!(
             "{}{}{}",
             encode_square(from),
             encode_square(to),
@@ -379,28 +355,64 @@ pub fn encode_move(m: &Movement) -> String {
     }
 }
 
-extern crate percent_encoding;
-const FLAGMENT: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC.remove(b'-');
-fn to_url(sfen: &str) -> String {
-    let s = percent_encoding::utf8_percent_encode(sfen, FLAGMENT);
-    let s = format!("{}", s);
-    let t = percent_encoding::utf8_percent_encode(&s, FLAGMENT);
-    format!("http://sfenreader.appspot.com/sfen?sfen={}%201", t)
-}
+#[cfg(test)]
+pub mod tests {
+    use crate::{
+        board::Square,
+        piece::Kind,
+        position::{Movement, Position},
+    };
 
-pub fn encode_position_url(board: &Position) -> String {
-    to_url(&encode_position(board))
-}
+    use super::{decode_moves, decode_position, encode_position};
+    #[test]
+    fn test_decode_moves() {
+        assert_eq!(
+            vec![
+                Movement::Move {
+                    from: Square::new(0, 5),
+                    to: Square::new(4, 1),
+                    promote: true,
+                },
+                Movement::Move {
+                    from: Square::new(3, 0),
+                    to: Square::new(4, 1),
+                    promote: false,
+                },
+                Movement::Drop(Square::new(3, 1), Kind::Silver),
+            ],
+            decode_moves("1f5b+ 4a5b S*4b").unwrap()
+        );
+    }
 
-#[test]
-fn test_encode_position_url() {
-    use pretty_assertions::assert_eq;
+    extern crate percent_encoding;
+    const FLAGMENT: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC.remove(b'-');
+    fn to_url(sfen: &str) -> String {
+        let s = percent_encoding::utf8_percent_encode(sfen, FLAGMENT);
+        let s = format!("{}", s);
+        let t = percent_encoding::utf8_percent_encode(&s, FLAGMENT);
+        format!("http://sfenreader.appspot.com/sfen?sfen={}%201", t)
+    }
 
-    let board = decode_position(START).unwrap();
-    assert_eq!(encode_position_url(&board),
+    pub fn encode_position_url(board: &Position) -> String {
+        to_url(&encode_position(board))
+    }
+
+    pub const START: &'static str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
+    // The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
+    pub const RYUO: &'static str =
+        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
+    // http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
+
+    #[test]
+    fn test_encode_position_url() {
+        use pretty_assertions::assert_eq;
+
+        let board = decode_position(START).unwrap();
+        assert_eq!(encode_position_url(&board),
     "http://sfenreader.appspot.com/sfen?sfen=lnsgkgsnl%252F1r5b1%252Fppppppppp%252F9%252F9%252F9%252FPPPPPPPPP%252F1B5R1%252FLNSGKGSNL%2520b%2520-%201");
 
-    let board = decode_position(RYUO).unwrap();
-    assert_eq!(encode_position_url(&board),
+        let board = decode_position(RYUO).unwrap();
+        assert_eq!(encode_position_url(&board),
     "http://sfenreader.appspot.com/sfen?sfen=8l%252F1l%252BR2P3%252Fp2pBG1pp%252Fkps1p4%252FNn1P2G2%252FP1P1P2PP%252F1PS6%252F1KSG3%252Br1%252FLN2%252Bp3L%2520w%2520Sbgn3p%201")
+    }
 }

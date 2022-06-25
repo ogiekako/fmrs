@@ -69,7 +69,6 @@ pub enum Movement {
         promote: bool,
     },
 }
-pub use Movement::*;
 
 impl fmt::Debug for Movement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -87,7 +86,6 @@ pub enum UndoToken {
     },
 }
 
-#[inline]
 fn promotable(pos: Square, c: Color) -> bool {
     match c {
         Black => pos.row() < 3,
@@ -95,10 +93,9 @@ fn promotable(pos: Square, c: Color) -> bool {
     }
 }
 
-#[inline]
 fn add_move(moves: &mut Vec<(Movement, Kind)>, from: Square, to: Square, c: Color, k: Kind) {
     moves.push((
-        Move {
+        Movement::Move {
             from,
             to,
             promote: false,
@@ -107,7 +104,7 @@ fn add_move(moves: &mut Vec<(Movement, Kind)>, from: Square, to: Square, c: Colo
     ));
     if (promotable(from, c) || promotable(to, c)) && k.promote().is_some() {
         moves.push((
-            Move {
+            Movement::Move {
                 from,
                 to,
                 promote: true,
@@ -129,7 +126,7 @@ use crate::sfen;
 use std::fmt;
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", sfen::encode_position_url(self))
+        write!(f, "{}", sfen::encode_position(self))
     }
 }
 
@@ -209,9 +206,9 @@ impl Position {
         let mut res = vec![];
         // Drop
         for k in self.hands.kinds(c) {
-            res.push((Drop(to, k), k));
+            res.push((Movement::Drop(to, k), k));
         }
-        // Move
+        // Movement::Move
         for k in Kind::iter() {
             if k == King {
                 continue;
@@ -287,7 +284,7 @@ impl Position {
         let pinned = self.king(turn).map(|king_pos| self.pinned(king_pos, turn));
         let is_allowed = |m: &Movement, k: Kind| -> bool {
             match m {
-                Drop(pos, k2) => {
+                Movement::Drop(pos, k2) => {
                     debug_assert_eq!(k, *k2);
                     let pos = *pos;
                     if !movable(pos, turn, k) {
@@ -310,7 +307,7 @@ impl Position {
                         }
                     }
                 }
-                Move { from, to, promote } => {
+                Movement::Move { from, to, promote } => {
                     let (to, from, promote) = (*to, *from, *promote);
                     if !promote && !movable(to, turn, k) {
                         return false;
@@ -345,10 +342,10 @@ impl Position {
             // Drop
             for k in self.hands.kinds(turn) {
                 for pos in (!occu) & (movable_positions(occu, king_pos, White, k)) {
-                    res.push((Drop(pos, k), k));
+                    res.push((Movement::Drop(pos, k), k));
                 }
             }
-            // Move
+            // Movement::Move
             // Direct attack
             for k in Kind::iter() {
                 if k == King {
@@ -360,7 +357,7 @@ impl Position {
                 for from in froms {
                     for to in goal & movable_positions(occu, from, Black, k) {
                         res.push((
-                            Move {
+                            Movement::Move {
                                 from,
                                 to,
                                 promote: false,
@@ -375,7 +372,7 @@ impl Position {
                         for to in goal & movable_positions(occu, from, Black, k) {
                             if promotable(from, Black) || promotable(to, Black) {
                                 res.push((
-                                    Move {
+                                    Movement::Move {
                                         from,
                                         to,
                                         promote: true,
@@ -482,7 +479,7 @@ impl Position {
                     continue;
                 }
                 res.push((
-                    Move {
+                    Movement::Move {
                         from: king_pos,
                         to: pos,
                         promote: false,
@@ -521,13 +518,13 @@ impl Position {
         let c = self.turn;
         let token;
         match m {
-            Drop(pos, k) => {
+            Movement::Drop(pos, k) => {
                 let (pos, k) = (*pos, *k);
                 self.hands.dec(c, k);
                 self.set(pos, c, k);
                 token = UnDrop(pos);
             }
-            Move { from, to, promote } => {
+            Movement::Move { from, to, promote } => {
                 let (from, to, promote) = (*from, *to, *promote);
                 // TODO: return error instead of unwrapping.
                 let k = self.kind(from).unwrap();
@@ -573,7 +570,7 @@ impl Position {
                 debug_assert_eq!(prev_turn, c);
                 self.unset(pos, c, k);
                 self.hands.inc(c, k.maybe_unpromote());
-                Drop(pos, k.maybe_unpromote())
+                Movement::Drop(pos, k.maybe_unpromote())
             }
             &UnMove {
                 from,
@@ -597,7 +594,7 @@ impl Position {
                     self.set(to, c.opposite(), captured_k);
                     self.hands.dec(c, captured_k.maybe_unpromote());
                 }
-                Move { from, to, promote }
+                Movement::Move { from, to, promote }
             }
         }
     }
@@ -612,178 +609,6 @@ impl Position {
         self.color_bb[c.index()].unset(pos);
         debug_assert!(self.kind_bb[k.index()].get(pos));
         self.kind_bb[k.index()].unset(pos);
-    }
-}
-
-#[test]
-fn test_pin() {
-    macro_rules! map(
-        { $($key:expr => $value:expr),* } => {
-            {
-                let mut m = ::std::collections::HashMap::new();
-                $(
-                    m.insert($key, $value);
-                )*
-                m
-            }
-        };
-    );
-    let board =
-        sfen::decode_position("3ll4/7B1/3Pp1p2/3+P5/4k4/4r4/3K2G+r1/4L4/8+B b 3g4s4nl14p 1")
-            .unwrap();
-    assert_eq!(
-        board.pinned(board.king(Black).unwrap(), Black),
-        map! {
-            Square::new(2, 6) => bitboard!{
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-                "....****.",
-                ".........",
-                ".........",
-            }
-        }
-    );
-    assert_eq!(
-        board.pinned(board.king(White).unwrap(), White),
-        map! {
-            Square::new(4, 5) => bitboard!{
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-                "....*....",
-                "....*....",
-                "....*....",
-                ".........",
-            },
-            Square::new(2, 2) => bitboard!{
-                ".........",
-                ".......*.",
-                "......*..",
-                ".....*...",
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-                ".........",
-            }
-        }
-    );
-}
-
-#[test]
-fn test_next_positions() {
-    use crate::sfen;
-    use pretty_assertions::assert_eq;
-    for tc in vec![
-        // Black moves
-        (
-            "8k/9/9/9/9/9/9/9/9 b P2r2b4g4s4n4l17p 1",
-            // Drop pawn
-            vec!["P*12"],
-        ),
-        (
-            "9/9/5lp2/5lk2/5l3/9/5N3/7L1/9 b P2r2b4g4s3n16p 1",
-            // Drop pawn mate
-            vec![],
-        ),
-        (
-            "8k/9/8K/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1",
-            // King cannot attack
-            vec![],
-        ),
-        (
-            "4R4/9/4P4/9/4k1P1R/9/2N1s4/1B7/4L4 b b4g3s3n3l16p 1",
-            // Discovered attacks
-            vec!["7785", "7765", "5957", "3534"],
-        ),
-        (
-            "9/8k/9/9/9/8N/9/9/8L b 2r2b4g4s3n3l18p 1",
-            // Double check should not be counted twice.
-            vec!["1624"],
-        ),
-        (
-            "9/1P5B1/2SS2P2/5N3/+RL2k4/9/3pK1G+r1/9/4L3+B b N3g2s2n2l15p 1",
-            vec![
-                "8e8d", "8e8c", "8e8c+", "7c6d", "6c5d+", "N*47", "3747", "3727", "5767", "5747",
-                "5748",
-            ],
-        ),
-        // White moves
-        ("7lk/7nP/9/9/9/9/9/9/8K w 2R2B4G4S3N3L17P 1", vec!["1112"]),
-        (
-            "9/9/6B2/5n3/2G1kn3/5n3/3K5/9/4L4 w 2RB3G4SN3L18P 1",
-            vec!["4658+", "4557", "4557+"],
-        ),
-        (
-            "9/9/9/3bkb3/5+R3/3+R5/9/9/9 w 4g4s4n4l18p 1",
-            vec!["5463", "5453", "5443", "5445"],
-        ),
-    ] {
-        let board = sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
-        let mut got = board
-            .next_positions()
-            .expect("Failed to get next positions")
-            .into_iter()
-            .map(|x| x.0)
-            .collect::<Vec<Position>>();
-        got.sort();
-        let mut want = sfen::decode_moves(&tc.1.join(" "))
-            .unwrap()
-            .iter()
-            .map(|m| {
-                let mut b = board.clone();
-                b.do_move(m);
-                b
-            })
-            .collect::<Vec<Position>>();
-        want.sort();
-        assert_eq!(got, want);
-    }
-}
-
-#[test]
-fn test_do_move_undo() {
-    use crate::sfen;
-    for tc in vec![
-        (
-            sfen::START,
-            Move {
-                from: Square::new(1, 6),
-                to: Square::new(1, 5),
-                promote: false,
-            },
-            "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -",
-        ),
-        (
-            sfen::RYUO,
-            Drop(Square::new(2, 0), Pawn),
-            "6p1l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L b Sbgn2p",
-        ),
-        (
-            sfen::RYUO,
-            // Capture and promote.
-            Move {
-                from: Square::new(7, 4),
-                to: Square::new(6, 6),
-                promote: true,
-            },
-            "8l/1l+R2P3/p2pBG1pp/kps1p4/N2P2G2/P1P1P2PP/1P+n6/1KSG3+r1/LN2+p3L b Sbgsn3p",
-        ),
-    ] {
-        let (board_sfen, movement, want) = (tc.0, tc.1, tc.2);
-        let mut board = sfen::decode_position(board_sfen).unwrap();
-        let token = board.do_move(&movement);
-        assert_eq!(want, sfen::encode_position(&board));
-        let m = board.undo(&token);
-        assert_eq!(board_sfen, sfen::encode_position(&board));
-        board.do_move(&m);
-        assert_eq!(want, sfen::encode_position(&board));
     }
 }
 
@@ -855,4 +680,185 @@ lazy_static! {
         }
         res
     };
+}
+
+mod tests {
+    use crate::{
+        board::Square,
+        piece::{Color, Kind},
+        position::{Movement, Position},
+        sfen,
+    };
+
+    #[test]
+    fn test_pin() {
+        macro_rules! map(
+        { $($key:expr => $value:expr),* } => {
+            {
+                let mut m = ::std::collections::HashMap::new();
+                $(
+                    m.insert($key, $value);
+                )*
+                m
+            }
+        };
+    );
+        let board =
+            sfen::decode_position("3ll4/7B1/3Pp1p2/3+P5/4k4/4r4/3K2G+r1/4L4/8+B b 3g4s4nl14p 1")
+                .unwrap();
+        assert_eq!(
+            board.pinned(board.king(Color::Black).unwrap(), Color::Black),
+            map! {
+                Square::new(2, 6) => bitboard!{
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                    "....****.",
+                    ".........",
+                    ".........",
+                }
+            }
+        );
+        assert_eq!(
+            board.pinned(board.king(Color::White).unwrap(), Color::White),
+            map! {
+                Square::new(4, 5) => bitboard!{
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                    "....*....",
+                    "....*....",
+                    "....*....",
+                    ".........",
+                },
+                Square::new(2, 2) => bitboard!{
+                    ".........",
+                    ".......*.",
+                    "......*..",
+                    ".....*...",
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                    ".........",
+                }
+            }
+        );
+    }
+
+    #[test]
+    fn test_next_positions() {
+        use crate::sfen;
+        use pretty_assertions::assert_eq;
+        for tc in vec![
+            // Black moves
+            (
+                "8k/9/9/9/9/9/9/9/9 b P2r2b4g4s4n4l17p 1",
+                // Drop pawn
+                vec!["P*12"],
+            ),
+            (
+                "9/9/5lp2/5lk2/5l3/9/5N3/7L1/9 b P2r2b4g4s3n16p 1",
+                // Drop pawn mate
+                vec![],
+            ),
+            (
+                "8k/9/8K/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1",
+                // King cannot attack
+                vec![],
+            ),
+            (
+                "4R4/9/4P4/9/4k1P1R/9/2N1s4/1B7/4L4 b b4g3s3n3l16p 1",
+                // Discovered attacks
+                vec!["7785", "7765", "5957", "3534"],
+            ),
+            (
+                "9/8k/9/9/9/8N/9/9/8L b 2r2b4g4s3n3l18p 1",
+                // Double check should not be counted twice.
+                vec!["1624"],
+            ),
+            (
+                "9/1P5B1/2SS2P2/5N3/+RL2k4/9/3pK1G+r1/9/4L3+B b N3g2s2n2l15p 1",
+                vec![
+                    "8e8d", "8e8c", "8e8c+", "7c6d", "6c5d+", "N*47", "3747", "3727", "5767",
+                    "5747", "5748",
+                ],
+            ),
+            // White moves
+            ("7lk/7nP/9/9/9/9/9/9/8K w 2R2B4G4S3N3L17P 1", vec!["1112"]),
+            (
+                "9/9/6B2/5n3/2G1kn3/5n3/3K5/9/4L4 w 2RB3G4SN3L18P 1",
+                vec!["4658+", "4557", "4557+"],
+            ),
+            (
+                "9/9/9/3bkb3/5+R3/3+R5/9/9/9 w 4g4s4n4l18p 1",
+                vec!["5463", "5453", "5443", "5445"],
+            ),
+        ] {
+            let board = sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
+            let mut got = board
+                .next_positions()
+                .expect("Failed to get next positions")
+                .into_iter()
+                .map(|x| x.0)
+                .collect::<Vec<Position>>();
+            got.sort();
+            let mut want = sfen::decode_moves(&tc.1.join(" "))
+                .unwrap()
+                .iter()
+                .map(|m| {
+                    let mut b = board.clone();
+                    b.do_move(m);
+                    b
+                })
+                .collect::<Vec<Position>>();
+            want.sort();
+            assert_eq!(got, want);
+        }
+    }
+
+    #[test]
+    fn test_do_move_undo() {
+        use crate::sfen;
+        for tc in vec![
+            (
+                sfen::tests::START,
+                Movement::Move {
+                    from: Square::new(1, 6),
+                    to: Square::new(1, 5),
+                    promote: false,
+                },
+                "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -",
+            ),
+            (
+                sfen::tests::RYUO,
+                Movement::Drop(Square::new(2, 0), Kind::Pawn),
+                "6p1l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L b Sbgn2p",
+            ),
+            (
+                sfen::tests::RYUO,
+                // Capture and promote.
+                Movement::Move {
+                    from: Square::new(7, 4),
+                    to: Square::new(6, 6),
+                    promote: true,
+                },
+                "8l/1l+R2P3/p2pBG1pp/kps1p4/N2P2G2/P1P1P2PP/1P+n6/1KSG3+r1/LN2+p3L b Sbgsn3p",
+            ),
+        ] {
+            let (board_sfen, movement, want) = (tc.0, tc.1, tc.2);
+            let mut board = sfen::decode_position(board_sfen).unwrap();
+            let token = board.do_move(&movement);
+            assert_eq!(want, sfen::encode_position(&board));
+            let m = board.undo(&token);
+            assert_eq!(board_sfen, sfen::encode_position(&board));
+            board.do_move(&m);
+            assert_eq!(want, sfen::encode_position(&board));
+        }
+    }
 }
