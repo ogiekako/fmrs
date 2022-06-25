@@ -1,4 +1,6 @@
-use crate::{board::Square, piece::Kind, sfen};
+use crate::{piece::Kind, sfen};
+
+use super::Square;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Movement {

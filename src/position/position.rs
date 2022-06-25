@@ -1,4 +1,3 @@
-use crate::board::*;
 use crate::piece::*;
 
 pub enum UndoToken {
@@ -37,8 +36,10 @@ impl fmt::Debug for Position {
 
 use std::collections::HashMap;
 
+use super::bitboard::BitBoard;
 use super::hands::Hands;
 use super::Movement;
+use super::Square;
 
 impl Position {
     pub fn new() -> Position {
@@ -119,7 +120,9 @@ impl Position {
             if k == King {
                 continue;
             }
-            for from in movable_positions(occupied, to, c.opposite(), k) & self.piece_bb(c, k) {
+            for from in super::bitboard::movable_positions(occupied, to, c.opposite(), k)
+                & self.piece_bb(c, k)
+            {
                 add_move(&mut res, from, to, c, k);
             }
         }
@@ -132,7 +135,8 @@ impl Position {
             let b = if k == King {
                 BitBoard::new()
             } else {
-                movable_positions(occupied, to, c.opposite(), k) & self.piece_bb(c, k)
+                super::bitboard::movable_positions(occupied, to, c.opposite(), k)
+                    & self.piece_bb(c, k)
             };
             b.map(move |from| (from, k))
         })
@@ -146,7 +150,8 @@ impl Position {
     ) -> impl Iterator<Item = (Square, Kind)> + '_ {
         let occupied = self.occupied();
         Kind::iter().flat_map(move |k| {
-            let b = movable_positions(occupied, to, c.opposite(), k) & self.piece_bb(c, k);
+            let b = super::bitboard::movable_positions(occupied, to, c.opposite(), k)
+                & self.piece_bb(c, k);
             b.map(move |from| (from, k))
         })
     }
@@ -257,7 +262,9 @@ impl Position {
         if turn == Black {
             // Drop
             for k in self.hands.kinds(turn) {
-                for pos in (!occu) & (movable_positions(occu, white_king_pos, White, k)) {
+                for pos in
+                    (!occu) & (super::bitboard::movable_positions(occu, white_king_pos, White, k))
+                {
                     res.push((Movement::Drop(pos, k), k));
                 }
             }
@@ -269,9 +276,9 @@ impl Position {
                 }
                 let froms = self.piece_bb(Black, k);
                 let goal = (!self.color_bb[Black.index()])
-                    & movable_positions(occu, white_king_pos, White, k);
+                    & super::bitboard::movable_positions(occu, white_king_pos, White, k);
                 for from in froms {
-                    for to in goal & movable_positions(occu, from, Black, k) {
+                    for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
                         res.push((
                             Movement::Move {
                                 from,
@@ -285,7 +292,7 @@ impl Position {
                 // promote
                 if let Some(k) = k.unpromote() {
                     for from in self.piece_bb(Black, k) {
-                        for to in goal & movable_positions(occu, from, Black, k) {
+                        for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
                             if promotable(from, Black) || promotable(to, Black) {
                                 res.push((
                                     Movement::Move {
@@ -307,24 +314,26 @@ impl Position {
                 if k != Lance {
                     attacker_cands |= self.piece_bb(Black, k.promote().unwrap());
                 }
-                attacker_cands &= attacks_from(white_king_pos, White, k);
+                attacker_cands &= super::bitboard::attacks_from(white_king_pos, White, k);
                 if attacker_cands.is_empty() {
                     continue;
                 }
                 let blocker_cands = self.color_bb[Black.index()]
-                    & movable_positions(occu, white_king_pos, White, k);
+                    & super::bitboard::movable_positions(occu, white_king_pos, White, k);
                 if blocker_cands.is_empty() {
                     continue;
                 }
                 for attacker in attacker_cands {
                     if let Some(from) =
-                        (movable_positions(occu, attacker, Black, k) & blocker_cands).next()
+                        (super::bitboard::movable_positions(occu, attacker, Black, k)
+                            & blocker_cands)
+                            .next()
                     {
                         let from_k = self.kind(from).unwrap();
-                        for to in (!(attacks_from(white_king_pos, White, k)
-                            & attacks_from(attacker, Black, k)))
+                        for to in (!(super::bitboard::attacks_from(white_king_pos, White, k)
+                            & super::bitboard::attacks_from(attacker, Black, k)))
                             & ((!self.color_bb[Black.index()])
-                                & movable_positions(occu, from, Black, from_k))
+                                & super::bitboard::movable_positions(occu, from, Black, from_k))
                         {
                             add_move(&mut res, from, to, Black, from_k);
                         }
@@ -384,7 +393,7 @@ impl Position {
         for (pos, k) in attackers.iter() {
             if k.is_line_piece() {
                 if let Some(k) = k.unpromote() {
-                    if !attacks_from(*pos, turn.opposite(), k).get(king_pos) {
+                    if !super::bitboard::attacks_from(*pos, turn.opposite(), k).get(king_pos) {
                         continue;
                     }
                 }
@@ -413,7 +422,7 @@ impl Position {
             }
         }
         // King move
-        for pos in movable_positions(self.occupied(), king_pos, turn, King)
+        for pos in super::bitboard::movable_positions(self.occupied(), king_pos, turn, King)
             & (!self.color_bb[turn.index()])
         {
             if hidden.get(pos) {
@@ -619,11 +628,11 @@ lazy_static! {
 
                 for c in Color::iter() {
                     for k in [Lance, Bishop, Rook].iter().map(|k|*k) {
-                        let a = attacks_from(from, c, k);
+                        let a = super::bitboard::attacks_from(from, c, k);
                         if !a.get(to) {
                             continue;
                         }
-                        let mut mask = attacks_from(to, c.opposite(), k) & a & bounding;
+                        let mut mask = super::bitboard::attacks_from(to, c.opposite(), k) & a & bounding;
                         if !mask.is_empty() {
                             mask.set(from);
                             res[from.index()][to.index()][c.index()][line_piece_index(k).unwrap()]
@@ -642,7 +651,7 @@ lazy_static! {
         for k in Kind::iter() {
             for c in Color::iter() {
                 for pos in Square::iter() {
-                    res[pos.index()][c.index()][k.index()] = !attacks_from(pos, c, k).is_empty();
+                    res[pos.index()][c.index()][k.index()] = !super::bitboard::attacks_from(pos, c, k).is_empty();
                 }
             }
         }
@@ -653,9 +662,8 @@ lazy_static! {
 #[cfg(test)]
 mod tests {
     use crate::{
-        board::Square,
         piece::{Color, Kind},
-        position::{Movement, Position},
+        position::{bitboard, Movement, Position, Square},
         sfen,
     };
 

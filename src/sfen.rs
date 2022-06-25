@@ -2,7 +2,6 @@
 /// https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
 /// Use https://sfenreader.appspot.com/ja/create_board.html to a convert Shogi
 /// board to an SFEN and vice versa.
-use crate::board::*;
 use crate::piece::*;
 use crate::position::*;
 
@@ -63,7 +62,7 @@ fn decode_hand_kind(ch: char) -> Result<(Color, Kind)> {
 pub fn encode_position(board: &Position) -> String {
     let mut res = String::new();
     for row in 0..9 {
-        let mut count_empty = 0;
+        let mut count_empty = 0i32;
         for col in (0..9).rev() {
             if let Some((c, k)) = board.get(Square::new(col, row)) {
                 if count_empty > 0 {
@@ -358,8 +357,8 @@ pub fn encode_move(m: &Movement) -> String {
 #[cfg(test)]
 pub mod tests {
     use crate::{
-        board::Square,
         piece::Kind,
+        position::Square,
         position::{Movement, Position},
     };
 

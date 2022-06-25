@@ -14,7 +14,6 @@ pub struct BitBoard {
 }
 
 #[cfg(test)]
-#[macro_export]
 macro_rules! bitboard {
     ($($x:expr,)*) => {
         {
@@ -22,7 +21,7 @@ macro_rules! bitboard {
             if v.len() != 9 {
                 panic!("Exactly 9 elements should be given.");
             }
-            let mut res = crate::board::BitBoard::new();
+            let mut res = crate::position::bitboard::BitBoard::new();
             for i in 0..9 {
                 if v[i].len() != 9 {
                     panic!("v[{}] = {:?} should contain exactly 9 characters.", i, v[i]);
@@ -180,56 +179,6 @@ fn test_bitboard_subsets() {
     );
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Square {
-    x: usize,
-}
-
-impl fmt::Debug for Square {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Square {}{}", self.col() + 1, self.row() + 1)
-    }
-}
-
-impl Square {
-    #[inline]
-    pub fn new(col: usize, row: usize) -> Square {
-        debug_assert!(col < 9);
-        debug_assert!(row < 9);
-        Square::from_index(col * 9 + row)
-    }
-    #[inline]
-    pub fn from_index(x: usize) -> Square {
-        debug_assert!(x < 81);
-        Square { x }
-    }
-    #[inline]
-    pub fn index(&self) -> usize {
-        self.x as usize
-    }
-    #[inline]
-    pub fn col(&self) -> usize {
-        self.x / 9
-    }
-    #[inline]
-    pub fn row(&self) -> usize {
-        self.x % 9
-    }
-    #[inline]
-    pub fn iter() -> impl Iterator<Item = Square> {
-        (0..81).map(|i| Square::from_index(i))
-    }
-    #[inline]
-    pub fn add(&self, col: isize, row: isize) -> Option<Square> {
-        let (c, r) = (self.col() as isize + col, self.row() as isize + row);
-        if 0 <= c && c < 9 && 0 <= r && r < 9 {
-            Some(Square::new(c as usize, r as usize))
-        } else {
-            None
-        }
-    }
-}
-
 use crate::piece::*;
 
 // Movable positions assuming occupied are opponent's pieces.
@@ -343,6 +292,8 @@ fn rook_magics() -> Result<[Magic; 81], String> {
 }
 
 use crate::rand::{Rng, SeedableRng};
+
+use super::Square;
 fn magic(pos: Square, mask: BitBoard, dirs: Vec<(isize, isize)>) -> Magic {
     let n = mask.x.count_ones() as usize;
     let nn = 1 << n;

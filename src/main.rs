@@ -4,8 +4,6 @@ extern crate arr_macro;
 extern crate rand;
 extern crate serde;
 
-#[macro_use]
-pub mod board;
 pub mod piece;
 pub mod position;
 pub mod sfen;
