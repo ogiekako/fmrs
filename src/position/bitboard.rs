@@ -230,10 +230,7 @@ lazy_static! {
     static ref ROOK_MAGIC: [Magic; 81] = rook_magics().expect("Failed to compute rook magic");
 }
 
-use std::fs;
-
-fn load_magics(filepath: &str) -> Result<[Magic; 81], String> {
-    let contents = fs::read(filepath).map_err(|err| err.to_string())?;
+fn deserialize_magic(contents: &[u8]) -> Result<[Magic; 81], String> {
     let v: Vec<Magic> = bincode::deserialize(&contents).map_err(|err| err.to_string())?;
     let mut res = arr![Magic::zero(); 81];
     if v.len() != res.len() {
@@ -249,15 +246,8 @@ fn load_magics(filepath: &str) -> Result<[Magic; 81], String> {
     Ok(res)
 }
 
-fn save_magics(filepath: &str, magics: &[Magic; 81]) -> Result<(), String> {
-    let v = magics.to_vec();
-    let contents = bincode::serialize(&v).map_err(|err| err.to_string())?;
-    fs::write(filepath, contents).map_err(|err| err.to_string())
-}
-
 fn bishop_magics() -> Result<[Magic; 81], String> {
-    let filename = "bishop_magic.bin";
-    match load_magics(filename) {
+    match deserialize_magic(include_bytes!("data/bishop_magic.bin")) {
         Ok(x) => return Ok(x),
         Err(x) => {
             eprintln!("Generating bishop magic: failed to load magic file: {}", x);
@@ -267,15 +257,11 @@ fn bishop_magics() -> Result<[Magic; 81], String> {
     for pos in Square::iter() {
         res[pos.index()] = bishop_magic(pos);
     }
-    if let Err(err) = save_magics(filename, &res) {
-        eprintln!("Failed to save magic to {:?}: {}", filename, err);
-    }
     Ok(res)
 }
 
 fn rook_magics() -> Result<[Magic; 81], String> {
-    let filename = "rook_magic.bin";
-    match load_magics(filename) {
+    match deserialize_magic(include_bytes!("data/rook_magic.bin")) {
         Ok(x) => return Ok(x),
         Err(x) => {
             eprintln!("Generating rook magic: failed to load magic file: {}", x);
@@ -284,9 +270,6 @@ fn rook_magics() -> Result<[Magic; 81], String> {
     let mut res = arr![Magic::zero(); 81];
     for pos in Square::iter() {
         res[pos.index()] = rook_magic(pos);
-    }
-    if let Err(err) = save_magics(filename, &res) {
-        eprintln!("Failed to save magic to {:?}: {}", filename, err);
     }
     Ok(res)
 }
