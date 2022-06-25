@@ -48,10 +48,16 @@ fn solve_inner(board: &Position, solutions_upto: Option<usize>) -> Vec<Solution>
         let n_step = step + 1;
         debug_assert!(memo.get(&hash(&board)).is_some());
 
-        if n_step > current_step {
+        if let Some(s) = goal_step {
+            if s < step {
+                break;
+            }
+        }
+
+        if step > current_step {
             eprintln!(
                 "step {}, queue len = {}, hash len = {}({}), deadend = {}({})",
-                n_step,
+                step,
                 pretty(queue.len() * std::mem::size_of::<Position>()),
                 memo.len(),
                 pretty(
@@ -61,13 +67,7 @@ fn solve_inner(board: &Position, solutions_upto: Option<usize>) -> Vec<Solution>
                 dead_end.len(),
                 pretty(dead_end.len() * std::mem::size_of::<u64>()),
             );
-            current_step = n_step;
-        }
-
-        if let Some(s) = goal_step {
-            if s < step {
-                break;
-            }
+            current_step = step;
         }
 
         let mut movable = false;
