@@ -1,6 +1,6 @@
 use crate::{board::Square, piece::Kind, sfen};
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Movement {
     Drop(Square, Kind),
     Move {

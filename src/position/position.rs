@@ -1,7 +1,6 @@
 use crate::board::*;
 use crate::piece::*;
 
-
 pub enum UndoToken {
     UnDrop(Square),
     UnMove {
@@ -48,6 +47,12 @@ pub struct Position {
     turn: Color,
 }
 
+#[test]
+fn test_position_size() {
+    // 272 bytes.
+    assert_eq!(272, std::mem::size_of::<Position>());
+}
+
 use crate::sfen;
 use std::fmt;
 impl fmt::Debug for Position {
@@ -56,16 +61,10 @@ impl fmt::Debug for Position {
     }
 }
 
-#[test]
-fn test_position_size() {
-    // 272 bytes.
-    assert_eq!(272, std::mem::size_of::<Position>());
-}
-
 use std::collections::HashMap;
 
-use super::Movement;
 use super::hands::Hands;
+use super::Movement;
 
 impl Position {
     pub fn new() -> Position {
@@ -149,7 +148,6 @@ impl Position {
         res
     }
     // Attackers with the given color to the given position, excluding king's movement.
-    #[inline]
     fn attackers_to(&self, to: Square, c: Color) -> impl Iterator<Item = (Square, Kind)> + '_ {
         let occupied = self.occupied();
         Kind::iter().flat_map(move |k| {
@@ -207,15 +205,38 @@ impl Position {
     // Generate check/uncheck moves checking illegality (two pawns, drop pawn mate, unmovable piece, self check).
     fn move_candidates(&self) -> Result<Vec<Movement>, String> {
         let occu = self.occupied();
-        let king_pos = self.king(White).ok_or("White king not found".to_owned())?;
+        let white_king_pos = self.king(White).ok_or("White king not found".to_owned())?;
 
         let turn = self.turn;
         let pinned = self.king(turn).map(|king_pos| self.pinned(king_pos, turn));
-        let is_allowed = |m: &Movement, k: Kind| -> bool {
+
+        // If black king is checked, it must be stopped.
+        let black_attack_prevent_moves = {
+            let mut black_attack_prevent_moves = None;
+            if turn == Black {
+                if let Some(black_king_pos) = self.king(Black) {
+                    let attackers: Vec<_> = self.attackers_to(black_king_pos, White).collect();
+                    if !attackers.is_empty() {
+                        let mut moves = self
+                            .generate_attack_prevent_moves(Black, black_king_pos, attackers)
+                            .unwrap();
+                        moves.sort();
+                        black_attack_prevent_moves = Some(moves);
+                    }
+                }
+            }
+            black_attack_prevent_moves
+        };
+
+        let is_allowed = |m: Movement, k: Kind| -> bool {
+            if let Some(allowed_moves) = &black_attack_prevent_moves {
+                if allowed_moves.binary_search(&(m.clone(), k)).is_err() {
+                    return false;
+                }
+            }
             match m {
                 Movement::Drop(pos, k2) => {
-                    debug_assert_eq!(k, *k2);
-                    let pos = *pos;
+                    debug_assert_eq!(k, k2);
                     if !movable(pos, turn, k) {
                         return false;
                     }
@@ -227,7 +248,7 @@ impl Position {
                             if self.attackers_to(pos, White).next().is_some() {
                                 return false;
                             }
-                            (movable_positions(occu, king_pos, White, King)
+                            (movable_positions(occu, white_king_pos, White, King)
                                 & !self.color_bb[White.index()])
                             .all(|pos| self.attackers_to(pos, Black).next().is_some())
                         };
@@ -237,7 +258,6 @@ impl Position {
                     }
                 }
                 Movement::Move { from, to, promote } => {
-                    let (to, from, promote) = (*to, *from, *promote);
                     if !promote && !movable(to, turn, k) {
                         return false;
                     }
@@ -270,7 +290,7 @@ impl Position {
         if turn == Black {
             // Drop
             for k in self.hands.kinds(turn) {
-                for pos in (!occu) & (movable_positions(occu, king_pos, White, k)) {
+                for pos in (!occu) & (movable_positions(occu, white_king_pos, White, k)) {
                     res.push((Movement::Drop(pos, k), k));
                 }
             }
@@ -281,8 +301,8 @@ impl Position {
                     continue;
                 }
                 let froms = self.piece_bb(Black, k);
-                let goal =
-                    (!self.color_bb[Black.index()]) & movable_positions(occu, king_pos, White, k);
+                let goal = (!self.color_bb[Black.index()])
+                    & movable_positions(occu, white_king_pos, White, k);
                 for from in froms {
                     for to in goal & movable_positions(occu, from, Black, k) {
                         res.push((
@@ -320,12 +340,12 @@ impl Position {
                 if k != Lance {
                     attacker_cands |= self.piece_bb(Black, k.promote().unwrap());
                 }
-                attacker_cands &= attacks_from(king_pos, White, k);
+                attacker_cands &= attacks_from(white_king_pos, White, k);
                 if attacker_cands.is_empty() {
                     continue;
                 }
-                let blocker_cands =
-                    self.color_bb[Black.index()] & movable_positions(occu, king_pos, White, k);
+                let blocker_cands = self.color_bb[Black.index()]
+                    & movable_positions(occu, white_king_pos, White, k);
                 if blocker_cands.is_empty() {
                     continue;
                 }
@@ -334,7 +354,7 @@ impl Position {
                         (movable_positions(occu, attacker, Black, k) & blocker_cands).next()
                     {
                         let from_k = self.kind(from).unwrap();
-                        for to in (!(attacks_from(king_pos, White, k)
+                        for to in (!(attacks_from(white_king_pos, White, k)
                             & attacks_from(attacker, Black, k)))
                             & ((!self.color_bb[Black.index()])
                                 & movable_positions(occu, from, Black, from_k))
@@ -345,81 +365,15 @@ impl Position {
                 }
             }
         } else {
-            let attackers: Vec<(Square, Kind)> = self.attackers_to(king_pos, Black).collect();
-            if attackers.is_empty() {
-                return Err("Wrong board optision: no attacker".into());
-            }
-            if attackers.len() > 2 {
-                return Err("Attacked by more than 2 pieces".into());
-            }
-
-            // Potential attacked positions which are currently hidden by the king. King cannot move there.
-            // It's a workaround for the bug that those places are not considered as attacked in is_allowed.
-            fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
-                let (kc, kr) = (king_pos.col() as isize, king_pos.row() as isize);
-                let (ac, ar) = (attacker_pos.col() as isize, attacker_pos.row() as isize);
-
-                let (dc, dr) = (kc - ac, kr - ar);
-                let d = dc.abs().max(dr.abs());
-                let (rc, rr) = (kc + dc / d, kr + dr / d);
-                if 0 <= rc && rc < 9 && 0 <= rr && rr < 9 {
-                    Some(Square::new(rc as usize, rr as usize))
-                } else {
-                    None
-                }
-            }
-            let mut hidden = BitBoard::new();
-            for (pos, k) in attackers.iter() {
-                if k.is_line_piece() {
-                    if let Some(k) = k.unpromote() {
-                        if !attacks_from(*pos, Black, k).get(king_pos) {
-                            continue;
-                        }
-                    }
-                    if let Some(p) = hidden_square(*pos, king_pos) {
-                        hidden.set(p);
-                    }
-                }
-            }
-            let hidden = hidden;
-            // Pin
-            if attackers.len() == 1 && attackers[0].1.is_line_piece() {
-                let (pos, k) = attackers[0];
-                if let Some(mut pin_bb) =
-                    PIN[pos.index()][king_pos.index()][Black.index()][line_piece_index(k).unwrap()]
-                {
-                    pin_bb.unset(pos);
-                    for pin_pos in pin_bb {
-                        res.append(&mut self.movements_to(pin_pos, White));
-                    }
-                }
-            }
-            // Capture
-            if attackers.len() == 1 {
-                for (pos, kind) in self.attackers_to(attackers[0].0, White) {
-                    add_move(&mut res, pos, attackers[0].0, White, kind);
-                }
-            }
-            // King move
-            for pos in
-                movable_positions(occu, king_pos, White, King) & (!self.color_bb[White.index()])
-            {
-                if hidden.get(pos) {
-                    continue;
-                }
-                res.push((
-                    Movement::Move {
-                        from: king_pos,
-                        to: pos,
-                        promote: false,
-                    },
-                    King,
-                ));
-            }
+            res = self.generate_attack_prevent_moves(
+                White,
+                white_king_pos,
+                self.attackers_to(white_king_pos, Black).collect(),
+            )?;
         }
         let mut res: Vec<Movement> = res
             .into_iter()
-            .filter(|(m, k)| is_allowed(m, *k))
+            .filter(|(m, k)| is_allowed(*m, *k))
             .map(|x| x.0)
             .collect();
         res.sort_unstable();
@@ -427,6 +381,89 @@ impl Position {
         res.dedup();
         Ok(res)
     }
+
+    fn generate_attack_prevent_moves(
+        &self,
+        turn: Color,
+        king_pos: Square,
+        attackers: Vec<(Square, Kind)>,
+    ) -> Result<Vec<(Movement, Kind)>, String> {
+        if attackers.is_empty() {
+            return Err("Wrong board optision: no attacker".into());
+        }
+        if attackers.len() > 2 {
+            return Err("Attacked by more than 2 pieces".into());
+        }
+
+        let mut res = vec![];
+
+        // Potential attacked positions which are currently hidden by the king. King cannot move there.
+        // It's a workaround for the bug that those places are not considered as attacked in is_allowed.
+        fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
+            let (kc, kr) = (king_pos.col() as isize, king_pos.row() as isize);
+            let (ac, ar) = (attacker_pos.col() as isize, attacker_pos.row() as isize);
+
+            let (dc, dr) = (kc - ac, kr - ar);
+            let d = dc.abs().max(dr.abs());
+            let (rc, rr) = (kc + dc / d, kr + dr / d);
+            if 0 <= rc && rc < 9 && 0 <= rr && rr < 9 {
+                Some(Square::new(rc as usize, rr as usize))
+            } else {
+                None
+            }
+        }
+
+        let mut hidden = BitBoard::new();
+        for (pos, k) in attackers.iter() {
+            if k.is_line_piece() {
+                if let Some(k) = k.unpromote() {
+                    if !attacks_from(*pos, turn.opposite(), k).get(king_pos) {
+                        continue;
+                    }
+                }
+                if let Some(p) = hidden_square(*pos, king_pos) {
+                    hidden.set(p);
+                }
+            }
+        }
+        let hidden = hidden;
+        // Pin
+        if attackers.len() == 1 && attackers[0].1.is_line_piece() {
+            let (pos, k) = attackers[0];
+            if let Some(mut pin_bb) = PIN[pos.index()][king_pos.index()][turn.opposite().index()]
+                [line_piece_index(k).unwrap()]
+            {
+                pin_bb.unset(pos);
+                for pin_pos in pin_bb {
+                    res.append(&mut self.movements_to(pin_pos, turn));
+                }
+            }
+        }
+        // Capture
+        if attackers.len() == 1 {
+            for (pos, kind) in self.attackers_to(attackers[0].0, turn) {
+                add_move(&mut res, pos, attackers[0].0, turn, kind);
+            }
+        }
+        // King move
+        for pos in movable_positions(self.occupied(), king_pos, turn, King)
+            & (!self.color_bb[turn.index()])
+        {
+            if hidden.get(pos) {
+                continue;
+            }
+            res.push((
+                Movement::Move {
+                    from: king_pos,
+                    to: pos,
+                    promote: false,
+                },
+                King,
+            ));
+        }
+        Ok(res)
+    }
+
     // Generate only valid sequence on tsume shogi.
     #[inline]
     pub fn next_positions(&self) -> Result<Vec<(Position, UndoToken)>, String> {
@@ -440,8 +477,9 @@ impl Position {
             })
             .collect())
     }
-    // Do move assuming m is a valid movement. Otherwise it panics.
-    // TODO: consider returning error.
+
+    // Make the movement assuming m is a valid movement. Otherwise it panics.
+    // TODO: return a Result.
     pub fn do_move(&mut self, m: &Movement) -> UndoToken {
         use UndoToken::*;
         let c = self.turn;
