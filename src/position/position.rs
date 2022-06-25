@@ -11,7 +11,7 @@ pub enum UndoToken {
     },
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Position {
     kind_bb: [BitBoard; NUM_KIND],
     color_bb: [BitBoard; 2],

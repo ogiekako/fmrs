@@ -3,32 +3,66 @@ use crate::position::*;
 
 type Solution = Vec<Movement>;
 
-pub fn solve(board: &Position, size_limit: Option<usize>) -> Result<Vec<Solution>, String> {
+pub fn solve(board: &Position, solutions_upto: Option<usize>) -> Result<Vec<Solution>, String> {
     if board.turn() != Black {
         return Err("The turn should be from black".into());
     }
     if board.checked(White) {
         return Err("on black's turn, white is already checked.".into());
     }
-    Ok(solve_inner(board, size_limit))
+    Ok(solve_inner(board, solutions_upto))
 }
 
+use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
+use std::hash::Hash;
+use std::hash::Hasher;
 
-fn solve_inner(board: &Position, limit: Option<usize>) -> Vec<Solution> {
+fn hash(board: &Position) -> u64 {
+    let mut hasher = twox_hash::Xxh3Hash64::default();
+    board.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn pretty(size: usize) -> String {
+    let giga = (size as f64) / 1000.0 / 1000.0 / 1000.0;
+    format!("{:.2}G", giga)
+}
+
+fn solve_inner(board: &Position, solutions_upto: Option<usize>) -> Vec<Solution> {
     debug_assert_ne!(board.turn() == Black, board.checked(White));
 
     // position -> (min step, undo tokens)
     let mut memo = HashMap::new();
-    memo.insert(board.clone(), (0, vec![]));
+    memo.insert(hash(&board), (0, vec![]));
     let mut queue = VecDeque::new();
     queue.push_back((0, board.clone()));
 
     let mut goal_step = None;
     let mut goals = vec![];
+
+    let mut dead_end: HashSet<u64> = HashSet::new();
+
+    let mut current_step = 0;
     while let Some((step, board)) = queue.pop_front() {
         let n_step = step + 1;
-        debug_assert!(memo.get(&board).is_some());
+        debug_assert!(memo.get(&hash(&board)).is_some());
+
+        if n_step > current_step {
+            eprintln!(
+                "step {}, queue len = {}, hash len = {}({}), deadend = {}({})",
+                n_step,
+                pretty(queue.len() * std::mem::size_of::<Position>()),
+                memo.len(),
+                pretty(
+                    memo.len()
+                        * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoToken>>())
+                ),
+                dead_end.len(),
+                pretty(dead_end.len() * std::mem::size_of::<u64>()),
+            );
+            current_step = n_step;
+        }
 
         if let Some(s) = goal_step {
             if s < step {
@@ -42,26 +76,40 @@ fn solve_inner(board: &Position, limit: Option<usize>) -> Vec<Solution> {
             if goal_step.is_some() {
                 break;
             }
-
-            if let Some((min_step, tokens)) = memo.get_mut(&np) {
+            let h = hash(&np);
+            if dead_end.contains(&h) {
+                continue;
+            }
+            if let Some((min_step, tokens)) = memo.get_mut(&h) {
                 if *min_step == n_step {
+                    if let Some(upto) = solutions_upto {
+                        if tokens.len() >= upto {
+                            continue;
+                        }
+                    }
                     tokens.push(token);
                 }
                 continue;
             }
-            // TODO: Use RC to avoid cloning.
-            memo.insert(np.clone(), (n_step, vec![token]));
+            memo.insert(h, (n_step, vec![token]));
             queue.push_back((n_step, np));
         }
-        if !movable && board.turn() == White && !board.was_pawn_drop() {
-            // Checkmate
-            goals.push(board);
-            goal_step = Some(step);
+        if !movable {
+            if board.turn() == White && !board.was_pawn_drop() {
+                // Checkmate
+                goals.push(board);
+                goal_step = Some(step);
+            } else {
+                // Deadend. We can forgot history.
+                let h = hash(&board);
+                memo.remove(&h);
+                dead_end.insert(h);
+            }
         }
     }
     let mut res = vec![];
     for mut g in goals.into_iter() {
-        update(&mut res, &mut vec![], &memo, &mut g, limit);
+        update(&mut res, &mut vec![], &memo, &mut g, solutions_upto);
     }
     res
 }
@@ -69,7 +117,7 @@ fn solve_inner(board: &Position, limit: Option<usize>) -> Vec<Solution> {
 fn update(
     res: &mut Vec<Solution>,
     mut rev_sol: &mut Solution,
-    memo: &HashMap<Position, (usize, Vec<UndoToken>)>,
+    memo: &HashMap<u64, (usize, Vec<UndoToken>)>,
     g: &mut Position,
     limit: Option<usize>,
 ) {
@@ -78,7 +126,7 @@ fn update(
             return;
         }
     }
-    let (step, toks) = memo.get(&g).unwrap();
+    let (step, toks) = memo.get(&hash(&g)).unwrap();
     if *step == 0 {
         res.push(rev_sol.clone().into_iter().rev().collect());
         return;
@@ -93,12 +141,15 @@ fn update(
         g.do_move(&mv);
     }
 }
+#[cfg(test)]
+mod tests {
+    use crate::{position::Movement, solver::solve};
 
-#[test]
-fn test_solve() {
-    use crate::sfen;
+    #[test]
+    fn test_solve() {
+        use crate::sfen;
 
-    for tc in vec![
+        for tc in vec![
         (
             "3+pks3/9/4+P4/9/9/8B/9/9/9 b S2rb4g2s4n4l16p 1",
             vec!["1f5b+ 4a5b S*4b"],
@@ -128,21 +179,22 @@ fn test_solve() {
         let got = solve(&board, None);
         assert_eq!(got, want);
     }
-}
+    }
 
-#[test]
-fn no_answer() {
-    use crate::sfen;
+    #[test]
+    fn no_answer() {
+        use crate::sfen;
 
-    for sfen in [
-        "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",
-        "9/9/9/5bp1G/6k2/6l1P/8K/9/8N b 2rb3g4s3n3l16p 1",
-        "9/9/9/9/9/pp7/kl7/9/K8 b P2r2b4g4s4n3l15p 1",
-    ] {
-        let board = sfen::decode_position(sfen).unwrap();
-        let got = solve(&board, None).unwrap();
-        let want: Vec<Vec<Movement>> = vec![];
-        eprintln!("Solving {:?}", board);
-        assert_eq!(got, want);
+        for sfen in [
+            "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",
+            "9/9/9/5bp1G/6k2/6l1P/8K/9/8N b 2rb3g4s3n3l16p 1",
+            "9/9/9/9/9/pp7/kl7/9/K8 b P2r2b4g4s4n3l15p 1",
+        ] {
+            let board = sfen::decode_position(sfen).unwrap();
+            let got = solve(&board, None).unwrap();
+            let want: Vec<Vec<Movement>> = vec![];
+            eprintln!("Solving {:?}", board);
+            assert_eq!(got, want);
+        }
     }
 }
