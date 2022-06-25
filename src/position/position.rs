@@ -1,21 +1,6 @@
 use crate::board::*;
 use crate::piece::*;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Movement {
-    Drop(Square, Kind),
-    Move {
-        from: Square,
-        to: Square,
-        promote: bool,
-    },
-}
-
-impl fmt::Debug for Movement {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", sfen::encode_move(self))
-    }
-}
 
 pub enum UndoToken {
     UnDrop(Square),
@@ -79,6 +64,7 @@ fn test_position_size() {
 
 use std::collections::HashMap;
 
+use super::Movement;
 use super::hands::Hands;
 
 impl Position {
