@@ -201,7 +201,7 @@ impl Position {
                     let attackers: Vec<_> = self.attackers_to(black_king_pos, White).collect();
                     if !attackers.is_empty() {
                         let mut moves = self
-                            .generate_attack_prevent_moves(Black, black_king_pos, attackers)
+                            .generate_attack_preventing_moves(Black, black_king_pos, attackers)
                             .unwrap();
                         moves.sort();
                         black_attack_prevent_moves = Some(moves);
@@ -268,7 +268,6 @@ impl Position {
                     res.push((Movement::Drop(pos, k), k));
                 }
             }
-            // Movement::Move
             // Direct attack
             for k in Kind::iter() {
                 if k == King {
@@ -341,7 +340,7 @@ impl Position {
                 }
             }
         } else {
-            res = self.generate_attack_prevent_moves(
+            res = self.generate_attack_preventing_moves(
                 White,
                 white_king_pos,
                 self.attackers_to(white_king_pos, Black).collect(),
@@ -353,12 +352,12 @@ impl Position {
             .map(|x| x.0)
             .collect();
         res.sort_unstable();
-        // TODO: consider removing necessity of dedup.
+        // TODO: Remove necessity of dedup.
         res.dedup();
         Ok(res)
     }
 
-    fn generate_attack_prevent_moves(
+    fn generate_attack_preventing_moves(
         &self,
         turn: Color,
         king_pos: Square,
