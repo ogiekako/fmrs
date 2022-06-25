@@ -1,6 +1,3 @@
-
-
-
 #[macro_use]
 extern crate lazy_static;
 extern crate arr_macro;
@@ -33,8 +30,11 @@ fn main() -> anyhow::Result<()> {
     if answer.len() > 1 {
         println!("Multiple solutions found: showing only the first one");
     }
+    let mut position = position.clone();
     for x in answer[0].iter() {
+        position.do_move(x);
         println!("{}", sfen::encode_move(x));
     }
+    println!("last state: {:?}", position);
     Ok(())
 }

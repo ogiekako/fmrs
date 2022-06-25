@@ -2,12 +2,13 @@ use crate::board::*;
 use crate::piece::*;
 
 pub enum UndoToken {
-    UnDrop(Square),
+    UnDrop((Square, bool /* pawn drop */)),
     UnMove {
         from: Square,
         to: Square,
         promote: bool,
         capture: Option<Kind>,
+        pawn_drop: bool,
     },
 }
 
@@ -45,6 +46,7 @@ pub struct Position {
     color_bb: [BitBoard; 2],
     hands: Hands,
     turn: Color,
+    pawn_drop: bool,
 }
 
 #[test]
@@ -73,6 +75,7 @@ impl Position {
             color_bb: [BitBoard::new(); 2],
             hands: Hands::new(),
             turn: Black,
+            pawn_drop: false,
         }
     }
     pub fn turn(&self) -> Color {
@@ -105,6 +108,9 @@ impl Position {
             Some(king_pos) => self.attackers_to(king_pos, c.opposite()).next().is_some(),
             None => false,
         }
+    }
+    pub fn was_pawn_drop(&self) -> bool {
+        self.pawn_drop
     }
     fn king(&self, c: Color) -> Option<Square> {
         for k in self.piece_bb(c, King) {
@@ -242,17 +248,6 @@ impl Position {
                     }
                     if k == Pawn {
                         if self.has_pawn_in_col(pos, turn) {
-                            return false;
-                        }
-                        let is_pawn_mate = || {
-                            if self.attackers_to(pos, White).next().is_some() {
-                                return false;
-                            }
-                            (movable_positions(occu, white_king_pos, White, King)
-                                & !self.color_bb[White.index()])
-                            .all(|pos| self.attackers_to(pos, Black).next().is_some())
-                        };
-                        if is_pawn_mate() {
                             return false;
                         }
                     }
@@ -489,7 +484,8 @@ impl Position {
                 let (pos, k) = (*pos, *k);
                 self.hands.remove(c, k);
                 self.set(pos, c, k);
-                token = UnDrop(pos);
+                token = UnDrop((pos, self.pawn_drop));
+                self.pawn_drop = k == Kind::Pawn;
             }
             Movement::Move { from, to, promote } => {
                 let (from, to, promote) = (*from, *to, *promote);
@@ -517,7 +513,9 @@ impl Position {
                     to,
                     promote,
                     capture,
+                    pawn_drop: self.pawn_drop,
                 };
+                self.pawn_drop = false;
             }
         }
         self.turn = c.opposite();
@@ -530,13 +528,14 @@ impl Position {
         let prev_turn = self.turn.opposite();
         self.turn = prev_turn;
         match token {
-            &UnDrop(pos) => {
+            &UnDrop((pos, pawn_drop)) => {
                 let (c, k) = self
                     .get(pos)
                     .expect(&format!("{:?} doesn't contain any piece", pos));
                 debug_assert_eq!(prev_turn, c);
                 self.unset(pos, c, k);
                 self.hands.add(c, k.maybe_unpromote());
+                self.pawn_drop = pawn_drop;
                 Movement::Drop(pos, k.maybe_unpromote())
             }
             &UnMove {
@@ -544,6 +543,7 @@ impl Position {
                 to,
                 promote,
                 capture,
+                pawn_drop,
             } => {
                 let (c, k) = self
                     .get(to)
@@ -561,6 +561,7 @@ impl Position {
                     self.set(to, c.opposite(), captured_k);
                     self.hands.remove(c, captured_k.maybe_unpromote());
                 }
+                self.pawn_drop = pawn_drop;
                 Movement::Move { from, to, promote }
             }
         }
@@ -649,6 +650,7 @@ lazy_static! {
     };
 }
 
+#[cfg(test)]
 mod tests {
     use crate::{
         board::Square,
@@ -731,8 +733,8 @@ mod tests {
             ),
             (
                 "9/9/5lp2/5lk2/5l3/9/5N3/7L1/9 b P2r2b4g4s3n16p 1",
-                // Drop pawn mate
-                vec![],
+                // Drop pawn mate is not checked here
+                vec!["P*35"],
             ),
             (
                 "8k/9/8K/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1",
@@ -785,6 +787,7 @@ mod tests {
                 })
                 .collect::<Vec<Position>>();
             want.sort();
+            eprintln!("{}", tc.0);
             assert_eq!(got, want);
         }
     }

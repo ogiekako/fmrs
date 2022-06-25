@@ -53,7 +53,7 @@ fn solve_inner(board: &Position, limit: Option<usize>) -> Vec<Solution> {
             memo.insert(np.clone(), (n_step, vec![token]));
             queue.push_back((n_step, np));
         }
-        if !movable && board.turn() == White {
+        if !movable && board.turn() == White && !board.was_pawn_drop() {
             // Checkmate
             goals.push(board);
             goal_step = Some(step);
@@ -131,16 +131,18 @@ fn test_solve() {
 }
 
 #[test]
-fn king_discovered_check() {
+fn no_answer() {
     use crate::sfen;
 
     for sfen in [
         "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",
         "9/9/9/5bp1G/6k2/6l1P/8K/9/8N b 2rb3g4s3n3l16p 1",
+        "9/9/9/9/9/pp7/kl7/9/K8 b P2r2b4g4s4n3l15p 1",
     ] {
         let board = sfen::decode_position(sfen).unwrap();
         let got = solve(&board, None).unwrap();
         let want: Vec<Vec<Movement>> = vec![];
+        eprintln!("Solving {:?}", board);
         assert_eq!(got, want);
     }
 }
