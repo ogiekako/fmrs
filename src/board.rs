@@ -379,7 +379,7 @@ fn magic(pos: Square, mask: BitBoard, dirs: Vec<(isize, isize)>) -> Magic {
         magic = 0u128;
         for i in 0..128 {
             // Set 1 with 15% of probability.
-            if rng.gen_range(0, 100) < 15 {
+            if rng.gen_range(0..100) < 15 {
                 magic |= 1 << i;
             }
         }

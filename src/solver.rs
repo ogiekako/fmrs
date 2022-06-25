@@ -113,7 +113,7 @@ fn test_solve() {
         ),
         // http://cavesfairy.g1.xrea.com/pub/qgfairy/
         (
-            // 06-07
+            // 06-07 (57 steps)
             "9/9/9/9/7bb/1ppssssp1/K5k2/+RL1l1gg2/rL3gg1+l b 4N15P 1",
             vec!["N*29 3829 P*38 3747 N*59 4859 P*48 4757 N*69 6869+ P*58 5767 P*68 6778 P*79 6979 8886 7877 P*78 7768 P*69 5969 7877 6867 P*68 6758 P*59 4959 6867 5857 P*58 5748 P*49 3949 5857 4847 P*48 4738 P*39 2939 4847 3837 P*38 3728 3837 3938 P*29 2817 P*18 1716 N*28 3828 1817 1627 2928 2737 G*38"]
         ),
@@ -126,6 +126,21 @@ fn test_solve() {
             .collect());
         eprintln!("Solving {:?}", board);
         let got = solve(&board, None);
+        assert_eq!(got, want);
+    }
+}
+
+#[test]
+fn king_discovered_check() {
+    use crate::sfen;
+
+    for sfen in [
+        "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",
+        "9/9/9/5bp1G/6k2/6l1P/8K/9/8N b 2rb3g4s3n3l16p 1",
+    ] {
+        let board = sfen::decode_position(sfen).unwrap();
+        let got = solve(&board, None).unwrap();
+        let want: Vec<Vec<Movement>> = vec![];
         assert_eq!(got, want);
     }
 }

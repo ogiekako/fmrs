@@ -811,8 +811,8 @@ lazy_static! {
         res
     };
     // line_pos, king_pos, color (of line piece), line_piece_index -> pinned squares.
-    static ref PIN: [[[[Option<BitBoard>; 3]; 2]; 81]; 81] = {
-        let mut res = [[[[None; 3]; 2]; 81]; 81];
+    static ref PIN: Vec<[[[Option<BitBoard>; 3]; 2]; 81]> = {
+        let mut res = vec![[[[None; 3]; 2]; 81]; 81];
         for from in Square::iter() {
             for to in Square::iter() {
                 let mut bounding = BitBoard::new();

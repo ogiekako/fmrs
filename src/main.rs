@@ -1,3 +1,6 @@
+
+
+
 #[macro_use]
 extern crate lazy_static;
 extern crate arr_macro;
@@ -11,14 +14,27 @@ pub mod position;
 pub mod sfen;
 pub mod solver;
 
-fn main() {
-    for tc in vec![(
-        board::BitBoard::new(),
-        board::Square::new(0, 0),
-        piece::Black,
-        piece::Bishop,
-    )] {
-        let b = board::movable_positions(tc.0, tc.1, tc.2, tc.3);
-        println!("{:?} -> {:?}", tc, b);
+fn main() -> anyhow::Result<()> {
+    println!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
+    print!("> ");
+
+    let mut s = "".to_string();
+    std::io::stdin().read_line(&mut s)?;
+
+    let position = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
+
+    let answer = solver::solve(&position, None).map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    if answer.is_empty() {
+        println!("No solution");
+        return Ok(());
     }
+    println!("Solved in {} steps", answer[0].len());
+    if answer.len() > 1 {
+        println!("Multiple solutions found: showing only the first one");
+    }
+    for x in answer[0].iter() {
+        println!("{}", sfen::encode_move(x));
+    }
+    Ok(())
 }
