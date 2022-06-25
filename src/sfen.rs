@@ -1,24 +1,11 @@
+use anyhow::bail;
+
 /// SFEN format is defined in
 /// https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
 /// Use https://sfenreader.appspot.com/ja/create_board.html to a convert Shogi
 /// board to an SFEN and vice versa.
 use crate::piece::*;
 use crate::position::*;
-
-type Result<T> = std::result::Result<T, ParseError>;
-
-#[derive(Debug)]
-pub struct ParseError {
-    s: String,
-    msg: String,
-}
-
-fn err<T>(s: &str, msg: &str) -> Result<T> {
-    Err(ParseError {
-        s: s.into(),
-        msg: msg.into(),
-    })
-}
 
 fn encode_piece(c: Color, mut k: Kind) -> String {
     let mut res = String::new();
@@ -44,7 +31,7 @@ fn encode_piece(c: Color, mut k: Kind) -> String {
     res
 }
 
-fn decode_hand_kind(ch: char) -> Result<(Color, Kind)> {
+fn decode_hand_kind(ch: char) -> anyhow::Result<(Color, Kind)> {
     for c in Color::iter() {
         for k in Kind::iter() {
             if !k.is_hand_piece() {
@@ -55,7 +42,7 @@ fn decode_hand_kind(ch: char) -> Result<(Color, Kind)> {
             }
         }
     }
-    err(&ch.to_string(), "Illegal hand kind {}")
+    bail!("Illegal hand kind {}", ch)
 }
 
 // Encoded string doesn't include optional move count data.
@@ -116,14 +103,14 @@ pub fn encode_position(board: &Position) -> String {
 }
 
 // Ingore optional move count if any.
-pub fn decode_position(sfen: &str) -> Result<Position> {
+pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
     let v: Vec<&str> = sfen.split(' ').collect();
     if v.len() < 3 {
-        return err(sfen, "Insufficient number of fields");
+        bail!("Insufficient number of fields");
     }
     let rows: Vec<&str> = v[0].split('/').collect();
     if rows.len() != 9 {
-        return err(sfen, "There should be exactly 9 rows");
+        bail!("There should be exactly 9 rows");
     }
     let mut board = Position::new();
     for row in 0..9 {
@@ -132,14 +119,14 @@ pub fn decode_position(sfen: &str) -> Result<Position> {
         for ch in rows[row].chars() {
             if ch == '+' {
                 if promote {
-                    return err(sfen, "+ shouldn't continue twice");
+                    bail!("+ shouldn't continue twice");
                 }
                 promote = true;
                 continue;
             }
             if let Some(n) = ch.to_digit(10) {
                 if promote {
-                    return err(sfen, "Illegal occurence of +");
+                    bail!("Illegal occurence of +");
                 }
                 col -= n as isize;
                 continue;
@@ -154,7 +141,7 @@ pub fn decode_position(sfen: &str) -> Result<Position> {
                         found = true;
                         col -= 1;
                         if col < 0 {
-                            return err(sfen, "Too long row");
+                            bail!("Too long row");
                         }
 
                         board.set(
@@ -168,18 +155,18 @@ pub fn decode_position(sfen: &str) -> Result<Position> {
                 }
             }
             if !found {
-                return err(sfen, &format!("Illegal character {:?}", ch));
+                bail!("Illegal character {}", ch);
             }
         }
         if col != 0 {
-            return err(sfen, "Illegal row length");
+            bail!("Illegal row length");
         }
     }
 
     match v[1] {
         "b" => board.set_turn(Black),
         "w" => board.set_turn(White),
-        _ => return err(sfen, &format!("Illegal turn string {}", v[1])),
+        _ => bail!("Illegal turn string {}", v[1]),
     }
 
     if v[2] == "-" {
@@ -191,7 +178,7 @@ pub fn decode_position(sfen: &str) -> Result<Position> {
         if let Some(n) = ch.to_digit(10) {
             hand_count = hand_count * 10 + n;
             if hand_count >= 100 {
-                return err(sfen, &"Hand counts should be less than 100");
+                bail!(&"Hand counts should be less than 100");
             }
             continue;
         }
@@ -291,10 +278,10 @@ fn encode_square(pos: Square) -> String {
     format!("{}{}", pos.col() + 1, pos.row() + 1)
 }
 
-fn decode_square(s: &str) -> Result<Square> {
+fn decode_square(s: &str) -> anyhow::Result<Square> {
     let cs: Vec<char> = s.chars().collect();
     if cs.len() != 2 {
-        return err(s, "{} should have length 2");
+        bail!("{} should have length 2", s);
     }
     for r in vec!['a', '1'] {
         let col = (cs[0] as usize).wrapping_sub('1' as usize);
@@ -304,13 +291,13 @@ fn decode_square(s: &str) -> Result<Square> {
             return Ok(Square::new(col, row));
         }
     }
-    err(s, "Illegal pos")
+    bail!("Illegal pos")
 }
 
-pub fn decode_move(s: &str) -> Result<Movement> {
+pub fn decode_move(s: &str) -> anyhow::Result<Movement> {
     let cs: Vec<char> = s.chars().collect();
     if cs.len() < 4 {
-        return err(s, "Move too short");
+        bail!("Move too short");
     }
     Ok(if cs[1] == '*' {
         Movement::Drop(decode_square(&s[2..])?, decode_hand_kind(cs[0])?.1)
@@ -319,7 +306,7 @@ pub fn decode_move(s: &str) -> Result<Movement> {
         if cs.len() > 4 {
             promote = true;
             if cs[4] != '+' {
-                return err(s, "Invalid move");
+                bail!("Invalid move");
             }
         }
         Movement::Move {
@@ -333,7 +320,7 @@ pub fn decode_move(s: &str) -> Result<Movement> {
 // USI format defined in http://hgm.nubati.net/usi.html.
 // e.g. "4e3c+ P*3d 7g7f"
 // As an original extension, it also allows forms like "4533", which means "4e3c".
-pub fn decode_moves(sfen: &str) -> Result<Vec<Movement>> {
+pub fn decode_moves(sfen: &str) -> anyhow::Result<Vec<Movement>> {
     if sfen.is_empty() {
         return Ok(vec![]);
     }

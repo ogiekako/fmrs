@@ -794,7 +794,7 @@ lazy_static! {
                 ProPawn | ProLance | ProKnight | ProSilver => ats[Gold.index()],
                 ProBishop | ProRook => ats[King.index()] | ats[k.unpromote().unwrap().index()],
             }
-        };
+        }
 
         for pos in Square::iter() {
             for c in Color::iter() {

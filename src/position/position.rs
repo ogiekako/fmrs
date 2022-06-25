@@ -663,7 +663,7 @@ lazy_static! {
 mod tests {
     use crate::{
         piece::{Color, Kind},
-        position::{bitboard, Movement, Position, Square},
+        position::{Movement, Position, Square},
         sfen,
     };
 
