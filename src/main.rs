@@ -24,12 +24,13 @@ enum Action {
     Server,
 }
 
-fn main() -> anyhow::Result<()> {
+#[actix_web::main]
+async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
         Action::Solve => command::solve()?,
-        Action::Server => command::server(1234)?,
+        Action::Server => command::server(1234).await?,
     }
     Ok(())
 }
