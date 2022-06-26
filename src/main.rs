@@ -5,6 +5,8 @@ extern crate rand;
 extern crate serde;
 
 pub mod command;
+pub mod converter;
+pub mod jkf;
 pub mod piece;
 pub mod position;
 pub mod sfen;

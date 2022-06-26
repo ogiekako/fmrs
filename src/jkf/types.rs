@@ -1,51 +1,51 @@
 // https://github.com/na2hiro/json-kifu-format
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct JsonKifFormat {
-    header: HashMap<String, String>,
+    pub header: BTreeMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    initial: Option<Initial>,
-    moves: Vec<MoveFormat>,
+    pub initial: Option<Initial>,
+    pub moves: Vec<MoveFormat>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct Initial {
-    preset: String,
+    pub preset: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    data: Option<StateFormat>,
+    pub data: Option<StateFormat>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct StateFormat {
-    color: Color,
-    board: Vec<Vec<Piece>>,
-    hands: Vec<HashMap<RawKind, usize>>,
+    pub color: Color,
+    pub board: Vec<Vec<Piece>>,
+    pub hands: Vec<BTreeMap<RawKind, usize>>,
 }
 
-#[derive(Serialize_repr, Deserialize_repr)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Eq, PartialEq, Debug)]
 #[repr(u8)]
 pub enum Color {
     Black = 0,
     White = 1,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
 
 pub struct Piece {
     #[serde(skip_serializing_if = "Option::is_none")]
-    color: Option<Color>,
+    pub color: Option<Color>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    kind: Option<Kind>,
+    pub kind: Option<Kind>,
 }
 
-#[derive(Serialize, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, Debug, PartialOrd, Ord)]
 
-enum RawKind {
+pub enum RawKind {
     FU,
     KY,
     KE,
@@ -55,9 +55,9 @@ enum RawKind {
     HI,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
 
-enum Kind {
+pub enum Kind {
     FU,
     KY,
     KE,
@@ -74,60 +74,60 @@ enum Kind {
     RY,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 
 pub struct MoveFormat {
     #[serde(skip_serializing_if = "Option::is_none")]
-    comments: Option<Vec<String>>,
+    pub comments: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    r#move: Option<MoveMoveFormat>,
+    pub r#move: Option<MoveMoveFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    time: Option<Time>,
+    pub time: Option<Time>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    special: Option<String>,
+    pub special: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    forks: Option<Vec<Vec<MoveFormat>>>,
+    pub forks: Option<Vec<Vec<MoveFormat>>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 
 pub struct Time {
-    now: TimeFormat,
-    total: TimeFormat,
+    pub now: TimeFormat,
+    pub total: TimeFormat,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
 
 pub struct TimeFormat {
     #[serde(skip_serializing_if = "Option::is_none")]
-    h: Option<usize>,
-    m: usize,
-    s: usize,
+    pub h: Option<usize>,
+    pub m: usize,
+    pub s: usize,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
 
 pub struct MoveMoveFormat {
-    color: Color,
+    pub color: Color,
     #[serde(skip_serializing_if = "Option::is_none")]
-    from: Option<PlaceFormat>,
-    to: PlaceFormat,
-    piece: Kind,
+    pub from: Option<PlaceFormat>,
+    pub to: PlaceFormat,
+    pub piece: Kind,
     #[serde(skip_serializing_if = "Option::is_none")]
-    same: Option<bool>,
+    pub same: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    promote: Option<bool>,
+    pub promote: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    capture: Option<Kind>,
+    pub capture: Option<Kind>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    relative: Option<String>,
+    pub relative: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
 
 pub struct PlaceFormat {
-    x: usize,
-    y: usize,
+    pub x: usize,
+    pub y: usize,
 }
 
 #[cfg(test)]

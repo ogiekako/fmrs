@@ -1,7 +1,7 @@
 use crate::piece::*;
 use crate::position::*;
 
-type Solution = Vec<Movement>;
+pub type Solution = Vec<Movement>;
 
 pub fn solve(board: &Position, solutions_upto: Option<usize>) -> Result<Vec<Solution>, String> {
     if board.turn() != Black {

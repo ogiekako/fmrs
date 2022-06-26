@@ -11,6 +11,21 @@ pub enum UndoToken {
     },
 }
 
+impl UndoToken {
+    pub fn capture(&self) -> Option<Kind> {
+        match self {
+            UndoToken::UnDrop(_) => None,
+            UndoToken::UnMove {
+                from,
+                to,
+                promote,
+                capture,
+                pawn_drop,
+            } => *capture,
+        }
+    }
+}
+
 #[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Position {
     kind_bb: [BitBoard; NUM_KIND],

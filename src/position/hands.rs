@@ -40,7 +40,6 @@ impl Hands {
             .iter()
             .filter_map(move |&k| if self.count(c, k) > 0 { Some(k) } else { None })
     }
-
     fn shift_of(c: Color, k: Kind) -> usize {
         let i = if k == Kind::Pawn {
             0
