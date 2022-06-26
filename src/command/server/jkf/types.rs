@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Serialize, Deserialize)]
 pub struct JsonKifFormat {
@@ -26,7 +27,12 @@ pub struct StateFormat {
     hands: Vec<HashMap<RawKind, usize>>,
 }
 
-type Color = u8;
+#[derive(Serialize_repr, Deserialize_repr)]
+#[repr(u8)]
+pub enum Color {
+    Black = 0,
+    White = 1,
+}
 
 #[derive(Serialize, Deserialize)]
 
