@@ -1,6 +1,6 @@
 use crate::{sfen, solver};
 
-pub fn solve() -> anyhow::Result<()> {
+pub async fn solve() -> anyhow::Result<()> {
     println!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
     print!("> ");
 
@@ -9,7 +9,7 @@ pub fn solve() -> anyhow::Result<()> {
 
     let position = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
-    let answer = solver::solve(&position, Some(2)).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let answer = solver::solve(position.clone(), Some(2)).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if answer.is_empty() {
         println!("No solution");

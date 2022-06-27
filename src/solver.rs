@@ -1,16 +1,21 @@
+use futures::SinkExt;
+use futures::Stream;
+use futures::StreamExt;
+use futures::pin_mut;
+
 use crate::piece::*;
 use crate::position::*;
 
+pub enum SolutionReply {
+    Progress(usize),
+    Solutions(Vec<Solution>),
+}
+
 pub type Solution = Vec<Movement>;
 
-pub fn solve(board: &Position, solutions_upto: Option<usize>) -> Result<Vec<Solution>, String> {
-    if board.turn() != Black {
-        return Err("The turn should be from black".into());
-    }
-    if board.checked(White) {
-        return Err("on black's turn, white is already checked.".into());
-    }
-    Ok(solve_inner(board, solutions_upto))
+pub fn solve(board: Position, solutions_upto: Option<usize>) -> anyhow::Result<Vec<Solution>> {
+    let (tx, _rx) = futures::channel::mpsc::unbounded();
+    solve_with_progress(tx, board, solutions_upto)
 }
 
 use std::collections::HashSet;
@@ -29,89 +34,102 @@ fn pretty(size: usize) -> String {
     format!("{:.2}G", giga)
 }
 
-fn solve_inner(board: &Position, solutions_upto: Option<usize>) -> Vec<Solution> {
-    debug_assert_ne!(board.turn() == Black, board.checked(White));
+pub fn solve_with_progress(
+    progress: futures::channel::mpsc::UnboundedSender<usize>,
+    board: Position,
+    solutions_upto: Option<usize>,
+) -> anyhow::Result<Vec<Solution>> {
+    if board.turn() != Black {
+        anyhow::bail!("The turn should be from black");
+    }
+    if board.checked(White) {
+        anyhow::bail!("on black's turn, white is already checked.");
+    }
 
-    // position -> (min step, undo tokens)
-    let mut memo = HashMap::new();
-    memo.insert(hash(&board), (0, vec![]));
-    let mut queue = VecDeque::new();
-    queue.push_back((0, board.clone()));
+        debug_assert_ne!(board.turn() == Black, board.checked(White));
 
-    let mut goal_step = None;
-    let mut goals = vec![];
+        // position -> (min step, undo tokens)
+        let mut memo = HashMap::new();
+        memo.insert(hash(&board), (0, vec![]));
+        let mut queue = VecDeque::new();
+        queue.push_back((0, board.clone()));
 
-    let mut dead_end: HashSet<u64> = HashSet::new();
+        let mut goal_step = None;
+        let mut goals = vec![];
 
-    let mut current_step = 0;
-    while let Some((step, board)) = queue.pop_front() {
-        let n_step = step + 1;
-        debug_assert!(memo.get(&hash(&board)).is_some());
+        let mut dead_end: HashSet<u64> = HashSet::new();
 
-        if let Some(s) = goal_step {
-            if s < step {
-                break;
-            }
-        }
+        let mut current_step = 0;
+        while let Some((step, board)) = queue.pop_front() {
+            let n_step = step + 1;
+            debug_assert!(memo.get(&hash(&board)).is_some());
 
-        if step > current_step {
-            eprintln!(
-                "step {}, queue len = {}, hash len = {}({}), deadend = {}({})",
-                step,
-                pretty(queue.len() * std::mem::size_of::<Position>()),
-                memo.len(),
-                pretty(
-                    memo.len()
-                        * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoToken>>())
-                ),
-                dead_end.len(),
-                pretty(dead_end.len() * std::mem::size_of::<u64>()),
-            );
-            current_step = step;
-        }
-
-        let mut movable = false;
-        for (np, token) in board.next_positions().unwrap() {
-            movable = true;
-            if goal_step.is_some() {
-                break;
-            }
-            let h = hash(&np);
-            if dead_end.contains(&h) {
-                continue;
-            }
-            if let Some((min_step, tokens)) = memo.get_mut(&h) {
-                if *min_step == n_step {
-                    if let Some(upto) = solutions_upto {
-                        if tokens.len() >= upto {
-                            continue;
-                        }
-                    }
-                    tokens.push(token);
+            if let Some(s) = goal_step {
+                if s < step {
+                    break;
                 }
-                continue;
             }
-            memo.insert(h, (n_step, vec![token]));
-            queue.push_back((n_step, np));
-        }
-        if !movable {
-            if board.turn() == White && !board.was_pawn_drop() {
-                // Checkmate
-                goals.push(board);
-                goal_step = Some(step);
-            } else {
-                // Deadend. We can forgot history.
-                let h = hash(&board);
-                memo.remove(&h);
-                dead_end.insert(h);
+
+            if step > current_step {
+                eprintln!(
+                    "step {}, queue len = {}, hash len = {}({}), deadend = {}({})",
+                    step,
+                    pretty(queue.len() * std::mem::size_of::<Position>()),
+                    memo.len(),
+                    pretty(
+                        memo.len()
+                            * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoToken>>())
+                    ),
+                    dead_end.len(),
+                    pretty(dead_end.len() * std::mem::size_of::<u64>()),
+                );
+                current_step = step;
+
+                progress.unbounded_send(step)?;
+            }
+
+            let mut movable = false;
+            for (np, token) in board.next_positions().unwrap() {
+                movable = true;
+                if goal_step.is_some() {
+                    break;
+                }
+                let h = hash(&np);
+                if dead_end.contains(&h) {
+                    continue;
+                }
+                if let Some((min_step, tokens)) = memo.get_mut(&h) {
+                    if *min_step == n_step {
+                        if let Some(upto) = solutions_upto {
+                            if tokens.len() >= upto {
+                                continue;
+                            }
+                        }
+                        tokens.push(token);
+                    }
+                    continue;
+                }
+                memo.insert(h, (n_step, vec![token]));
+                queue.push_back((n_step, np));
+            }
+            if !movable {
+                if board.turn() == White && !board.was_pawn_drop() {
+                    // Checkmate
+                    goals.push(board);
+                    goal_step = Some(step);
+                } else {
+                    // Deadend. We can forgot history.
+                    let h = hash(&board);
+                    memo.remove(&h);
+                    dead_end.insert(h);
+                }
             }
         }
-    }
-    let mut res = vec![];
-    for mut g in goals.into_iter() {
-        update(&mut res, &mut vec![], &memo, &mut g, solutions_upto);
-    }
-    res
+        let mut res = vec![];
+        for mut g in goals.into_iter() {
+            update(&mut res, &mut vec![], &memo, &mut g, solutions_upto);
+        }
+        Ok(res)
 }
 
 fn update(
@@ -143,7 +161,7 @@ fn update(
 }
 #[cfg(test)]
 mod tests {
-    use crate::{position::Movement, solver::solve};
+    use crate::{position::Movement, solver::{solve, Solution}};
 
     #[test]
     fn test_solve() {
@@ -170,13 +188,15 @@ mod tests {
         ),
     ] {
         let board = sfen::decode_position(tc.0).expect("Failed to parse");
-        let want = Ok(tc
+        let want: Vec<Solution> = tc
             .1
             .into_iter()
             .map(|x| sfen::decode_moves(x).unwrap())
-            .collect());
+            .collect();
+
         eprintln!("Solving {:?}", board);
-        let got = solve(&board, None);
+        let got = solve(board, None).unwrap();
+        
         assert_eq!(got, want);
     }
     }
@@ -191,7 +211,7 @@ mod tests {
             "9/9/9/9/9/pp7/kl7/9/K8 b P2r2b4g4s4n3l15p 1",
         ] {
             let board = sfen::decode_position(sfen).unwrap();
-            let got = solve(&board, None).unwrap();
+            let got = solve(board.clone(), None).unwrap();
             let want: Vec<Vec<Movement>> = vec![];
             eprintln!("Solving {:?}", board);
             assert_eq!(got, want);

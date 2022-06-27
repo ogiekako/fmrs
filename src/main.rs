@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
-        Action::Solve => command::solve()?,
+        Action::Solve => command::solve().await?,
         Action::Server => command::server(1234).await?,
     }
     Ok(())

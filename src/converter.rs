@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::{
     jkf::{self, JsonKifFormat},
     piece::{Color, Kind},
-    position::{self, Hands, Movement, Position, Square},
+    position::{Hands, Movement, Position, Square},
     solver::Solution,
 };
 
@@ -212,7 +212,7 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
 
 #[cfg(test)]
 mod tests {
-    use crate::{jkf::JsonKifFormat};
+    use crate::jkf::JsonKifFormat;
 
     #[test]
     fn convert() {
@@ -234,7 +234,7 @@ mod tests {
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
             let problem = crate::sfen::decode_position(problem).unwrap();
-            let mut solutions = crate::solver::solve(&problem, None).unwrap();
+            let mut solutions = crate::solver::solve(problem.clone(), None).unwrap();
             solutions.sort();
 
             let got = super::convert(&problem, &solutions);
