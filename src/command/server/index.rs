@@ -3,7 +3,7 @@ use futures::{
     FutureExt, SinkExt,
 };
 
-use actix_web::{get, post, web, App, Error, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
 use futures::StreamExt;
 use serde::Serialize;
 
@@ -20,9 +20,17 @@ pub async fn server(port: u16) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[get("/")]
-async fn index() -> impl Responder {
-    "POST /solve <sfen>: run solver"
+#[get("/{filename:.*}")]
+async fn index(req: HttpRequest) -> Result<actix_files::NamedFile, actix_web::Error> {
+    let name = req.match_info().query("filename");
+    static_file(if name.is_empty() { "index.html" } else { &name })
+}
+
+fn static_file(name: &str) -> Result<actix_files::NamedFile, actix_web::Error> {
+    let mut path: std::path::PathBuf = ["app", "build"].iter().collect();
+    path.push(name);
+    let file = actix_files::NamedFile::open(path)?;
+    Ok(file)
 }
 
 #[derive(Serialize)]

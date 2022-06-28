@@ -201,7 +201,8 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
         for solution in solutions {
             update_move_format(&mut moves, position.clone(), solution);
         }
-        moves
+        let move0 = jkf::MoveFormat::default();
+        vec![move0].into_iter().chain(moves.into_iter()).collect()
     };
     JsonKifFormat {
         header,
