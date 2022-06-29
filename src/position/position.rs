@@ -110,9 +110,8 @@ impl Position {
         self.color_bb[c.index()] & self.kind_bb[k.index()]
     }
     // Movements with the given color to the given position, excluding king's movement.
-    fn movements_to(&self, to: Square, c: Color) -> Vec<Movement> {
+    fn add_movements_to(&self, res: &mut Vec<Movement>, to: Square, c: Color) {
         let occupied = self.occupied();
-        let mut res = vec![];
         // Drop
         for k in self.hands.kinds(c) {
             res.push(Movement::Drop(to, k));
@@ -125,10 +124,9 @@ impl Position {
             for from in super::bitboard::movable_positions(occupied, to, c.opposite(), k)
                 & self.piece_bb(c, k)
             {
-                add_move(&mut res, from, to, c, k);
+                add_move( res, from, to, c, k);
             }
         }
-        res
     }
     // Attackers with the given color to the given position, excluding king's movement.
     pub(super) fn attackers_to(
@@ -342,7 +340,7 @@ impl Position {
             {
                 pin_bb.unset(pos);
                 for pin_pos in pin_bb {
-                    res.append(&mut self.movements_to(pin_pos, turn));
+                    self.add_movements_to(res, pin_pos, turn);
                 }
             }
         }
