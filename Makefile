@@ -4,5 +4,6 @@ run:
 
 .PHONY: bench
 bench:
-	cargo build -r && \
-	cat ./problems/forest-06-10_97.sfen | time ./target/release/fmrs solve > /dev/null
+	mkdir -p prof && \
+	cargo r -r bench && \
+	(cd prof && go tool pprof -svg profile.pb)

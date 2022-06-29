@@ -586,10 +586,10 @@ fn test_rook_movable_positions() {
 }
 
 // Attackes on the empty board.
-
 pub fn attacks_from(pos: Square, c: Color, k: Kind) -> BitBoard {
     ATTACKS[pos.index()][c.index()][k.index()]
 }
+
 #[test]
 fn test_attacks_from() {
     assert_eq!(

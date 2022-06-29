@@ -1,3 +1,5 @@
+use anyhow::bail;
+
 use crate::piece::*;
 
 pub enum UndoToken {
@@ -186,9 +188,11 @@ impl Position {
     }
 
     // Generate check/uncheck moves checking illegality (two pawns, drop pawn mate, unmovable piece, self check).
-    fn move_candidates(&self) -> Result<Vec<Movement>, String> {
+    fn move_candidates(&self) -> anyhow::Result<Vec<Movement>> {
         let occu = self.occupied();
-        let white_king_pos = self.king(White).ok_or("White king not found".to_owned())?;
+        let white_king_pos = self
+            .king(White)
+            .ok_or(anyhow::anyhow!("White king not found"))?;
 
         let turn = self.turn;
         let pinned = self.king(turn).map(|king_pos| self.pinned(king_pos, turn));
@@ -362,12 +366,12 @@ impl Position {
         turn: Color,
         king_pos: Square,
         attackers: Vec<(Square, Kind)>,
-    ) -> Result<Vec<(Movement, Kind)>, String> {
+    ) -> anyhow::Result<Vec<(Movement, Kind)>> {
         if attackers.is_empty() {
-            return Err("Wrong board optision: no attacker".into());
+            bail!("Wrong board optision: no attacker");
         }
         if attackers.len() > 2 {
-            return Err("Attacked by more than 2 pieces".into());
+            bail!("Attacked by more than 2 pieces");
         }
 
         let mut res = vec![];
@@ -440,8 +444,7 @@ impl Position {
     }
 
     // Generate only valid sequence on tsume shogi.
-
-    pub fn next_positions(&self) -> Result<Vec<(Position, UndoToken)>, String> {
+    pub fn next_positions(&self) -> anyhow::Result<Vec<(Position, UndoToken)>> {
         Ok(self
             .move_candidates()?
             .iter()
