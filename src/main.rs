@@ -22,6 +22,7 @@ struct Args {
 
 #[derive(clap::Subcommand)]
 enum Action {
+    Bench,
     Solve,
     Server,
 }
@@ -31,6 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
+        Action::Bench => command::bench()?,
         Action::Solve => command::solve().await?,
         Action::Server => command::server(1234).await?,
     }
