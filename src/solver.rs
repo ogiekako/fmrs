@@ -89,7 +89,10 @@ pub fn solve_with_progress(
             }
 
             let mut movable = false;
-            for (np, token) in board.next_positions().unwrap() {
+            for cand in board.move_candidates()? {
+                let mut np = board.clone();
+                let token = np.do_move(&cand);
+
                 movable = true;
                 if goal_step.is_some() {
                     break;

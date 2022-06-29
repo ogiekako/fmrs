@@ -188,7 +188,7 @@ impl Position {
     }
 
     // Generate check/uncheck moves checking illegality (two pawns, drop pawn mate, unmovable piece, self check).
-    fn move_candidates(&self) -> anyhow::Result<Vec<Movement>> {
+    pub fn move_candidates(&self) -> anyhow::Result<Vec<Movement>> {
         let occu = self.occupied();
         let white_king_pos = self
             .king(White)
@@ -441,19 +441,6 @@ impl Position {
             ));
         }
         Ok(res)
-    }
-
-    // Generate only valid sequence on tsume shogi.
-    pub fn next_positions(&self) -> anyhow::Result<Vec<(Position, UndoToken)>> {
-        Ok(self
-            .move_candidates()?
-            .iter()
-            .map(|m| {
-                let mut s = self.clone();
-                let u = s.do_move(m);
-                (s, u)
-            })
-            .collect())
     }
 
     // Make the movement assuming m is a valid movement. Otherwise it panics.
@@ -779,10 +766,14 @@ mod tests {
         ] {
             let board = sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
             let mut got = board
-                .next_positions()
+                .move_candidates()
                 .expect("Failed to get next positions")
                 .into_iter()
-                .map(|x| x.0)
+                .map(|x| {
+                    let mut np = board.clone();
+                    np.do_move(&x);
+                    np
+                })
                 .collect::<Vec<Position>>();
             got.sort();
             let mut want = sfen::decode_moves(&tc.1.join(" "))
