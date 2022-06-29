@@ -167,15 +167,17 @@ impl Position {
     // because the black king is pinned.
     fn pinned(&self, king_pos: Square, c: Color) -> HashMap<Square, BitBoard> {
         let mut res = HashMap::new();
-        for k in Kind::iter() {
-            if let Some(i) = line_piece_index(k) {
-                for pos in self.piece_bb(c.opposite(), k) {
-                    if let Some(mask) = PIN[pos.index()][king_pos.index()][c.opposite().index()][i]
+        for line_piece_kind in Kind::iter() {
+            if let Some(i) = line_piece_index(line_piece_kind) {
+                for opponent_line_piece in self.piece_bb(c.opposite(), line_piece_kind) {
+                    if let Some(pinned_bb) =
+                        PIN[opponent_line_piece.index()][king_pos.index()][c.opposite().index()][i]
                     {
-                        let mut pinned = mask & self.color_bb[c.index()];
-                        if let Some(p) = pinned.next() {
-                            if pinned.next().is_none() {
-                                res.insert(p, mask);
+                        let all_pinned = pinned_bb & (self.color_bb[0] | self.color_bb[1]);
+                        if all_pinned.into_iter().count() <= 2 {
+                            let mut pinned = pinned_bb & self.color_bb[c.index()];
+                            if let Some(p) = pinned.next() {
+                                res.insert(p, pinned_bb);
                             }
                         }
                     }
@@ -669,16 +671,16 @@ mod tests {
     #[test]
     fn test_pin() {
         macro_rules! map(
-        { $($key:expr => $value:expr),* } => {
-            {
-                let mut m = ::std::collections::HashMap::new();
-                $(
-                    m.insert($key, $value);
-                )*
-                m
-            }
-        };
-    );
+            { $($key:expr => $value:expr),* } => {
+                {
+                    let mut m = ::std::collections::HashMap::new();
+                    $(
+                        m.insert($key, $value);
+                    )*
+                    m
+                }
+            };
+        );
         let board =
             sfen::decode_position("3ll4/7B1/3Pp1p2/3+P5/4k4/4r4/3K2G+r1/4L4/8+B b 3g4s4nl14p 1")
                 .unwrap();

@@ -3,6 +3,7 @@ import Board from './Board';
 import Hands from './Hands';
 import { newState, updatedState, updateStateOnRightClick } from './state';
 import * as types from './types';
+import * as model from '../model';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
@@ -23,15 +24,17 @@ export function Editor(props: {
         }
     }
 
+    const sfen = model.sfen(state.position);
+
     return <div>
         <Hands hands={state.position.hands['white']} selected={whiteHandSelected} onClick={k => setState(state => updatedState(state, { ty: 'hand', color: 'white', kind: k }))} />
-        <Board pieces={state.position.pieces} selected={boardSelected} onClick={pos => setState(state => updatedState(state, { ty: 'board', pos }))} onRightClick={pos => setState(state => updateStateOnRightClick(state, pos))} />
+        <Board pieces={state.position.board} selected={boardSelected} onClick={pos => setState(state => updatedState(state, { ty: 'board', pos }))} onRightClick={pos => setState(state => updateStateOnRightClick(state, pos))} />
         <Hands hands={state.position.hands['black']} selected={blackHandSelected} onClick={k => setState(state => updatedState(state, { ty: 'hand', color: 'black', kind: k }))} />
+        <div>SFEN <input type="text" readOnly={true} value={sfen} style={{ width: 250 }} /></div>
         <button disabled={solving} onClick={async (e) => {
             setSolving(true);
             try {
-                const problem = 'ggssn2p1/lgssn3l/+R8/5N2k/4bn3/3l5/9/2g4L1/KBr3PP1 b 11P4p 1';
-                for await (let line of solve(problem)) {
+                for await (let line of solve(sfen)) {
                     const obj = JSON.parse(line);
                     if (obj['Solved']) {
                         props.onSolved(JSON.stringify(obj['Solved']))
@@ -52,7 +55,7 @@ async function* solve(sfen: string) {
     const utf8Decoder = new TextDecoder('utf-8');
     const response = await fetch("http://localhost:1234/solve", {
         method: 'POST',
-        body: 'ggssn2p1/lgssn3l/+R8/5N2k/4bn3/3l5/9/2g4L1/KBr3PP1 b 11P4p 1',
+        body: sfen,
     });
     const reader = response.body!.getReader();
 

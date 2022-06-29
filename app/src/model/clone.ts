@@ -2,7 +2,7 @@ import { Board, Hands, Piece, Position } from ".";
 
 export function clonePosition(position: Position): Position {
     return {
-        pieces: cloneBoard(position.pieces),
+        board: cloneBoard(position.board),
         hands: {
             'black': cloneHands(position.hands['black']),
             'white': cloneHands(position.hands['white']),

@@ -16,7 +16,7 @@ export function newState(): types.State {
     };
     return {
         position: {
-            pieces,
+            board: pieces,
             hands: {
                 'black': model.emptyHands(),
                 'white': model.fullHands(),
@@ -40,7 +40,7 @@ export function updatedState(original: types.State, event: types.ClickEvent): ty
             };
             return mutableState;
         }
-        if (original.position.pieces[event.pos[0]][event.pos[1]]) {
+        if (original.position.board[event.pos[0]][event.pos[1]]) {
             mutableState.selected = event;
         }
         return mutableState;
@@ -54,27 +54,27 @@ export function updatedState(original: types.State, event: types.ClickEvent): ty
             mutableState.position.hands[event.color][original.selected.kind]++;
             return mutableState;
         }
-        const p = mutableState.position.pieces[original.selected.pos[0]][original.selected.pos[1]];
+        const p = mutableState.position.board[original.selected.pos[0]][original.selected.pos[1]];
         if (p && p.kind !== 'K') {
             mutableState.position.hands[event.color][p.kind]++;
-            mutableState.position.pieces[original.selected.pos[0]][original.selected.pos[1]] = undefined;
+            mutableState.position.board[original.selected.pos[0]][original.selected.pos[1]] = undefined;
         }
         return mutableState;
     }
 
-    const target = original.position.pieces[event.pos[0]][event.pos[1]];
+    const target = original.position.board[event.pos[0]][event.pos[1]];
     if (!target) {
         if (original.selected.ty === 'hand') {
             mutableState.position.hands[original.selected.color][original.selected.kind]--;
-            mutableState.position.pieces[event.pos[0]][event.pos[1]] = {
+            mutableState.position.board[event.pos[0]][event.pos[1]] = {
                 color: 'black',
                 kind: original.selected.kind,
                 promoted: false
             };
             return mutableState;
         }
-        mutableState.position.pieces[event.pos[0]][event.pos[1]] = original.position.pieces[original.selected.pos[0]][original.selected.pos[1]];
-        mutableState.position.pieces[original.selected.pos[0]][original.selected.pos[1]] = undefined;
+        mutableState.position.board[event.pos[0]][event.pos[1]] = original.position.board[original.selected.pos[0]][original.selected.pos[1]];
+        mutableState.position.board[original.selected.pos[0]][original.selected.pos[1]] = undefined;
         return mutableState;
     }
     if (target.kind === 'K') {
@@ -83,26 +83,26 @@ export function updatedState(original: types.State, event: types.ClickEvent): ty
     if (original.selected.ty === 'hand') {
         mutableState.position.hands[original.selected.color][target.kind]++;
         mutableState.position.hands[original.selected.color][original.selected.kind]--;
-        mutableState.position.pieces[event.pos[0]][event.pos[1]] = {
+        mutableState.position.board[event.pos[0]][event.pos[1]] = {
             color: 'black',
             kind: original.selected.kind,
             promoted: false
         };
         return mutableState;
     }
-    const from = original.position.pieces[original.selected.pos[0]][original.selected.pos[1]];
+    const from = original.position.board[original.selected.pos[0]][original.selected.pos[1]];
     if (!from) {
         return mutableState;
     }
     mutableState.position.hands[from.color][target.kind]++;
-    mutableState.position.pieces[event.pos[0]][event.pos[1]] = from;
-    mutableState.position.pieces[original.selected.pos[0]][original.selected.pos[1]] = undefined;
+    mutableState.position.board[event.pos[0]][event.pos[1]] = from;
+    mutableState.position.board[original.selected.pos[0]][original.selected.pos[1]] = undefined;
     return mutableState;
 }
 
 export function updateStateOnRightClick(original: types.State, pos: [number, number]): types.State {
     const mutableState = cloneState(original);
-    const mutablePiece = mutableState.position.pieces[pos[0]][pos[1]];
+    const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {
         return mutableState;
     }

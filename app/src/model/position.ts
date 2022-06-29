@@ -1,7 +1,6 @@
-import { Color, Hands, Piece } from ".";
-
+import { Color, Hands, Board } from ".";
 
 export type Position = {
-    pieces: (Piece | undefined)[][],
+    board: Board,
     hands: { [C in Color]: Hands },
 }

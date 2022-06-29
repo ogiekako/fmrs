@@ -180,6 +180,10 @@ mod tests {
             "9/6b2/7k1/5b3/7sL/9/9/9/9 b Rr4g3s4n3l18p 1",
             vec!["1513+ 2324 1323 2414 R*13"],
         ),
+        (
+            "9/9/9/9/9/9/9/5G2l/K4+B1kr b rb3g4s4n3l18p",
+            vec!["4938"],
+        ),
         // http://cavesfairy.g1.xrea.com/pub/qgfairy/
         (
             // 06-07 (57 steps)
@@ -209,6 +213,7 @@ mod tests {
             "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",
             "9/9/9/5bp1G/6k2/6l1P/8K/9/8N b 2rb3g4s3n3l16p 1",
             "9/9/9/9/9/pp7/kl7/9/K8 b P2r2b4g4s4n3l15p 1",
+            "7pk/7bg/9/8K/8N/8P/8L/9/9 b 2rb3g4s3n3l16p"
         ] {
             let board = sfen::decode_position(sfen).unwrap();
             let got = solve(board.clone(), None).unwrap();

@@ -7,6 +7,7 @@ function App() {
 
   return <div>
     <Editor onSolved={jkf => {
+      console.log(`solved!! `, jkf);
       setJkf(jkf);
     }} />
     {jkf ? <Solution jkf={jkf} /> : <></>}
