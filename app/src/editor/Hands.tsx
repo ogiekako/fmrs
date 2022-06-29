@@ -1,9 +1,9 @@
 import { SELECTED_COLOR } from './constants';
-import * as types from './types';
+import * as model from '../model';
 
-const RAW_KINDS: Array<types.Kind> = ['P', 'L', 'N', 'S', 'G', 'B', 'R'];
+const RAW_KINDS: Array<model.Kind> = ['P', 'L', 'N', 'S', 'G', 'B', 'R'];
 
-export default function Hands(props: { hands: types.Hands, selected: types.Kind | undefined, onClick: (kind: types.Kind | undefined) => void }) {
+export default function Hands(props: { hands: model.Hands, selected: model.Kind | undefined, onClick: (kind: model.Kind | undefined) => void }) {
     let nothing = true;
     const pieces = [];
     for (const k of RAW_KINDS) {
@@ -17,7 +17,7 @@ export default function Hands(props: { hands: types.Hands, selected: types.Kind 
     return <div onClick={_e => props.onClick(undefined)} style={{ fontSize: "1.5em" }}>{res}</div>
 }
 
-const MAPPING: { [k in types.Kind]: string } = {
+const MAPPING: { [k in model.Kind]: string } = {
     'P': '歩',
     'L': '香',
     'N': '桂',
@@ -28,7 +28,7 @@ const MAPPING: { [k in types.Kind]: string } = {
     'K': '王',
 }
 
-function Kind(props: { kind: types.Kind, selected: boolean }) {
+function Kind(props: { kind: model.Kind, selected: boolean }) {
     let letter = MAPPING[props.kind];
     return <span style={{ backgroundColor: props.selected ? SELECTED_COLOR : "white" }}>{letter}</span>
 }

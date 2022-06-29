@@ -1,8 +1,9 @@
+import * as model from '../model';
 import { cloneState } from './clone';
 import * as types from './types';
 
 export function newState(): types.State {
-    const pieces: (types.Piece | undefined)[][] = new Array(9).fill(null).map(() => new Array(9));
+    const pieces = model.emptyBoard();
     pieces[0][4] = {
         color: 'white',
         kind: 'K',
@@ -13,30 +14,19 @@ export function newState(): types.State {
         kind: 'K',
         promoted: false,
     };
-    const whiteHand: types.Hands = {
-        'P': 18,
-        'L': 4,
-        'N': 4,
-        'S': 4,
-        'G': 4,
-        'B': 2,
-        'R': 2,
-        'K': 2,
-    };
     return {
         position: {
             pieces,
             hands: {
-                'black':
-                    emptyHand(),
-                'white': whiteHand,
+                'black': model.emptyHands(),
+                'white': model.fullHands(),
             },
         },
         selected: undefined,
     }
 }
 
-export function updatedState(original: types.State, event: types.RightClickEvent): types.State {
+export function updatedState(original: types.State, event: types.ClickEvent): types.State {
     const mutableState = cloneState(original);
     if (!original.selected) {
         if (event.ty === 'hand') {
@@ -130,17 +120,4 @@ export function updateStateOnRightClick(original: types.State, pos: [number, num
     mutablePiece.color = mutablePiece.color === 'black' ? 'white' : 'black';
     mutablePiece.promoted = false;
     return mutableState;
-}
-
-export function emptyHand(): types.Hands {
-    return {
-        'P': 0,
-        'L': 0,
-        'N': 0,
-        'S': 0,
-        'G': 0,
-        'B': 0,
-        'R': 0,
-        'K': 0,
-    }
 }

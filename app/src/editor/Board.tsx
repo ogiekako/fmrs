@@ -1,7 +1,7 @@
 import { SELECTED_COLOR } from './constants';
-import * as types from './types';
+import * as model from '../model';
 
-export default function Board(props: { pieces: (types.Piece | undefined)[][], selected: [number, number] | undefined, onClick: (pos: [number, number]) => void, onRightClick: (pos: [number, number]) => void }) {
+export default function Board(props: { pieces: model.Board, selected: [number, number] | undefined, onClick: (pos: [number, number]) => void, onRightClick: (pos: [number, number]) => void }) {
     const board = [];
     for (let row = 0; row < 9; row++) {
         const rowPieces = []
@@ -17,7 +17,7 @@ export default function Board(props: { pieces: (types.Piece | undefined)[][], se
     </table>;
 }
 
-function Square(props: { piece: types.Piece | undefined, selected: boolean, onClick: () => void, onRightClick: () => void }) {
+function Square(props: { piece: model.Piece | undefined, selected: boolean, onClick: () => void, onRightClick: () => void }) {
     return <td onClick={_e => props.onClick()} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); props.onRightClick() }} style={{
         width: 32,
         height: 36,
@@ -31,12 +31,12 @@ function Square(props: { piece: types.Piece | undefined, selected: boolean, onCl
         }</td>
 }
 
-function pieceString(p: types.Piece) {
+function pieceString(p: model.Piece) {
     const letter = MAPPING[p.kind][p.promoted ? 1 : 0];
     return <div style={{ transform: p.color === 'black' ? "rotate(0)" : "rotate(180deg)", textAlign: "center" }}>{letter}</div>
 }
 
-const MAPPING: { [K in types.Kind]: [string, string] } = {
+const MAPPING: { [K in model.Kind]: [string, string] } = {
     'P': ['歩', 'と'],
     'L': ['香', '杏'],
     'N': ['桂', '圭'],

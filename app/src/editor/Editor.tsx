@@ -75,5 +75,4 @@ async function* solve(sfen: string) {
             line += s[i];
         }
     }
-
 }

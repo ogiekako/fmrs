@@ -1,1 +1,1 @@
-export { Editor as Position } from "./Editor"
+export { Editor } from "./Editor"

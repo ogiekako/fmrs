@@ -1,20 +1,4 @@
-export type Color = 'black' | 'white'
-export type Kind = 'P' | 'L' | 'N' | 'S' | 'G' | 'B' | 'R' | 'K'
-
-export type Piece = {
-    color: Color,
-    kind: Kind,
-    promoted: boolean,
-}
-
-export type Hands = {
-    [K in Kind]: number;
-}
-
-export type Position = {
-    pieces: (Piece | undefined)[][],
-    hands: { [C in Color]: Hands },
-}
+import { Color, Kind, Position } from "../model"
 
 export type State = {
     position: Position,
@@ -30,7 +14,7 @@ export type Selected = {
     pos: [number, number] // zero-origin
 }
 
-export type RightClickEvent = {
+export type ClickEvent = {
     ty: 'hand'
     color: Color,
     kind: Kind | undefined
