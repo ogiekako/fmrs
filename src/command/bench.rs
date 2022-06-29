@@ -7,6 +7,7 @@ use crate::{sfen, solver};
 pub fn bench() -> anyhow::Result<()> {
     // let problem = include_str!("../../problems/forest-06-10_97.sfen");
     let problem = include_str!("../../problems/ofm-139_5.sfen");
+    // let problem = include_str!("../../problems/chain_207.sfen");
 
     let position = sfen::decode_position(&problem).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
