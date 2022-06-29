@@ -1,8 +1,3 @@
-use futures::SinkExt;
-use futures::Stream;
-use futures::StreamExt;
-use futures::pin_mut;
-
 use crate::piece::*;
 use crate::position::*;
 
@@ -89,9 +84,13 @@ pub fn solve_with_progress(
             }
 
             let mut movable = false;
+            let checker = crate::position::Checker::new(board.clone());
             for cand in board.move_candidates()? {
+                if !checker.is_allowed(cand.0) {
+                    continue;
+                }
                 let mut np = board.clone();
-                let token = np.do_move(&cand);
+                let token = np.do_move(&cand.0);
 
                 movable = true;
                 if goal_step.is_some() {
