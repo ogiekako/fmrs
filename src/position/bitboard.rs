@@ -183,9 +183,8 @@ pub fn movable_positions(occupied: BitBoard, pos: Square, c: Color, k: Kind) -> 
         Lance => lance_movable_positions(occupied, pos, c),
         Bishop => bishop_movable_positions(occupied, pos),
         Rook => rook_movable_positions(occupied, pos),
-        ProBishop | ProRook => {
-            attacks_from(pos, c, King) | movable_positions(occupied, pos, c, k.unpromote().unwrap())
-        }
+        ProBishop => attacks_from(pos, c, King) | bishop_movable_positions(occupied, pos),
+        ProRook => attacks_from(pos, c, King) | rook_movable_positions(occupied, pos),
         _ => attacks_from(pos, c, k),
     }
 }
