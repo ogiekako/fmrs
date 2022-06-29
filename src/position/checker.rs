@@ -7,7 +7,7 @@ use super::{bitboard::BitBoard, Movement, Position, Square};
 pub struct Checker {
     position: Position,
     pinned: Option<HashMap<Square, BitBoard>>,
-    black_attack_prevent_moves: Option<Vec<(Movement, Kind)>>,
+    black_attack_prevent_moves: Option<Vec<Movement>>,
 }
 
 impl Checker {
@@ -25,8 +25,10 @@ impl Checker {
                         .attackers_to(black_king_pos, Color::White)
                         .collect();
                     if !attackers.is_empty() {
-                        let mut moves = position
+                        let mut moves = vec![];
+                        position
                             .generate_attack_preventing_moves(
+                                &mut moves,
                                 Color::Black,
                                 black_king_pos,
                                 attackers,
@@ -46,21 +48,11 @@ impl Checker {
         }
     }
 
-    fn move_kind(&self, m: Movement) -> Kind {
-        match m {
-            Movement::Drop(_, k) => k,
-            Movement::Move { from, to, promote } => self.position.get(from).unwrap().1,
-        }
-    }
-
     pub fn is_allowed(&self, m: Movement) -> bool {
         let turn = self.position.turn;
 
         if let Some(allowed_moves) = &self.black_attack_prevent_moves {
-            if allowed_moves
-                .binary_search(&(m.clone(), self.move_kind(m)))
-                .is_err()
-            {
+            if allowed_moves.binary_search(&m).is_err() {
                 return false;
             }
         }

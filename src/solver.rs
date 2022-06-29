@@ -40,7 +40,6 @@ pub fn solve_with_progress(
     if board.checked(White) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
-
         debug_assert_ne!(board.turn() == Black, board.checked(White));
 
         // position -> (min step, undo tokens)
@@ -85,12 +84,14 @@ pub fn solve_with_progress(
 
             let mut movable = false;
             let checker = crate::position::Checker::new(board.clone());
-            for cand in board.move_candidates()? {
-                if !checker.is_allowed(cand.0) {
+            let mut cands = vec![];
+            board.move_candidates(&mut cands)?;
+            for cand in cands {
+                if !checker.is_allowed(cand) {
                     continue;
                 }
                 let mut np = board.clone();
-                let token = np.do_move(&cand.0);
+                let token = np.do_move(&cand);
 
                 movable = true;
                 if goal_step.is_some() {

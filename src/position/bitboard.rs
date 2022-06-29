@@ -586,7 +586,7 @@ fn test_rook_movable_positions() {
 
 // Attackes on the empty board.
 pub fn attacks_from(pos: Square, c: Color, k: Kind) -> BitBoard {
-    ATTACKS[pos.index()][c.index()][k.index()]
+    ATTACKS[attack_index(pos, c, k)]
 }
 
 #[test]
@@ -663,6 +663,10 @@ fn test_attacks_from() {
     );
 }
 
+fn attack_index(pos: Square, color: Color, kind: Kind) -> usize {
+    kind.index() + NUM_KIND * color.index() + pos.index() * NUM_KIND * 2
+}
+
 lazy_static! {
     static ref LANCE_MASKS: [[BitBoard; 2]; 81] = {
         let mut res = [[BitBoard::new(); 2]; 81];
@@ -704,8 +708,9 @@ lazy_static! {
     };
 
     // pos, color, kind
-    static ref ATTACKS: [[[BitBoard; NUM_KIND]; 2]; 81] = {
-        let mut res = [[[BitBoard::new(); NUM_KIND]; 2]; 81];
+    static ref ATTACKS: [BitBoard; NUM_KIND * 2 * 81] = {
+        // pos + color * 81 + kind * 162
+        let mut res = [BitBoard::new(); NUM_KIND * 2 * 81];
 
         type Control = [&'static str; 3];
         const CONTROL: [Control; NUM_HAND_KIND] = [[
@@ -738,8 +743,9 @@ lazy_static! {
             ".+.",
         ]];
 
-        fn fill(ats: &mut[BitBoard; NUM_KIND], pos: Square, color: Color, k: Kind) {
-            ats[k.index()] = match k {
+        fn fill(ats: &mut[BitBoard], pos: Square, color: Color, k: Kind) {
+            let index = |k:Kind|attack_index(pos, color, k);
+            ats[index(k)] = match k {
                 Pawn | Lance | Knight | Silver | Gold | Bishop | Rook => {
                     let (oi, oj) = (0..3).find_map(|i|
                         CONTROL[k.index()][i].chars().enumerate().find_map(|(j,x)|
@@ -768,17 +774,16 @@ lazy_static! {
                     }
                     board
                 },
-                King => ats[Gold.index()] | ats[Silver.index()],
-                ProPawn | ProLance | ProKnight | ProSilver => ats[Gold.index()],
-                ProBishop | ProRook => ats[King.index()] | ats[k.unpromote().unwrap().index()],
+                King => ats[index(Gold)] | ats[index(Silver)],
+                ProPawn | ProLance | ProKnight | ProSilver => ats[index(Gold)],
+                ProBishop | ProRook => ats[index(King)] | ats[index(k.unpromote().unwrap())],
             }
         }
 
         for pos in Square::iter() {
             for c in Color::iter() {
-                let ats = &mut res[pos.index()][c.index()];
                 for k in Kind::iter() {
-                    fill(ats, pos, c, k);
+                    fill(&mut res, pos, c, k);
                 }
             }
         }

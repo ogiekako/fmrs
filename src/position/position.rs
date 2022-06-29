@@ -110,12 +110,12 @@ impl Position {
         self.color_bb[c.index()] & self.kind_bb[k.index()]
     }
     // Movements with the given color to the given position, excluding king's movement.
-    fn movements_to(&self, to: Square, c: Color) -> Vec<(Movement, Kind)> {
+    fn movements_to(&self, to: Square, c: Color) -> Vec<Movement> {
         let occupied = self.occupied();
         let mut res = vec![];
         // Drop
         for k in self.hands.kinds(c) {
-            res.push((Movement::Drop(to, k), k));
+            res.push(Movement::Drop(to, k));
         }
         // Movement::Move
         for k in Kind::iter() {
@@ -193,7 +193,7 @@ impl Position {
     }
 
     // Generate check/uncheck moves without checking illegality.
-    pub fn move_candidates(&self) -> anyhow::Result<Vec<(Movement, Kind)>> {
+    pub fn move_candidates(&self, res: &mut Vec<Movement>) -> anyhow::Result<()> {
         let occu = self.occupied();
         let white_king_pos = self
             .king(White)
@@ -201,7 +201,6 @@ impl Position {
 
         let turn = self.turn;
 
-        let mut res = vec![];
         // Black.
         if turn == Black {
             // Drop
@@ -209,7 +208,7 @@ impl Position {
                 for pos in
                     (!occu) & (super::bitboard::movable_positions(occu, white_king_pos, White, k))
                 {
-                    res.push((Movement::Drop(pos, k), k));
+                    res.push(Movement::Drop(pos, k));
                 }
             }
             // Direct attack
@@ -222,14 +221,11 @@ impl Position {
                     & super::bitboard::movable_positions(occu, white_king_pos, White, k);
                 for from in froms {
                     for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
-                        res.push((
-                            Movement::Move {
-                                from,
-                                to,
-                                promote: false,
-                            },
-                            k,
-                        ))
+                        res.push(Movement::Move {
+                            from,
+                            to,
+                            promote: false,
+                        })
                     }
                 }
                 // promote
@@ -237,14 +233,11 @@ impl Position {
                     for from in self.piece_bb(Black, k) {
                         for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
                             if promotable(from, Black) || promotable(to, Black) {
-                                res.push((
-                                    Movement::Move {
-                                        from,
-                                        to,
-                                        promote: true,
-                                    },
-                                    k,
-                                ))
+                                res.push(Movement::Move {
+                                    from,
+                                    to,
+                                    promote: true,
+                                });
                             }
                         }
                     }
@@ -278,13 +271,14 @@ impl Position {
                             & ((!self.color_bb[Black.index()])
                                 & super::bitboard::movable_positions(occu, from, Black, from_k))
                         {
-                            add_move(&mut res, from, to, Black, from_k);
+                            add_move( res, from, to, Black, from_k);
                         }
                     }
                 }
             }
         } else {
-            res = self.generate_attack_preventing_moves(
+            self.generate_attack_preventing_moves(
+                res,
                 White,
                 white_king_pos,
                 self.attackers_to(white_king_pos, Black).collect(),
@@ -293,23 +287,22 @@ impl Position {
         res.sort_unstable();
         // TODO: Remove necessity of dedup.
         res.dedup();
-        Ok(res)
+        Ok(())
     }
 
     pub(super) fn generate_attack_preventing_moves(
         &self,
+        res: &mut Vec<Movement>,
         turn: Color,
         king_pos: Square,
         attackers: Vec<(Square, Kind)>,
-    ) -> anyhow::Result<Vec<(Movement, Kind)>> {
+    ) -> anyhow::Result<()> {
         if attackers.is_empty() {
             bail!("Wrong board optision: no attacker");
         }
         if attackers.len() > 2 {
             bail!("Attacked by more than 2 pieces");
         }
-
-        let mut res = vec![];
 
         // Potential attacked positions which are currently hidden by the king. King cannot move there.
         // It's a workaround for the bug that those places are not considered as attacked in is_allowed.
@@ -356,7 +349,7 @@ impl Position {
         // Capture
         if attackers.len() == 1 {
             for (pos, kind) in self.attackers_to(attackers[0].0, turn) {
-                add_move(&mut res, pos, attackers[0].0, turn, kind);
+                add_move(res, pos, attackers[0].0, turn, kind);
             }
         }
         // King move
@@ -366,16 +359,13 @@ impl Position {
             if hidden.get(pos) {
                 continue;
             }
-            res.push((
-                Movement::Move {
-                    from: king_pos,
-                    to: pos,
-                    promote: false,
-                },
-                King,
-            ));
+            res.push(Movement::Move {
+                from: king_pos,
+                to: pos,
+                promote: false,
+            });
         }
-        Ok(res)
+        Ok(())
     }
 
     // Make the movement assuming m is a valid movement. Otherwise it panics.
@@ -491,24 +481,18 @@ pub(super) fn promotable(pos: Square, c: Color) -> bool {
     }
 }
 
-fn add_move(moves: &mut Vec<(Movement, Kind)>, from: Square, to: Square, c: Color, k: Kind) {
-    moves.push((
-        Movement::Move {
+fn add_move(moves: &mut Vec<Movement>, from: Square, to: Square, c: Color, k: Kind) {
+    moves.push(Movement::Move {
+        from,
+        to,
+        promote: false,
+    });
+    if (promotable(from, c) || promotable(to, c)) && k.promote().is_some() {
+        moves.push(Movement::Move {
             from,
             to,
-            promote: false,
-        },
-        k,
-    ));
-    if (promotable(from, c) || promotable(to, c)) && k.promote().is_some() {
-        moves.push((
-            Movement::Move {
-                from,
-                to,
-                promote: true,
-            },
-            k,
-        ))
+            promote: true,
+        })
     }
 }
 
@@ -700,13 +684,13 @@ mod tests {
             ),
         ] {
             let board = sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
-            let mut got = board
-                .move_candidates()
-                .expect("Failed to get next positions")
+            let mut res = vec![];
+            board.move_candidates(&mut res).unwrap();
+            let mut got = res
                 .into_iter()
                 .map(|x| {
                     let mut np = board.clone();
-                    np.do_move(&x.0);
+                    np.do_move(&x);
                     np
                 })
                 .collect::<Vec<Position>>();
