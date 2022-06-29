@@ -6,7 +6,6 @@ pub enum Color {
 pub use Color::*;
 
 impl Color {
-    #[inline]
     pub fn index(&self) -> usize {
         *self as usize
     }
@@ -56,14 +55,13 @@ pub const NUM_HAND_KIND: usize = 7;
 pub const NUM_KIND: usize = 14;
 
 impl Kind {
-    #[inline]
     pub fn index(&self) -> usize {
         *self as usize
     }
     pub fn iter() -> impl Iterator<Item = Kind> {
         KINDS.iter().map(|k| *k)
     }
-    #[inline]
+
     pub fn promote(&self) -> Option<Kind> {
         Some(match self {
             Pawn => ProPawn,
@@ -75,11 +73,11 @@ impl Kind {
             _ => return None,
         })
     }
-    #[inline]
+
     pub fn maybe_unpromote(&self) -> Kind {
         self.unpromote().unwrap_or(*self)
     }
-    #[inline]
+
     pub fn unpromote(&self) -> Option<Kind> {
         Some(match self {
             ProPawn => Pawn,

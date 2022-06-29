@@ -14,7 +14,7 @@ impl Hands {
     pub fn new() -> Hands {
         Hands { x: 0 }
     }
-    #[inline]
+
     fn max_count(k: Kind) -> usize {
         debug_assert!(k.is_hand_piece());
         if k == Kind::Pawn {

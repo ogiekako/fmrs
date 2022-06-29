@@ -99,11 +99,11 @@ impl Position {
         }
         None
     }
-    #[inline]
+
     fn occupied(&self) -> BitBoard {
         self.color_bb[0] | self.color_bb[1]
     }
-    #[inline]
+
     fn piece_bb(&self, c: Color, k: Kind) -> BitBoard {
         self.color_bb[c.index()] & self.kind_bb[k.index()]
     }
@@ -142,7 +142,6 @@ impl Position {
         })
     }
 
-    #[inline]
     fn attackers_to_with_king(
         &self,
         to: Square,
@@ -156,7 +155,6 @@ impl Position {
         })
     }
 
-    #[inline]
     fn has_pawn_in_col(&self, pos: Square, c: Color) -> bool {
         let b = self.piece_bb(c, Pawn);
         !(COL_MASKS[pos.col()] & b).is_empty()
@@ -442,7 +440,7 @@ impl Position {
     }
 
     // Generate only valid sequence on tsume shogi.
-    #[inline]
+
     pub fn next_positions(&self) -> Result<Vec<(Position, UndoToken)>, String> {
         Ok(self
             .move_candidates()?
@@ -590,7 +588,6 @@ fn add_move(moves: &mut Vec<(Movement, Kind)>, from: Square, to: Square, c: Colo
     }
 }
 
-#[inline]
 fn line_piece_index(k: Kind) -> Option<usize> {
     Some(match k {
         Lance => 0,
@@ -600,7 +597,6 @@ fn line_piece_index(k: Kind) -> Option<usize> {
     })
 }
 
-#[inline]
 fn movable(pos: Square, c: Color, k: Kind) -> bool {
     MOVABLE[pos.index()][c.index()][k.index()]
 }

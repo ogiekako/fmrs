@@ -42,7 +42,6 @@ macro_rules! def_op {
         impl std::ops::$ty for BitBoard {
             type Output = Self;
 
-            #[inline]
             fn $op(self, rhs: Self) -> Self {
                 BitBoard {
                     x: self.x.$op(rhs.x),
@@ -60,7 +59,6 @@ def_op!(BitOr, bitor);
 macro_rules! def_op_assign {
     ($ty: ident, $op: ident) => {
         impl std::ops::$ty for BitBoard {
-            #[inline]
             fn $op(&mut self, rhs: Self) {
                 self.x.$op(rhs.x);
             }
@@ -76,7 +74,6 @@ def_op_assign!(BitOrAssign, bitor_assign);
 impl std::ops::Not for BitBoard {
     type Output = Self;
 
-    #[inline]
     fn not(self) -> BitBoard {
         BitBoard { x: self.x.not() }
     }
@@ -85,7 +82,6 @@ impl std::ops::Not for BitBoard {
 impl Iterator for BitBoard {
     type Item = Square;
 
-    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if self.is_empty() {
             return None;
@@ -135,13 +131,13 @@ impl fmt::Debug for BitBoard {
 
 impl BitBoard {
     // Assumes self is not empty.
-    #[inline]
+
     fn pop(&mut self) -> Square {
         let res = Square::from_index(self.x.trailing_zeros() as usize);
         self.x = self.x & (self.x - 1);
         res
     }
-    #[inline]
+
     pub fn new() -> BitBoard {
         BitBoard { x: 0 }
     }
@@ -590,7 +586,7 @@ fn test_rook_movable_positions() {
 }
 
 // Attackes on the empty board.
-#[inline]
+
 pub fn attacks_from(pos: Square, c: Color, k: Kind) -> BitBoard {
     ATTACKS[pos.index()][c.index()][k.index()]
 }
