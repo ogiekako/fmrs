@@ -26,7 +26,7 @@ fn test_color_index() {
     assert_eq!(White.index(), 1);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Kind {
     Pawn,
     Lance,

@@ -124,7 +124,7 @@ impl Position {
             for from in super::bitboard::movable_positions(occupied, to, c.opposite(), k)
                 & self.piece_bb(c, k)
             {
-                add_move( res, from, to, c, k);
+                add_move(res, from, to, c, k);
             }
         }
     }
@@ -209,14 +209,20 @@ impl Position {
                     res.push(Movement::Drop(pos, k));
                 }
             }
+
+            let mut direct_attack_goals = [BitBoard::new(); NUM_KIND];
+            for k in Kind::iter() {
+                direct_attack_goals[k.index()] = !self.color_bb[Black.index()]
+                    & super::bitboard::movable_positions(occu, white_king_pos, White, k);
+            }
+
             // Direct attack
             for k in Kind::iter() {
                 if k == King {
                     continue;
                 }
                 let froms = self.piece_bb(Black, k);
-                let goal = (!self.color_bb[Black.index()])
-                    & super::bitboard::movable_positions(occu, white_king_pos, White, k);
+                let goal = direct_attack_goals[k.index()];
                 for from in froms {
                     for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
                         res.push(Movement::Move {
@@ -269,7 +275,24 @@ impl Position {
                             & ((!self.color_bb[Black.index()])
                                 & super::bitboard::movable_positions(occu, from, Black, from_k))
                         {
-                            add_move( res, from, to, Black, from_k);
+                            if !direct_attack_goals[from_k.index()].get(to) {
+                                res.push(Movement::Move {
+                                    from,
+                                    to,
+                                    promote: false,
+                                })
+                            }
+
+                            if (promotable(from, Color::Black) || promotable(to, Color::Black))
+                                && from_k.promote().is_some()
+                                && !direct_attack_goals[from_k.promote().unwrap().index()].get(to)
+                            {
+                                res.push(Movement::Move {
+                                    from,
+                                    to,
+                                    promote: true,
+                                })
+                            }
                         }
                     }
                 }
@@ -282,9 +305,6 @@ impl Position {
                 self.attackers_to(white_king_pos, Black).collect(),
             )?;
         }
-        res.sort_unstable();
-        // TODO: Remove necessity of dedup.
-        res.dedup();
         Ok(())
     }
 
@@ -632,7 +652,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_next_positions() {
         use crate::sfen;
         use pretty_assertions::assert_eq;
@@ -657,28 +676,6 @@ mod tests {
                 "4R4/9/4P4/9/4k1P1R/9/2N1s4/1B7/4L4 b b4g3s3n3l16p 1",
                 // Discovered attacks
                 vec!["7785", "7765", "5957", "3534"],
-            ),
-            (
-                "9/8k/9/9/9/8N/9/9/8L b 2r2b4g4s3n3l18p 1",
-                // Double check should not be counted twice.
-                vec!["1624"],
-            ),
-            (
-                "9/1P5B1/2SS2P2/5N3/+RL2k4/9/3pK1G+r1/9/4L3+B b N3g2s2n2l15p 1",
-                vec![
-                    "8e8d", "8e8c", "8e8c+", "7c6d", "6c5d+", "N*47", "3747", "3727", "5767",
-                    "5747", "5748",
-                ],
-            ),
-            // White moves
-            ("7lk/7nP/9/9/9/9/9/9/8K w 2R2B4G4S3N3L17P 1", vec!["1112"]),
-            (
-                "9/9/6B2/5n3/2G1kn3/5n3/3K5/9/4L4 w 2RB3G4SN3L18P 1",
-                vec!["4658+", "4557", "4557+"],
-            ),
-            (
-                "9/9/9/3bkb3/5+R3/3+R5/9/9/9 w 4g4s4n4l18p 1",
-                vec!["5463", "5453", "5443", "5445"],
             ),
         ] {
             let board = sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
