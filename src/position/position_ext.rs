@@ -4,6 +4,7 @@ use super::{bitboard::BitBoard, position::promotable, Movement, Position, UndoTo
 
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoToken;
+    fn undo(&mut self, token: &UndoToken) -> Movement;
     // fn undo(&mut self, token: &UndoToken) -> Movement;
     fn move_candidates(&self, res: &mut Vec<Movement>) -> anyhow::Result<()>;
     fn checked(&self, c: Color) -> bool;
@@ -54,6 +55,52 @@ impl PositionExt for Position {
         }
         self.turn = c.opposite();
         token
+    }
+
+    // Undoes an movement. The token should be valid for the current position and otherwise it panics.
+    // Returns the movement to redo.
+    fn undo(&mut self, token: &UndoToken) -> Movement {
+        use UndoToken::*;
+        let prev_turn = self.turn.opposite();
+        self.turn = prev_turn;
+        match token {
+            &UnDrop((pos, pawn_drop)) => {
+                let (c, k) = self
+                    .get(pos)
+                    .expect(&format!("{:?} doesn't contain any piece", pos));
+                debug_assert_eq!(prev_turn, c);
+                self.unset(pos, c, k);
+                self.hands_mut().add(c, k.maybe_unpromote());
+                self.set_pawn_drop(pawn_drop);
+                Movement::Drop(pos, k.maybe_unpromote())
+            }
+            &UnMove {
+                from,
+                to,
+                promote,
+                capture,
+                pawn_drop,
+            } => {
+                let (c, k) = self
+                    .get(to)
+                    .expect(&format!("{:?} doesn't contain any piece", to));
+                debug_assert_eq!(prev_turn, c);
+                self.unset(to, c, k);
+                debug_assert_eq!(None, self.get(from));
+                let prev_k = if promote {
+                    k.unpromote().expect(&format!("can't unpromote {:?}", k))
+                } else {
+                    k
+                };
+                self.set(from, c, prev_k);
+                if let Some(captured_k) = capture {
+                    self.set(to, c.opposite(), captured_k);
+                    self.hands_mut().remove(c, captured_k.maybe_unpromote());
+                }
+                self.set_pawn_drop(pawn_drop);
+                Movement::Move { from, to, promote }
+            }
+        }
     }
 
     // Generate check/uncheck moves without checking illegality.

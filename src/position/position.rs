@@ -260,52 +260,6 @@ impl Position {
         }
         Ok(())
     }
-
-    // Undoes an movement. The token should be valid for the current position and otherwise it panics.
-    // Returns the movement to redo.
-    pub fn undo(&mut self, token: &UndoToken) -> Movement {
-        use UndoToken::*;
-        let prev_turn = self.turn.opposite();
-        self.turn = prev_turn;
-        match token {
-            &UnDrop((pos, pawn_drop)) => {
-                let (c, k) = self
-                    .get(pos)
-                    .expect(&format!("{:?} doesn't contain any piece", pos));
-                debug_assert_eq!(prev_turn, c);
-                self.unset(pos, c, k);
-                self.hands.add(c, k.maybe_unpromote());
-                self.pawn_drop = pawn_drop;
-                Movement::Drop(pos, k.maybe_unpromote())
-            }
-            &UnMove {
-                from,
-                to,
-                promote,
-                capture,
-                pawn_drop,
-            } => {
-                let (c, k) = self
-                    .get(to)
-                    .expect(&format!("{:?} doesn't contain any piece", to));
-                debug_assert_eq!(prev_turn, c);
-                self.unset(to, c, k);
-                debug_assert_eq!(None, self.get(from));
-                let prev_k = if promote {
-                    k.unpromote().expect(&format!("can't unpromote {:?}", k))
-                } else {
-                    k
-                };
-                self.set(from, c, prev_k);
-                if let Some(captured_k) = capture {
-                    self.set(to, c.opposite(), captured_k);
-                    self.hands.remove(c, captured_k.maybe_unpromote());
-                }
-                self.pawn_drop = pawn_drop;
-                Movement::Move { from, to, promote }
-            }
-        }
-    }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(false, self.color_bb[c.index()].get(pos));
         self.color_bb[c.index()].set(pos);
