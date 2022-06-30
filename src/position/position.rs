@@ -93,14 +93,6 @@ impl Position {
         }
         None
     }
-    pub(super) fn kind(&self, pos: Square) -> Option<Kind> {
-        for k in Kind::iter() {
-            if self.kind_bb[k.index()].get(pos) {
-                return Some(k);
-            }
-        }
-        None
-    }
     // Attackers with the given color to the given position, excluding king's movement.
     pub(super) fn attackers_to(
         &self,

@@ -29,7 +29,7 @@ impl PositionExt for Position {
             Movement::Move { from, to, promote } => {
                 let (from, to, promote) = (*from, *to, *promote);
                 // TODO: return error instead of unwrapping.
-                let k = self.kind(from).unwrap();
+                let k = self.get(from).unwrap().1;
                 self.unset(from, c, k);
                 let mut capture = None;
                 if self.bitboard(Some(c.opposite()), None).get(to) {
@@ -189,7 +189,7 @@ impl PositionExt for Position {
                             & blocker_cands)
                             .next()
                     {
-                        let from_k = self.kind(from).unwrap();
+                        let from_k = self.get(from).unwrap().1;
                         for to in
                             (!(super::bitboard::attacks_from(white_king_pos, Color::White, k)
                                 & super::bitboard::attacks_from(attacker, Color::Black, k)))
