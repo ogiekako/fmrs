@@ -157,10 +157,3 @@ impl Position {
         self.color_bb[0] | self.color_bb[1]
     }
 }
-
-pub(super) fn promotable(pos: Square, c: Color) -> bool {
-    match c {
-        Black => pos.row() < 3,
-        White => pos.row() >= 6,
-    }
-}

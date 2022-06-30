@@ -78,9 +78,7 @@ impl Checker {
                     return false;
                 }
                 if promote {
-                    if !super::position::promotable(from, turn)
-                        && !super::position::promotable(to, turn)
-                    {
+                    if !super::rule::promotable(from, turn) && !super::rule::promotable(to, turn) {
                         return false;
                     }
                 }

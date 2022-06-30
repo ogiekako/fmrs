@@ -5,6 +5,7 @@ mod hands;
 mod movement;
 mod position;
 mod position_ext;
+mod rule;
 mod square;
 
 pub use checker::Checker;

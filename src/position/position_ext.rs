@@ -4,7 +4,7 @@ use anyhow::bail;
 
 use crate::piece::{Color, Kind, NUM_KIND};
 
-use super::{bitboard::BitBoard, position::promotable, Movement, Position, Square, UndoToken};
+use super::{bitboard::BitBoard, rule::promotable, Movement, Position, Square, UndoToken};
 
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoToken;
