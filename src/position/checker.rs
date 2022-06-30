@@ -4,7 +4,10 @@ use crate::piece::{Color, Kind};
 
 use super::{
     bitboard::BitBoard,
-    position_ext::{generate_attack_preventing_moves, has_pawn_in_col, movable, pinned},
+    position_ext::{
+        attackers_to, attackers_to_with_king, generate_attack_preventing_moves, has_pawn_in_col,
+        movable, pinned,
+    },
     Movement, Position, Square,
 };
 
@@ -29,9 +32,8 @@ impl Checker {
                     .bitboard(Some(Color::Black), Some(Kind::King))
                     .next()
                 {
-                    let attackers: Vec<_> = position
-                        .attackers_to(black_king_pos, Color::White)
-                        .collect();
+                    let attackers: Vec<_> =
+                        attackers_to(&position, black_king_pos, Color::White).collect();
                     if !attackers.is_empty() {
                         let mut moves = vec![];
                         generate_attack_preventing_moves(
@@ -92,9 +94,7 @@ impl Checker {
                     }
                 }
                 if k == Kind::King {
-                    if self
-                        .position
-                        .attackers_to_with_king(to, turn.opposite())
+                    if attackers_to_with_king(&self.position, to, turn.opposite())
                         .next()
                         .is_some()
                     {

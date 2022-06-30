@@ -228,7 +228,7 @@ impl PositionExt for Position {
                 res,
                 Color::White,
                 white_king_pos,
-                self.attackers_to(white_king_pos, Color::Black).collect(),
+                attackers_to(self, white_king_pos, Color::Black).collect(),
             )?;
         }
         Ok(())
@@ -236,10 +236,41 @@ impl PositionExt for Position {
 
     fn checked(&self, c: Color) -> bool {
         match king(self, c) {
-            Some(king_pos) => self.attackers_to(king_pos, c.opposite()).next().is_some(),
+            Some(king_pos) => attackers_to(self, king_pos, c.opposite()).next().is_some(),
             None => false,
         }
     }
+}
+
+// Attackers with the given color to the given position, excluding king's movement.
+pub(super) fn attackers_to(
+    position: &Position,
+    to: Square,
+    c: Color,
+) -> impl Iterator<Item = (Square, Kind)> + '_ {
+    let occupied = position.bitboard(None, None);
+    Kind::iter().flat_map(move |k| {
+        let b = if k == Kind::King {
+            BitBoard::new()
+        } else {
+            super::bitboard::movable_positions(occupied, to, c.opposite(), k)
+                & position.bitboard(Some(c), Some(k))
+        };
+        b.map(move |from| (from, k))
+    })
+}
+
+pub(super) fn attackers_to_with_king(
+    position: &Position,
+    to: Square,
+    c: Color,
+) -> impl Iterator<Item = (Square, Kind)> + '_ {
+    let occupied = position.bitboard(None, None);
+    Kind::iter().flat_map(move |k| {
+        let b = super::bitboard::movable_positions(occupied, to, c.opposite(), k)
+            & position.bitboard(Some(c), Some(k));
+        b.map(move |from| (from, k))
+    })
 }
 
 pub(super) fn generate_attack_preventing_moves(
@@ -300,7 +331,7 @@ pub(super) fn generate_attack_preventing_moves(
     }
     // Capture
     if attackers.len() == 1 {
-        for (pos, kind) in position.attackers_to(attackers[0].0, turn) {
+        for (pos, kind) in attackers_to(&position, attackers[0].0, turn) {
             add_move(res, pos, attackers[0].0, turn, kind);
         }
     }

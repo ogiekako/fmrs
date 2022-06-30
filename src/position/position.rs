@@ -87,36 +87,6 @@ impl Position {
     pub fn was_pawn_drop(&self) -> bool {
         self.pawn_drop
     }
-    // Attackers with the given color to the given position, excluding king's movement.
-    pub(super) fn attackers_to(
-        &self,
-        to: Square,
-        c: Color,
-    ) -> impl Iterator<Item = (Square, Kind)> + '_ {
-        let occupied = self.bitboard(None, None);
-        Kind::iter().flat_map(move |k| {
-            let b = if k == King {
-                BitBoard::new()
-            } else {
-                super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-                    & self.bitboard(Some(c), Some(k))
-            };
-            b.map(move |from| (from, k))
-        })
-    }
-
-    pub(super) fn attackers_to_with_king(
-        &self,
-        to: Square,
-        c: Color,
-    ) -> impl Iterator<Item = (Square, Kind)> + '_ {
-        let occupied = self.bitboard(None, None);
-        Kind::iter().flat_map(move |k| {
-            let b = super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-                & self.bitboard(Some(c), Some(k));
-            b.map(move |from| (from, k))
-        })
-    }
 
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(false, self.color_bb[c.index()].get(pos));
