@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use crate::piece::{Color, Kind};
 
-use super::{bitboard::BitBoard, Movement, Position, Square};
+use super::{
+    bitboard::BitBoard,
+    position_ext::{generate_attack_preventing_moves, has_pawn_in_col, movable, pinned},
+    Movement, Position, Square,
+};
 
 pub struct Checker {
     position: Position,
@@ -15,7 +19,7 @@ impl Checker {
         let turn = position.turn;
         let pinned = position
             .king(turn)
-            .map(|king_pos| position.pinned(king_pos, turn));
+            .map(|king_pos| pinned(&position, king_pos, turn));
         // If black king is checked, it must be stopped.
         let black_attack_prevent_moves = {
             let mut black_attack_prevent_moves = None;
@@ -26,14 +30,14 @@ impl Checker {
                         .collect();
                     if !attackers.is_empty() {
                         let mut moves = vec![];
-                        position
-                            .generate_attack_preventing_moves(
-                                &mut moves,
-                                Color::Black,
-                                black_king_pos,
-                                attackers,
-                            )
-                            .unwrap();
+                        generate_attack_preventing_moves(
+                            &position,
+                            &mut moves,
+                            Color::Black,
+                            black_king_pos,
+                            attackers,
+                        )
+                        .unwrap();
                         moves.sort();
                         black_attack_prevent_moves = Some(moves);
                     }
@@ -58,11 +62,11 @@ impl Checker {
         }
         match m {
             Movement::Drop(pos, k) => {
-                if !super::position::movable(pos, turn, k) {
+                if !movable(pos, turn, k) {
                     return false;
                 }
                 if k == Kind::Pawn {
-                    if self.position.has_pawn_in_col(pos, turn) {
+                    if has_pawn_in_col(&self.position, pos, turn) {
                         return false;
                     }
                 }
@@ -70,7 +74,7 @@ impl Checker {
             }
             Movement::Move { from, to, promote } => {
                 let k = self.position.get(from).unwrap().1;
-                if !promote && !super::position::movable(to, turn, k) {
+                if !promote && !movable(to, turn, k) {
                     return false;
                 }
                 if promote {
