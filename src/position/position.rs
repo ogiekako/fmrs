@@ -1,11 +1,10 @@
-use anyhow::bail;
-
 use crate::piece::*;
 
 #[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Position {
-    kind_bb: [BitBoard; NUM_KIND],
     color_bb: [BitBoard; 2],
+    promote_bb: BitBoard,
+    kind_bb: [BitBoard; 3],
     hands: Hands,
     turn: Color,
     pawn_drop: bool,
@@ -13,8 +12,7 @@ pub struct Position {
 
 #[test]
 fn test_position_size() {
-    // 272 bytes.
-    assert_eq!(272, std::mem::size_of::<Position>());
+    assert_eq!(112, std::mem::size_of::<Position>());
 }
 
 use crate::sfen;
@@ -25,8 +23,6 @@ impl fmt::Debug for Position {
     }
 }
 
-use std::collections::HashMap;
-
 use super::bitboard::BitBoard;
 use super::hands::Hands;
 use super::Square;
@@ -34,7 +30,8 @@ use super::Square;
 impl Position {
     pub fn new() -> Position {
         Position {
-            kind_bb: [BitBoard::new(); NUM_KIND],
+            kind_bb: [BitBoard::new(); 3],
+            promote_bb: BitBoard::new(),
             color_bb: [BitBoard::new(); 2],
             hands: Hands::new(),
             turn: Black,
@@ -53,51 +50,87 @@ impl Position {
     pub fn hands_mut(&mut self) -> &mut Hands {
         &mut self.hands
     }
-    pub(super) fn pawn_drop(&self) -> bool {
+    pub fn pawn_drop(&self) -> bool {
         self.pawn_drop
     }
     pub(super) fn set_pawn_drop(&mut self, x: bool) {
         self.pawn_drop = x;
     }
-    pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
-        for c in Color::iter() {
-            if !self.color_bb[c.index()].get(pos) {
-                continue;
-            }
-            for k in Kind::iter() {
-                if self.kind_bb[k.index()].get(pos) {
-                    return Some((c, k));
-                }
+    pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
+        let mut mask = if let Some(c) = color {
+            self.color_bb[c.index()]
+        } else {
+            self.color_bb[0] | self.color_bb[1]
+        };
+
+        let k = if let Some(k) = kind { k } else { return mask };
+        let i = if let Some(raw) = k.unpromote() {
+            mask &= self.promote_bb;
+            raw.index()
+        } else {
+            mask &= !self.promote_bb;
+            k.index()
+        };
+        for j in 0..3 {
+            if (i >> j & 1) > 0 {
+                mask &= self.kind_bb[j];
+            } else {
+                mask &= !self.kind_bb[j];
             }
         }
-        None
+        mask
     }
-    pub fn was_pawn_drop(&self) -> bool {
-        self.pawn_drop
+    pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
+        let color = if self.bitboard(Some(Color::Black), None).get(pos) {
+            Color::Black
+        } else if self.bitboard(Some(Color::White), None).get(pos) {
+            Color::White
+        } else {
+            return None;
+        };
+        let mut k = 0;
+        for i in 0..3 {
+            if self.kind_bb[i].get(pos) {
+                k |= 1 << i;
+            }
+        }
+        let kind = Kind::from_index(k);
+        if self.promote_bb.get(pos) {
+            Some((color, kind.promote().unwrap()))
+        } else {
+            Some((color, kind))
+        }
     }
-
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(false, self.color_bb[c.index()].get(pos));
+
         self.color_bb[c.index()].set(pos);
-        debug_assert_eq!(false, self.kind_bb[k.index()].get(pos));
-        self.kind_bb[k.index()].set(pos);
+        let i = if let Some(raw) = k.unpromote() {
+            self.promote_bb.set(pos);
+            raw.index()
+        } else {
+            k.index()
+        };
+        for j in 0..3 {
+            if (i >> j & 1) > 0 {
+                self.kind_bb[j].set(pos);
+            }
+        }
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb[c.index()].get(pos));
+
         self.color_bb[c.index()].unset(pos);
-        debug_assert!(self.kind_bb[k.index()].get(pos));
-        self.kind_bb[k.index()].unset(pos);
-    }
-    pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
-        if let Some(c) = color {
-            if let Some(k) = kind {
-                return self.color_bb[c.index()] & self.kind_bb[k.index()];
+        let i = if let Some(raw) = k.unpromote() {
+            self.promote_bb.unset(pos);
+            raw.index()
+        } else {
+            k.index()
+        };
+        for j in 0..3 {
+            if (i >> j & 1) > 0 {
+                self.kind_bb[j].unset(pos);
             }
-            return self.color_bb[c.index()];
         }
-        if let Some(k) = kind {
-            return self.kind_bb[k.index()];
-        }
-        self.color_bb[0] | self.color_bb[1]
     }
 }

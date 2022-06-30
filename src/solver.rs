@@ -121,7 +121,7 @@ pub fn solve_with_progress(
             queue.push_back((n_step, np));
         }
         if !movable {
-            if board.turn() == White && !board.was_pawn_drop() {
+            if board.turn() == White && !board.pawn_drop() {
                 // Checkmate
                 goals.push(board);
                 goal_step = Some(step);

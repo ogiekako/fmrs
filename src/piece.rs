@@ -58,6 +58,9 @@ impl Kind {
     pub fn index(&self) -> usize {
         *self as usize
     }
+    pub fn from_index(x: usize) -> Self {
+        KINDS[x]
+    }
     pub fn iter() -> impl Iterator<Item = Kind> {
         KINDS.iter().map(|k| *k)
     }
