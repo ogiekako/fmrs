@@ -87,12 +87,6 @@ impl Position {
     pub fn was_pawn_drop(&self) -> bool {
         self.pawn_drop
     }
-    pub(super) fn king(&self, c: Color) -> Option<Square> {
-        for k in self.bitboard(Some(c), Some(King)) {
-            return Some(k);
-        }
-        None
-    }
     // Attackers with the given color to the given position, excluding king's movement.
     pub(super) fn attackers_to(
         &self,

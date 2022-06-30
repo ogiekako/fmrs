@@ -18,13 +18,17 @@ impl Checker {
     pub fn new(position: Position) -> Self {
         let turn = position.turn;
         let pinned = position
-            .king(turn)
+            .bitboard(Some(turn), Some(Kind::King))
+            .next()
             .map(|king_pos| pinned(&position, king_pos, turn));
         // If black king is checked, it must be stopped.
         let black_attack_prevent_moves = {
             let mut black_attack_prevent_moves = None;
             if turn == Color::Black {
-                if let Some(black_king_pos) = position.king(Color::Black) {
+                if let Some(black_king_pos) = position
+                    .bitboard(Some(Color::Black), Some(Kind::King))
+                    .next()
+                {
                     let attackers: Vec<_> = position
                         .attackers_to(black_king_pos, Color::White)
                         .collect();

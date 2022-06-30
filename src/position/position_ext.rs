@@ -110,9 +110,8 @@ impl PositionExt for Position {
     // Generate check/uncheck moves without checking illegality.
     fn move_candidates(&self, res: &mut Vec<Movement>) -> anyhow::Result<()> {
         let occu = self.bitboard(None, None);
-        let white_king_pos = self
-            .king(Color::White)
-            .ok_or(anyhow::anyhow!("White king not found"))?;
+        let white_king_pos =
+            king(self, Color::White).ok_or(anyhow::anyhow!("White king not found"))?;
 
         let turn = self.turn;
 
@@ -236,7 +235,7 @@ impl PositionExt for Position {
     }
 
     fn checked(&self, c: Color) -> bool {
-        match self.king(c) {
+        match king(self, c) {
             Some(king_pos) => self.attackers_to(king_pos, c.opposite()).next().is_some(),
             None => false,
         }
@@ -323,6 +322,13 @@ pub(super) fn generate_attack_preventing_moves(
         });
     }
     Ok(())
+}
+
+fn king(position: &Position, c: Color) -> Option<Square> {
+    for k in position.bitboard(Some(c), Some(Kind::King)) {
+        return Some(k);
+    }
+    None
 }
 
 pub(super) fn movable(pos: Square, c: Color, k: Kind) -> bool {
@@ -464,7 +470,10 @@ lazy_static! {
 mod tests {
     use crate::{
         piece::{Color, Kind},
-        position::{position_ext::pinned, Movement, Position, PositionExt, Square},
+        position::{
+            position_ext::{king, pinned},
+            Movement, Position, PositionExt, Square,
+        },
         sfen,
     };
 
@@ -485,7 +494,7 @@ mod tests {
             sfen::decode_position("3ll4/7B1/3Pp1p2/3+P5/4k4/4r4/3K2G+r1/4L4/8+B b 3g4s4nl14p 1")
                 .unwrap();
         assert_eq!(
-            pinned(&board, board.king(Color::Black).unwrap(), Color::Black),
+            pinned(&board, king(&board, Color::Black).unwrap(), Color::Black),
             map! {
                 Square::new(2, 6) => bitboard!{
                     ".........",
@@ -501,7 +510,7 @@ mod tests {
             }
         );
         assert_eq!(
-            pinned(&board, board.king(Color::White).unwrap(), Color::White),
+            pinned(&board, king(&board, Color::White).unwrap(), Color::White),
             map! {
                 Square::new(4, 5) => bitboard!{
                     ".........",
