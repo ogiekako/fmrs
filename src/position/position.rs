@@ -18,7 +18,7 @@ pub struct Position {
     kind_bb: [BitBoard; NUM_KIND],
     color_bb: [BitBoard; 2],
     hands: Hands,
-    pub(super) turn: Color,
+    turn: Color,
     pawn_drop: bool,
 }
 
@@ -40,7 +40,6 @@ use std::collections::HashMap;
 
 use super::bitboard::BitBoard;
 use super::hands::Hands;
-use super::Movement;
 use super::Square;
 
 impl Position {

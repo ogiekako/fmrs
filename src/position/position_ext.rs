@@ -16,7 +16,7 @@ pub trait PositionExt {
 
 impl PositionExt for Position {
     fn do_move(&mut self, m: &Movement) -> UndoToken {
-        let c = self.turn;
+        let c = self.turn();
         let token;
         match m {
             Movement::Drop(pos, k) => {
@@ -57,7 +57,7 @@ impl PositionExt for Position {
                 self.set_pawn_drop(false);
             }
         }
-        self.turn = c.opposite();
+        self.set_turn(c.opposite());
         token
     }
 
@@ -65,8 +65,8 @@ impl PositionExt for Position {
     // Returns the movement to redo.
     fn undo(&mut self, token: &UndoToken) -> Movement {
         use UndoToken::*;
-        let prev_turn = self.turn.opposite();
-        self.turn = prev_turn;
+        let prev_turn = self.turn().opposite();
+        self.set_turn(prev_turn);
         match token {
             &UnDrop((pos, pawn_drop)) => {
                 let (c, k) = self
@@ -113,7 +113,7 @@ impl PositionExt for Position {
         let white_king_pos =
             king(self, Color::White).ok_or(anyhow::anyhow!("White king not found"))?;
 
-        let turn = self.turn;
+        let turn = self.turn();
 
         // Black.
         if turn == Color::Black {

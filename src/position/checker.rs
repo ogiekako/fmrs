@@ -19,7 +19,7 @@ pub struct Checker {
 
 impl Checker {
     pub fn new(position: Position) -> Self {
-        let turn = position.turn;
+        let turn = position.turn();
         let pinned = position
             .bitboard(Some(turn), Some(Kind::King))
             .next()
@@ -59,7 +59,7 @@ impl Checker {
     }
 
     pub fn is_allowed(&self, m: Movement) -> bool {
-        let turn = self.position.turn;
+        let turn = self.position.turn();
 
         if let Some(allowed_moves) = &self.black_attack_prevent_moves {
             if allowed_moves.binary_search(&m).is_err() {
