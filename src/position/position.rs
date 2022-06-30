@@ -62,8 +62,14 @@ impl Position {
     pub fn hands(&self) -> &Hands {
         &self.hands
     }
-    pub fn inc_hands(&mut self, c: Color, k: Kind) {
-        self.hands.add(c, k);
+    pub fn hands_mut(&mut self) -> &mut Hands {
+        &mut self.hands
+    }
+    pub(super) fn pawn_drop(&self) -> bool {
+        self.pawn_drop
+    }
+    pub(super) fn set_pawn_drop(&mut self, x: bool) {
+        self.pawn_drop = x;
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         for c in Color::iter() {
@@ -78,22 +84,16 @@ impl Position {
         }
         None
     }
-    pub fn checked(&self, c: Color) -> bool {
-        match self.king(c) {
-            Some(king_pos) => self.attackers_to(king_pos, c.opposite()).next().is_some(),
-            None => false,
-        }
-    }
     pub fn was_pawn_drop(&self) -> bool {
         self.pawn_drop
     }
     pub(super) fn king(&self, c: Color) -> Option<Square> {
-        for k in self.piece_bb(c, King) {
+        for k in self.bitboard(Some(c), Some(King)) {
             return Some(k);
         }
         None
     }
-    fn kind(&self, pos: Square) -> Option<Kind> {
+    pub(super) fn kind(&self, pos: Square) -> Option<Kind> {
         for k in Kind::iter() {
             if self.kind_bb[k.index()].get(pos) {
                 return Some(k);
@@ -101,17 +101,9 @@ impl Position {
         }
         None
     }
-
-    fn occupied(&self) -> BitBoard {
-        self.color_bb[0] | self.color_bb[1]
-    }
-
-    fn piece_bb(&self, c: Color, k: Kind) -> BitBoard {
-        self.color_bb[c.index()] & self.kind_bb[k.index()]
-    }
     // Movements with the given color to the given position, excluding king's movement.
     fn add_movements_to(&self, res: &mut Vec<Movement>, to: Square, c: Color) {
-        let occupied = self.occupied();
+        let occupied = self.bitboard(None, None);
         // Drop
         for k in self.hands.kinds(c) {
             res.push(Movement::Drop(to, k));
@@ -122,7 +114,7 @@ impl Position {
                 continue;
             }
             for from in super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-                & self.piece_bb(c, k)
+                & self.bitboard(Some(c), Some(k))
             {
                 add_move(res, from, to, c, k);
             }
@@ -134,13 +126,13 @@ impl Position {
         to: Square,
         c: Color,
     ) -> impl Iterator<Item = (Square, Kind)> + '_ {
-        let occupied = self.occupied();
+        let occupied = self.bitboard(None, None);
         Kind::iter().flat_map(move |k| {
             let b = if k == King {
                 BitBoard::new()
             } else {
                 super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-                    & self.piece_bb(c, k)
+                    & self.bitboard(Some(c), Some(k))
             };
             b.map(move |from| (from, k))
         })
@@ -151,16 +143,16 @@ impl Position {
         to: Square,
         c: Color,
     ) -> impl Iterator<Item = (Square, Kind)> + '_ {
-        let occupied = self.occupied();
+        let occupied = self.bitboard(None, None);
         Kind::iter().flat_map(move |k| {
             let b = super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-                & self.piece_bb(c, k);
+                & self.bitboard(Some(c), Some(k));
             b.map(move |from| (from, k))
         })
     }
 
     pub(super) fn has_pawn_in_col(&self, pos: Square, c: Color) -> bool {
-        let b = self.piece_bb(c, Pawn);
+        let b = self.bitboard(Some(c), Some(Pawn));
         !(COL_MASKS[pos.col()] & b).is_empty()
     }
 
@@ -172,7 +164,8 @@ impl Position {
         let mut res = HashMap::new();
         for line_piece_kind in Kind::iter() {
             if let Some(i) = line_piece_index(line_piece_kind) {
-                for opponent_line_piece in self.piece_bb(c.opposite(), line_piece_kind) {
+                for opponent_line_piece in self.bitboard(Some(c.opposite()), Some(line_piece_kind))
+                {
                     if let Some(pinned_bb) =
                         PIN[opponent_line_piece.index()][king_pos.index()][c.opposite().index()][i]
                     {
@@ -188,124 +181,6 @@ impl Position {
             }
         }
         res
-    }
-
-    // Generate check/uncheck moves without checking illegality.
-    pub fn move_candidates(&self, res: &mut Vec<Movement>) -> anyhow::Result<()> {
-        let occu = self.occupied();
-        let white_king_pos = self
-            .king(White)
-            .ok_or(anyhow::anyhow!("White king not found"))?;
-
-        let turn = self.turn;
-
-        // Black.
-        if turn == Black {
-            // Drop
-            for k in self.hands.kinds(turn) {
-                for pos in
-                    (!occu) & (super::bitboard::movable_positions(occu, white_king_pos, White, k))
-                {
-                    res.push(Movement::Drop(pos, k));
-                }
-            }
-
-            let mut direct_attack_goals = [BitBoard::new(); NUM_KIND];
-            for k in Kind::iter() {
-                direct_attack_goals[k.index()] = !self.color_bb[Black.index()]
-                    & super::bitboard::movable_positions(occu, white_king_pos, White, k);
-            }
-
-            // Direct attack
-            for k in Kind::iter() {
-                if k == King {
-                    continue;
-                }
-                let froms = self.piece_bb(Black, k);
-                let goal = direct_attack_goals[k.index()];
-                for from in froms {
-                    for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
-                        res.push(Movement::Move {
-                            from,
-                            to,
-                            promote: false,
-                        })
-                    }
-                }
-                // promote
-                if let Some(k) = k.unpromote() {
-                    for from in self.piece_bb(Black, k) {
-                        for to in goal & super::bitboard::movable_positions(occu, from, Black, k) {
-                            if promotable(from, Black) || promotable(to, Black) {
-                                res.push(Movement::Move {
-                                    from,
-                                    to,
-                                    promote: true,
-                                });
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Discovered attack
-            for k in vec![Lance, Bishop, Rook] {
-                let mut attacker_cands = self.piece_bb(Black, k);
-                if k != Lance {
-                    attacker_cands |= self.piece_bb(Black, k.promote().unwrap());
-                }
-                attacker_cands &= super::bitboard::attacks_from(white_king_pos, White, k);
-                if attacker_cands.is_empty() {
-                    continue;
-                }
-                let blocker_cands = self.color_bb[Black.index()]
-                    & super::bitboard::movable_positions(occu, white_king_pos, White, k);
-                if blocker_cands.is_empty() {
-                    continue;
-                }
-                for attacker in attacker_cands {
-                    if let Some(from) =
-                        (super::bitboard::movable_positions(occu, attacker, Black, k)
-                            & blocker_cands)
-                            .next()
-                    {
-                        let from_k = self.kind(from).unwrap();
-                        for to in (!(super::bitboard::attacks_from(white_king_pos, White, k)
-                            & super::bitboard::attacks_from(attacker, Black, k)))
-                            & ((!self.color_bb[Black.index()])
-                                & super::bitboard::movable_positions(occu, from, Black, from_k))
-                        {
-                            if !direct_attack_goals[from_k.index()].get(to) {
-                                res.push(Movement::Move {
-                                    from,
-                                    to,
-                                    promote: false,
-                                })
-                            }
-
-                            if (promotable(from, Color::Black) || promotable(to, Color::Black))
-                                && from_k.promote().is_some()
-                                && !direct_attack_goals[from_k.promote().unwrap().index()].get(to)
-                            {
-                                res.push(Movement::Move {
-                                    from,
-                                    to,
-                                    promote: true,
-                                })
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            self.generate_attack_preventing_moves(
-                res,
-                White,
-                white_king_pos,
-                self.attackers_to(white_king_pos, Black).collect(),
-            )?;
-        }
-        Ok(())
     }
 
     pub(super) fn generate_attack_preventing_moves(
@@ -371,7 +246,7 @@ impl Position {
             }
         }
         // King move
-        for pos in super::bitboard::movable_positions(self.occupied(), king_pos, turn, King)
+        for pos in super::bitboard::movable_positions(self.bitboard(None, None), king_pos, turn, King)
             & (!self.color_bb[turn.index()])
         {
             if hidden.get(pos) {
@@ -437,11 +312,23 @@ impl Position {
         debug_assert_eq!(false, self.kind_bb[k.index()].get(pos));
         self.kind_bb[k.index()].set(pos);
     }
-    fn unset(&mut self, pos: Square, c: Color, k: Kind) {
+    pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb[c.index()].get(pos));
         self.color_bb[c.index()].unset(pos);
         debug_assert!(self.kind_bb[k.index()].get(pos));
         self.kind_bb[k.index()].unset(pos);
+    }
+    pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
+        if let Some(c) = color {
+            if let Some(k) = kind {
+                return self.color_bb[c.index()] & self.kind_bb[k.index()];
+            }
+            return self.color_bb[c.index()];
+        }
+        if let Some(k) = kind {
+            return self.kind_bb[k.index()];
+        }
+        self.color_bb[0] | self.color_bb[1]
     }
 }
 
@@ -539,7 +426,7 @@ lazy_static! {
 mod tests {
     use crate::{
         piece::{Color, Kind},
-        position::{Movement, Position, Square},
+        position::{Movement, Position, PositionExt, Square},
         sfen,
     };
 

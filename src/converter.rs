@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use crate::{
     jkf::{self, JsonKifFormat},
     piece::{Color, Kind},
-    position::{Hands, Movement, Position, Square},
+    position::{Hands, Movement, Position, PositionExt, Square},
     solver::Solution,
 };
 

@@ -1,4 +1,4 @@
-use crate::{sfen, solver};
+use crate::{position::PositionExt, sfen, solver};
 
 pub async fn solve() -> anyhow::Result<()> {
     println!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");

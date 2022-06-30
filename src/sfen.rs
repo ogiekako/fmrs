@@ -187,7 +187,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
         }
         let (c, k) = decode_hand_kind(ch)?;
         for _ in 0..hand_count {
-            board.inc_hands(c, k);
+            board.hands_mut().add(c, k);
         }
         hand_count = 0;
     }
@@ -231,13 +231,13 @@ fn test_encode() {
     board.set(Square::new(4, 8), White, ProPawn);
     board.set(Square::new(7, 8), Black, Knight);
     board.set(Square::new(8, 8), Black, Lance);
-    board.inc_hands(Black, Silver);
-    board.inc_hands(White, Bishop);
-    board.inc_hands(White, Gold);
-    board.inc_hands(White, Knight);
-    board.inc_hands(White, Pawn);
-    board.inc_hands(White, Pawn);
-    board.inc_hands(White, Pawn);
+    board.hands_mut().add(Black, Silver);
+    board.hands_mut().add(White, Bishop);
+    board.hands_mut().add(White, Gold);
+    board.hands_mut().add(White, Knight);
+    board.hands_mut().add(White, Pawn);
+    board.hands_mut().add(White, Pawn);
+    board.hands_mut().add(White, Pawn);
 
     board.set_turn(White);
 
