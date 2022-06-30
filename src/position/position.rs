@@ -2,17 +2,6 @@ use anyhow::bail;
 
 use crate::piece::*;
 
-pub enum UndoToken {
-    UnDrop((Square, bool /* pawn drop */)),
-    UnMove {
-        from: Square,
-        to: Square,
-        promote: bool,
-        capture: Option<Kind>,
-        pawn_drop: bool,
-    },
-}
-
 #[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Position {
     kind_bb: [BitBoard; NUM_KIND],

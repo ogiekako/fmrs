@@ -4,7 +4,18 @@ use anyhow::bail;
 
 use crate::piece::{Color, Kind, NUM_KIND};
 
-use super::{bitboard::BitBoard, rule::promotable, Movement, Position, Square, UndoToken};
+use super::{bitboard::BitBoard, rule::promotable, Movement, Position, Square};
+
+pub enum UndoToken {
+    UnDrop((Square, bool /* pawn drop */)),
+    UnMove {
+        from: Square,
+        to: Square,
+        promote: bool,
+        capture: Option<Kind>,
+        pawn_drop: bool,
+    },
+}
 
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoToken;

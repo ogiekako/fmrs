@@ -12,6 +12,6 @@ pub use checker::Checker;
 pub use hands::Hands;
 pub use movement::Movement;
 pub use position::Position;
-pub use position::UndoToken;
 pub use position_ext::PositionExt;
+pub use position_ext::UndoToken;
 pub use square::Square;
