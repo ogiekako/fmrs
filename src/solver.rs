@@ -1,5 +1,6 @@
 use crate::piece::*;
 use crate::position::*;
+use crate::reconstruct::reconstruct_solutions;
 
 pub enum SolutionReply {
     Progress(usize),
@@ -18,7 +19,9 @@ use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::hash::Hasher;
 
-fn hash(board: &Position) -> u64 {
+pub type Digest = u64;
+
+pub(super) fn digest(board: &Position) -> u64 {
     let mut hasher = twox_hash::Xxh3Hash64::default();
     board.hash(&mut hasher);
     hasher.finish()
@@ -42,23 +45,23 @@ pub fn solve_with_progress(
     }
     debug_assert_ne!(board.turn() == Black, board.checked(White));
 
-    // position -> (min step, undo tokens)
+    // position -> min step
     let mut memo = HashMap::new();
-    memo.insert(hash(&board), (0, vec![]));
+    memo.insert(digest(&board), 0);
     let mut queue = VecDeque::new();
     queue.push_back((0, board.clone()));
 
-    let mut goal_step = None;
-    let mut goals = vec![];
+    let mut mate_in = None;
+    let mut mate_positions = vec![];
 
     let mut dead_end: HashSet<u64> = HashSet::new();
 
     let mut current_step = 0;
     while let Some((step, board)) = queue.pop_front() {
         let n_step = step + 1;
-        debug_assert!(memo.get(&hash(&board)).is_some());
+        debug_assert!(memo.get(&digest(&board)).is_some());
 
-        if let Some(s) = goal_step {
+        if let Some(s) = mate_in {
             if s < step {
                 break;
             }
@@ -72,7 +75,7 @@ pub fn solve_with_progress(
                 memo.len(),
                 pretty(
                     memo.len()
-                        * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoToken>>())
+                        * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoMove>>())
                 ),
                 dead_end.len(),
                 pretty(dead_end.len() * std::mem::size_of::<u64>()),
@@ -83,59 +86,39 @@ pub fn solve_with_progress(
         }
 
         let mut movable = false;
-        let checker = crate::position::Checker::new(board.clone());
-        let cands = {
-            let mut cands = vec![];
-            board.move_candidates(&mut cands)?;
-            cands
-        };
 
-        for cand in cands {
-            if !checker.is_allowed(cand) {
-                continue;
-            }
-
-            let mut np = board.clone();
-            let token = np.do_move(&cand);
-
+        for np in advance(board.clone())? {
             movable = true;
-            if goal_step.is_some() {
+            if mate_in.is_some() {
                 break;
             }
-            let h = hash(&np);
+            let h = digest(&np);
             if dead_end.contains(&h) {
                 continue;
             }
-            if let Some((min_step, tokens)) = memo.get_mut(&h) {
-                if *min_step == n_step {
-                    if let Some(upto) = solutions_upto {
-                        if tokens.len() >= upto {
-                            continue;
-                        }
-                    }
-                    tokens.push(token);
-                }
+            if memo.contains_key(&h) {
                 continue;
             }
-            memo.insert(h, (n_step, vec![token]));
+            memo.insert(h, n_step);
             queue.push_back((n_step, np));
         }
         if !movable {
             if board.turn() == White && !board.pawn_drop() {
                 // Checkmate
-                goals.push(board);
-                goal_step = Some(step);
+                mate_positions.push(board);
+                mate_in = Some(step);
             } else {
                 // Deadend. We can forgot history.
-                let h = hash(&board);
+                let h = digest(&board);
                 memo.remove(&h);
                 dead_end.insert(h);
             }
         }
     }
+
     let mut res = vec![];
-    for mut g in goals.into_iter() {
-        update(&mut res, &mut vec![], &memo, &mut g, solutions_upto);
+    for mate_position in mate_positions {
+        res.append(&mut reconstruct_solutions(mate_position, &memo));
     }
     Ok(res)
 }
@@ -143,7 +126,7 @@ pub fn solve_with_progress(
 fn update(
     res: &mut Vec<Solution>,
     mut rev_sol: &mut Solution,
-    memo: &HashMap<u64, (usize, Vec<UndoToken>)>,
+    memo: &HashMap<u64, (usize, Vec<UndoMove>)>,
     g: &mut Position,
     limit: Option<usize>,
 ) {
@@ -152,13 +135,13 @@ fn update(
             return;
         }
     }
-    let (step, toks) = memo.get(&hash(&g)).unwrap();
+    let (step, toks) = memo.get(&digest(&g)).unwrap();
     if *step == 0 {
         res.push(rev_sol.clone().into_iter().rev().collect());
         return;
     }
     for tok in toks {
-        let mv = g.undo(tok);
+        let mv = g.undo_move(tok);
 
         rev_sol.push(mv);
         update(res, &mut rev_sol, memo, g, limit);

@@ -6,7 +6,7 @@ use crate::piece::{Color, Kind, NUM_KIND};
 
 use super::{bitboard::BitBoard, rule::promotable, Movement, Position, Square};
 
-pub enum UndoToken {
+pub enum UndoMove {
     UnDrop((Square, bool /* pawn drop */)),
     UnMove {
         from: Square,
@@ -18,15 +18,15 @@ pub enum UndoToken {
 }
 
 pub trait PositionExt {
-    fn do_move(&mut self, m: &Movement) -> UndoToken;
-    fn undo(&mut self, token: &UndoToken) -> Movement;
+    fn do_move(&mut self, m: &Movement) -> UndoMove;
+    fn undo_move(&mut self, m: &UndoMove) -> Movement;
     // fn undo(&mut self, token: &UndoToken) -> Movement;
     fn move_candidates(&self, res: &mut Vec<Movement>) -> anyhow::Result<()>;
     fn checked(&self, c: Color) -> bool;
 }
 
 impl PositionExt for Position {
-    fn do_move(&mut self, m: &Movement) -> UndoToken {
+    fn do_move(&mut self, m: &Movement) -> UndoMove {
         let c = self.turn();
         let token;
         match m {
@@ -34,7 +34,7 @@ impl PositionExt for Position {
                 let (pos, k) = (*pos, *k);
                 self.hands_mut().remove(c, k);
                 self.set(pos, c, k);
-                token = UndoToken::UnDrop((pos, self.pawn_drop()));
+                token = UndoMove::UnDrop((pos, self.pawn_drop()));
                 self.set_pawn_drop(k == Kind::Pawn);
             }
             Movement::Move { from, to, promote } => {
@@ -58,7 +58,7 @@ impl PositionExt for Position {
                 } else {
                     self.set(to, c, k);
                 }
-                token = UndoToken::UnMove {
+                token = UndoMove::UnMove {
                     from,
                     to,
                     promote,
@@ -74,8 +74,8 @@ impl PositionExt for Position {
 
     // Undoes an movement. The token should be valid for the current position and otherwise it panics.
     // Returns the movement to redo.
-    fn undo(&mut self, token: &UndoToken) -> Movement {
-        use UndoToken::*;
+    fn undo_move(&mut self, token: &UndoMove) -> Movement {
+        use UndoMove::*;
         let prev_turn = self.turn().opposite();
         self.set_turn(prev_turn);
         match token {
@@ -247,7 +247,9 @@ impl PositionExt for Position {
 
     fn checked(&self, c: Color) -> bool {
         match king(self, c) {
-            Some(king_pos) => attackers_to(self, king_pos, c.opposite()).next().is_some(),
+            Some(king_pos) => attackers_to_with_king(self, king_pos, c.opposite())
+                .next()
+                .is_some(),
             None => false,
         }
     }
@@ -667,7 +669,7 @@ mod tests {
             let mut board = sfen::decode_position(board_sfen).unwrap();
             let token = board.do_move(&movement);
             assert_eq!(want, sfen::encode_position(&board));
-            let m = board.undo(&token);
+            let m = board.undo_move(&token);
             assert_eq!(board_sfen, sfen::encode_position(&board));
             board.do_move(&m);
             assert_eq!(want, sfen::encode_position(&board));

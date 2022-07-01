@@ -9,6 +9,7 @@ pub mod converter;
 pub mod jkf;
 pub mod piece;
 pub mod position;
+mod reconstruct;
 pub mod sfen;
 pub mod solver;
 

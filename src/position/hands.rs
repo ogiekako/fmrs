@@ -27,6 +27,13 @@ impl Hands {
         debug_assert!(k.is_hand_piece());
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
+    pub fn contains(&self, c: Color, k: Kind) -> bool {
+        if k.is_hand_piece() {
+            self.count(c, k) > 0
+        } else {
+            false
+        }
+    }
     pub fn add(&mut self, c: Color, k: Kind) {
         debug_assert!(self.count(c, k) <= Hands::max_count(k));
         self.x += Hands::bit_of(c, k);
