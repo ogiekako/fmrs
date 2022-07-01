@@ -119,7 +119,7 @@ impl Context {
                 if cands.is_empty() {
                     continue;
                 }
-                cands &= super::bitboard::attacks_from(self.white_king_pos, Color::White, kind);
+                cands &= bitboard::attacks_from(self.white_king_pos, Color::White, kind);
                 if cands.is_empty() {
                     continue;
                 }
