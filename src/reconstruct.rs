@@ -9,7 +9,6 @@ pub fn reconstruct_solutions(
     mut mate: Position,
     memo: &HashMap<Digest, usize>,
 ) -> Vec<Vec<Movement>> {
-    eprintln!("!!! reconstruct: {:?}", mate);
     debug_assert!(memo.contains_key(&digest(&mate)));
     let step = *memo.get(&digest(&mate)).unwrap();
     let ctx = Context::new(memo, step);
@@ -37,8 +36,6 @@ impl<'a> Context<'a> {
     fn reconstruct(&self, position: &mut Position, step: usize) {
         debug_assert!(self.memo.contains_key(&digest(position)));
         debug_assert_eq!(self.memo.get(&digest(position)), Some(&step));
-        
-        eprintln!("!!! reconstruct: step = {}", step);
 
         if step == 0 {
             self.push_solution();

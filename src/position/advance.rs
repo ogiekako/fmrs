@@ -10,7 +10,6 @@ use super::{
 };
 
 pub fn advance(position: Position) -> anyhow::Result<Vec<Position>> {
-    // eprintln!("!!! advance: {:?}", position);
     let ctx = Context::new(position)?;
     match ctx.position.turn() {
         crate::piece::Color::Black => ctx.advance_black(),
