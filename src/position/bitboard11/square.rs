@@ -17,11 +17,11 @@ impl Square {
         (0..9).flat_map(|col| (0..9).map(move |row| Self::new(col, row)))
     }
     pub(super) fn index(self) -> usize {
-        15 + self.col() * 13 + self.row()
+        13 + self.col() * 11 + self.row()
     }
     pub(super) fn from_index(x: usize) -> Self {
-        let col = (x - 15) / 13;
-        let row = (x - 15) % 13;
+        let col = (x - 13) / 11;
+        let row = (x - 13) % 11;
         Self::new(col, row)
     }
 }

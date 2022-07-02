@@ -1,6 +1,6 @@
 use super::square::Square;
 
-const MASK: u128 = 0b11111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0000000000000;
+const MASK: u128 = 0b11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_00000000000;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BitBoard {
@@ -121,6 +121,9 @@ impl BitBoard {
             x = orig & (x.wrapping_sub(1));
             BitBoard { x }
         })
+    }
+    pub(super) fn from_u128(x: u128) -> Self {
+        Self { x: x & MASK }
     }
 }
 
