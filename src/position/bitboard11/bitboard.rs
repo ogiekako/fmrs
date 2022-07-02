@@ -1,14 +1,8 @@
-use serde::{Deserialize, Serialize};
+use super::square::Square;
 
-/*
-9 8 7 6 5 4 3 2 1
-              9 0 一
-                1 二
-    ...       ...
-                7 八
-80              8 九
-*/
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, Ord, PartialOrd)]
+const MASK: u128 = 0b11111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0011111111100_0000000000000;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct BitBoard {
     pub(super) x: u128,
 }
@@ -49,7 +43,7 @@ macro_rules! def_op {
 
             fn $op(self, rhs: Self) -> Self {
                 BitBoard {
-                    x: (self.x.$op(rhs.x)),
+                    x: (self.x.$op(rhs.x)) & MASK,
                 }
             }
         }
@@ -66,6 +60,7 @@ macro_rules! def_op_assign {
         impl std::ops::$ty for BitBoard {
             fn $op(&mut self, rhs: Self) {
                 self.x.$op(rhs.x);
+                self.x &= MASK;
             }
         }
     };
@@ -80,15 +75,14 @@ impl std::ops::Not for BitBoard {
     type Output = Self;
 
     fn not(self) -> BitBoard {
-        BitBoard { x: self.x.not() }
+        BitBoard {
+            x: self.x.not() & MASK,
+        }
     }
 }
 
-use std::fmt;
-
-use super::Square;
-impl fmt::Display for BitBoard {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for BitBoard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for row in 0..9 {
             for col in (0..9).rev() {
                 write!(
@@ -107,13 +101,12 @@ impl fmt::Display for BitBoard {
     }
 }
 
-impl fmt::Debug for BitBoard {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl std::fmt::Debug for BitBoard {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "\n{}", self)
     }
 }
 
-// Private methods
 impl BitBoard {
     // Assumes self is not empty.
     fn pop(&mut self) -> Square {
@@ -133,7 +126,7 @@ impl BitBoard {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{bitboard::BitBoard, Square};
+    use crate::position::bitboard11::{bitboard::BitBoard, square::Square};
 
     #[test]
     fn test_bitboard_next() {

@@ -1,6 +1,6 @@
-#[macro_use]
-mod bitboard;
 mod advance;
+mod bitboard;
+mod bitboard11;
 mod checker;
 mod hands;
 mod movement;
