@@ -5,13 +5,13 @@ use anyhow::bail;
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard::{self, BitBoard},
+    bitboard11::{self, BitBoard},
     rule, Movement, Position, PositionExt, Square,
 };
 
 pub fn advance(position: Position) -> anyhow::Result<Vec<Position>> {
     let ctx = Context::new(position)?;
-    match ctx.position.turn() {
+    match ctx.turn {
         crate::piece::Color::Black => ctx.advance_black(),
         crate::piece::Color::White => ctx.advance_white(),
     };
@@ -22,8 +22,8 @@ struct Context {
     position: Position,
     turn: Color,
     white_king_pos: Square,
-    turn_pieces: BitBoard,
-    opponent_pieces: BitBoard,
+    black_pieces: BitBoard,
+    white_pieces: BitBoard,
     pawn_mask: u16,
     result: RefCell<Vec<Position>>,
 }
@@ -39,8 +39,8 @@ impl Context {
         } else {
             bail!("No white king");
         };
-        let turn_pieces = position.bitboard(turn.into(), None);
-        let opponent_pieces = position.bitboard(turn.opposite().into(), None);
+        let black_pieces = position.bitboard(Color::Black.into(), None);
+        let white_pieces = position.bitboard(Color::White.into(), None);
 
         let pawn_mask = {
             let mut mask = Default::default();
@@ -54,8 +54,8 @@ impl Context {
             position,
             turn,
             white_king_pos,
-            turn_pieces,
-            opponent_pieces,
+            black_pieces,
+            white_pieces,
             pawn_mask,
             result: vec![].into(),
         })
@@ -67,12 +67,14 @@ impl Context {
     }
 
     fn direct_attack_movements(&self) {
+        debug_assert_eq!(self.turn, Color::Black);
+
         Kind::iter().for_each(|kind| {
             let attack_squares = self.attack_squares(kind);
             if attack_squares.is_empty() {
                 return;
             }
-            let empty_attack_squares = attack_squares & !self.opponent_pieces;
+            let empty_attack_squares = attack_squares & !self.white_pieces;
             // Drop
             if !empty_attack_squares.is_empty() && self.position.hands().contains(self.turn, kind) {
                 empty_attack_squares.for_each(|pos| {
@@ -85,9 +87,9 @@ impl Context {
                     continue;
                 }
                 sources.into_iter().for_each(|source| {
-                    let move_to = rule::movable_positions(
-                        self.turn_pieces,
-                        self.opponent_pieces,
+                    let move_to = bitboard11::reachable(
+                        self.black_pieces,
+                        self.white_pieces,
                         self.turn,
                         source,
                         source_kind,
@@ -108,6 +110,8 @@ impl Context {
     }
 
     fn discovered_attack_moves(&self) {
+        debug_assert_eq!(self.turn, Color::Black);
+
         for kind in vec![Kind::Lance, Kind::Bishop, Kind::Rook] {
             let attacker_cands = {
                 let mut cands = self.position.bitboard(Some(Color::Black), Some(kind));
@@ -119,15 +123,15 @@ impl Context {
                 if cands.is_empty() {
                     continue;
                 }
-                cands &= bitboard::attacks_from(self.white_king_pos, Color::White, kind);
+                cands &= bitboard11::power(Color::White, self.white_king_pos, kind);
                 if cands.is_empty() {
                     continue;
                 }
                 cands
             };
-            let blocker_cands = rule::movable_positions(
-                self.opponent_pieces,
-                self.turn_pieces,
+            let blocker_cands = bitboard11::reachable(
+                self.black_pieces,
+                self.white_pieces,
                 Color::White,
                 self.white_king_pos,
                 kind,
@@ -137,9 +141,9 @@ impl Context {
             }
             for attacker_pos in attacker_cands {
                 let blocker_pos = {
-                    let pos = rule::movable_positions(
-                        self.opponent_pieces,
-                        self.turn_pieces,
+                    let pos = bitboard11::reachable(
+                        self.white_pieces,
+                        self.black_pieces,
                         Color::Black,
                         attacker_pos,
                         kind,
@@ -153,12 +157,12 @@ impl Context {
 
                 let blocker_dests = {
                     let attacker_preventing =
-                        bitboard::attacks_from(self.white_king_pos, Color::White, kind)
-                            & bitboard::attacks_from(attacker_pos, Color::Black, kind);
+                        bitboard11::power(Color::White, self.white_king_pos, kind)
+                            & bitboard11::power(Color::Black, attacker_pos, kind);
                     !attacker_preventing
-                        & rule::movable_positions(
-                            self.turn_pieces,
-                            self.opponent_pieces,
+                        & bitboard11::reachable(
+                            self.black_pieces,
+                            self.white_pieces,
                             self.turn,
                             blocker_pos,
                             blocker_kind,
@@ -208,9 +212,9 @@ impl Context {
     }
 
     fn white_king_move(&self) {
-        let dests = rule::movable_positions(
-            self.turn_pieces,
-            self.opponent_pieces,
+        let dests = bitboard11::reachable(
+            self.black_pieces,
+            self.white_pieces,
             self.turn,
             self.white_king_pos,
             Kind::King,
@@ -225,6 +229,7 @@ impl Context {
     }
 
     fn add_movements_to(&self, dest: Square, include_drop: bool) {
+        debug_assert_eq!(self.turn, Color::White);
         // Drop
         if include_drop {
             for kind in self.position.hands().kinds(self.turn) {
@@ -237,9 +242,9 @@ impl Context {
                 continue;
             }
             for (sources, promote, source_kind) in self.sources_becoming(kind) {
-                let source_cands = rule::movable_positions(
-                    self.opponent_pieces,
-                    self.turn_pieces,
+                let source_cands = bitboard11::reachable(
+                    self.black_pieces,
+                    self.white_pieces,
                     self.turn.opposite(),
                     dest,
                     source_kind,
@@ -263,9 +268,9 @@ impl Context {
             if existing.is_empty() {
                 continue;
             }
-            let attacking = rule::movable_positions(
-                self.turn_pieces,
-                self.opponent_pieces,
+            let attacking = bitboard11::reachable(
+                self.black_pieces,
+                self.white_pieces,
                 self.turn,
                 self.white_king_pos,
                 kind,
@@ -282,6 +287,7 @@ impl Context {
 // Helper methods
 impl Context {
     fn maybe_add_move(&self, movement: Movement) {
+        eprintln!("maybe_add_move: {:?}", movement);
         match movement {
             Movement::Drop(pos, kind) => {
                 if kind == Kind::Pawn && self.pawn_mask >> pos.col() & 1 > 0 {
@@ -319,18 +325,15 @@ impl Context {
         self.result.borrow_mut().push(next_position);
     }
 
-    fn occupied(&self) -> BitBoard {
-        self.turn_pieces | self.opponent_pieces
-    }
-
     fn attack_squares(&self, kind: Kind) -> BitBoard {
-        !self.position.bitboard(Some(Color::Black), None)
-            & super::bitboard::movable_positions(
-                self.occupied(),
-                self.white_king_pos,
-                Color::White,
-                kind,
-            )
+        debug_assert_eq!(self.turn, Color::Black);
+        bitboard11::reachable(
+            self.white_pieces,
+            self.black_pieces,
+            Color::White,
+            self.white_king_pos,
+            kind,
+        )
     }
 
     fn sources_becoming(&self, kind: Kind) -> impl Iterator<Item = (BitBoard, bool, Kind)> {
@@ -355,15 +358,15 @@ impl Context {
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
         debug_assert!(self.turn == Color::White);
-        rule::movable_positions(
-            self.turn_pieces,
-            self.opponent_pieces,
+        bitboard11::reachable(
+            self.black_pieces,
+            self.white_pieces,
             self.turn,
             self.white_king_pos,
             attacker_kind.maybe_unpromote(),
-        ) & rule::movable_positions(
-            self.opponent_pieces,
-            self.turn_pieces,
+        ) & bitboard11::reachable(
+            self.black_pieces,
+            self.white_pieces,
             self.turn.opposite(),
             attacker_pos,
             attacker_kind.maybe_unpromote(),
@@ -377,10 +380,10 @@ fn position_illegal_by_selfcheck(position: &Position) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{advance, Position, PositionExt};
+    use crate::position::{Position, PositionExt};
 
     #[test]
-    fn test_advance() {
+    fn advance() {
         use crate::sfen;
         use pretty_assertions::assert_eq;
         for tc in vec![
@@ -421,7 +424,7 @@ mod tests {
 
             let position =
                 sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
-            let mut got = advance(position.clone()).unwrap();
+            let mut got = super::advance(position.clone()).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" "))

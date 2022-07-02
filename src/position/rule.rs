@@ -1,26 +1,12 @@
 use crate::piece::{Color, Kind};
 
-use super::{
-    bitboard::{self, BitBoard},
-    Movement, Square,
-};
+use super::{bitboard11::BitBoard, Movement, Square};
 
 pub(super) fn promotable(pos: Square, c: Color) -> bool {
     match c {
         Color::Black => pos.row() < 3,
         Color::White => pos.row() >= 6,
     }
-}
-
-pub(super) fn movable_positions(
-    turn_pieces: BitBoard,
-    opponent_pieces: BitBoard,
-    turn: Color,
-    pos: Square,
-    kind: Kind,
-) -> BitBoard {
-    let mask = bitboard::movable_positions(turn_pieces | opponent_pieces, pos, turn, kind);
-    mask & !turn_pieces
 }
 
 pub(super) fn is_allowed_move(

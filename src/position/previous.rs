@@ -2,7 +2,10 @@ use std::cell::RefCell;
 
 use crate::piece::{Color, Kind};
 
-use super::{bitboard::BitBoard, rule, Position, Square, UndoMove};
+use super::{
+    bitboard11::{self, BitBoard},
+    rule, Position, Square, UndoMove,
+};
 
 pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
     let ctx = Context::new(position, allow_drop_pawn);
@@ -14,22 +17,22 @@ struct Context {
     position: Position,
     allow_drop_pawn: bool,
     turn: Color,
-    turn_pieces: BitBoard,
-    opponent_pieces: BitBoard,
+    black_pieces: BitBoard,
+    white_pieces: BitBoard,
     result: RefCell<Vec<UndoMove>>,
 }
 
 impl Context {
     fn new(position: Position, allow_drop_pawn: bool) -> Self {
         let turn = position.turn();
-        let turn_pieces = position.bitboard(turn.into(), None);
-        let opponent_pieces = position.bitboard(turn.opposite().into(), None);
+        let black_pieces = position.bitboard(Color::Black.into(), None);
+        let white_pieces = position.bitboard(Color::White.into(), None);
         Self {
             position,
             allow_drop_pawn,
             turn,
-            turn_pieces,
-            opponent_pieces,
+            black_pieces,
+            white_pieces,
             result: vec![].into(),
         }
     }
@@ -58,13 +61,13 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources = rule::movable_positions(
-                self.turn_pieces,
-                self.opponent_pieces,
+            let sources = bitboard11::reachable(
+                self.white_pieces,
+                self.black_pieces,
                 self.turn,
                 dest,
                 prev_kind,
-            ) & !self.opponent_pieces;
+            ) & !(self.black_pieces | self.white_pieces);
             for source in sources {
                 self.add_undo_move(UndoMove::UnMove {
                     from: source,

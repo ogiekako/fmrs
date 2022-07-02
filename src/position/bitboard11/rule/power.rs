@@ -94,7 +94,7 @@ lazy_static! {
 
 fn power00(black_shifts: &[(isize, isize)]) -> [u128; 2] {
     let black = power00_sub(black_shifts.into_iter().map(|(col, row)| shift(*col, *row)));
-    let white = power00_sub(black_shifts.into_iter().map(|(col, row)| shift(-col, *row)));
+    let white = power00_sub(black_shifts.into_iter().map(|(col, row)| shift(*col, -row)));
     [black, white]
 }
 
@@ -142,6 +142,34 @@ mod tests {
                 ".........",
             ),
             super::power(Color::Black, Square::new(1, 2), Kind::Silver)
+        );
+        assert_eq!(
+            bitboard!(
+                ".........",
+                "........*",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+            ),
+            super::power(Color::White, Square::new(0, 0), Kind::Pawn)
+        );
+        assert_eq!(
+            bitboard!(
+                ".......*.",
+                ".......**",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+            ),
+            super::power(Color::White, Square::new(0, 0), Kind::ProSilver)
         );
         assert_eq!(
             bitboard!(

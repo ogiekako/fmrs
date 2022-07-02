@@ -23,7 +23,7 @@ impl fmt::Debug for Position {
     }
 }
 
-use super::bitboard::BitBoard;
+use super::bitboard11::BitBoard;
 use super::hands::Hands;
 use super::Square;
 
