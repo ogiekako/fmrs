@@ -2,7 +2,7 @@ use super::square::Square;
 
 const MASK: u128 = 0b11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_00000000000;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BitBoard {
     pub(super) x: u128,
 }

@@ -2,16 +2,16 @@ use crate::piece::{Color, Kind};
 
 use super::super::{BitBoard, Square};
 
-pub fn power(pos: Square, color: Color, kind: Kind) -> BitBoard {
+pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
     match kind {
+        Kind::King => non_line_power(*KING_ATTACK00, pos),
         Kind::Pawn => non_line_power(PAWN_ATTACK00[color.index()], pos),
         Kind::Knight => non_line_power(KNIGHT_ATTACK00[color.index()], pos),
         Kind::Silver => non_line_power(SILVER_ATTACK00[color.index()], pos),
         Kind::Gold | Kind::ProPawn | Kind::ProLance | Kind::ProKnight | Kind::ProSilver => {
             non_line_power(GOLD_ATTACK00[color.index()], pos)
         }
-        Kind::King => non_line_power(*KING_ATTACK00, pos),
-        Kind::Lance => lance_power(pos, color),
+        Kind::Lance => lance_power(color, pos),
         Kind::Rook => rook_power(pos),
         Kind::ProRook => rook_power(pos) | non_line_power(*KING_ATTACK00, pos),
         Kind::Bishop => bishop_power(pos),
@@ -19,7 +19,7 @@ pub fn power(pos: Square, color: Color, kind: Kind) -> BitBoard {
     }
 }
 
-fn bishop_power(pos: Square) -> BitBoard {
+pub(super) fn bishop_power(pos: Square) -> BitBoard {
     BitBoard::from_u128(SAME_DIAG1[diag1(pos)] ^ SAME_DIAG2[diag2(pos)])
 }
 
@@ -44,7 +44,7 @@ lazy_static! {
     };
 }
 
-fn rook_power(pos: Square) -> BitBoard {
+pub(super) fn rook_power(pos: Square) -> BitBoard {
     BitBoard::from_u128(SAME_COLUMN[pos.col()] ^ SAME_ROW[pos.row()])
 }
 
@@ -69,7 +69,7 @@ lazy_static! {
     };
 }
 
-fn lance_power(pos: Square, color: Color) -> BitBoard {
+pub(super) fn lance_power(color: Color, pos: Square) -> BitBoard {
     if color == Color::Black {
         let pos_bb = 1u128 << pos.index();
         BitBoard::from_u128(pos_bb - (pos_bb >> pos.row()))
@@ -141,7 +141,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Square::new(1, 2), Color::Black, Kind::Silver)
+            super::power(Color::Black, Square::new(1, 2), Kind::Silver)
         );
         assert_eq!(
             bitboard!(
@@ -155,7 +155,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Square::new(1, 2), Color::Black, Kind::King)
+            super::power(Color::Black, Square::new(1, 2), Kind::King)
         );
         assert_eq!(
             bitboard!(
@@ -169,7 +169,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Square::new(1, 2), Color::Black, Kind::ProRook)
+            super::power(Color::Black, Square::new(1, 2), Kind::ProRook)
         );
         assert_eq!(
             bitboard!(
@@ -183,7 +183,7 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::power(Square::new(0, 0), Color::Black, Kind::Rook)
+            super::power(Color::Black, Square::new(0, 0), Kind::Rook)
         );
         assert_eq!(
             bitboard!(
@@ -197,7 +197,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Square::new(1, 2), Color::White, Kind::Lance)
+            super::power(Color::White, Square::new(1, 2), Kind::Lance)
         );
         assert_eq!(
             bitboard!(
@@ -211,7 +211,7 @@ mod tests {
                 "...*.....",
                 "..*......",
             ),
-            super::power(Square::new(1, 3), Color::White, Kind::Bishop)
+            super::power(Color::White, Square::new(1, 3), Kind::Bishop)
         );
     }
 }

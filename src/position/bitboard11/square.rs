@@ -19,6 +19,9 @@ impl Square {
     pub(super) fn index(self) -> usize {
         13 + self.col() * 11 + self.row()
     }
+    pub(super) fn index81(self) -> usize {
+        self.col() * 9 + self.row()
+    }
     pub(super) fn from_index(x: usize) -> Self {
         let col = (x - 13) / 11;
         let row = (x - 13) % 11;
