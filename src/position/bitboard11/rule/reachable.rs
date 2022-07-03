@@ -23,13 +23,16 @@ pub fn reachable(
 }
 
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
+    if !kind.is_line_piece() {
+        return power(color, pos, kind);
+    }
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
         Kind::ProBishop => power(color, pos, Kind::King) | magic::bishop_reachable(occupied, pos),
         Kind::ProRook => power(color, pos, Kind::King) | rook_reachable(occupied, pos),
-        _ => power(color, pos, kind),
+        _ => unreachable!(),
     }
 }
 

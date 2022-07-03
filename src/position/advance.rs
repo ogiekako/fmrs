@@ -287,7 +287,6 @@ impl Context {
 // Helper methods
 impl Context {
     fn maybe_add_move(&self, movement: Movement) {
-        eprintln!("maybe_add_move: {:?}", movement);
         match movement {
             Movement::Drop(pos, kind) => {
                 if kind == Kind::Pawn && self.pawn_mask >> pos.col() & 1 > 0 {
