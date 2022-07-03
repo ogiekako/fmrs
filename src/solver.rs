@@ -53,8 +53,6 @@ pub fn solve_with_progress(
     let mut mate_in = None;
     let mut mate_positions = vec![];
 
-    let mut dead_end: HashSet<u64> = HashSet::new();
-
     let mut current_step = 0;
     while let Some((step, board)) = queue.pop_front() {
         let n_step = step + 1;
@@ -68,7 +66,7 @@ pub fn solve_with_progress(
 
         if step > current_step {
             eprintln!(
-                "step {}, queue len = {}, hash len = {}({}), deadend = {}({})",
+                "step {}, queue len = {}, hash len = {}({})",
                 step,
                 pretty(queue.len() * std::mem::size_of::<Position>()),
                 memo.len(),
@@ -76,8 +74,6 @@ pub fn solve_with_progress(
                     memo.len()
                         * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoMove>>())
                 ),
-                dead_end.len(),
-                pretty(dead_end.len() * std::mem::size_of::<u64>()),
             );
             current_step = step;
 
@@ -92,9 +88,6 @@ pub fn solve_with_progress(
                 break;
             }
             let h = digest(&np);
-            if dead_end.contains(&h) {
-                continue;
-            }
             if memo.contains_key(&h) {
                 continue;
             }
@@ -108,9 +101,9 @@ pub fn solve_with_progress(
                 mate_in = Some(step);
             } else {
                 // Deadend. We can forgot history.
-                let h = digest(&board);
-                memo.remove(&h);
-                dead_end.insert(h);
+                // let h = digest(&board);
+                // memo.remove(&h);
+                // dead_end.insert(h);
             }
         }
     }

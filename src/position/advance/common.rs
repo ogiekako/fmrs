@@ -1,5 +1,3 @@
-
-
 use crate::{
     piece::{Color, Kind},
     position::{
@@ -7,21 +5,6 @@ use crate::{
         rule, Movement, Position, Square,
     },
 };
-
-pub(super) fn sources_becoming(
-    position: &Position,
-    turn: Color,
-    kind: Kind,
-) -> impl Iterator<Item = (BitBoard, bool, Kind)> {
-    [
-        Some((position.bitboard(turn.into(), kind.into()), false, kind)),
-        kind.unpromote()
-            .map(|raw| (position.bitboard(turn.into(), raw.into()), true, raw)),
-    ]
-    .into_iter()
-    .flatten()
-    .filter(|x| !x.0.is_empty())
-}
 
 // Checks double pawn, unmovable pieces.
 pub(super) fn maybe_legal_movement(
