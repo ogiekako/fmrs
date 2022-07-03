@@ -187,6 +187,10 @@ mod tests {
                 "7br/5ssss/5gggg/9/9/B8/Rn1K5/9/3k5 b 3n4l18p 1",
                 vec!["9799"],
             ),
+            (
+                "9/6K1k/9/9/9/8N/8R/9/9 b r2b4g4s3n4l18p 1",
+                vec!["1624"]
+            ),
             // http://cavesfairy.g1.xrea.com/pub/qgfairy/
             (
                 // 06-07 (57 steps)

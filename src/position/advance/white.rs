@@ -1,0 +1,305 @@
+use std::cell::{Cell, RefCell};
+
+use anyhow::bail;
+
+use crate::piece::{Color, Kind};
+
+use crate::position::{
+    bitboard11::{self, BitBoard},
+    rule, Movement, Position, PositionExt, Square,
+};
+
+use super::common;
+
+pub(super) fn advance(position: &Position) -> anyhow::Result<Vec<Position>> {
+    debug_assert_eq!(position.turn(), Color::White);
+    let ctx = Context::new(position)?;
+    ctx.advance();
+    Ok(ctx.result.take())
+}
+
+struct Context<'a> {
+    position: &'a Position,
+    white_king_pos: Square,
+    black_pieces: BitBoard,
+    white_pieces: BitBoard,
+    pinned: common::Pinned,
+    attacker: Attacker,
+    pawn_mask: usize,
+    result: RefCell<Vec<Position>>,
+}
+
+impl<'a> Context<'a> {
+    fn new(position: &'a Position) -> anyhow::Result<Self> {
+        let white_king_pos = if let Some(p) = position
+            .bitboard(Color::White.into(), Kind::King.into())
+            .next()
+        {
+            p
+        } else {
+            bail!("No white king");
+        };
+        let black_pieces = position.bitboard(Color::Black.into(), None);
+        let white_pieces = position.bitboard(Color::White.into(), None);
+        let pinned = common::pinned(
+            position,
+            black_pieces,
+            white_pieces,
+            Color::White,
+            white_king_pos,
+        );
+        let attacker = attacker(position, black_pieces, white_pieces, white_king_pos)
+            .ok_or(anyhow::anyhow!("white not checked"))?;
+        let pawn_mask = {
+            let mut mask = Default::default();
+            for pos in position.bitboard(Color::Black.into(), Kind::Pawn.into()) {
+                mask |= 1 << pos.col()
+            }
+            mask
+        };
+
+        Ok(Self {
+            position,
+            white_king_pos,
+            black_pieces,
+            white_pieces,
+            pinned,
+            attacker,
+            pawn_mask,
+            result: vec![].into(),
+        })
+    }
+
+    fn advance(&self) {
+        if !self.attacker.double_check {
+            self.white_block(self.attacker.pos, self.attacker.kind);
+            self.white_capture(self.attacker.pos);
+        }
+        self.white_king_move();
+    }
+
+    fn white_block(&self, attacker_pos: Square, attacker_kind: Kind) {
+        if attacker_kind.is_line_piece() {
+            let blockable = self.blockable_squares(attacker_pos, attacker_kind);
+            for dest in blockable {
+                self.add_movements_to(dest, true);
+            }
+        }
+    }
+
+    fn white_capture(&self, attacker_pos: Square) {
+        self.add_movements_to(attacker_pos, false)
+    }
+
+    fn white_king_move(&self) {
+        let king_reachable = bitboard11::reachable(
+            self.black_pieces,
+            self.white_pieces,
+            Color::White,
+            self.white_king_pos,
+            Kind::King,
+        );
+        let mut under_attack = BitBoard::new();
+        for attacker_kind in Kind::iter() {
+            for attacker_pos in self
+                .position
+                .bitboard(Color::Black.into(), attacker_kind.into())
+            {
+                let attacker_power = bitboard11::power(Color::Black, attacker_pos, attacker_kind);
+                if (attacker_power & king_reachable).is_empty() {
+                    continue;
+                }
+                if !attacker_kind.is_line_piece() {
+                    under_attack |= attacker_power;
+                    continue;
+                }
+                let attacker_reachable = bitboard11::reachable(
+                    self.white_pieces,
+                    self.black_pieces,
+                    Color::Black,
+                    attacker_pos,
+                    attacker_kind,
+                );
+                under_attack |= attacker_reachable;
+
+                // Hidden by king
+                if attacker_pos == self.attacker.pos {
+                    if let Some(hidden_pos) = hidden_square(attacker_pos, self.white_king_pos) {
+                        if attacker_power.get(hidden_pos) {
+                            under_attack.set(hidden_pos);
+                        }
+                    }
+                }
+            }
+        }
+
+        for dest in king_reachable & !under_attack {
+            self.maybe_add_move(
+                &Movement::Move {
+                    from: self.white_king_pos,
+                    to: dest,
+                    promote: false,
+                },
+                Kind::King,
+            )
+        }
+    }
+
+    fn add_movements_to(&self, dest: Square, include_drop: bool) {
+        // Drop
+        if include_drop {
+            for kind in self.position.hands().kinds(Color::White) {
+                self.maybe_add_move(&Movement::Drop(dest, kind), kind);
+            }
+        }
+        // Move
+        let around_king = 
+        for kind in Kind::iter() {
+            if kind == Kind::King {
+                continue;
+            }
+            for (sources, promote, source_kind) in
+                common::sources_becoming(self.position, Color::White, kind)
+            {
+                let source_cands = bitboard11::reachable(
+                    self.black_pieces,
+                    self.white_pieces,
+                    Color::Black,
+                    dest,
+                    source_kind,
+                );
+                for source in sources & source_cands {
+                    self.maybe_add_move(
+                        &Movement::Move {
+                            from: source,
+                            to: dest,
+                            promote,
+                        },
+                        kind,
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Helper methods
+impl<'a> Context<'a> {
+    fn maybe_add_move(&self, movement: &Movement, kind: Kind) {
+        if !common::maybe_legal_movement(Color::White, movement, kind, self.pawn_mask) {
+            return;
+        }
+        if let Movement::Move {
+            from,
+            to,
+            promote: _,
+        } = movement
+        {
+            if !self.pinned.legal_move(*from, *to) {
+                return;
+            }
+        }
+
+        let mut next_position = self.position.clone();
+        next_position.do_move(&movement);
+
+        if self.attacker.double_check {
+            if next_position.checked(Color::White) {
+                return;
+            }
+        }
+
+        // debug_assert!(
+        //     !next_position.checked(Color::White),
+        //     "white king checked: posision={:?} movement={:?} next={:?}",
+        //     self.position,
+        //     movement,
+        //     next_position
+        // );
+
+        self.result.borrow_mut().push(next_position);
+    }
+
+    fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
+        if bitboard11::power(Color::White, self.white_king_pos, Kind::King).get(attacker_pos) {
+            return BitBoard::new();
+        }
+        bitboard11::reachable(
+            self.black_pieces,
+            self.white_pieces,
+            Color::White,
+            self.white_king_pos,
+            attacker_kind.maybe_unpromote(),
+        ) & bitboard11::reachable(
+            self.black_pieces,
+            self.white_pieces,
+            Color::Black,
+            attacker_pos,
+            attacker_kind.maybe_unpromote(),
+        )
+    }
+}
+
+struct Attacker {
+    pos: Square,
+    kind: Kind,
+    double_check: bool,
+}
+
+impl Attacker {
+    fn new(pos: Square, kind: Kind, double_check: bool) -> Self {
+        Self {
+            pos,
+            kind,
+            double_check,
+        }
+    }
+}
+
+fn attacker(
+    position: &Position,
+    black_pieces: BitBoard,
+    white_pieces: BitBoard,
+    white_king_pos: Square,
+) -> Option<Attacker> {
+    let mut attacker: Option<Attacker> = None;
+    for attacker_kind in Kind::iter() {
+        let existing = position.bitboard(Color::Black.into(), attacker_kind.into());
+        if existing.is_empty() {
+            continue;
+        }
+        let attacking = bitboard11::reachable(
+            black_pieces,
+            white_pieces,
+            Color::White,
+            white_king_pos,
+            attacker_kind,
+        ) & existing;
+        if attacking.is_empty() {
+            continue;
+        }
+        for attacker_pos in attacking {
+            if let Some(mut attacker) = attacker.take() {
+                attacker.double_check = true;
+                return Some(attacker);
+            }
+            attacker = Some(Attacker::new(attacker_pos, attacker_kind, false));
+        }
+    }
+    attacker
+}
+
+// Potentially attacked position which is currently hidden by the king.
+fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
+    let (kc, kr) = (king_pos.col() as isize, king_pos.row() as isize);
+    let (ac, ar) = (attacker_pos.col() as isize, attacker_pos.row() as isize);
+
+    let (dc, dr) = (kc - ac, kr - ar);
+    let d = dc.abs().max(dr.abs());
+    let (rc, rr) = (kc + dc / d, kr + dr / d);
+    if 0 <= rc && rc < 9 && 0 <= rr && rr < 9 {
+        Some(Square::new(rc as usize, rr as usize))
+    } else {
+        None
+    }
+}
