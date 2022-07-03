@@ -153,29 +153,54 @@ impl<'a> Context<'a> {
             }
         }
         // Move
-        let around_king = 
-        for kind in Kind::iter() {
-            if kind == Kind::King {
+        let around_dest = bitboard11::power(Color::White, dest, Kind::King) & self.white_pieces;
+        for source_pos in around_dest {
+            let source_kind = self.position.get(source_pos).unwrap().1;
+            if source_kind == Kind::King {
                 continue;
             }
-            for (sources, promote, source_kind) in
-                common::sources_becoming(self.position, Color::White, kind)
-            {
-                let source_cands = bitboard11::reachable(
-                    self.black_pieces,
-                    self.white_pieces,
-                    Color::Black,
-                    dest,
-                    source_kind,
-                );
-                for source in sources & source_cands {
+            let source_power = bitboard11::power(Color::White, source_pos, source_kind);
+            if source_power.get(dest) {
+                for promote in [false, true] {
+                    if promote && source_kind.promote().is_none() {
+                        continue;
+                    }
                     self.maybe_add_move(
                         &Movement::Move {
-                            from: source,
+                            from: source_pos,
                             to: dest,
                             promote,
                         },
-                        kind,
+                        source_kind,
+                    );
+                }
+            }
+        }
+
+        for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
+            let source_cand = bitboard11::reachable(
+                self.black_pieces,
+                self.white_pieces,
+                Color::Black,
+                dest,
+                leap_kind,
+            ) & self.white_pieces;
+            for source_pos in source_cand {
+                let source_kind = self.position.get(source_pos).unwrap().1;
+                if !source_kind.is_line_piece() || source_kind.maybe_unpromote() != leap_kind {
+                    continue;
+                }
+                for promote in [false, true] {
+                    if promote && source_kind.promote().is_none() {
+                        continue;
+                    }
+                    self.maybe_add_move(
+                        &Movement::Move {
+                            from: source_pos,
+                            to: dest,
+                            promote,
+                        },
+                        source_kind,
                     )
                 }
             }
@@ -209,13 +234,13 @@ impl<'a> Context<'a> {
             }
         }
 
-        // debug_assert!(
-        //     !next_position.checked(Color::White),
-        //     "white king checked: posision={:?} movement={:?} next={:?}",
-        //     self.position,
-        //     movement,
-        //     next_position
-        // );
+        debug_assert!(
+            !next_position.checked(Color::White),
+            "white king checked: posision={:?} movement={:?} next={:?}",
+            self.position,
+            movement,
+            next_position
+        );
 
         self.result.borrow_mut().push(next_position);
     }

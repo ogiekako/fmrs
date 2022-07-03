@@ -118,7 +118,7 @@ impl<'a> Context<'a> {
                                 to: dest,
                                 promote,
                             },
-                            kind,
+                            source_kind,
                         )
                     });
                 })

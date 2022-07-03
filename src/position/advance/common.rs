@@ -114,10 +114,7 @@ pub(super) fn pinned(
             );
             let same_line = bitboard11::power(king_color, king_pos, attacker_kind)
                 & bitboard11::power(king_color.opposite(), attacker_pos, attacker_kind);
-            res.push((
-                pinned_pos,
-                pinned_reachable & same_line,
-            ))
+            res.push((pinned_pos, pinned_reachable & same_line))
         }
     }
     Pinned(res)

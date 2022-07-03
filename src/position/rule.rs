@@ -17,6 +17,7 @@ pub(super) fn is_allowed_move(
     promote: bool,
 ) -> bool {
     if promote {
+        debug_assert!(kind.promote().is_some());
         if !promotable(source, color) && !promotable(dest, color) {
             return false;
         }
