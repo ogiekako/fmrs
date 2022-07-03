@@ -57,15 +57,14 @@ macro_rules! def_op_assign {
     ($ty: ident, $op: ident) => {
         impl std::ops::$ty for BitBoard {
             fn $op(&mut self, rhs: Self) {
-                self.x.$op(rhs.x);
-                self.x &= MASK;
+                let mut x = self.x;
+                x.$op(rhs.x);
+                self.x = x & MASK;
             }
         }
     };
 }
 
-def_op_assign!(MulAssign, mul_assign);
-def_op_assign!(ShrAssign, shr_assign);
 def_op_assign!(BitAndAssign, bitand_assign);
 def_op_assign!(BitOrAssign, bitor_assign);
 
