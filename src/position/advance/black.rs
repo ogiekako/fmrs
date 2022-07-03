@@ -71,59 +71,105 @@ impl<'a> Context<'a> {
     }
 
     fn advance(&self) {
-        self.direct_attack_movements();
+        self.drops();
+        self.direct_attack_moves();
         self.discovered_attack_moves();
     }
 
-    fn direct_attack_movements(&self) {
-        Kind::iter().for_each(|kind| {
-            if kind == Kind::King {
-                return;
-            }
-            let attack_squares = self.attack_squares(kind);
-            if attack_squares.is_empty() {
-                return;
-            }
-            let empty_attack_squares = attack_squares & !self.white_pieces;
-            // Drop
-            if !empty_attack_squares.is_empty()
-                && self.position.hands().contains(Color::Black, kind)
+    fn drops(&self) {
+        for kind in self.position.hands().kinds(Color::Black) {
+            let empty_attack_squares = self.attack_squares(kind) & !self.white_pieces;
+            empty_attack_squares.for_each(|pos| {
+                self.maybe_add_move(&Movement::Drop(pos, kind), kind);
+            })
+        }
+    }
+
+    fn direct_attack_moves(&self) {
+        let lion_king_range = lion_king_power(self.white_king_pos);
+        // Non line or leap pieces
+        for attacker_pos in lion_king_range & self.black_pieces {
+            let attacker_source_kind = self.position.get(attacker_pos).unwrap().1;
+            if attacker_source_kind == Kind::King
+                || attacker_source_kind == Kind::Knight
+                || attacker_source_kind.is_line_piece()
             {
-                empty_attack_squares.for_each(|pos| {
-                    self.maybe_add_move(&Movement::Drop(pos, kind), kind);
-                })
+                continue;
             }
-            // Move
-            for (sources, promote, source_kind) in
-                common::sources_becoming(self.position, Color::Black, kind)
-            {
-                if sources.is_empty() {
+            let attacker_power =
+                bitboard11::power(Color::Black, attacker_pos, attacker_source_kind);
+            for promote in [false, true] {
+                if promote && attacker_source_kind.promote().is_none() {
                     continue;
                 }
-                sources.into_iter().for_each(|source| {
-                    let move_to = bitboard11::reachable(
+                let attacker_dest_kind = if promote {
+                    attacker_source_kind.promote().unwrap()
+                } else {
+                    attacker_source_kind
+                };
+                let attack_squares = self.attack_squares(attacker_dest_kind);
+                for dest in attacker_power & attack_squares {
+                    self.maybe_add_move(
+                        &Movement::Move {
+                            source: attacker_pos,
+                            dest,
+                            promote,
+                        },
+                        attacker_source_kind,
+                    );
+                }
+            }
+        }
+
+        for attacker_source_kind in [
+            Kind::Lance,
+            Kind::Knight,
+            Kind::Bishop,
+            Kind::Rook,
+            Kind::ProBishop,
+            Kind::ProRook,
+        ] {
+            let attackers = self
+                .position
+                .bitboard(Color::Black.into(), attacker_source_kind.into());
+            if attackers.is_empty() {
+                continue;
+            }
+
+            for promote in [false, true] {
+                if promote && attacker_source_kind.promote().is_none() {
+                    continue;
+                }
+                let attacker_dest_kind = if promote {
+                    attacker_source_kind.promote().unwrap()
+                } else {
+                    attacker_source_kind
+                };
+
+                let attack_squares = self.attack_squares(attacker_dest_kind);
+
+                for attacker_pos in attackers {
+                    let attacker_reachable = bitboard11::reachable(
                         self.black_pieces,
                         self.white_pieces,
                         Color::Black,
-                        source,
-                        source_kind,
-                    ) & attack_squares;
-                    if move_to.is_empty() {
-                        return;
-                    }
-                    move_to.into_iter().for_each(|dest| {
+                        attacker_pos,
+                        attacker_source_kind,
+                    );
+
+                    for dest in attacker_reachable & attack_squares {
                         self.maybe_add_move(
                             &Movement::Move {
-                                source,
+                                source: attacker_pos,
                                 dest,
                                 promote,
                             },
-                            source_kind,
-                        )
-                    });
-                })
+                            attacker_source_kind,
+                        );
+                    }
+                }
             }
-        });
+        }
     }
 
     fn discovered_attack_moves(&self) {
@@ -252,4 +298,22 @@ impl<'a> Context<'a> {
             kind,
         )
     }
+}
+
+fn lion_king_power(pos: Square) -> BitBoard {
+    let mut res = bitboard11::power(Color::Black, pos, Kind::King);
+    for i in [-1, 1] {
+        for j in [-1, 1] {
+            let col = pos.col() as isize + i;
+            let row = pos.row() as isize + j;
+            if (0..9).contains(&col) && (0..9).contains(&row) {
+                res |= bitboard11::power(
+                    Color::Black,
+                    Square::new(col as usize, row as usize),
+                    Kind::King,
+                );
+            }
+        }
+    }
+    res
 }
