@@ -9,9 +9,9 @@ pub enum SolutionReply {
 
 pub type Solution = Vec<Movement>;
 
-pub fn solve(board: Position, solutions_upto: Option<usize>) -> anyhow::Result<Vec<Solution>> {
+pub fn solve(board: Position) -> anyhow::Result<Vec<Solution>> {
     let (tx, _rx) = futures::channel::mpsc::unbounded();
-    solve_with_progress(tx, board, solutions_upto)
+    solve_with_progress(tx, board)
 }
 
 use std::collections::HashSet;
@@ -35,7 +35,6 @@ fn pretty(size: usize) -> String {
 pub fn solve_with_progress(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     board: Position,
-    _solutions_upto: Option<usize>,
 ) -> anyhow::Result<Vec<Solution>> {
     if board.turn() != Black {
         anyhow::bail!("The turn should be from black");
@@ -205,7 +204,7 @@ mod tests {
                     .collect();
 
             eprintln!("Solving {:?}", board);
-            let got = solve(board, None).unwrap();
+            let got = solve(board).unwrap();
 
             assert_eq!(got, want);
         }
@@ -224,7 +223,7 @@ mod tests {
             "9/9/9/4k4/9/4K1P1+r/9/8B/9 b rb4g4s4n4l17p 1",
         ] {
             let board = sfen::decode_position(sfen).unwrap();
-            let got = solve(board.clone(), None).unwrap();
+            let got = solve(board.clone()).unwrap();
             let want: Vec<Vec<Movement>> = vec![];
             eprintln!("Solving {:?}", board);
             assert_eq!(got, want);

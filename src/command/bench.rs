@@ -17,7 +17,7 @@ pub fn bench() -> anyhow::Result<()> {
 
     let start = std::time::Instant::now();
 
-    let _answer = solver::solve(position.clone(), None).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let _answer = solver::solve(position.clone()).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     println!(
         "duration: {:.2}s",

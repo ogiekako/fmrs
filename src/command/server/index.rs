@@ -1,6 +1,4 @@
-use futures::{
-    FutureExt,
-};
+use futures::FutureExt;
 
 use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
 use futures::StreamExt;
@@ -51,7 +49,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
     let (res_tx, res_rx) = futures::channel::mpsc::unbounded::<SolveResponse>();
 
     std::thread::spawn(move || {
-        let res = match crate::solver::solve_with_progress(step_tx, problem.clone(), None) {
+        let res = match crate::solver::solve_with_progress(step_tx, problem.clone()) {
             Ok(solutions) => SolveResponse::Solved(crate::converter::convert(&problem, &solutions)),
             Err(e) => SolveResponse::Error(e.to_string()),
         };
