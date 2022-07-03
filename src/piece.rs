@@ -10,7 +10,7 @@ impl Color {
         *self as usize
     }
     pub fn iter() -> impl Iterator<Item = Color> {
-        [Black, White].iter().map(|c| *c)
+        [Black, White].iter().copied()
     }
     pub fn opposite(&self) -> Color {
         match self {
@@ -62,7 +62,7 @@ impl Kind {
         KINDS[x]
     }
     pub fn iter() -> impl Iterator<Item = Kind> {
-        KINDS.iter().map(|k| *k)
+        KINDS.iter().copied()
     }
 
     pub fn promote(&self) -> Option<Kind> {
@@ -93,15 +93,9 @@ impl Kind {
         })
     }
     pub fn is_line_piece(&self) -> bool {
-        match self {
-            Lance | Bishop | Rook | ProBishop | ProRook => true,
-            _ => false,
-        }
+        matches!(self, Lance | Bishop | Rook | ProBishop | ProRook)
     }
     pub fn is_hand_piece(&self) -> bool {
-        match self {
-            Pawn | Lance | Knight | Silver | Gold | Bishop | Rook => true,
-            _ => false,
-        }
+        matches!(self, Pawn | Lance | Knight | Silver | Gold | Bishop | Rook)
     }
 }

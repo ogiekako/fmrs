@@ -50,10 +50,8 @@ impl Context {
 
     fn add_undo_moves_to(&self, dest: Square, kind: Kind, pawn_drop: bool) {
         // Drop
-        if kind.is_hand_piece() {
-            if kind != Kind::Pawn || self.allow_drop_pawn {
-                self.add_undo_move(UndoMove::UnDrop((dest, pawn_drop)));
-            }
+        if kind.is_hand_piece() && (kind != Kind::Pawn || self.allow_drop_pawn) {
+            self.add_undo_move(UndoMove::UnDrop((dest, pawn_drop)));
         }
         // Move
         let prev_kinds = [(kind.unpromote(), true), (kind.into(), false)]

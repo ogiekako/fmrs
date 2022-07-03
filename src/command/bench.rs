@@ -9,7 +9,7 @@ pub fn bench() -> anyhow::Result<()> {
     let problem = include_str!("../../problems/ofm-139_5.sfen");
     // let problem = include_str!("../../problems/chain_207.sfen");
 
-    let position = sfen::decode_position(&problem).map_err(|_e| anyhow::anyhow!("parse failed"))?;
+    let position = sfen::decode_position(problem).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
     let guard = pprof::ProfilerGuardBuilder::default()
         .frequency(60)
@@ -17,7 +17,7 @@ pub fn bench() -> anyhow::Result<()> {
 
     let start = std::time::Instant::now();
 
-    let _answer = solver::solve(position.clone()).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let _answer = solver::solve(position).map_err(|e| anyhow::anyhow!("{}", e))?;
 
     println!(
         "duration: {:.2}s",

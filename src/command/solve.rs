@@ -19,7 +19,7 @@ pub async fn solve() -> anyhow::Result<()> {
     if answer.len() > 1 {
         println!("Multiple solutions found: showing only the first one");
     }
-    let mut position = position.clone();
+    let mut position = position;
     for x in answer[0].iter() {
         position.do_move(x);
         println!("{}", sfen::encode_move(x));

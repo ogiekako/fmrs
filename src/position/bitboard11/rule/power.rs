@@ -74,8 +74,8 @@ pub(super) fn lance_power(color: Color, pos: Square) -> BitBoard {
         let pos_bb = 1u128 << pos.index();
         BitBoard::from_u128(pos_bb - (pos_bb >> pos.row()))
     } else {
-        let pos_bb = 1u128 << pos.index() + 1;
-        BitBoard::from_u128((pos_bb << 8 - pos.row()) - pos_bb)
+        let pos_bb = 1u128 << (pos.index() + 1);
+        BitBoard::from_u128((pos_bb << (8 - pos.row())) - pos_bb)
     }
 }
 
@@ -93,8 +93,8 @@ lazy_static! {
 }
 
 fn power00(black_shifts: &[(isize, isize)]) -> [u128; 2] {
-    let black = power00_sub(black_shifts.into_iter().map(|(col, row)| shift(*col, *row)));
-    let white = power00_sub(black_shifts.into_iter().map(|(col, row)| shift(*col, -row)));
+    let black = power00_sub(black_shifts.iter().map(|(col, row)| shift(*col, *row)));
+    let white = power00_sub(black_shifts.iter().map(|(col, row)| shift(*col, -row)));
     [black, white]
 }
 

@@ -42,9 +42,7 @@ macro_rules! def_op {
             type Output = Self;
 
             fn $op(self, rhs: Self) -> Self {
-                BitBoard {
-                    x: (self.x.$op(rhs.x)) & MASK,
-                }
+                Self::from_u128(self.x.$op(rhs.x))
             }
         }
     };

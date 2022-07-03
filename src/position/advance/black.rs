@@ -1,4 +1,4 @@
-use std::cell::{RefCell};
+use std::cell::RefCell;
 
 use anyhow::bail;
 
@@ -95,7 +95,7 @@ impl<'a> Context<'a> {
             }
             // Move
             for (sources, promote, source_kind) in
-                common::sources_becoming(&self.position, Color::Black, kind)
+                common::sources_becoming(self.position, Color::Black, kind)
             {
                 if sources.is_empty() {
                     continue;
@@ -127,7 +127,7 @@ impl<'a> Context<'a> {
     }
 
     fn discovered_attack_moves(&self) {
-        for kind in vec![Kind::Lance, Kind::Bishop, Kind::Rook] {
+        for kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
             let attacker_cands = {
                 let mut cands = self.position.bitboard(Some(Color::Black), Some(kind));
                 if kind != Kind::Lance {
@@ -231,12 +231,10 @@ impl<'a> Context<'a> {
         }
 
         let mut next_position = self.position.clone();
-        next_position.do_move(&movement);
+        next_position.do_move(movement);
 
-        if self.black_king_checked {
-            if next_position.checked(Color::Black) {
-                return;
-            }
+        if self.black_king_checked && next_position.checked(Color::Black) {
+            return;
         }
 
         debug_assert!(!next_position.checked(Color::Black));

@@ -19,7 +19,7 @@ pub(super) fn sources_becoming(
             .map(|raw| (position.bitboard(turn.into(), raw.into()), true, raw)),
     ]
     .into_iter()
-    .filter_map(|x| x)
+    .flatten()
     .filter(|x| !x.0.is_empty())
 }
 

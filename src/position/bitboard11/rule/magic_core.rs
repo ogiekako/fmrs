@@ -10,7 +10,7 @@ pub(super) struct MagicCore {
 const GIVE_UP: usize = 100_000;
 impl MagicCore {
     pub(super) fn zero() -> Self {
-        Self {magic: 0, shift: 0}
+        Self { magic: 0, shift: 0 }
     }
     pub(super) fn new(targets: &[Vec<usize>]) -> anyhow::Result<Self> {
         let mut n = 0;
@@ -41,13 +41,13 @@ impl MagicCore {
     }
 
     pub(super) fn table_len(&self) -> usize {
-        1 << usize::BITS as usize - self.shift
+        1 << (usize::BITS as usize - self.shift)
     }
 }
 
 fn is_valid_magic(magic: &MagicCore, targets: &[Vec<usize>]) -> bool {
     let mut mapping = vec![None; magic.table_len()];
-    for (i, ts) in targets.into_iter().enumerate() {
+    for (i, ts) in targets.iter().enumerate() {
         for target in ts {
             let j = magic.index(*target);
             if mapping[j] != None && mapping[j] != Some(i) {

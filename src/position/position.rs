@@ -28,8 +28,8 @@ use super::hands::Hands;
 use super::Square;
 
 impl Position {
-    pub fn new() -> Position {
-        Position {
+    pub fn new() -> Self {
+        Self {
             kind_bb: [BitBoard::new(); 3],
             promote_bb: BitBoard::new(),
             color_bb: [BitBoard::new(); 2],
@@ -102,7 +102,7 @@ impl Position {
         }
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert_eq!(false, self.color_bb[c.index()].get(pos));
+        debug_assert!(!self.color_bb[c.index()].get(pos));
 
         self.color_bb[c.index()].set(pos);
         let i = if let Some(raw) = k.unpromote() {

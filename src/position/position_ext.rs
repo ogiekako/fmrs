@@ -98,7 +98,8 @@ impl PositionExt for Position {
                 self.unset(*to, c, k);
                 debug_assert_eq!(None, self.get(*from));
                 let prev_k = if *promote {
-                    k.unpromote().expect(&format!("can't unpromote {:?}", k))
+                    k.unpromote()
+                        .unwrap_or_else(|| panic!("can't unpromote {:?}", k))
                 } else {
                     k
                 };

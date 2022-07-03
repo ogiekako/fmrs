@@ -1,11 +1,12 @@
-use std::cell::{RefCell};
+use std::cell::RefCell;
 
 use anyhow::bail;
 
 use crate::piece::{Color, Kind};
 
 use crate::position::{
-    bitboard11::{self, BitBoard}, Movement, Position, PositionExt, Square,
+    bitboard11::{self, BitBoard},
+    Movement, Position, PositionExt, Square,
 };
 
 use super::common;
@@ -48,7 +49,7 @@ impl<'a> Context<'a> {
             white_king_pos,
         );
         let attacker = attacker(position, black_pieces, white_pieces, white_king_pos)
-            .ok_or(anyhow::anyhow!("white not checked"))?;
+            .ok_or_else(|| anyhow::anyhow!("white not checked"))?;
         let pawn_mask = {
             let mut mask = Default::default();
             for pos in position.bitboard(Color::Black.into(), Kind::Pawn.into()) {
@@ -240,12 +241,10 @@ impl<'a> Context<'a> {
         }
 
         let mut next_position = self.position.clone();
-        next_position.do_move(&movement);
+        next_position.do_move(movement);
 
-        if self.attacker.double_check {
-            if next_position.checked(Color::White) {
-                return;
-            }
+        if self.attacker.double_check && next_position.checked(Color::White) {
+            return;
         }
 
         debug_assert!(
@@ -336,7 +335,7 @@ fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
     let (dc, dr) = (kc - ac, kr - ar);
     let d = dc.abs().max(dr.abs());
     let (rc, rr) = (kc + dc / d, kr + dr / d);
-    if 0 <= rc && rc < 9 && 0 <= rr && rr < 9 {
+    if (0..9).contains(&rc) && (0..9).contains(&rr) {
         Some(Square::new(rc as usize, rr as usize))
     } else {
         None
