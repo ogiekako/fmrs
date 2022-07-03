@@ -310,8 +310,8 @@ pub fn decode_move(s: &str) -> anyhow::Result<Movement> {
             }
         }
         Movement::Move {
-            from: decode_square(&s[0..2])?,
-            to: decode_square(&s[2..4])?,
+            source: decode_square(&s[0..2])?,
+            dest: decode_square(&s[2..4])?,
             promote,
         }
     })
@@ -332,7 +332,11 @@ pub fn encode_move(m: &Movement) -> String {
         &Movement::Drop(pos, k) => {
             format!("{}*{}", encode_piece(Color::Black, k), encode_square(pos))
         }
-        &Movement::Move { from, to, promote } => format!(
+        &Movement::Move {
+            source: from,
+            dest: to,
+            promote,
+        } => format!(
             "{}{}{}",
             encode_square(from),
             encode_square(to),
@@ -355,13 +359,13 @@ pub mod tests {
         assert_eq!(
             vec![
                 Movement::Move {
-                    from: Square::new(0, 5),
-                    to: Square::new(4, 1),
+                    source: Square::new(0, 5),
+                    dest: Square::new(4, 1),
                     promote: true,
                 },
                 Movement::Move {
-                    from: Square::new(3, 0),
-                    to: Square::new(4, 1),
+                    source: Square::new(3, 0),
+                    dest: Square::new(4, 1),
                     promote: false,
                 },
                 Movement::Drop(Square::new(3, 1), Kind::Silver),

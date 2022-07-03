@@ -114,8 +114,8 @@ impl<'a> Context<'a> {
                     move_to.into_iter().for_each(|dest| {
                         self.maybe_add_move(
                             &Movement::Move {
-                                from: source,
-                                to: dest,
+                                source,
+                                dest,
                                 promote,
                             },
                             source_kind,
@@ -186,8 +186,8 @@ impl<'a> Context<'a> {
                 for blocker_dest in blocker_dests {
                     self.maybe_add_move(
                         &Movement::Move {
-                            from: blocker_pos,
-                            to: blocker_dest,
+                            source: blocker_pos,
+                            dest: blocker_dest,
                             promote: false,
                         },
                         kind,
@@ -198,8 +198,8 @@ impl<'a> Context<'a> {
                     {
                         self.maybe_add_move(
                             &Movement::Move {
-                                from: blocker_pos,
-                                to: blocker_dest,
+                                source: blocker_pos,
+                                dest: blocker_dest,
                                 promote: true,
                             },
                             kind,
@@ -219,8 +219,8 @@ impl<'a> Context<'a> {
         }
         if let Some(pinned) = self.pinned.as_ref() {
             if let Movement::Move {
-                from,
-                to,
+                source: from,
+                dest: to,
                 promote: _,
             } = movement
             {

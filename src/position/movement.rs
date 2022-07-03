@@ -6,8 +6,8 @@ use super::Square;
 pub enum Movement {
     Drop(Square, Kind),
     Move {
-        from: Square,
-        to: Square,
+        source: Square,
+        dest: Square,
         promote: bool,
     },
 }

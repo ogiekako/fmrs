@@ -121,7 +121,11 @@ fn update_move_format(
         let color = color(position.turn());
         let (from, to, piece, same, promote, capture) = match movement {
             Movement::Drop(to, k) => (None, place_format(*to), kind(*k), None, None, None),
-            Movement::Move { from, to, promote } => {
+            Movement::Move {
+                source: from,
+                dest: to,
+                promote,
+            } => {
                 let (_, k) = position.get(*from).unwrap();
                 let capture = if let Some((_, k)) = position.get(*to) {
                     Some(kind(k))

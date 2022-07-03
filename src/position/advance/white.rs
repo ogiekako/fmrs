@@ -136,8 +136,8 @@ impl<'a> Context<'a> {
         for dest in king_reachable & !under_attack {
             self.maybe_add_move(
                 &Movement::Move {
-                    from: self.white_king_pos,
-                    to: dest,
+                    source: self.white_king_pos,
+                    dest,
                     promote: false,
                 },
                 Kind::King,
@@ -168,8 +168,8 @@ impl<'a> Context<'a> {
                     }
                     self.maybe_add_move(
                         &Movement::Move {
-                            from: source_pos,
-                            to: dest,
+                            source: source_pos,
+                            dest,
                             promote,
                         },
                         source_kind,
@@ -211,8 +211,8 @@ impl<'a> Context<'a> {
                     }
                     self.maybe_add_move(
                         &Movement::Move {
-                            from: source_pos,
-                            to: dest,
+                            source: source_pos,
+                            dest,
                             promote,
                         },
                         source_kind,
@@ -230,8 +230,8 @@ impl<'a> Context<'a> {
             return;
         }
         if let Movement::Move {
-            from,
-            to,
+            source: from,
+            dest: to,
             promote: _,
         } = movement
         {

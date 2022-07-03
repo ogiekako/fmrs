@@ -38,8 +38,8 @@ pub(super) fn maybe_legal_movement(
             rule::is_movable(turn, *pos, *kind)
         }
         Movement::Move {
-            from: source,
-            to: dest,
+            source,
+            dest,
             promote,
         } => rule::is_allowed_move(turn, *source, *dest, kind, *promote),
     }

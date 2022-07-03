@@ -40,8 +40,8 @@ impl PositionExt for Position {
                 self.set_pawn_drop(k == Kind::Pawn);
             }
             Movement::Move {
-                from: source,
-                to: dest,
+                source,
+                dest,
                 promote,
             } => {
                 let kind = self.get(*source).unwrap().1;
@@ -113,7 +113,11 @@ impl PositionExt for Position {
                     self.hands_mut().remove(c, captured_k.maybe_unpromote());
                 }
                 self.set_pawn_drop(pawn_drop);
-                Movement::Move { from, to, promote }
+                Movement::Move {
+                    source: from,
+                    dest: to,
+                    promote,
+                }
             }
         }
     }
@@ -172,8 +176,8 @@ mod tests {
             (
                 sfen::tests::START,
                 Movement::Move {
-                    from: Square::new(1, 6),
-                    to: Square::new(1, 5),
+                    source: Square::new(1, 6),
+                    dest: Square::new(1, 5),
                     promote: false,
                 },
                 "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -",
@@ -187,8 +191,8 @@ mod tests {
                 sfen::tests::RYUO,
                 // Capture and promote.
                 Movement::Move {
-                    from: Square::new(7, 4),
-                    to: Square::new(6, 6),
+                    source: Square::new(7, 4),
+                    dest: Square::new(6, 6),
                     promote: true,
                 },
                 "8l/1l+R2P3/p2pBG1pp/kps1p4/N2P2G2/P1P1P2PP/1P+n6/1KSG3+r1/LN2+p3L b Sbgsn3p",
