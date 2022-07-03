@@ -1,12 +1,11 @@
-use std::cell::{Cell, RefCell};
 
-use anyhow::bail;
 
-use crate::piece::{Color, Kind};
+
+
+use crate::piece::{Color};
 
 use crate::position::{
-    bitboard11::{self, BitBoard},
-    rule, Movement, Position, PositionExt, Square,
+    Position,
 };
 
 use super::{black, white};

@@ -35,7 +35,7 @@ fn pretty(size: usize) -> String {
 pub fn solve_with_progress(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     board: Position,
-    solutions_upto: Option<usize>,
+    _solutions_upto: Option<usize>,
 ) -> anyhow::Result<Vec<Solution>> {
     if board.turn() != Black {
         anyhow::bail!("The turn should be from black");

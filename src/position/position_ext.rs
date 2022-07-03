@@ -1,12 +1,11 @@
-use std::collections::HashMap;
 
-use anyhow::bail;
 
-use crate::piece::{Color, Kind, NUM_KIND};
+
+
+use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard11::{self, BitBoard},
-    rule::promotable,
+    bitboard11::{self},
     Movement, Position, Square,
 };
 
@@ -46,7 +45,7 @@ impl PositionExt for Position {
             } => {
                 let kind = self.get(*source).unwrap().1;
                 self.unset(*source, color, kind);
-                let capture = if let Some(capture) = self.get(*dest).map(|(c, k)| k) {
+                let capture = if let Some(capture) = self.get(*dest).map(|(_c, k)| k) {
                     self.unset(*dest, color.opposite(), capture);
                     self.hands_mut().add(color, capture.maybe_unpromote());
                     Some(capture)
@@ -132,7 +131,7 @@ impl PositionExt for Position {
     }
 }
 
-pub(super) fn attackers_to_with_king(
+fn attackers_to_with_king(
     position: &Position,
     target: Square,
     color: Color,
@@ -145,28 +144,19 @@ pub(super) fn attackers_to_with_king(
         b.map(move |from| (from, kind))
     })
 }
+
 fn king(position: &Position, c: Color) -> Option<Square> {
     for k in position.bitboard(Some(c), Some(Kind::King)) {
         return Some(k);
     }
     None
 }
-lazy_static! {
-    static ref COL_MASKS: [BitBoard; 9] = {
-        let mut res = [BitBoard::new(); 9];
-        for pos in Square::iter() {
-            res[pos.col()].set(pos);
-        }
-        res
-    };
-}
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        piece::{Color, Kind},
-        position::{position_ext::king, Movement, Position, PositionExt, Square},
-        sfen,
+        piece::{Kind},
+        position::{Movement, PositionExt, Square},
     };
 
     #[test]

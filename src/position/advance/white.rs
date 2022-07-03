@@ -1,12 +1,11 @@
-use std::cell::{Cell, RefCell};
+use std::cell::{RefCell};
 
 use anyhow::bail;
 
 use crate::piece::{Color, Kind};
 
 use crate::position::{
-    bitboard11::{self, BitBoard},
-    rule, Movement, Position, PositionExt, Square,
+    bitboard11::{self, BitBoard}, Movement, Position, PositionExt, Square,
 };
 
 use super::common;
@@ -230,12 +229,12 @@ impl<'a> Context<'a> {
             return;
         }
         if let Movement::Move {
-            source: from,
-            dest: to,
+            source,
+            dest,
             promote: _,
         } = movement
         {
-            if !self.pinned.legal_move(*from, *to) {
+            if !self.pinned.legal_move(*source, *dest) {
                 return;
             }
         }

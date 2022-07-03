@@ -1,9 +1,8 @@
 use futures::{
-    channel::mpsc::{Receiver, Sender},
-    FutureExt, SinkExt,
+    FutureExt,
 };
 
-use actix_web::{get, post, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
 use futures::StreamExt;
 use serde::Serialize;
 

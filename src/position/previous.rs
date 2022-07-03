@@ -3,8 +3,7 @@ use std::cell::RefCell;
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard11::{self, BitBoard},
-    rule, Position, Square, UndoMove,
+    bitboard11::{self, BitBoard}, Position, Square, UndoMove,
 };
 
 pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
