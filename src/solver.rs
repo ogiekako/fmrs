@@ -48,7 +48,7 @@ pub fn solve_with_progress(
     let mut memo = HashMap::new();
     memo.insert(digest(&board), 0);
     let mut queue = VecDeque::new();
-    queue.push_back((0, board.clone()));
+    queue.push_back((0, board));
 
     let mut mate_in = None;
     let mut mate_positions = vec![];
@@ -122,33 +122,6 @@ pub fn solve_with_progress(
     Ok(res)
 }
 
-fn update(
-    res: &mut Vec<Solution>,
-    mut rev_sol: &mut Solution,
-    memo: &HashMap<u64, (usize, Vec<UndoMove>)>,
-    g: &mut Position,
-    limit: Option<usize>,
-) {
-    if let Some(lim) = limit {
-        if lim <= res.len() {
-            return;
-        }
-    }
-    let (step, toks) = memo.get(&digest(&g)).unwrap();
-    if *step == 0 {
-        res.push(rev_sol.clone().into_iter().rev().collect());
-        return;
-    }
-    for tok in toks {
-        let mv = g.undo_move(tok);
-
-        rev_sol.push(mv);
-        update(res, &mut rev_sol, memo, g, limit);
-        let mv = rev_sol.pop().unwrap();
-
-        g.do_move(&mv);
-    }
-}
 #[cfg(test)]
 mod tests {
     use crate::{

@@ -1,7 +1,3 @@
-
-
-
-
 use crate::piece::{Color, Kind};
 
 use super::{
@@ -78,17 +74,17 @@ impl PositionExt for Position {
         let prev_turn = self.turn().opposite();
         self.set_turn(prev_turn);
         match token {
-            &UnDrop((pos, pawn_drop)) => {
+            UnDrop((pos, pawn_drop)) => {
                 let (c, k) = self
-                    .get(pos)
-                    .expect(&format!("{:?} doesn't contain any piece", pos));
+                    .get(*pos)
+                    .unwrap_or_else(|| panic!("{:?} doesn't contain any piece", pos));
                 debug_assert_eq!(prev_turn, c);
-                self.unset(pos, c, k);
+                self.unset(*pos, c, k);
                 self.hands_mut().add(c, k.maybe_unpromote());
-                self.set_pawn_drop(pawn_drop);
-                Movement::Drop(pos, k.maybe_unpromote())
+                self.set_pawn_drop(*pawn_drop);
+                Movement::Drop(*pos, k.maybe_unpromote())
             }
-            &UnMove {
+            UnMove {
                 from,
                 to,
                 promote,
@@ -96,26 +92,26 @@ impl PositionExt for Position {
                 pawn_drop,
             } => {
                 let (c, k) = self
-                    .get(to)
-                    .expect(&format!("{:?} doesn't contain any piece", to));
+                    .get(*to)
+                    .unwrap_or_else(|| panic!("{:?} doesn't contain any piece", to));
                 debug_assert_eq!(prev_turn, c);
-                self.unset(to, c, k);
-                debug_assert_eq!(None, self.get(from));
-                let prev_k = if promote {
+                self.unset(*to, c, k);
+                debug_assert_eq!(None, self.get(*from));
+                let prev_k = if *promote {
                     k.unpromote().expect(&format!("can't unpromote {:?}", k))
                 } else {
                     k
                 };
-                self.set(from, c, prev_k);
+                self.set(*from, c, prev_k);
                 if let Some(captured_k) = capture {
-                    self.set(to, c.opposite(), captured_k);
+                    self.set(*to, c.opposite(), *captured_k);
                     self.hands_mut().remove(c, captured_k.maybe_unpromote());
                 }
-                self.set_pawn_drop(pawn_drop);
+                self.set_pawn_drop(*pawn_drop);
                 Movement::Move {
-                    source: from,
-                    dest: to,
-                    promote,
+                    source: *from,
+                    dest: *to,
+                    promote: *promote,
                 }
             }
         }
@@ -146,23 +142,20 @@ fn attackers_to_with_king(
 }
 
 fn king(position: &Position, c: Color) -> Option<Square> {
-    for k in position.bitboard(Some(c), Some(Kind::King)) {
-        return Some(k);
-    }
-    None
+    position.bitboard(Some(c), Some(Kind::King)).next()
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        piece::{Kind},
+        piece::Kind,
         position::{Movement, PositionExt, Square},
     };
 
     #[test]
     fn test_do_move_undo() {
         use crate::sfen;
-        for tc in vec![
+        for tc in &[
             (
                 sfen::tests::START,
                 Movement::Move {

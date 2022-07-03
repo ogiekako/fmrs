@@ -1,5 +1,3 @@
-use futures::FutureExt;
-
 use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
 use futures::StreamExt;
 use serde::Serialize;

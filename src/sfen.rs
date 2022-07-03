@@ -283,9 +283,9 @@ fn decode_square(s: &str) -> anyhow::Result<Square> {
     if cs.len() != 2 {
         bail!("{} should have length 2", s);
     }
-    for r in vec!['a', '1'] {
+    for r in &['a', '1'] {
         let col = (cs[0] as usize).wrapping_sub('1' as usize);
-        let row = (cs[1] as usize).wrapping_sub(r as usize);
+        let row = (cs[1] as usize).wrapping_sub(*r as usize);
 
         if row < 9 && col < 9 {
             return Ok(Square::new(col, row));
@@ -329,18 +329,18 @@ pub fn decode_moves(sfen: &str) -> anyhow::Result<Vec<Movement>> {
 
 pub fn encode_move(m: &Movement) -> String {
     match m {
-        &Movement::Drop(pos, k) => {
-            format!("{}*{}", encode_piece(Color::Black, k), encode_square(pos))
+        Movement::Drop(pos, k) => {
+            format!("{}*{}", encode_piece(Color::Black, *k), encode_square(*pos))
         }
-        &Movement::Move {
+        Movement::Move {
             source: from,
             dest: to,
             promote,
         } => format!(
             "{}{}{}",
-            encode_square(from),
-            encode_square(to),
-            if promote { "+" } else { "" }
+            encode_square(*from),
+            encode_square(*to),
+            if *promote { "+" } else { "" }
         ),
     }
 }
