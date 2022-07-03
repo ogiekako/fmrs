@@ -32,12 +32,12 @@ pub fn bench() -> anyhow::Result<()> {
     profile.write_to_vec(&mut content).unwrap();
     file.write_all(&content).unwrap();
 
-    // {
-    //     let file = File::create("prof/flamegraph.svg").unwrap();
-    //     let mut options = pprof::flamegraph::Options::default();
-    //     options.image_width = Some(2500);
-    //     report.flamegraph_with_options(file, &mut options).unwrap();
-    // }
+    {
+        let file = File::create("prof/flamegraph.svg").unwrap();
+        let mut options = pprof::flamegraph::Options::default();
+        options.image_width = Some(2500);
+        report.flamegraph_with_options(file, &mut options).unwrap();
+    }
 
     Ok(())
 }

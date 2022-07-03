@@ -152,6 +152,7 @@ impl<'a> Context<'a> {
                 self.maybe_add_move(&Movement::Drop(dest, kind), kind);
             }
         }
+
         // Move
         let around_dest = bitboard11::power(Color::White, dest, Kind::King) & self.white_pieces;
         for source_pos in around_dest {
@@ -178,18 +179,32 @@ impl<'a> Context<'a> {
         }
 
         for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
-            let source_cand = bitboard11::reachable(
+            let on_board = {
+                let raw_pieces = self
+                    .position
+                    .bitboard(Color::White.into(), leap_kind.into());
+                let promoted_kind = leap_kind.promote().unwrap();
+                if promoted_kind.is_line_piece() {
+                    raw_pieces
+                        | self
+                            .position
+                            .bitboard(Color::White.into(), promoted_kind.into())
+                } else {
+                    raw_pieces
+                }
+            };
+            if on_board.is_empty() {
+                continue;
+            }
+            let sources = bitboard11::reachable(
                 self.black_pieces,
                 self.white_pieces,
                 Color::Black,
                 dest,
                 leap_kind,
-            ) & self.white_pieces;
-            for source_pos in source_cand {
+            ) & on_board;
+            for source_pos in sources {
                 let source_kind = self.position.get(source_pos).unwrap().1;
-                if !source_kind.is_line_piece() || source_kind.maybe_unpromote() != leap_kind {
-                    continue;
-                }
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
                         continue;
