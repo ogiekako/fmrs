@@ -29,48 +29,46 @@ pub trait PositionExt {
 
 impl PositionExt for Position {
     fn do_move(&mut self, m: &Movement) -> UndoMove {
-        let c = self.turn();
+        let color = self.turn();
         let token;
         match m {
             Movement::Drop(pos, k) => {
                 let (pos, k) = (*pos, *k);
-                self.hands_mut().remove(c, k);
-                self.set(pos, c, k);
+                self.hands_mut().remove(color, k);
+                self.set(pos, color, k);
                 token = UndoMove::UnDrop((pos, self.pawn_drop()));
                 self.set_pawn_drop(k == Kind::Pawn);
             }
-            Movement::Move { from, to, promote } => {
-                let (from, to, promote) = (*from, *to, *promote);
-                // TODO: return error instead of unwrapping.
-                let k = self.get(from).unwrap().1;
-                self.unset(from, c, k);
-                let mut capture = None;
-                if self.bitboard(Some(c.opposite()), None).get(to) {
-                    for capt_k in Kind::iter() {
-                        if self.bitboard(None, Some(capt_k)).get(to) {
-                            self.unset(to, c.opposite(), capt_k);
-                            self.hands_mut().add(c, capt_k.maybe_unpromote());
-                            capture = Some(capt_k);
-                            break;
-                        }
-                    }
-                }
-                if promote {
-                    self.set(to, c, k.promote().unwrap());
+            Movement::Move {
+                from: source,
+                to: dest,
+                promote,
+            } => {
+                let kind = self.get(*source).unwrap().1;
+                self.unset(*source, color, kind);
+                let capture = if let Some(capture) = self.get(*dest).map(|(c, k)| k) {
+                    self.unset(*dest, color.opposite(), capture);
+                    self.hands_mut().add(color, capture.maybe_unpromote());
+                    Some(capture)
                 } else {
-                    self.set(to, c, k);
+                    None
+                };
+                if *promote {
+                    self.set(*dest, color, kind.promote().unwrap());
+                } else {
+                    self.set(*dest, color, kind);
                 }
                 token = UndoMove::UnMove {
-                    from,
-                    to,
-                    promote,
+                    from: *source,
+                    to: *dest,
+                    promote: *promote,
                     capture,
                     pawn_drop: self.pawn_drop(),
                 };
                 self.set_pawn_drop(false);
             }
         }
-        self.set_turn(c.opposite());
+        self.set_turn(color.opposite());
         token
     }
 
@@ -120,133 +118,6 @@ impl PositionExt for Position {
         }
     }
 
-    // // Generate check/uncheck moves without checking illegality.
-    // fn move_candidates(&self, res: &mut Vec<Movement>) -> anyhow::Result<()> {
-    //     let occu = self.bitboard(None, None);
-    //     let white_king_pos =
-    //         king(self, Color::White).ok_or(anyhow::anyhow!("White king not found"))?;
-
-    //     let turn = self.turn();
-
-    //     // Black.
-    //     if turn == Color::Black {
-    //         // Drop
-    //         for k in self.hands().kinds(turn) {
-    //             for pos in (!occu)
-    //                 & (super::bitboard::movable_positions(occu, white_king_pos, Color::White, k))
-    //             {
-    //                 res.push(Movement::Drop(pos, k));
-    //             }
-    //         }
-
-    //         let mut direct_attack_goals = [BitBoard::new(); NUM_KIND];
-    //         for k in Kind::iter() {
-    //             direct_attack_goals[k.index()] = !self.bitboard(Some(Color::Black), None)
-    //                 & super::bitboard::movable_positions(occu, white_king_pos, Color::White, k);
-    //         }
-
-    //         // Direct attack
-    //         for k in Kind::iter() {
-    //             if k == Kind::King {
-    //                 continue;
-    //             }
-    //             let froms = self.bitboard(Some(Color::Black), Some(k));
-    //             let goal = direct_attack_goals[k.index()];
-    //             for from in froms {
-    //                 for to in goal & super::bitboard::movable_positions(occu, from, Color::Black, k)
-    //                 {
-    //                     res.push(Movement::Move {
-    //                         from,
-    //                         to,
-    //                         promote: false,
-    //                     })
-    //                 }
-    //             }
-    //             // promote
-    //             if let Some(k) = k.unpromote() {
-    //                 for from in self.bitboard(Some(Color::Black), Some(k)) {
-    //                     for to in
-    //                         goal & super::bitboard::movable_positions(occu, from, Color::Black, k)
-    //                     {
-    //                         if promotable(from, Color::Black) || promotable(to, Color::Black) {
-    //                             res.push(Movement::Move {
-    //                                 from,
-    //                                 to,
-    //                                 promote: true,
-    //                             });
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         // Discovered attack
-    //         for k in vec![Kind::Lance, Kind::Bishop, Kind::Rook] {
-    //             let mut attacker_cands = self.bitboard(Some(Color::Black), Some(k));
-    //             if k != Kind::Lance {
-    //                 attacker_cands |= self.bitboard(Some(Color::Black), Some(k.promote().unwrap()));
-    //             }
-    //             attacker_cands &= super::bitboard::attacks_from(white_king_pos, Color::White, k);
-    //             if attacker_cands.is_empty() {
-    //                 continue;
-    //             }
-    //             let blocker_cands = self.bitboard(Some(Color::Black), None)
-    //                 & super::bitboard::movable_positions(occu, white_king_pos, Color::White, k);
-    //             if blocker_cands.is_empty() {
-    //                 continue;
-    //             }
-    //             for attacker in attacker_cands {
-    //                 if let Some(from) =
-    //                     (super::bitboard::movable_positions(occu, attacker, Color::Black, k)
-    //                         & blocker_cands)
-    //                         .next()
-    //                 {
-    //                     let from_k = self.get(from).unwrap().1;
-    //                     for to in
-    //                         (!(super::bitboard::attacks_from(white_king_pos, Color::White, k)
-    //                             & super::bitboard::attacks_from(attacker, Color::Black, k)))
-    //                             & ((!self.bitboard(Some(Color::Black), None))
-    //                                 & super::bitboard::movable_positions(
-    //                                     occu,
-    //                                     from,
-    //                                     Color::Black,
-    //                                     from_k,
-    //                                 ))
-    //                     {
-    //                         if !direct_attack_goals[from_k.index()].get(to) {
-    //                             res.push(Movement::Move {
-    //                                 from,
-    //                                 to,
-    //                                 promote: false,
-    //                             })
-    //                         }
-
-    //                         if (promotable(from, Color::Black) || promotable(to, Color::Black))
-    //                             && from_k.promote().is_some()
-    //                             && !direct_attack_goals[from_k.promote().unwrap().index()].get(to)
-    //                         {
-    //                             res.push(Movement::Move {
-    //                                 from,
-    //                                 to,
-    //                                 promote: true,
-    //                             })
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     } else {
-    //         generate_attack_preventing_moves(
-    //             self,
-    //             res,
-    //             Color::White,
-    //             white_king_pos,
-    //             attackers_to(self, white_king_pos, Color::Black).collect(),
-    //         )?;
-    //     }
-    //     Ok(())
-    // }
-
     fn checked(&self, c: Color) -> bool {
         match king(self, c) {
             Some(king_pos) => attackers_to_with_king(self, king_pos, c.opposite())
@@ -256,24 +127,6 @@ impl PositionExt for Position {
         }
     }
 }
-
-// // Attackers with the given color to the given position, excluding king's movement.
-// pub(super) fn attackers_to(
-//     position: &Position,
-//     to: Square,
-//     c: Color,
-// ) -> impl Iterator<Item = (Square, Kind)> + '_ {
-//     let occupied = position.bitboard(None, None);
-//     Kind::iter().flat_map(move |k| {
-//         let b = if k == Kind::King {
-//             BitBoard::new()
-//         } else {
-//             super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-//                 & position.bitboard(Some(c), Some(k))
-//         };
-//         b.map(move |from| (from, k))
-//     })
-// }
 
 pub(super) fn attackers_to_with_king(
     position: &Position,
@@ -288,176 +141,12 @@ pub(super) fn attackers_to_with_king(
         b.map(move |from| (from, kind))
     })
 }
-
-// pub(super) fn generate_attack_preventing_moves(
-//     position: &Position,
-//     res: &mut Vec<Movement>,
-//     turn: Color,
-//     king_pos: Square,
-//     attackers: Vec<(Square, Kind)>,
-// ) -> anyhow::Result<()> {
-//     if attackers.is_empty() {
-//         bail!("Wrong board optision: no attacker");
-//     }
-//     if attackers.len() > 2 {
-//         bail!("Attacked by more than 2 pieces");
-//     }
-
-//     // Potential attacked positions which are currently hidden by the king. King cannot move there.
-//     // It's a workaround for the bug that those places are not considered as attacked in is_allowed.
-//     fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
-//         let (kc, kr) = (king_pos.col() as isize, king_pos.row() as isize);
-//         let (ac, ar) = (attacker_pos.col() as isize, attacker_pos.row() as isize);
-
-//         let (dc, dr) = (kc - ac, kr - ar);
-//         let d = dc.abs().max(dr.abs());
-//         let (rc, rr) = (kc + dc / d, kr + dr / d);
-//         if 0 <= rc && rc < 9 && 0 <= rr && rr < 9 {
-//             Some(Square::new(rc as usize, rr as usize))
-//         } else {
-//             None
-//         }
-//     }
-
-//     let mut hidden = BitBoard::new();
-//     for (pos, k) in attackers.iter() {
-//         if k.is_line_piece() {
-//             if let Some(k) = k.unpromote() {
-//                 if !super::bitboard::attacks_from(*pos, turn.opposite(), k).get(king_pos) {
-//                     continue;
-//                 }
-//             }
-//             if let Some(p) = hidden_square(*pos, king_pos) {
-//                 hidden.set(p);
-//             }
-//         }
-//     }
-//     let hidden = hidden;
-//     // Pin
-//     if attackers.len() == 1 && attackers[0].1.is_line_piece() {
-//         let (pos, k) = attackers[0];
-//         if let Some(mut pin_bb) = PIN[pos.index()][king_pos.index()][turn.opposite().index()]
-//             [line_piece_index(k).unwrap()]
-//         {
-//             pin_bb.unset(pos);
-//             for pin_pos in pin_bb {
-//                 add_movements_to(position, res, pin_pos, turn);
-//             }
-//         }
-//     }
-//     // Capture
-//     if attackers.len() == 1 {
-//         for (pos, kind) in attackers_to(&position, attackers[0].0, turn) {
-//             add_move(res, pos, attackers[0].0, turn, kind);
-//         }
-//     }
-//     // King move
-//     for pos in super::bitboard::movable_positions(
-//         position.bitboard(None, None),
-//         king_pos,
-//         turn,
-//         Kind::King,
-//     ) & (!position.bitboard(Some(turn), None))
-//     {
-//         if hidden.get(pos) {
-//             continue;
-//         }
-//         res.push(Movement::Move {
-//             from: king_pos,
-//             to: pos,
-//             promote: false,
-//         });
-//     }
-//     Ok(())
-// }
-
 fn king(position: &Position, c: Color) -> Option<Square> {
     for k in position.bitboard(Some(c), Some(Kind::King)) {
         return Some(k);
     }
     None
 }
-
-// pub(super) fn movable(pos: Square, c: Color, k: Kind) -> bool {
-//     MOVABLE[pos.index()][c.index()][k.index()]
-// }
-
-// Movements with the given color to the given position, excluding king's movement.
-// fn add_movements_to(position: &Position, res: &mut Vec<Movement>, to: Square, c: Color) {
-//     let occupied = position.bitboard(None, None);
-//     // Drop
-//     for k in position.hands().kinds(c) {
-//         res.push(Movement::Drop(to, k));
-//     }
-//     // Movement::Move
-//     for k in Kind::iter() {
-//         if k == Kind::King {
-//             continue;
-//         }
-//         for from in super::bitboard::movable_positions(occupied, to, c.opposite(), k)
-//             & position.bitboard(Some(c), Some(k))
-//         {
-//             add_move(res, from, to, c, k);
-//         }
-//     }
-// }
-
-pub(super) fn add_move(moves: &mut Vec<Movement>, from: Square, to: Square, c: Color, k: Kind) {
-    moves.push(Movement::Move {
-        from,
-        to,
-        promote: false,
-    });
-    if (promotable(from, c) || promotable(to, c)) && k.promote().is_some() {
-        moves.push(Movement::Move {
-            from,
-            to,
-            promote: true,
-        })
-    }
-}
-
-fn line_piece_index(k: Kind) -> Option<usize> {
-    Some(match k {
-        Kind::Lance => 0,
-        Kind::Bishop | Kind::ProBishop => 1,
-        Kind::Rook | Kind::ProRook => 2,
-        _ => return None,
-    })
-}
-
-// pinned returns a list of pairs of pinned piece and its movable positions.
-// king_pos is the king's position whose color is c.
-// For example, if c is black, this method returns black pieces that are not movable
-// because the black king is pinned.
-// pub(super) fn pinned(position: &Position, king_pos: Square, c: Color) -> HashMap<Square, BitBoard> {
-//     let mut res = HashMap::new();
-//     for line_piece_kind in Kind::iter() {
-//         if let Some(i) = line_piece_index(line_piece_kind) {
-//             for opponent_line_piece in position.bitboard(Some(c.opposite()), Some(line_piece_kind))
-//             {
-//                 if let Some(pinned_bb) =
-//                     PIN[opponent_line_piece.index()][king_pos.index()][c.opposite().index()][i]
-//                 {
-//                     let all_pinned = pinned_bb & (position.bitboard(None, None));
-//                     if all_pinned.into_iter().count() <= 2 {
-//                         let mut pinned = pinned_bb & position.bitboard(Some(c), None);
-//                         if let Some(p) = pinned.next() {
-//                             res.insert(p, pinned_bb);
-//                         }
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     res
-// }
-
-// pub(super) fn has_pawn_in_col(position: &Position, pos: Square, c: Color) -> bool {
-//     let b = position.bitboard(Some(c), Some(Kind::Pawn));
-//     !(COL_MASKS[pos.col()] & b).is_empty()
-// }
-
 lazy_static! {
     static ref COL_MASKS: [BitBoard; 9] = {
         let mut res = [BitBoard::new(); 9];
