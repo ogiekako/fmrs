@@ -17,7 +17,8 @@ pub fn bench() -> anyhow::Result<()> {
 
     let start = std::time::Instant::now();
 
-    let _answer = solver::solve(position).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let answer = solver::solve(position).map_err(|e| anyhow::anyhow!("{}", e))?;
+    assert_eq!(answer.len(), 1);
 
     println!(
         "duration: {:.2}s",

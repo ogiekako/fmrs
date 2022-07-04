@@ -72,6 +72,7 @@ pub fn solve_with_progress(
             &memo_white_turn,
         ));
     }
+    res.sort();
     Ok(res)
 }
 
