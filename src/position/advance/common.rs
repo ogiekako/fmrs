@@ -6,6 +6,10 @@ use crate::{
     },
 };
 
+pub(super) fn checked(position: &Position, color: Color, king_pos: Square) -> bool {
+    todo!()
+}
+
 // Checks double pawn, unmovable pieces.
 pub(super) fn maybe_legal_movement(
     turn: Color,

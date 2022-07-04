@@ -1,19 +1,13 @@
+use crate::piece::Color;
 
-
-
-
-use crate::piece::{Color};
-
-use crate::position::{
-    Position,
-};
+use crate::position::Position;
 
 use super::{black, white};
 
-pub fn advance(position: Position) -> anyhow::Result<Vec<Position>> {
+pub fn advance(position: &Position) -> anyhow::Result<Vec<Position>> {
     match position.turn() {
-        Color::Black => black::advance(&position),
-        Color::White => white::advance(&position),
+        Color::Black => black::advance(position),
+        Color::White => white::advance(position),
     }
 }
 
@@ -65,8 +59,8 @@ mod tests {
             eprintln!("{}", tc.0);
 
             let position =
-                sfen::decode_position(tc.0).expect(&format!("Failed to decode {}", tc.0));
-            let mut got = super::advance(position.clone()).unwrap();
+                sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
+            let mut got = super::advance(&position).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" "))

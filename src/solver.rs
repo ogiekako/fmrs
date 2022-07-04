@@ -1,5 +1,8 @@
 use crate::piece::*;
-use crate::position::*;
+use crate::position;
+use crate::position::Movement;
+use crate::position::Position;
+use crate::position::PositionExt;
 use crate::reconstruct::reconstruct_solutions;
 
 pub enum SolutionReply {
@@ -14,14 +17,14 @@ pub fn solve(board: Position) -> anyhow::Result<Vec<Solution>> {
     solve_with_progress(tx, board)
 }
 
-use std::collections::HashSet;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::io::Write;
 
 pub type Digest = u64;
 
-pub(super) fn digest(board: &Position) -> u64 {
+pub(super) fn digest(board: &Position) -> Digest {
     let mut hasher = twox_hash::Xxh3Hash64::default();
     board.hash(&mut hasher);
     hasher.finish()
@@ -34,85 +37,82 @@ fn pretty(size: usize) -> String {
 
 pub fn solve_with_progress(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
-    board: Position,
+    position: Position,
 ) -> anyhow::Result<Vec<Solution>> {
-    if board.turn() != Black {
+    if position.turn() != Black {
         anyhow::bail!("The turn should be from black");
     }
-    if board.checked(White) {
+    if position.checked(White) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
-    debug_assert_ne!(board.turn() == Black, board.checked(White));
+    debug_assert_ne!(position.turn() == Black, position.checked(White));
 
+    let mut step = 0;
     // position -> min step
     let mut memo = HashMap::new();
-    memo.insert(digest(&board), 0);
-    let mut queue = VecDeque::new();
-    queue.push_back((0, board));
+    memo.insert(digest(&position), step);
+    let mut state = vec![position];
+    let mate_positions = loop {
+        step += 1;
 
-    let mut mate_in = None;
-    let mut mate_positions = vec![];
+        progress.unbounded_send(step)?;
 
-    let mut current_step = 0;
-    while let Some((step, board)) = queue.pop_front() {
-        let n_step = step + 1;
-        debug_assert!(memo.get(&digest(&board)).is_some());
+        eprint!(".");
+        std::io::stderr().flush().unwrap();
 
-        if let Some(s) = mate_in {
-            if s < step {
-                break;
-            }
+        match advance(&mut memo, state, step)? {
+            State::Intermediate(x) => state = x,
+            State::Mate(x) => break x,
         }
-
-        if step > current_step {
-            eprintln!(
-                "step {}, queue len = {}, hash len = {}({})",
-                step,
-                pretty(queue.len() * std::mem::size_of::<Position>()),
-                memo.len(),
-                pretty(
-                    memo.len()
-                        * (std::mem::size_of::<u64>() * 2 + std::mem::size_of::<Vec<UndoMove>>())
-                ),
-            );
-            current_step = step;
-
-            progress.unbounded_send(step)?;
-        }
-
-        let mut movable = false;
-
-        for np in advance(board.clone())? {
-            movable = true;
-            if mate_in.is_some() {
-                break;
-            }
-            let h = digest(&np);
-            if memo.contains_key(&h) {
-                continue;
-            }
-            memo.insert(h, n_step);
-            queue.push_back((n_step, np));
-        }
-        if !movable {
-            if board.turn() == White && !board.pawn_drop() {
-                // Checkmate
-                mate_positions.push(board);
-                mate_in = Some(step);
-            } else {
-                // Deadend. We can forgot history.
-                // let h = digest(&board);
-                // memo.remove(&h);
-                // dead_end.insert(h);
-            }
-        }
-    }
+    };
+    eprintln!();
 
     let mut res = vec![];
     for mate_position in mate_positions {
         res.append(&mut reconstruct_solutions(mate_position, &memo));
     }
     Ok(res)
+}
+
+enum State {
+    Intermediate(Vec<Position>),
+    Mate(Vec<Position>),
+}
+
+fn advance(
+    memo: &mut HashMap<Digest, usize>,
+    current: Vec<Position>,
+    step: usize,
+) -> anyhow::Result<State> {
+    let mut mate_positions = vec![];
+    let mut next_positions = vec![];
+    for position in current.iter() {
+        debug_assert!(memo.get(&digest(position)).is_some());
+
+        let mut movable = false;
+
+        for np in position::advance(position)? {
+            movable = true;
+            if !mate_positions.is_empty() {
+                break;
+            }
+            let h = digest(&np);
+            if memo.contains_key(&h) {
+                continue;
+            }
+            memo.insert(h, step);
+            next_positions.push(np);
+        }
+        if !movable && position.turn() == White && !position.pawn_drop() {
+            // Checkmate
+            mate_positions.push(position.clone());
+        }
+    }
+    Ok(if mate_positions.is_empty() && !next_positions.is_empty() {
+        State::Intermediate(next_positions)
+    } else {
+        State::Mate(mate_positions)
+    })
 }
 
 #[cfg(test)]
