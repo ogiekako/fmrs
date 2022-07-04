@@ -1,5 +1,4 @@
 use crate::piece::*;
-use crate::position;
 use crate::position::Movement;
 use crate::position::Position;
 use crate::position::PositionExt;
@@ -11,8 +10,6 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 pub type Solution = Vec<Movement>;
 
@@ -50,12 +47,12 @@ pub fn solve_with_progress(
     let mate_positions = loop {
         step += 1;
 
-        let (memo, memo_next) = if step % 2 == 1 {
-            (&memo_black_turn, &mut memo_white_turn)
+        let memo_next = if step % 2 == 1 {
+            &mut memo_white_turn
         } else {
-            (&memo_white_turn, &mut memo_black_turn)
+            &mut memo_black_turn
         };
-        match advance(memo, memo_next, state, step)? {
+        match advance(memo_next, state, step)? {
             State::Intermediate(x) => state = x,
             State::Mate(x) => break x,
         }
