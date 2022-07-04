@@ -3,12 +3,16 @@ use crate::position;
 use crate::position::Movement;
 use crate::position::Position;
 use crate::position::PositionExt;
+use crate::solver::advance::advance;
+use crate::solver::advance::State;
 use crate::solver::reconstruct::reconstruct_solutions;
 
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 pub type Solution = Vec<Movement>;
 
@@ -72,48 +76,6 @@ pub fn solve_with_progress(
         ));
     }
     Ok(res)
-}
-
-enum State {
-    Intermediate(Vec<Position>),
-    Mate(Vec<Position>),
-}
-
-fn advance(
-    memo: &HashMap<Digest, usize>,
-    memo_next: &mut HashMap<Digest, usize>,
-    current: Vec<Position>,
-    step: usize,
-) -> anyhow::Result<State> {
-    let mut mate_positions = vec![];
-    let mut next_positions = vec![];
-    for position in current.iter() {
-        debug_assert!(memo.get(&digest(position)).is_some());
-
-        let mut movable = false;
-
-        for np in position::advance(position)? {
-            movable = true;
-            if !mate_positions.is_empty() {
-                break;
-            }
-            let h = digest(&np);
-            if memo_next.contains_key(&h) {
-                continue;
-            }
-            memo_next.insert(h, step);
-            next_positions.push(np);
-        }
-        if !movable && position.turn() == White && !position.pawn_drop() {
-            // Checkmate
-            mate_positions.push(position.clone());
-        }
-    }
-    Ok(if mate_positions.is_empty() && !next_positions.is_empty() {
-        State::Intermediate(next_positions)
-    } else {
-        State::Mate(mate_positions)
-    })
 }
 
 #[cfg(test)]
