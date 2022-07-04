@@ -54,7 +54,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
         res_tx.unbounded_send(res).unwrap();
     });
 
-    let stream = step_rx.map(|x| SolveResponse::Progress(x)).chain(res_rx);
+    let stream = step_rx.map(SolveResponse::Progress).chain(res_rx);
 
     HttpResponse::Ok()
         .content_type("application/json")

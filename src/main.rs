@@ -4,14 +4,13 @@ extern crate arr_macro;
 extern crate rand;
 extern crate serde;
 
-pub mod command;
-pub mod converter;
-pub mod jkf;
-pub mod piece;
-pub mod position;
-mod reconstruct;
-pub mod sfen;
-pub mod solver;
+mod command;
+mod converter;
+mod jkf;
+mod piece;
+mod position;
+mod sfen;
+mod solver;
 
 use clap::Parser;
 

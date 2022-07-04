@@ -2,10 +2,10 @@ use std::{cell::RefCell, collections::HashMap};
 
 use crate::{
     position::{previous, Movement, Position, PositionExt},
-    solver::{digest, Digest},
+    solver::solve::{digest, Digest},
 };
 
-pub fn reconstruct_solutions(
+pub(super) fn reconstruct_solutions(
     mut mate: Position,
     memo_black_turn: &HashMap<Digest, usize>,
     memo_white_turn: &HashMap<Digest, usize>,

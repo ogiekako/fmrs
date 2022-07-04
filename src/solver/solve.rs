@@ -3,12 +3,12 @@ use crate::position;
 use crate::position::Movement;
 use crate::position::Position;
 use crate::position::PositionExt;
-use crate::reconstruct::reconstruct_solutions;
+use crate::solver::reconstruct::reconstruct_solutions;
 
-pub enum SolutionReply {
-    Progress(usize),
-    Solutions(Vec<Solution>),
-}
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::hash::Hasher;
+use std::io::Write;
 
 pub type Solution = Vec<Movement>;
 
@@ -17,12 +17,7 @@ pub fn solve(board: Position) -> anyhow::Result<Vec<Solution>> {
     solve_with_progress(tx, board)
 }
 
-use std::collections::HashMap;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::io::Write;
-
-pub type Digest = u64;
+pub(super) type Digest = u64;
 
 pub(super) fn digest(board: &Position) -> Digest {
     let mut hasher = twox_hash::Xxh3Hash64::default();
@@ -51,11 +46,6 @@ pub fn solve_with_progress(
     let mate_positions = loop {
         step += 1;
 
-        progress.unbounded_send(step)?;
-
-        eprint!(".");
-        std::io::stderr().flush().unwrap();
-
         let (memo, memo_next) = if step % 2 == 1 {
             (&memo_black_turn, &mut memo_white_turn)
         } else {
@@ -65,6 +55,11 @@ pub fn solve_with_progress(
             State::Intermediate(x) => state = x,
             State::Mate(x) => break x,
         }
+
+        progress.unbounded_send(step)?;
+
+        eprint!(".");
+        std::io::stderr().flush().unwrap();
     };
     eprintln!();
 
