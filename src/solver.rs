@@ -17,7 +17,7 @@ pub fn solve(board: Position) -> anyhow::Result<Vec<Solution>> {
     solve_with_progress(tx, board)
 }
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap};
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
@@ -30,11 +30,6 @@ pub(super) fn digest(board: &Position) -> Digest {
     hasher.finish()
 }
 
-fn pretty(size: usize) -> String {
-    let giga = (size as f64) / 1000.0 / 1000.0 / 1000.0;
-    format!("{:.2}G", giga)
-}
-
 pub fn solve_with_progress(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     position: Position,
@@ -42,10 +37,10 @@ pub fn solve_with_progress(
     if position.turn() != Black {
         anyhow::bail!("The turn should be from black");
     }
-    if position.checked(White) {
+    if position.checked_slow(White) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
-    debug_assert_ne!(position.turn() == Black, position.checked(White));
+    debug_assert_ne!(position.turn() == Black, position.checked_slow(White));
 
     let mut step = 0;
     // position -> min step

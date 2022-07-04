@@ -39,7 +39,7 @@ impl<'a> Context<'a> {
         } else {
             bail!("No white king");
         };
-        let black_king_checked = position.checked(Color::Black);
+        let black_king_checked = common::checked(position, Color::Black);
         let black_pieces = position.bitboard(Color::Black.into(), None);
         let white_pieces = position.bitboard(Color::White.into(), None);
 
@@ -279,11 +279,11 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if self.black_king_checked && next_position.checked(Color::Black) {
+        if self.black_king_checked && common::checked(&next_position, Color::Black) {
             return;
         }
 
-        debug_assert!(!next_position.checked(Color::Black));
+        debug_assert!(!common::checked(&next_position, Color::Black));
 
         self.result.borrow_mut().push(next_position);
     }

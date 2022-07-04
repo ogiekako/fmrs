@@ -243,12 +243,12 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if self.attacker.double_check && next_position.checked(Color::White) {
+        if self.attacker.double_check && common::checked(&next_position, Color::White) {
             return;
         }
 
         debug_assert!(
-            !next_position.checked(Color::White),
+            !common::checked(&next_position, Color::White),
             "white king checked: posision={:?} movement={:?} next={:?}",
             self.position,
             movement,

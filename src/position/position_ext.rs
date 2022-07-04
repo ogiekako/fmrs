@@ -19,7 +19,7 @@ pub enum UndoMove {
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoMove;
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
-    fn checked(&self, c: Color) -> bool;
+    fn checked_slow(&self, c: Color) -> bool;
 }
 
 impl PositionExt for Position {
@@ -118,7 +118,7 @@ impl PositionExt for Position {
         }
     }
 
-    fn checked(&self, c: Color) -> bool {
+    fn checked_slow(&self, c: Color) -> bool {
         match king(self, c) {
             Some(king_pos) => attackers_to_with_king(self, king_pos, c.opposite())
                 .next()
