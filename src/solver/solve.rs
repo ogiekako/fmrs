@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
+use std::sync::Arc;
 
 pub type Solution = Vec<Movement>;
 
@@ -46,12 +47,12 @@ pub fn solve_with_progress(
     let mate_positions = loop {
         step += 1;
 
-        let (memo, memo_next) = if step % 2 == 1 {
-            (&memo_black_turn, &mut memo_white_turn)
+        let memo_next = if step % 2 == 1 {
+            &mut memo_white_turn
         } else {
-            (&memo_white_turn, &mut memo_black_turn)
+            &mut memo_black_turn
         };
-        match advance(memo, memo_next, state, step)? {
+        match advance(memo_next, state, step)? {
             State::Intermediate(x) => state = x,
             State::Mate(x) => break x,
         }
@@ -80,40 +81,73 @@ enum State {
 }
 
 fn advance(
-    memo: &HashMap<Digest, usize>,
     memo_next: &mut HashMap<Digest, usize>,
     current: Vec<Position>,
     step: usize,
 ) -> anyhow::Result<State> {
     let mut mate_positions = vec![];
     let mut next_positions = vec![];
-    for position in current.iter() {
-        debug_assert!(memo.get(&digest(position)).is_some());
 
-        let mut movable = false;
+    let handles = {
+        let (tx, rx) = std::sync::mpsc::channel::<(Position, Vec<Position>)>();
 
-        for np in position::advance(position)? {
-            movable = true;
-            if !mate_positions.is_empty() {
-                break;
+        let handles = parallel_advance(current, tx);
+
+        while let Ok((position, advanced)) = rx.recv() {
+            let mut movable = false;
+
+            for np in advanced {
+                movable = true;
+                let h = digest(&np);
+                if memo_next.contains_key(&h) {
+                    continue;
+                }
+                memo_next.insert(h, step);
+                next_positions.push(np);
             }
-            let h = digest(&np);
-            if memo_next.contains_key(&h) {
-                continue;
+            if !movable && position.turn() == White && !position.pawn_drop() {
+                // Checkmate
+                mate_positions.push(position.clone());
             }
-            memo_next.insert(h, step);
-            next_positions.push(np);
         }
-        if !movable && position.turn() == White && !position.pawn_drop() {
-            // Checkmate
-            mate_positions.push(position.clone());
-        }
+
+        handles
+    };
+
+    for handle in handles {
+        handle.join().unwrap();
     }
+
     Ok(if mate_positions.is_empty() && !next_positions.is_empty() {
         State::Intermediate(next_positions)
     } else {
         State::Mate(mate_positions)
     })
+}
+
+const NTHREAD: usize = 3;
+fn parallel_advance(
+    current: Vec<Position>,
+    tx: std::sync::mpsc::Sender<(Position, Vec<Position>)>,
+) -> Vec<std::thread::JoinHandle<()>> {
+    let current = Arc::new(current);
+    let n = current.len();
+    let chunk = (n + NTHREAD - 1) / NTHREAD;
+
+    let mut children = vec![];
+    for id in 0..NTHREAD {
+        let thread_tx = tx.clone();
+        let current = current.clone();
+        let child = std::thread::spawn(move || {
+            for i in (id * chunk)..((id + 1) * chunk).min(n) {
+                let position = &current[i];
+                let advanced = position::advance(&position).unwrap();
+                thread_tx.send((position.clone(), advanced)).unwrap();
+            }
+        });
+        children.push(child);
+    }
+    children
 }
 
 #[cfg(test)]
