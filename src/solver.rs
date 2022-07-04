@@ -17,7 +17,7 @@ pub fn solve(board: Position) -> anyhow::Result<Vec<Solution>> {
     solve_with_progress(tx, board)
 }
 
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
@@ -44,8 +44,9 @@ pub fn solve_with_progress(
 
     let mut step = 0;
     // position -> min step
-    let mut memo = HashMap::new();
-    memo.insert(digest(&position), step);
+    let mut memo_black_turn = HashMap::new();
+    memo_black_turn.insert(digest(&position), step);
+    let mut memo_white_turn = HashMap::new();
     let mut state = vec![position];
     let mate_positions = loop {
         step += 1;
@@ -55,7 +56,12 @@ pub fn solve_with_progress(
         eprint!(".");
         std::io::stderr().flush().unwrap();
 
-        match advance(&mut memo, state, step)? {
+        let (memo, memo_next) = if step % 2 == 1 {
+            (&memo_black_turn, &mut memo_white_turn)
+        } else {
+            (&memo_white_turn, &mut memo_black_turn)
+        };
+        match advance(memo, memo_next, state, step)? {
             State::Intermediate(x) => state = x,
             State::Mate(x) => break x,
         }
@@ -64,7 +70,11 @@ pub fn solve_with_progress(
 
     let mut res = vec![];
     for mate_position in mate_positions {
-        res.append(&mut reconstruct_solutions(mate_position, &memo));
+        res.append(&mut reconstruct_solutions(
+            mate_position,
+            &memo_black_turn,
+            &memo_white_turn,
+        ));
     }
     Ok(res)
 }
@@ -75,7 +85,8 @@ enum State {
 }
 
 fn advance(
-    memo: &mut HashMap<Digest, usize>,
+    memo: &HashMap<Digest, usize>,
+    memo_next: &mut HashMap<Digest, usize>,
     current: Vec<Position>,
     step: usize,
 ) -> anyhow::Result<State> {
@@ -92,10 +103,10 @@ fn advance(
                 break;
             }
             let h = digest(&np);
-            if memo.contains_key(&h) {
+            if memo_next.contains_key(&h) {
                 continue;
             }
-            memo.insert(h, step);
+            memo_next.insert(h, step);
             next_positions.push(np);
         }
         if !movable && position.turn() == White && !position.pawn_drop() {

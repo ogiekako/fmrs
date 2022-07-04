@@ -7,26 +7,33 @@ use crate::{
 
 pub fn reconstruct_solutions(
     mut mate: Position,
-    memo: &HashMap<Digest, usize>,
+    memo_black_turn: &HashMap<Digest, usize>,
+    memo_white_turn: &HashMap<Digest, usize>,
 ) -> Vec<Vec<Movement>> {
-    debug_assert!(memo.contains_key(&digest(&mate)));
-    let step = *memo.get(&digest(&mate)).unwrap();
-    let ctx = Context::new(memo, step);
+    debug_assert!(memo_white_turn.contains_key(&digest(&mate)));
+    let step = *memo_white_turn.get(&digest(&mate)).unwrap();
+    let ctx = Context::new(memo_black_turn, memo_white_turn, step);
     ctx.reconstruct(&mut mate, step);
     ctx.result.take()
 }
 
 struct Context<'a> {
-    memo: &'a HashMap<Digest, usize>,
+    memo_black_turn: &'a HashMap<Digest, usize>,
+    memo_white_turn: &'a HashMap<Digest, usize>,
     mate_in: usize,
     result: RefCell<Vec<Vec<Movement>>>,
     solution: RefCell<Vec<Movement>>, // reverse order
 }
 
 impl<'a> Context<'a> {
-    fn new(memo: &'a HashMap<Digest, usize>, mate_in: usize) -> Self {
+    fn new(
+        memo_black_turn: &'a HashMap<Digest, usize>,
+        memo_white_turn: &'a HashMap<Digest, usize>,
+        mate_in: usize,
+    ) -> Self {
         Self {
-            memo,
+            memo_black_turn,
+            memo_white_turn,
             mate_in,
             result: vec![].into(),
             solution: vec![].into(),
@@ -34,8 +41,13 @@ impl<'a> Context<'a> {
     }
 
     fn reconstruct(&self, position: &mut Position, step: usize) {
-        debug_assert!(self.memo.contains_key(&digest(position)));
-        debug_assert_eq!(self.memo.get(&digest(position)), Some(&step));
+        let (memo, memo_previous) = if step % 2 == 0 {
+            (self.memo_black_turn, self.memo_white_turn)
+        } else {
+            (self.memo_white_turn, self.memo_black_turn)
+        };
+        debug_assert!(memo.contains_key(&digest(position)));
+        debug_assert_eq!(memo.get(&digest(position)), Some(&step));
 
         if step == 0 {
             self.push_solution();
@@ -45,7 +57,7 @@ impl<'a> Context<'a> {
         let mut has_previous = false;
         for undo_move in previous(position.clone(), step < self.mate_in) {
             let movement = position.undo_move(&undo_move);
-            if self.memo.get(&digest(position)) == Some(&(step - 1)) {
+            if memo_previous.get(&digest(position)) == Some(&(step - 1)) {
                 has_previous = true;
                 self.solution.borrow_mut().push(movement);
                 self.reconstruct(position, step - 1);
