@@ -10,7 +10,6 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 pub type Solution = Vec<Movement>;
 
@@ -41,20 +40,17 @@ pub fn solve_with_progress(
 
     let mut step = 0;
     // position -> min step
-    let memo_black_turn = Arc::new(Mutex::new(HashMap::new()));
-    memo_black_turn
-        .lock()
-        .unwrap()
-        .insert(digest(&position), step);
-    let memo_white_turn = Arc::new(Mutex::new(HashMap::new()));
+    let mut memo_black_turn = HashMap::new();
+    memo_black_turn.insert(digest(&position), step);
+    let mut memo_white_turn = HashMap::new();
     let mut state = vec![position];
     let mate_positions = loop {
         step += 1;
 
         let memo_next = if step % 2 == 1 {
-            memo_white_turn.clone()
+            &mut memo_white_turn
         } else {
-            memo_black_turn.clone()
+            &mut memo_black_turn
         };
         match advance(memo_next, state, step)? {
             State::Intermediate(x) => state = x,
@@ -72,8 +68,8 @@ pub fn solve_with_progress(
     for mate_position in mate_positions {
         res.append(&mut reconstruct_solutions(
             mate_position,
-            &memo_black_turn.lock().unwrap(),
-            &memo_white_turn.lock().unwrap(),
+            &memo_black_turn,
+            &memo_white_turn,
         ));
     }
     res.sort();
@@ -86,75 +82,47 @@ enum State {
 }
 
 fn advance(
-    memo_next: Arc<Mutex<HashMap<Digest, usize>>>,
+    memo_next: &mut HashMap<Digest, usize>,
     current: Vec<Position>,
     step: usize,
 ) -> anyhow::Result<State> {
-    let mate_positions = Arc::new(Mutex::new(vec![]));
-    let next_positions = Arc::new(Mutex::new(vec![]));
+    let mut mate_positions = vec![];
+    let mut next_positions = vec![];
 
-    let current = Arc::new(current);
-    let n = current.len();
-    let chunk = (n + NTHREAD - 1) / NTHREAD;
+    let handles = {
+        let (tx, rx) = std::sync::mpsc::channel::<(Position, Vec<(Position, Digest)>)>();
 
-    let mut handles = vec![];
-    for id in 0..NTHREAD {
-        let memo_next = memo_next.clone();
-        let mate_positions = mate_positions.clone();
-        let next_positions = next_positions.clone();
-        let current = current.clone();
+        let handles = parallel_advance(current, tx);
 
-        handles.push(std::thread::spawn(move || -> anyhow::Result<()> {
-            for i in (id * chunk)..((id + 1) * chunk).min(n) {
-                let position = current[i].clone();
-                let nps = position::advance(&position)?
-                    .into_iter()
-                    .map(|np| (digest(&np), np))
-                    .collect::<Vec<_>>();
-                let mut movable = false;
+        while let Ok((position, advanced)) = rx.recv() {
+            let mut movable = false;
 
-                let mut memo_next_g = memo_next.lock().unwrap();
-                let mut mate_positions_g = mate_positions.lock().unwrap();
-                let mut next_positions_g = next_positions.lock().unwrap();
-
-                for (digest, np) in nps {
-                    movable = true;
-                    if memo_next_g.contains_key(&digest) {
-                        continue;
-                    }
-                    memo_next_g.insert(digest, step);
-                    next_positions_g.push(np);
+            for (np, digest) in advanced {
+                movable = true;
+                if memo_next.contains_key(&digest) {
+                    continue;
                 }
-                if !movable && position.turn() == White && !position.pawn_drop() {
-                    // Checkmate
-                    mate_positions_g.push(position);
-                }
+                memo_next.insert(digest, step);
+                next_positions.push(np);
             }
-            Ok(())
-        }));
-    }
+            if !movable && position.turn() == White && !position.pawn_drop() {
+                // Checkmate
+                mate_positions.push(position.clone());
+            }
+        }
+
+        handles
+    };
 
     for handle in handles {
-        handle.join().unwrap().unwrap();
+        handle.join().unwrap();
     }
 
-    Ok(
-        if mate_positions.lock().unwrap().is_empty() && !next_positions.lock().unwrap().is_empty() {
-            State::Intermediate(
-                Arc::try_unwrap(next_positions)
-                    .unwrap()
-                    .into_inner()
-                    .unwrap(),
-            )
-        } else {
-            State::Mate(
-                Arc::try_unwrap(mate_positions)
-                    .unwrap()
-                    .into_inner()
-                    .unwrap(),
-            )
-        },
-    )
+    Ok(if mate_positions.is_empty() && !next_positions.is_empty() {
+        State::Intermediate(next_positions)
+    } else {
+        State::Mate(mate_positions)
+    })
 }
 
 const NTHREAD: usize = 15;
