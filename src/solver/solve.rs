@@ -89,20 +89,19 @@ fn advance(
     let mut next_positions = vec![];
 
     let handles = {
-        let (tx, rx) = std::sync::mpsc::channel::<(Position, Vec<Position>)>();
+        let (tx, rx) = std::sync::mpsc::channel::<(Position, Vec<(Position, Digest)>)>();
 
         let handles = parallel_advance(current, tx);
 
         while let Ok((position, advanced)) = rx.recv() {
             let mut movable = false;
 
-            for np in advanced {
+            for (np, digest) in advanced {
                 movable = true;
-                let h = digest(&np);
-                if memo_next.contains_key(&h) {
+                if memo_next.contains_key(&digest) {
                     continue;
                 }
-                memo_next.insert(h, step);
+                memo_next.insert(digest, step);
                 next_positions.push(np);
             }
             if !movable && position.turn() == White && !position.pawn_drop() {
@@ -125,10 +124,10 @@ fn advance(
     })
 }
 
-const NTHREAD: usize = 3;
+const NTHREAD: usize = 15;
 fn parallel_advance(
     current: Vec<Position>,
-    tx: std::sync::mpsc::Sender<(Position, Vec<Position>)>,
+    tx: std::sync::mpsc::Sender<(Position, Vec<(Position, Digest)>)>,
 ) -> Vec<std::thread::JoinHandle<()>> {
     let current = Arc::new(current);
     let n = current.len();
@@ -141,7 +140,14 @@ fn parallel_advance(
         let child = std::thread::spawn(move || {
             for i in (id * chunk)..((id + 1) * chunk).min(n) {
                 let position = &current[i];
-                let advanced = position::advance(&position).unwrap();
+                let advanced = position::advance(position)
+                    .unwrap()
+                    .into_iter()
+                    .map(|np| {
+                        let digest = digest(&np);
+                        (np, digest)
+                    })
+                    .collect();
                 thread_tx.send((position.clone(), advanced)).unwrap();
             }
         });
