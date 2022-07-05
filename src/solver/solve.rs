@@ -6,7 +6,6 @@ use crate::position::PositionExt;
 use crate::solver::reconstruct::reconstruct_solutions;
 
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::io::Write;
@@ -41,25 +40,22 @@ pub fn solve_with_progress(
 
     let mut step = 0;
     // position -> min step
-    let mut memo_current_turn = HashMap::new();
-    memo_current_turn.insert(digest(&position), step);
-    let mut memo_next_turn = HashMap::new();
-    let mut current = vec![position];
+    let mut memo_black_turn = HashMap::new();
+    memo_black_turn.insert(digest(&position), step);
+    let mut memo_white_turn = HashMap::new();
+    let mut state = vec![position];
     let mate_positions = loop {
         step += 1;
 
-        let (advanced, memo) = advance(memo_next_turn, current, step)?;
-        memo_next_turn = memo;
-        match advanced {
-            Advanced::Intermediate(nps) => {
-                current = nps;
-            }
-            Advanced::Mate(mates) => {
-                break mates;
-            }
+        let memo_next = if step % 2 == 1 {
+            &mut memo_white_turn
+        } else {
+            &mut memo_black_turn
+        };
+        match advance(memo_next, state, step)? {
+            State::Intermediate(x) => state = x,
+            State::Mate(x) => break x,
         }
-
-        std::mem::swap(&mut memo_current_turn, &mut memo_next_turn);
 
         progress.unbounded_send(step)?;
 
@@ -72,99 +68,41 @@ pub fn solve_with_progress(
     for mate_position in mate_positions {
         res.append(&mut reconstruct_solutions(
             mate_position,
-            &memo_next_turn,
-            &memo_current_turn,
+            &memo_black_turn,
+            &memo_white_turn,
         ));
     }
     res.sort();
     Ok(res)
 }
 
-enum Advanced {
+enum State {
     Intermediate(Vec<Position>),
     Mate(Vec<Position>),
 }
 
-const JOBS: usize = 4;
-
 fn advance(
-    memo_next: HashMap<Digest, usize>,
+    memo_next: &mut HashMap<Digest, usize>,
     current: Vec<Position>,
     step: usize,
-) -> anyhow::Result<(Advanced, HashMap<Digest, usize>)> {
-    let memo_next = Arc::new(memo_next);
-
-    let n = current.len();
-    let chunks = current.chunks((n + JOBS - 1) / JOBS);
-
-    let mut handles = vec![];
-    for chunk in chunks {
-        let chunk = chunk.to_vec();
-        let memo_next = memo_next.clone();
-
-        handles.push(std::thread::spawn(move || {
-            advance_sub(memo_next, chunk, (NTHREAD / JOBS).max(1))
-        }));
-    }
-
-    let (advanced, visited): (Vec<_>, Vec<_>) = handles
-        .into_iter()
-        .map(|handle| handle.join().unwrap().unwrap())
-        .unzip();
-    let mut memo_next = Arc::try_unwrap(memo_next).unwrap();
-
-    for digests in visited {
-        for digest in digests {
-            memo_next.insert(digest, step);
-        }
-    }
-
-    let mut next_positions = vec![];
-    let mut mate_positions = vec![];
-    for x in advanced {
-        match x {
-            Advanced::Intermediate(mut nps) => {
-                next_positions.append(&mut nps);
-            }
-            Advanced::Mate(mut mates) => {
-                mate_positions.append(&mut mates);
-            }
-        }
-    }
-
-    Ok((
-        if mate_positions.is_empty() && !next_positions.is_empty() {
-            Advanced::Intermediate(next_positions)
-        } else {
-            Advanced::Mate(mate_positions)
-        },
-        memo_next,
-    ))
-}
-
-fn advance_sub(
-    memo_next: Arc<HashMap<Digest, usize>>,
-    current: Vec<Position>,
-    threads: usize,
-) -> anyhow::Result<(Advanced, HashSet<Digest>)> {
+) -> anyhow::Result<State> {
     let mut mate_positions = vec![];
     let mut next_positions = vec![];
-    let mut visited = HashSet::new();
 
     let handles = {
         let (tx, rx) = std::sync::mpsc::channel::<(Position, Vec<(Position, Digest)>)>();
 
-        let handles = parallel_advance(current, tx, threads);
+        let handles = parallel_advance(current, tx);
 
         while let Ok((position, advanced)) = rx.recv() {
             let mut movable = false;
 
             for (np, digest) in advanced {
                 movable = true;
-                if memo_next.contains_key(&digest) || visited.contains(&digest) {
+                if memo_next.contains_key(&digest) {
                     continue;
                 }
-                visited.insert(digest);
+                memo_next.insert(digest, step);
                 next_positions.push(np);
             }
             if !movable && position.turn() == White && !position.pawn_drop() {
@@ -172,34 +110,32 @@ fn advance_sub(
                 mate_positions.push(position.clone());
             }
         }
+
         handles
     };
+
     for handle in handles {
         handle.join().unwrap();
     }
 
-    Ok((
-        if mate_positions.is_empty() && !next_positions.is_empty() {
-            Advanced::Intermediate(next_positions)
-        } else {
-            Advanced::Mate(mate_positions)
-        },
-        visited,
-    ))
+    Ok(if mate_positions.is_empty() && !next_positions.is_empty() {
+        State::Intermediate(next_positions)
+    } else {
+        State::Mate(mate_positions)
+    })
 }
 
-const NTHREAD: usize = 12;
+const NTHREAD: usize = 15;
 fn parallel_advance(
     current: Vec<Position>,
     tx: std::sync::mpsc::Sender<(Position, Vec<(Position, Digest)>)>,
-    threads: usize,
 ) -> Vec<std::thread::JoinHandle<()>> {
     let current = Arc::new(current);
     let n = current.len();
-    let chunk = (n + threads - 1) / threads;
+    let chunk = (n + NTHREAD - 1) / NTHREAD;
 
     let mut children = vec![];
-    for id in 0..threads {
+    for id in 0..NTHREAD {
         let thread_tx = tx.clone();
         let current = current.clone();
         let child = std::thread::spawn(move || {
