@@ -236,7 +236,7 @@ impl<'a> Context<'a> {
                             dest: blocker_dest,
                             promote: false,
                         },
-                        kind,
+                        blocker_kind,
                     );
                     if (rule::promotable(blocker_pos, Color::Black)
                         || rule::promotable(blocker_dest, Color::Black))
@@ -248,7 +248,7 @@ impl<'a> Context<'a> {
                                 dest: blocker_dest,
                                 promote: true,
                             },
-                            kind,
+                            blocker_kind,
                         )
                     }
                 }
@@ -279,11 +279,17 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if self.black_king_checked && common::checked(&next_position, Color::Black) {
+        if (self.black_king_checked || kind == Kind::King)
+            && common::checked(&next_position, Color::Black)
+        {
             return;
         }
 
-        debug_assert!(!common::checked(&next_position, Color::Black));
+        debug_assert!(
+            !common::checked(&next_position, Color::Black),
+            "Black king checked: {:?}",
+            next_position
+        );
 
         self.result.borrow_mut().push(next_position);
     }

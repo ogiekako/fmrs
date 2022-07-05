@@ -83,6 +83,10 @@ mod tests {
                 "9/6K1k/9/9/9/8N/8R/9/9 b r2b4g4s3n4l18p 1",
                 vec!["1624"]
             ),
+            (
+                "9/8P/9/6K1k/1lll5/1nnn5/ssss3N1/1ggg3gp/bbrr4L b 16p 1",
+                vec!["1918 P*15 1815"],
+            ),
             // http://cavesfairy.g1.xrea.com/pub/qgfairy/
             (
                 // 06-07 (57 steps)
@@ -114,11 +118,12 @@ mod tests {
             "7pk/7bg/9/8K/8N/8P/8L/9/9 b 2rb3g4s3n3l16p",
             "9/9/9/4k4/9/3pK3+r/4LP3/9/9 b r2b4g4s4n3l16p 1",
             "9/9/9/4k4/9/4K1P1+r/9/8B/9 b rb4g4s4n4l17p 1",
+            "9/7PP/7Lk/9/7LK/7LL/9/9/9 b 2r2b4g4s4n16p 1",
         ] {
             let board = sfen::decode_position(sfen).unwrap();
+            eprintln!("Solving {:?}", board);
             let got = solve(board.clone()).unwrap();
             let want: Vec<Vec<Movement>> = vec![];
-            eprintln!("Solving {:?}", board);
             assert_eq!(got, want);
         }
     }

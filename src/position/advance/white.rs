@@ -52,7 +52,7 @@ impl<'a> Context<'a> {
             .ok_or_else(|| anyhow::anyhow!("white not checked"))?;
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard(Color::Black.into(), Kind::Pawn.into()) {
+            for pos in position.bitboard(Color::White.into(), Kind::Pawn.into()) {
                 mask |= 1 << pos.col()
             }
             mask

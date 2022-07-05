@@ -58,7 +58,7 @@ fn solve_sub(
     let mut mate_positions = vec![];
     let mut all_next_positions = Vec::new();
     for step in current_step.. {
-        if all_positions.len() >= TRIGGER_PARALLEL_SOLVE && thread_id.is_none() {
+        if step > 10 && all_positions.len() >= TRIGGER_PARALLEL_SOLVE && thread_id.is_none() {
             let chunk_size = (all_positions.len() + NTHREAD - 1) / NTHREAD;
             let mut handles = vec![];
             for (id, chunk) in all_positions.chunks(chunk_size).enumerate() {
