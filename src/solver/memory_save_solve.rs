@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap};
+use std::{cell::RefCell, collections::BTreeMap};
 
 use crate::{
     piece::Color,
@@ -16,7 +16,7 @@ pub(super) fn solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let mut current_white_positions = advance(&initial_position)?;
-    let mut memo_white_positions = HashMap::new();
+    let mut memo_white_positions = BTreeMap::new();
     for p in current_white_positions.iter() {
         memo_white_positions.insert(digest(p), 0i32);
     }
@@ -59,6 +59,12 @@ pub(super) fn solve(
         current_white_positions = all_next_white_positions;
 
         progress.unbounded_send(half_step as usize * 2)?;
+        eprintln!(
+            "step = {}, queue = {}, memo = {}",
+            half_step * 2,
+            current_white_positions.len(),
+            memo_white_positions.len()
+        )
     }
     mate_positions.sort();
     mate_positions.dedup();
@@ -89,7 +95,7 @@ pub(super) fn solve(
 fn reconstruct_solutions(
     initial_position_digest: Digest,
     mut mate_position: Position,
-    memo_white_positions: &HashMap<Digest, i32>,
+    memo_white_positions: &BTreeMap<Digest, i32>,
     solutions_upto: usize,
 ) -> Vec<Vec<Movement>> {
     let half_step = *memo_white_positions.get(&digest(&mate_position)).unwrap();
@@ -105,7 +111,7 @@ fn reconstruct_solutions(
 
 struct Context<'a> {
     initial_position_digest: Digest,
-    memo_white_positions: &'a HashMap<Digest, i32>,
+    memo_white_positions: &'a BTreeMap<Digest, i32>,
     mate_in: i32,
     result: RefCell<Vec<Vec<Movement>>>,
     solution: RefCell<Vec<Movement>>, // reverse order
@@ -115,7 +121,7 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         initial_position_digest: Digest,
-        memo_white_positions: &'a HashMap<Digest, i32>,
+        memo_white_positions: &'a BTreeMap<Digest, i32>,
         mate_in: i32,
         solutions_upto: usize,
     ) -> Self {
