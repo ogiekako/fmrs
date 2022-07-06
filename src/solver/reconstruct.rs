@@ -9,10 +9,11 @@ pub(super) fn reconstruct_solutions(
     mut mate: Position,
     memo_black_turn: &HashMap<Digest, usize>,
     memo_white_turn: &HashMap<Digest, usize>,
+    solutions_upto: usize,
 ) -> Vec<Vec<Movement>> {
     debug_assert!(memo_white_turn.contains_key(&digest(&mate)));
     let step = *memo_white_turn.get(&digest(&mate)).unwrap();
-    let ctx = Context::new(memo_black_turn, memo_white_turn, step);
+    let ctx = Context::new(memo_black_turn, memo_white_turn, step, solutions_upto);
     ctx.reconstruct(&mut mate, step);
     ctx.result.take()
 }
@@ -23,6 +24,7 @@ struct Context<'a> {
     mate_in: usize,
     result: RefCell<Vec<Vec<Movement>>>,
     solution: RefCell<Vec<Movement>>, // reverse order
+    solutions_upto: usize,
 }
 
 impl<'a> Context<'a> {
@@ -30,6 +32,7 @@ impl<'a> Context<'a> {
         memo_black_turn: &'a HashMap<Digest, usize>,
         memo_white_turn: &'a HashMap<Digest, usize>,
         mate_in: usize,
+        solutions_upto: usize,
     ) -> Self {
         Self {
             memo_black_turn,
@@ -37,10 +40,15 @@ impl<'a> Context<'a> {
             mate_in,
             result: vec![].into(),
             solution: vec![].into(),
+            solutions_upto,
         }
     }
 
     fn reconstruct(&self, position: &mut Position, step: usize) {
+        if self.result.borrow().len() >= self.solutions_upto {
+            return;
+        }
+
         let (memo, memo_previous) = if step % 2 == 0 {
             (self.memo_black_turn, self.memo_white_turn)
         } else {

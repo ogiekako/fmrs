@@ -2,7 +2,10 @@ use std::{fs::File, io::Write};
 
 use pprof::protos::Message;
 
-use crate::{sfen, solver};
+use crate::{
+    sfen,
+    solver::{self, Algorithm},
+};
 
 pub fn bench() -> anyhow::Result<()> {
     // let problem = include_str!("../../problems/forest-06-10_97.sfen");
@@ -17,7 +20,8 @@ pub fn bench() -> anyhow::Result<()> {
 
     let start = std::time::Instant::now();
 
-    let answer = solver::solve(position).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let answer =
+        solver::solve(position, None, Algorithm::Parallel).map_err(|e| anyhow::anyhow!("{}", e))?;
     assert_eq!(answer.len(), 1);
 
     println!(

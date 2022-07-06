@@ -217,7 +217,7 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
 
 #[cfg(test)]
 mod tests {
-    use crate::jkf::JsonKifFormat;
+    use crate::{jkf::JsonKifFormat, solver::Algorithm};
 
     #[test]
     fn convert() {
@@ -239,7 +239,8 @@ mod tests {
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
             let problem = crate::sfen::decode_position(problem).unwrap();
-            let mut solutions = crate::solver::solve(problem.clone()).unwrap();
+            let mut solutions =
+                crate::solver::solve(problem.clone(), None, Algorithm::Parallel).unwrap();
             solutions.sort();
 
             let got = super::convert(&problem, &solutions);

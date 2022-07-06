@@ -2,7 +2,7 @@ use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
 use futures::StreamExt;
 use serde::Serialize;
 
-use crate::jkf::JsonKifFormat;
+use crate::{jkf::JsonKifFormat, solver::Algorithm};
 
 pub async fn server(port: u16) -> anyhow::Result<()> {
     let address = format!("localhost:{}", port);
@@ -47,7 +47,12 @@ async fn solve(body_sfen: String) -> HttpResponse {
     let (res_tx, res_rx) = futures::channel::mpsc::unbounded::<SolveResponse>();
 
     std::thread::spawn(move || {
-        let res = match crate::solver::solve_with_progress(step_tx, problem.clone()) {
+        let res = match crate::solver::solve_with_progress(
+            step_tx,
+            problem.clone(),
+            Some(10),
+            Algorithm::Parallel,
+        ) {
             Ok(solutions) => SolveResponse::Solved(crate::converter::convert(&problem, &solutions)),
             Err(e) => SolveResponse::Error(e.to_string()),
         };

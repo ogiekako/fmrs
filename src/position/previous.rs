@@ -3,7 +3,8 @@ use std::cell::RefCell;
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard11::{self, BitBoard}, Position, Square, UndoMove,
+    bitboard11::{self, BitBoard},
+    rule, Position, Square, UndoMove,
 };
 
 pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
@@ -48,10 +49,17 @@ impl Context {
         }
     }
 
-    fn add_undo_moves_to(&self, dest: Square, kind: Kind, pawn_drop: bool) {
+    fn add_undo_moves_to(&self, dest: Square, kind: Kind, was_pawn_drop: bool) {
+        if self.position.pawn_drop() {
+            if kind != Kind::Pawn || !self.allow_drop_pawn {
+                return;
+            }
+            self.maybe_add_undo_move(UndoMove::UnDrop((dest, was_pawn_drop)));
+            return;
+        }
         // Drop
-        if kind.is_hand_piece() && (kind != Kind::Pawn || self.allow_drop_pawn) {
-            self.add_undo_move(UndoMove::UnDrop((dest, pawn_drop)));
+        if kind.is_hand_piece() && kind != Kind::Pawn {
+            self.maybe_add_undo_move(UndoMove::UnDrop((dest, was_pawn_drop)));
         }
         // Move
         let prev_kinds = [(kind.unpromote(), true), (kind.into(), false)]
@@ -66,28 +74,28 @@ impl Context {
                 prev_kind,
             ) & !(self.black_pieces | self.white_pieces);
             for source in sources {
-                self.add_undo_move(UndoMove::UnMove {
-                    from: source,
-                    to: dest,
+                self.maybe_add_undo_move(UndoMove::UnMove {
+                    source,
+                    dest,
                     promote,
                     capture: None,
-                    pawn_drop,
+                    pawn_drop: was_pawn_drop,
                 });
                 for capture in self.position.hands().kinds(self.turn.opposite()) {
-                    self.add_undo_move(UndoMove::UnMove {
-                        from: source,
-                        to: dest,
+                    self.maybe_add_undo_move(UndoMove::UnMove {
+                        source,
+                        dest,
                         promote,
                         capture: capture.into(),
-                        pawn_drop,
+                        pawn_drop: was_pawn_drop,
                     });
                     if let Some(promoted) = capture.promote() {
-                        self.add_undo_move(UndoMove::UnMove {
-                            from: source,
-                            to: dest,
+                        self.maybe_add_undo_move(UndoMove::UnMove {
+                            source,
+                            dest,
                             promote,
                             capture: promoted.into(),
-                            pawn_drop,
+                            pawn_drop: was_pawn_drop,
                         })
                     }
                 }
@@ -98,7 +106,23 @@ impl Context {
 
 // Helper methods
 impl Context {
-    fn add_undo_move(&self, movement: UndoMove) {
+    fn maybe_add_undo_move(&self, movement: UndoMove) {
+        if let UndoMove::UnMove {
+            source: from,
+            dest: to,
+            promote,
+            capture: _,
+            pawn_drop: _,
+        } = &movement
+        {
+            let mut kind = self.position.get(*to).unwrap().1;
+            if *promote {
+                kind = kind.unpromote().unwrap();
+            }
+            if !rule::is_allowed_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
+                return;
+            }
+        }
         self.result.borrow_mut().push(movement);
     }
 }

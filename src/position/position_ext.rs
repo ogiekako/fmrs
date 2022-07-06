@@ -8,8 +8,8 @@ use super::{
 pub enum UndoMove {
     UnDrop((Square, bool /* pawn drop */)),
     UnMove {
-        from: Square,
-        to: Square,
+        source: Square,
+        dest: Square,
         promote: bool,
         capture: Option<Kind>,
         pawn_drop: bool,
@@ -54,8 +54,8 @@ impl PositionExt for Position {
                     self.set(*dest, color, kind);
                 }
                 token = UndoMove::UnMove {
-                    from: *source,
-                    to: *dest,
+                    source: *source,
+                    dest: *dest,
                     promote: *promote,
                     capture,
                     pawn_drop: self.pawn_drop(),
@@ -85,8 +85,8 @@ impl PositionExt for Position {
                 Movement::Drop(*pos, k.maybe_unpromote())
             }
             UnMove {
-                from,
-                to,
+                source: from,
+                dest: to,
                 promote,
                 capture,
                 pawn_drop,

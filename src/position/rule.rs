@@ -1,6 +1,6 @@
 use crate::piece::{Color, Kind};
 
-use super::{Square};
+use super::Square;
 
 pub(super) fn promotable(pos: Square, c: Color) -> bool {
     match c {

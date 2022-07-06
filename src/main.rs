@@ -13,6 +13,7 @@ mod sfen;
 mod solver;
 
 use clap::Parser;
+use solver::Algorithm;
 
 #[derive(Parser)]
 struct Args {
@@ -23,7 +24,10 @@ struct Args {
 #[derive(clap::Subcommand)]
 enum Action {
     Bench,
-    Solve,
+    Solve {
+        #[clap(value_enum)]
+        algorithm: Algorithm,
+    },
     Server,
 }
 
@@ -33,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.action {
         Action::Bench => command::bench()?,
-        Action::Solve => command::solve().await?,
+        Action::Solve { algorithm } => command::solve(algorithm).await?,
         Action::Server => command::server(1234).await?,
     }
     Ok(())

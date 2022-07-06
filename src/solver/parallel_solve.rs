@@ -1,10 +1,7 @@
 use std::{
     collections::HashMap,
-    io::Write,
     sync::{Arc, Mutex},
 };
-
-use rand::{prelude::SliceRandom, SeedableRng};
 
 use crate::{
     piece::Color,
@@ -20,6 +17,7 @@ use super::{
 pub(super) fn solve(
     position: Position,
     progress: futures::channel::mpsc::UnboundedSender<usize>,
+    solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
     let mut memo = HashMap::new();
@@ -34,6 +32,7 @@ pub(super) fn solve(
         step,
         progress,
         None,
+        solutions_upto,
     )?;
     res.sort();
     Ok(res)
@@ -44,7 +43,7 @@ const TRIGGER_PARALLEL_SOLVE: usize = 2;
 #[cfg(not(test))]
 const TRIGGER_PARALLEL_SOLVE: usize = 2_000_000;
 
-const NTHREAD: usize = 15;
+const NTHREAD: usize = 16;
 
 fn solve_sub(
     mut all_positions: Vec<Position>,
@@ -54,6 +53,7 @@ fn solve_sub(
     current_step: usize,
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     thread_id: Option<usize>,
+    solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let mut mate_positions = vec![];
     let mut all_next_positions = Vec::new();
@@ -76,6 +76,7 @@ fn solve_sub(
                         step,
                         progress,
                         Some(id),
+                        solutions_upto,
                     )
                 }));
             }
@@ -93,7 +94,11 @@ fn solve_sub(
                     shortest_solutions.push(solution);
                 }
             }
-            return Ok(shortest_solutions);
+            shortest_solutions.sort();
+            return Ok(shortest_solutions
+                .into_iter()
+                .take(solutions_upto)
+                .collect());
         }
 
         let mate_bound = mate_in.lock().unwrap().unwrap_or(usize::MAX);
@@ -136,21 +141,23 @@ fn solve_sub(
         std::mem::swap(&mut all_positions, &mut all_next_positions);
 
         progress.unbounded_send(current_step)?;
-
-        eprintln!(
-            "{}: step {}: queue len = {}",
-            thread_id
-                .map(|i| format!("child {}", i))
-                .unwrap_or_else(|| "parent".into()),
-            step,
-            all_positions.len(),
-        );
-        std::io::stderr().flush().unwrap();
     }
 
-    let mut res = vec![];
-    for mate_position in mate_positions {
-        res.append(&mut reconstruct_solutions(mate_position, &memo_next, &memo));
-    }
+    let res = std::thread::Builder::new()
+        .stack_size(512 * 1024 * 1024)
+        .spawn(move || {
+            let mut res = vec![];
+            for mate_position in mate_positions {
+                res.append(&mut reconstruct_solutions(
+                    mate_position,
+                    &memo_next,
+                    &memo,
+                    solutions_upto - res.len(),
+                ));
+            }
+            res
+        })?
+        .join()
+        .unwrap();
     Ok(res)
 }
