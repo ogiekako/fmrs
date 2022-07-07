@@ -1,7 +1,4 @@
-use std::collections::{HashMap};
-
-
-
+use std::collections::HashMap;
 
 use crate::position::bitboard11::{BitBoard, Square};
 

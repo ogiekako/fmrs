@@ -86,6 +86,12 @@ impl<'a> Context<'a> {
     }
 
     fn direct_attack_moves(&self) {
+        self.non_leap_piece_direct_attack();
+        self.leap_piece_direct_attack();
+    }
+
+    #[inline(never)]
+    fn non_leap_piece_direct_attack(&self) {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
         for attacker_pos in lion_king_range & self.black_pieces {
@@ -120,7 +126,10 @@ impl<'a> Context<'a> {
                 }
             }
         }
+    }
 
+    #[inline(never)]
+    fn leap_piece_direct_attack(&self) {
         for attacker_source_kind in [
             Kind::Lance,
             Kind::Knight,
@@ -172,6 +181,7 @@ impl<'a> Context<'a> {
         }
     }
 
+    #[inline(never)]
     fn discovered_attack_moves(&self) {
         for kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
             let attacker_cands = {

@@ -2,9 +2,10 @@ use crate::piece::{Color, Kind};
 
 use super::super::{BitBoard, Square};
 
+#[inline(never)]
 pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
     match kind {
-        Kind::King => non_line_power(*KING_ATTACK00, pos),
+        Kind::King => king_power(pos),
         Kind::Pawn => non_line_power(PAWN_ATTACK00[color.index()], pos),
         Kind::Knight => non_line_power(KNIGHT_ATTACK00[color.index()], pos),
         Kind::Silver => non_line_power(SILVER_ATTACK00[color.index()], pos),
@@ -13,10 +14,14 @@ pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
         }
         Kind::Lance => lance_power(color, pos),
         Kind::Rook => rook_power(pos),
-        Kind::ProRook => rook_power(pos) | non_line_power(*KING_ATTACK00, pos),
+        Kind::ProRook => rook_power(pos) | king_power(pos),
         Kind::Bishop => bishop_power(pos),
-        Kind::ProBishop => bishop_power(pos) | non_line_power(*KING_ATTACK00, pos),
+        Kind::ProBishop => bishop_power(pos) | king_power(pos),
     }
+}
+
+pub(super) fn king_power(pos: Square) -> BitBoard {
+    non_line_power(*KING_ATTACK00, pos)
 }
 
 pub(super) fn bishop_power(pos: Square) -> BitBoard {

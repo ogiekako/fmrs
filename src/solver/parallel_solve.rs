@@ -41,9 +41,9 @@ pub(super) fn solve(
 #[cfg(test)]
 const TRIGGER_PARALLEL_SOLVE: usize = 2;
 #[cfg(not(test))]
-const TRIGGER_PARALLEL_SOLVE: usize = 2_000_000;
+const TRIGGER_PARALLEL_SOLVE: usize = 1_000_000;
 
-const NTHREAD: usize = 16;
+const NTHREAD: usize = 15;
 
 fn solve_sub(
     mut all_positions: Vec<Position>,
