@@ -1,6 +1,6 @@
 use crate::{
     piece::{Color, Kind},
-    position::bitboard11::{BitBoard, Square},
+    position::bitboard::{BitBoard, Square},
 };
 
 use super::{
@@ -58,7 +58,7 @@ fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
 mod tests {
     use crate::{
         piece::{Color, Kind},
-        position::bitboard11::{testing::bitboard, BitBoard, Square},
+        position::bitboard::{testing::bitboard, BitBoard, Square},
     };
 
     #[test]

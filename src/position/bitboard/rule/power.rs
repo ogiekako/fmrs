@@ -128,8 +128,8 @@ fn shift_usize(col: usize, row: usize) -> usize {
 mod tests {
     use crate::{
         piece::{Color, Kind},
-        position::bitboard11::testing::bitboard,
-        position::bitboard11::Square,
+        position::bitboard::testing::bitboard,
+        position::bitboard::Square,
     };
 
     #[test]

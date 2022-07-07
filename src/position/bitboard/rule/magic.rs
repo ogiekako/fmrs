@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::position::bitboard11::{BitBoard, Square};
+use crate::position::bitboard::{BitBoard, Square};
 
 use super::magic_core::MagicCore;
 
@@ -142,7 +142,7 @@ fn add(pos: Square, col: isize, row: isize) -> Option<Square> {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::bitboard11::{testing::bitboard, Square};
+    use crate::position::bitboard::{testing::bitboard, Square};
 
     #[test]
     fn bishop_reachable() {

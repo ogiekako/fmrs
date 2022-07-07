@@ -5,7 +5,7 @@ use anyhow::bail;
 use crate::piece::{Color, Kind};
 
 use crate::position::{
-    bitboard11::{self, BitBoard},
+    bitboard::{self, BitBoard},
     Movement, Position, PositionExt, Square,
 };
 
@@ -92,7 +92,7 @@ impl<'a> Context<'a> {
     }
 
     fn white_king_move(&self) {
-        let king_reachable = bitboard11::reachable(
+        let king_reachable = bitboard::reachable(
             self.black_pieces,
             self.white_pieces,
             Color::White,
@@ -105,7 +105,7 @@ impl<'a> Context<'a> {
                 .position
                 .bitboard(Color::Black.into(), attacker_kind.into())
             {
-                let attacker_power = bitboard11::power(Color::Black, attacker_pos, attacker_kind);
+                let attacker_power = bitboard::power(Color::Black, attacker_pos, attacker_kind);
                 if (attacker_power & king_reachable).is_empty() {
                     continue;
                 }
@@ -113,7 +113,7 @@ impl<'a> Context<'a> {
                     under_attack |= attacker_power;
                     continue;
                 }
-                let attacker_reachable = bitboard11::reachable(
+                let attacker_reachable = bitboard::reachable(
                     self.white_pieces,
                     self.black_pieces,
                     Color::Black,
@@ -154,13 +154,13 @@ impl<'a> Context<'a> {
         }
 
         // Move
-        let around_dest = bitboard11::power(Color::White, dest, Kind::King) & self.white_pieces;
+        let around_dest = bitboard::power(Color::White, dest, Kind::King) & self.white_pieces;
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
             if source_kind == Kind::King {
                 continue;
             }
-            let source_power = bitboard11::power(Color::White, source_pos, source_kind);
+            let source_power = bitboard::power(Color::White, source_pos, source_kind);
             if source_power.get(dest) {
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
@@ -196,7 +196,7 @@ impl<'a> Context<'a> {
             if on_board.is_empty() {
                 continue;
             }
-            let sources = bitboard11::reachable(
+            let sources = bitboard::reachable(
                 self.black_pieces,
                 self.white_pieces,
                 Color::Black,
@@ -259,16 +259,16 @@ impl<'a> Context<'a> {
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        if bitboard11::power(Color::White, self.white_king_pos, Kind::King).get(attacker_pos) {
+        if bitboard::power(Color::White, self.white_king_pos, Kind::King).get(attacker_pos) {
             return BitBoard::new();
         }
-        bitboard11::reachable(
+        bitboard::reachable(
             self.black_pieces,
             self.white_pieces,
             Color::White,
             self.white_king_pos,
             attacker_kind.maybe_unpromote(),
-        ) & bitboard11::reachable(
+        ) & bitboard::reachable(
             self.black_pieces,
             self.white_pieces,
             Color::Black,
@@ -306,7 +306,7 @@ fn attacker(
         if existing.is_empty() {
             continue;
         }
-        let attacking = bitboard11::reachable(
+        let attacking = bitboard::reachable(
             black_pieces,
             white_pieces,
             Color::White,

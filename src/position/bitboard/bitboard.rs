@@ -126,7 +126,7 @@ impl BitBoard {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::bitboard11::{bitboard::BitBoard, square::Square};
+    use crate::position::bitboard::{bitboard::BitBoard, square::Square};
 
     #[test]
     fn test_bitboard_next() {

@@ -1,7 +1,7 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard11::{self, BitBoard},
+        bitboard::{self, BitBoard},
         rule, Movement, Position, Square,
     },
 };
@@ -16,14 +16,14 @@ pub(super) fn checked(position: &Position, color: Color) -> bool {
     };
     let opponent_pieces = position.bitboard(color.opposite().into(), None);
     let turn_pieces = position.bitboard(color.into(), None);
-    let around_king = bitboard11::power(color, king_pos, Kind::King);
+    let around_king = bitboard::power(color, king_pos, Kind::King);
     // Non line or leap moves
     for attacker_pos in around_king & opponent_pieces {
         let arracker_kind = position.get(attacker_pos).unwrap().1;
         if arracker_kind == Kind::Knight || arracker_kind.is_line_piece() {
             continue;
         }
-        let attacker_power = bitboard11::power(color.opposite(), attacker_pos, arracker_kind);
+        let attacker_power = bitboard::power(color.opposite(), attacker_pos, arracker_kind);
         if attacker_power.get(king_pos) {
             return true;
         }
@@ -41,7 +41,7 @@ pub(super) fn checked(position: &Position, color: Color) -> bool {
             continue;
         }
         let attack_squares = if color == Color::Black {
-            bitboard11::reachable(
+            bitboard::reachable(
                 turn_pieces,
                 opponent_pieces,
                 Color::Black,
@@ -49,7 +49,7 @@ pub(super) fn checked(position: &Position, color: Color) -> bool {
                 attacker_kind,
             )
         } else {
-            bitboard11::reachable(
+            bitboard::reachable(
                 opponent_pieces,
                 turn_pieces,
                 Color::White,
@@ -110,7 +110,7 @@ pub(super) fn pinned(
 ) -> Pinned {
     let mut res = vec![];
     for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
-        let power_mask = bitboard11::power(king_color, king_pos, attacker_kind);
+        let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
         let attackers = if attacker_kind == Kind::Lance {
             position.bitboard(king_color.opposite().into(), attacker_kind.into())
         } else {
@@ -120,7 +120,7 @@ pub(super) fn pinned(
         if attackers.is_empty() {
             continue;
         }
-        let king_seeing = bitboard11::reachable(
+        let king_seeing = bitboard::reachable(
             white_pieces,
             black_pieces,
             king_color,
@@ -128,7 +128,7 @@ pub(super) fn pinned(
             attacker_kind,
         );
         for attacker_pos in attackers {
-            let attacker_reachable = bitboard11::reachable(
+            let attacker_reachable = bitboard::reachable(
                 black_pieces,
                 white_pieces,
                 king_color.opposite(),
@@ -146,15 +146,15 @@ pub(super) fn pinned(
                 pinned.next().unwrap()
             };
             let pinned_kind = position.get(pinned_pos).unwrap().1;
-            let pinned_reachable = bitboard11::reachable(
+            let pinned_reachable = bitboard::reachable(
                 black_pieces,
                 white_pieces,
                 king_color,
                 pinned_pos,
                 pinned_kind,
             );
-            let same_line = bitboard11::power(king_color, king_pos, attacker_kind)
-                & bitboard11::power(king_color.opposite(), attacker_pos, attacker_kind);
+            let same_line = bitboard::power(king_color, king_pos, attacker_kind)
+                & bitboard::power(king_color.opposite(), attacker_pos, attacker_kind);
             res.push((pinned_pos, pinned_reachable & same_line))
         }
     }

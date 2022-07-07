@@ -1,7 +1,7 @@
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard11::{self},
+    bitboard::{self},
     Movement, Position, Square,
 };
 
@@ -136,7 +136,7 @@ fn attackers_to_with_king(
     let black_pieces = position.bitboard(Color::Black.into(), None);
     let white_pieces = position.bitboard(Color::White.into(), None);
     Kind::iter().flat_map(move |kind| {
-        let b = bitboard11::reachable(black_pieces, white_pieces, color.opposite(), target, kind)
+        let b = bitboard::reachable(black_pieces, white_pieces, color.opposite(), target, kind)
             & position.bitboard(Some(color), Some(kind));
         b.map(move |from| (from, kind))
     })

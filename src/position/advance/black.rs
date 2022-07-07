@@ -5,7 +5,7 @@ use anyhow::bail;
 use crate::piece::{Color, Kind};
 
 use crate::position::{
-    bitboard11::{self, BitBoard},
+    bitboard::{self, BitBoard},
     rule, Movement, Position, PositionExt, Square,
 };
 
@@ -103,7 +103,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             let attacker_power =
-                bitboard11::power(Color::Black, attacker_pos, attacker_source_kind);
+                bitboard::power(Color::Black, attacker_pos, attacker_source_kind);
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
                     continue;
@@ -158,7 +158,7 @@ impl<'a> Context<'a> {
                 let attack_squares = self.attack_squares(attacker_dest_kind);
 
                 for attacker_pos in attackers {
-                    let attacker_reachable = bitboard11::reachable(
+                    let attacker_reachable = bitboard::reachable(
                         self.black_pieces,
                         self.white_pieces,
                         Color::Black,
@@ -194,13 +194,13 @@ impl<'a> Context<'a> {
                 if cands.is_empty() {
                     continue;
                 }
-                cands &= bitboard11::power(Color::White, self.white_king_pos, kind);
+                cands &= bitboard::power(Color::White, self.white_king_pos, kind);
                 if cands.is_empty() {
                     continue;
                 }
                 cands
             };
-            let blocker_cands = bitboard11::reachable(
+            let blocker_cands = bitboard::reachable(
                 self.black_pieces,
                 self.white_pieces,
                 Color::White,
@@ -212,7 +212,7 @@ impl<'a> Context<'a> {
             }
             for attacker_pos in attacker_cands {
                 let blocker_pos = {
-                    let pos = bitboard11::reachable(
+                    let pos = bitboard::reachable(
                         self.white_pieces,
                         self.black_pieces,
                         Color::Black,
@@ -228,10 +228,10 @@ impl<'a> Context<'a> {
 
                 let blocker_dests = {
                     let attacker_preventing =
-                        bitboard11::power(Color::White, self.white_king_pos, kind)
-                            & bitboard11::power(Color::Black, attacker_pos, kind);
+                        bitboard::power(Color::White, self.white_king_pos, kind)
+                            & bitboard::power(Color::Black, attacker_pos, kind);
                     !attacker_preventing
-                        & bitboard11::reachable(
+                        & bitboard::reachable(
                             self.black_pieces,
                             self.white_pieces,
                             Color::Black,
@@ -306,7 +306,7 @@ impl<'a> Context<'a> {
 
     // Squares moving to which produces a check.
     fn attack_squares(&self, kind: Kind) -> BitBoard {
-        bitboard11::reachable(
+        bitboard::reachable(
             self.white_pieces,
             self.black_pieces,
             Color::White,
@@ -317,13 +317,13 @@ impl<'a> Context<'a> {
 }
 
 fn lion_king_power(pos: Square) -> BitBoard {
-    let mut res = bitboard11::power(Color::Black, pos, Kind::King);
+    let mut res = bitboard::power(Color::Black, pos, Kind::King);
     for i in [-1, 1] {
         for j in [-1, 1] {
             let col = pos.col() as isize + i;
             let row = pos.row() as isize + j;
             if (0..9).contains(&col) && (0..9).contains(&row) {
-                res |= bitboard11::power(
+                res |= bitboard::power(
                     Color::Black,
                     Square::new(col as usize, row as usize),
                     Kind::King,

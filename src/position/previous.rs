@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard11::{self, BitBoard},
+    bitboard::{self, BitBoard},
     rule, Position, Square, UndoMove,
 };
 
@@ -66,7 +66,7 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources = bitboard11::reachable(
+            let sources = bitboard::reachable(
                 self.white_pieces,
                 self.black_pieces,
                 self.turn,
