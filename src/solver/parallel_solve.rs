@@ -141,6 +141,7 @@ fn solve_sub(
         std::mem::swap(&mut all_positions, &mut all_next_positions);
 
         progress.unbounded_send(current_step)?;
+        eprintln!("thread = {:?}, step = {}", thread_id, step);
     }
 
     let res = std::thread::Builder::new()
