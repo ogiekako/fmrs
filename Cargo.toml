@@ -27,6 +27,7 @@ serde_repr = "0.1.8"
 futures = "0.3.21"
 actix-files = "0.6.1"
 pprof = { version = "0.10.0", features = ["flamegraph", "protobuf-codec"] }
+sysinfo = "0.24.6"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"

@@ -3,6 +3,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use sysinfo::SystemExt;
+
 use crate::{
     piece::Color,
     position::{advance, Position},
@@ -24,16 +26,17 @@ pub(super) fn solve(
     memo.insert(digest(&position), step);
     let memo_next = HashMap::new();
     let all_positions = vec![position];
-    let mut res = solve_sub(
+
+    let task = Task::new(
         all_positions,
         memo,
         memo_next,
         Mutex::new(None).into(),
-        step,
-        progress,
-        None,
         solutions_upto,
-    )?;
+        Mutex::new(1).into(),
+        0,
+    );
+    let mut res = task.solve(step)?;
     res.sort();
     Ok(res)
 }
@@ -43,122 +46,167 @@ const TRIGGER_PARALLEL_SOLVE: usize = 2;
 #[cfg(not(test))]
 const TRIGGER_PARALLEL_SOLVE: usize = 1_000_000;
 
-const NTHREAD: usize = 15;
+const NTHREAD: usize = 16;
 
-fn solve_sub(
-    mut all_positions: Vec<Position>,
-    mut memo: HashMap<Digest, usize>,
-    mut memo_next: HashMap<Digest, usize>,
+struct Task {
+    all_positions: Vec<Position>,
+    memo: HashMap<Digest, usize>,
+    memo_next: HashMap<Digest, usize>,
     mate_in: Arc<Mutex<Option<usize>>>,
-    current_step: usize,
-    progress: futures::channel::mpsc::UnboundedSender<usize>,
-    thread_id: Option<usize>,
     solutions_upto: usize,
-) -> anyhow::Result<Vec<Solution>> {
-    let mut mate_positions = vec![];
-    let mut all_next_positions = Vec::new();
-    for step in current_step.. {
-        if step > 10 && all_positions.len() >= TRIGGER_PARALLEL_SOLVE && thread_id.is_none() {
-            let chunk_size = (all_positions.len() + NTHREAD - 1) / NTHREAD;
-            let mut handles = vec![];
-            for (id, chunk) in all_positions.chunks(chunk_size).enumerate() {
-                let all_positions = chunk.to_vec();
-                let memo = memo.clone();
-                let memo_next = memo_next.clone();
-                let mate_in = mate_in.clone();
-                let progress = progress.clone();
-                handles.push(std::thread::spawn(move || {
-                    solve_sub(
-                        all_positions,
-                        memo,
-                        memo_next,
-                        mate_in,
-                        step,
-                        progress,
-                        Some(id),
-                        solutions_upto,
-                    )
-                }));
-            }
-            let mut all_solutions = vec![];
-            for handle in handles {
-                all_solutions.append(&mut handle.join().unwrap()?);
-            }
-            if all_solutions.is_empty() {
-                return Ok(all_solutions);
-            }
-            let mate_in = mate_in.lock().unwrap().unwrap();
-            let mut shortest_solutions = vec![];
-            for solution in all_solutions {
-                if solution.len() == mate_in {
-                    shortest_solutions.push(solution);
-                }
-            }
-            shortest_solutions.sort();
-            return Ok(shortest_solutions
-                .into_iter()
-                .take(solutions_upto)
-                .collect());
+    active_thread_count: Arc<Mutex<usize>>,
+    generation: usize,
+}
+
+impl Task {
+    fn new(
+        all_positions: Vec<Position>,
+        memo: HashMap<Digest, usize>,
+        memo_next: HashMap<Digest, usize>,
+        mate_in: Arc<Mutex<Option<usize>>>,
+        solutions_upto: usize,
+        active_thread_count: Arc<Mutex<usize>>,
+        generation: usize,
+    ) -> Self {
+        Self {
+            all_positions,
+            memo,
+            memo_next,
+            mate_in,
+            solutions_upto,
+            active_thread_count,
+            generation,
         }
-
-        let mate_bound = mate_in.lock().unwrap().unwrap_or(usize::MAX);
-        if step > mate_bound {
-            return Ok(vec![]);
-        }
-
-        while let Some(position) = all_positions.pop() {
-            let mut has_next_position = false;
-            let next_positions = advance(&position)?;
-
-            for np in next_positions {
-                has_next_position = true;
-
-                if step == mate_bound {
-                    break;
-                }
-
-                let digest = digest(&np);
-                if memo_next.contains_key(&digest) {
-                    continue;
-                }
-                memo_next.insert(digest, step + 1);
-                all_next_positions.push(np);
-            }
-            if !has_next_position && position.turn() == Color::White && !position.pawn_drop() {
-                mate_positions.push(position);
-
-                let mut g = mate_in.lock().unwrap();
-                if g.is_none() || g.unwrap() > step {
-                    *g = Some(step);
-                }
-            }
-        }
-        if !mate_positions.is_empty() || all_next_positions.is_empty() {
-            break;
-        }
-
-        std::mem::swap(&mut memo, &mut memo_next);
-        std::mem::swap(&mut all_positions, &mut all_next_positions);
-
-        progress.unbounded_send(current_step)?;
-        eprintln!("thread = {:?}, step = {}", thread_id, step);
     }
 
-    let res = std::thread::Builder::new()
-        .stack_size(512 * 1024 * 1024)
-        .spawn(move || {
-            let mut res = vec![];
-            for mate_position in mate_positions {
-                res.append(&mut reconstruct_solutions(
-                    mate_position,
-                    &memo_next,
-                    &memo,
-                    solutions_upto - res.len(),
-                ));
+    fn size_estimate(&self) -> usize {
+        self.all_positions.len() * std::mem::size_of::<Position>()
+            + (self.memo.len() + self.memo_next.len())
+                * (std::mem::size_of::<Digest>() + std::mem::size_of::<usize>())
+                * 2
+    }
+
+    fn solve(mut self, start_step: usize) -> anyhow::Result<Vec<Solution>> {
+        let mut mate_positions = vec![];
+        let mut all_next_positions = Vec::new();
+        for step in start_step.. {
+            let threads_to_spawn = {
+                let mut g = self.active_thread_count.lock().unwrap();
+
+                let available_memory = sysinfo::System::new_all().available_memory() as isize
+                    * 1024
+                    - 2 * 1024 * 1024 * 1024;
+                let size_estimate = self.size_estimate() as isize;
+                let spawn_limit = available_memory / size_estimate;
+
+                if spawn_limit > 1
+                    && step > start_step + 10
+                    && self.all_positions.len() >= TRIGGER_PARALLEL_SOLVE
+                    && *g < NTHREAD
+                {
+                    let threads_to_spawn = (NTHREAD + 1 - *g).min(spawn_limit as usize);
+                    *g += threads_to_spawn - 1;
+                    threads_to_spawn.into()
+                } else {
+                    None
+                }
+            };
+            if let Some(n) = threads_to_spawn {
+                let chunk_size = (self.all_positions.len() + n - 1) / n;
+                let mut handles = vec![];
+                for chunk in self.all_positions.chunks(chunk_size) {
+                    let all_positions = chunk.to_vec();
+                    let task = Task::new(
+                        all_positions,
+                        self.memo.clone(),
+                        self.memo_next.clone(),
+                        self.mate_in.clone(),
+                        self.solutions_upto,
+                        self.active_thread_count.clone(),
+                        self.generation + 1,
+                    );
+                    handles.push(std::thread::spawn(move || task.solve(step)));
+                }
+                let mut all_solutions = vec![];
+                for handle in handles {
+                    all_solutions.append(&mut handle.join().unwrap()?);
+                }
+                if all_solutions.is_empty() {
+                    return Ok(all_solutions);
+                }
+                let mate_in = self.mate_in.lock().unwrap().unwrap();
+                let mut shortest_solutions = vec![];
+                for solution in all_solutions {
+                    if solution.len() == mate_in {
+                        shortest_solutions.push(solution);
+                    }
+                }
+                shortest_solutions.sort();
+                return Ok(shortest_solutions
+                    .into_iter()
+                    .take(self.solutions_upto)
+                    .collect());
             }
-            res
-        })?
-        .join()
-        .unwrap();
-    Ok(res)
+
+            let mate_bound = self.mate_in.lock().unwrap().unwrap_or(usize::MAX);
+            if step > mate_bound {
+                return Ok(vec![]);
+            }
+
+            while let Some(position) = self.all_positions.pop() {
+                let mut has_next_position = false;
+                let next_positions = advance(&position)?;
+
+                for np in next_positions {
+                    has_next_position = true;
+
+                    if step == mate_bound {
+                        break;
+                    }
+
+                    let digest = digest(&np);
+                    if self.memo_next.contains_key(&digest) {
+                        continue;
+                    }
+                    self.memo_next.insert(digest, step + 1);
+                    all_next_positions.push(np);
+                }
+                if !has_next_position && position.turn() == Color::White && !position.pawn_drop() {
+                    mate_positions.push(position);
+
+                    let mut g = self.mate_in.lock().unwrap();
+                    if g.is_none() || g.unwrap() > step {
+                        *g = Some(step);
+                    }
+                }
+            }
+            if !mate_positions.is_empty() || all_next_positions.is_empty() {
+                break;
+            }
+
+            std::mem::swap(&mut self.memo, &mut self.memo_next);
+            std::mem::swap(&mut self.all_positions, &mut all_next_positions);
+        }
+
+        {
+            *self.active_thread_count.lock().unwrap() -= 1;
+        }
+        let res = std::thread::Builder::new()
+            .stack_size(512 * 1024 * 1024)
+            .spawn(move || {
+                let mut res = vec![];
+                for mate_position in mate_positions {
+                    res.append(&mut reconstruct_solutions(
+                        mate_position,
+                        &self.memo_next,
+                        &self.memo,
+                        self.solutions_upto - res.len(),
+                    ));
+                }
+                res
+            })?
+            .join()
+            .unwrap();
+        Ok(res)
+    }
 }
