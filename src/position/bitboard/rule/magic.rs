@@ -26,12 +26,12 @@ impl Magic {
 }
 
 pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    let (m1, m2) = &BISHOP_MAGIC[pos.index81()];
+    let (m1, m2) = &BISHOP_MAGIC[pos.index()];
     m1.reachable(occupied) | m2.reachable(occupied)
 }
 
 pub(super) fn rook_reachable_row(occupied: BitBoard, pos: Square) -> BitBoard {
-    ROOK_MAGIC_ROW[pos.index81()].reachable(occupied)
+    ROOK_MAGIC_ROW[pos.index()].reachable(occupied)
 }
 
 lazy_static! {
@@ -47,7 +47,7 @@ lazy_static! {
     static ref BISHOP_MAGIC: Vec<(Magic, Magic)> = {
         let mut res = vec![(Magic::zero(), Magic::zero()); 81];
         for pos in Square::iter() {
-            res[pos.index81()] = (
+            res[pos.index()] = (
                 new_magic(pos, &[(-1, -1), (1, 1)]).unwrap(),
                 new_magic(pos, &[(-1, 1), (1, -1)]).unwrap(),
             );
@@ -57,7 +57,7 @@ lazy_static! {
     static ref ROOK_MAGIC_ROW: Vec<Magic> = {
         let mut res = vec![Magic::zero(); 81];
         for pos in Square::iter() {
-            res[pos.index81()] = new_magic(pos, &[(-1, 0), (1, 0)]).unwrap();
+            res[pos.index()] = new_magic(pos, &[(-1, 0), (1, 0)]).unwrap();
         }
         res
     };

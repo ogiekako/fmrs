@@ -6,11 +6,11 @@ use super::super::{BitBoard, Square};
 pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
     match kind {
         Kind::King => king_power(pos),
-        Kind::Pawn => non_line_power(PAWN_ATTACK00[color.index()], pos),
-        Kind::Knight => non_line_power(KNIGHT_ATTACK00[color.index()], pos),
-        Kind::Silver => non_line_power(SILVER_ATTACK00[color.index()], pos),
+        Kind::Pawn => PAWN_POWER[color.index()][pos.index()],
+        Kind::Knight => KNIGHT_POWER[color.index()][pos.index()],
+        Kind::Silver => SILVER_POWER[color.index()][pos.index()],
         Kind::Gold | Kind::ProPawn | Kind::ProLance | Kind::ProKnight | Kind::ProSilver => {
-            non_line_power(GOLD_ATTACK00[color.index()], pos)
+            GOLD_POWER[color.index()][pos.index()]
         }
         Kind::Lance => lance_power(color, pos),
         Kind::Rook => rook_power(pos),
@@ -21,7 +21,7 @@ pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
 }
 
 pub(super) fn king_power(pos: Square) -> BitBoard {
-    non_line_power(*KING_ATTACK00, pos)
+    KING_POWER[pos.index()]
 }
 
 pub(super) fn bishop_power(pos: Square) -> BitBoard {
@@ -84,44 +84,50 @@ pub(super) fn lance_power(color: Color, pos: Square) -> BitBoard {
     }
 }
 
-fn non_line_power(attack00: u128, pos: Square) -> BitBoard {
-    BitBoard::from_u128(attack00 << shift_usize(pos.col(), pos.row()))
-}
-
 lazy_static! {
-    static ref PAWN_ATTACK00: [u128; 2] = power00(&[(0, -1)]);
-    static ref KNIGHT_ATTACK00: [u128; 2] = power00(&[(-1, -2), (1, -2)]);
-    static ref SILVER_ATTACK00: [u128; 2] = power00(&[(-1, -1), (-1, 1), (0, -1), (1, -1), (1, 1)]);
-    static ref GOLD_ATTACK00: [u128; 2] =
-        power00(&[(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)]);
-    static ref KING_ATTACK00: u128 = SILVER_ATTACK00[0] | GOLD_ATTACK00[0];
+    static ref PAWN_POWER: [[BitBoard; 81]; 2] = powers(&[(0, -1)]);
+    static ref KNIGHT_POWER: [[BitBoard; 81]; 2] = powers(&[(-1, -2), (1, -2)]);
+    static ref SILVER_POWER: [[BitBoard; 81]; 2] =
+        powers(&[(-1, -1), (-1, 1), (0, -1), (1, -1), (1, 1)]);
+    static ref GOLD_POWER: [[BitBoard; 81]; 2] =
+        powers(&[(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)]);
+    static ref KING_POWER: [BitBoard; 81] = powers_sub(
+        [
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1)
+        ]
+        .into_iter()
+    );
 }
 
-fn power00(black_shifts: &[(isize, isize)]) -> [u128; 2] {
-    let black = power00_sub(black_shifts.iter().map(|(col, row)| shift(*col, *row)));
-    let white = power00_sub(black_shifts.iter().map(|(col, row)| shift(*col, -row)));
+fn powers(black_shifts: &[(isize, isize)]) -> [[BitBoard; 81]; 2] {
+    let black = powers_sub(black_shifts.iter().map(|(col, row)| (*col, *row)));
+    let white = powers_sub(black_shifts.iter().map(|(col, row)| (*col, -row)));
     [black, white]
 }
 
-fn power00_sub(shifts: impl Iterator<Item = isize>) -> u128 {
-    let base = 1u128 << Square::new(0, 0).index();
-    let mut res = 0;
-    for shift in shifts {
-        res |= if shift < 0 {
-            base >> (-shift) as usize
-        } else {
-            base << shift as usize
-        };
+fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
+    let shifts = shifts.collect::<Vec<_>>();
+    let mut res = [BitBoard::new(); 81];
+    for col in 0..9 {
+        for row in 0..9 {
+            let pos = Square::new(col, row);
+            for (dc, dr) in shifts.iter() {
+                let col = col as isize + dc;
+                let row = row as isize + dr;
+                if (0..9).contains(&col) && (0..9).contains(&row) {
+                    res[pos.index()].set(Square::new(col as usize, row as usize));
+                }
+            }
+        }
     }
     res
-}
-
-fn shift(col: isize, row: isize) -> isize {
-    col * 11 + row
-}
-
-fn shift_usize(col: usize, row: usize) -> usize {
-    col * 11 + row
 }
 
 #[cfg(test)]

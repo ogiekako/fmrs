@@ -1,6 +1,6 @@
 use super::square::Square;
 
-const MASK: u128 = 0b11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_11111111100_00000000000;
+const MASK: u128 = 0x1_FFFF_FFFF_FFFF_FFFF_FFFF;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BitBoard {
