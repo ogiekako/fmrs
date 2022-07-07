@@ -133,7 +133,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        for dest in king_reachable & !under_attack {
+        for dest in king_reachable.and_not(under_attack) {
             self.maybe_add_move(
                 &Movement::Move {
                     source: self.white_king_pos,

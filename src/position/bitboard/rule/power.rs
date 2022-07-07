@@ -75,13 +75,7 @@ lazy_static! {
 }
 
 pub(super) fn lance_power(color: Color, pos: Square) -> BitBoard {
-    if color == Color::Black {
-        let pos_bb = 1u128 << pos.index();
-        BitBoard::from_u128(pos_bb - (pos_bb >> pos.row()))
-    } else {
-        let pos_bb = 1u128 << (pos.index() + 1);
-        BitBoard::from_u128((pos_bb << (8 - pos.row())) - pos_bb)
-    }
+    LANCE_POWER[color.index()][pos.index()]
 }
 
 lazy_static! {
@@ -104,6 +98,16 @@ lazy_static! {
         ]
         .into_iter()
     );
+    static ref LANCE_POWER: [[BitBoard; 81]; 2] = powers(&[
+        (0, -1),
+        (0, -2),
+        (0, -3),
+        (0, -4),
+        (0, -5),
+        (0, -6),
+        (0, -7),
+        (0, -8)
+    ]);
 }
 
 fn powers(black_shifts: &[(isize, isize)]) -> [[BitBoard; 81]; 2] {

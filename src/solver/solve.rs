@@ -5,9 +5,6 @@ use crate::position::PositionExt;
 use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
 
-use std::hash::Hash;
-use std::hash::Hasher;
-
 pub type Solution = Vec<Movement>;
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -29,14 +26,6 @@ pub fn solve(
 ) -> anyhow::Result<Vec<Solution>> {
     let (tx, _rx) = futures::channel::mpsc::unbounded();
     solve_with_progress(tx, board, solution_upto, algorithm)
-}
-
-pub(super) type Digest = u64;
-
-pub(super) fn digest(board: &Position) -> Digest {
-    let mut hasher = twox_hash::Xxh3Hash64::default();
-    board.hash(&mut hasher);
-    hasher.finish()
 }
 
 pub fn solve_with_progress(

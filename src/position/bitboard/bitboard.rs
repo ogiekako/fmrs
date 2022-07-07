@@ -1,7 +1,5 @@
 use super::square::Square;
 
-const MASK: u128 = 0x1_FFFF_FFFF_FFFF_FFFF_FFFF;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BitBoard {
     pub(super) x: u128,
@@ -22,6 +20,10 @@ impl BitBoard {
     }
     pub fn get(&self, pos: Square) -> bool {
         (self.x >> pos.index() & 1) == 1
+    }
+    pub fn and_not(mut self, mask: BitBoard) -> BitBoard {
+        self.x &= !mask.x;
+        self
     }
 }
 
@@ -48,7 +50,6 @@ macro_rules! def_op {
     };
 }
 
-def_op!(Mul, mul);
 def_op!(Shr, shr);
 def_op!(BitAnd, bitand);
 def_op!(BitOr, bitor);
@@ -57,9 +58,7 @@ macro_rules! def_op_assign {
     ($ty: ident, $op: ident) => {
         impl std::ops::$ty for BitBoard {
             fn $op(&mut self, rhs: Self) {
-                let mut x = self.x;
-                x.$op(rhs.x);
-                self.x = x & MASK;
+                self.x.$op(rhs.x);
             }
         }
     };
@@ -67,16 +66,6 @@ macro_rules! def_op_assign {
 
 def_op_assign!(BitAndAssign, bitand_assign);
 def_op_assign!(BitOrAssign, bitor_assign);
-
-impl std::ops::Not for BitBoard {
-    type Output = Self;
-
-    fn not(self) -> BitBoard {
-        BitBoard {
-            x: self.x.not() & MASK,
-        }
-    }
-}
 
 impl std::fmt::Display for BitBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -120,7 +109,8 @@ impl BitBoard {
         })
     }
     pub(super) fn from_u128(x: u128) -> Self {
-        Self { x: x & MASK }
+        debug_assert!(x < 1 << 81);
+        Self { x }
     }
 }
 

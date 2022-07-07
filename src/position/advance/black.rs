@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use anyhow::bail;
 
@@ -78,7 +79,7 @@ impl<'a> Context<'a> {
 
     fn drops(&self) {
         for kind in self.position.hands().kinds(Color::Black) {
-            let empty_attack_squares = self.attack_squares(kind) & !self.white_pieces;
+            let empty_attack_squares = self.attack_squares(kind).and_not(self.white_pieces);
             empty_attack_squares.for_each(|pos| {
                 self.maybe_add_move(&Movement::Drop(pos, kind), kind);
             })
@@ -102,8 +103,7 @@ impl<'a> Context<'a> {
             {
                 continue;
             }
-            let attacker_power =
-                bitboard::power(Color::Black, attacker_pos, attacker_source_kind);
+            let attacker_power = bitboard::power(Color::Black, attacker_pos, attacker_source_kind);
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
                     continue;
@@ -230,14 +230,14 @@ impl<'a> Context<'a> {
                     let attacker_preventing =
                         bitboard::power(Color::White, self.white_king_pos, kind)
                             & bitboard::power(Color::Black, attacker_pos, kind);
-                    !attacker_preventing
-                        & bitboard::reachable(
-                            self.black_pieces,
-                            self.white_pieces,
-                            Color::Black,
-                            blocker_pos,
-                            blocker_kind,
-                        )
+                    bitboard::reachable(
+                        self.black_pieces,
+                        self.white_pieces,
+                        Color::Black,
+                        blocker_pos,
+                        blocker_kind,
+                    )
+                    .and_not(attacker_preventing)
                 };
                 for blocker_dest in blocker_dests {
                     self.maybe_add_move(

@@ -72,7 +72,7 @@ impl Context {
                 self.turn,
                 dest,
                 prev_kind,
-            ) & !(self.black_pieces | self.white_pieces);
+            ).and_not(self.black_pieces | self.white_pieces);
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,

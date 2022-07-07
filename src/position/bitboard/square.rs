@@ -17,7 +17,7 @@ impl Square {
         (0..9).flat_map(|col| (0..9).map(move |row| Self::new(col, row)))
     }
     pub(super) fn index(self) -> usize {
-        self.col() * 9 + self.row()
+        self.x
     }
     pub(super) fn from_index(x: usize) -> Self {
         Self { x }

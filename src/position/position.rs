@@ -68,14 +68,14 @@ impl Position {
             mask &= self.promote_bb;
             raw.index()
         } else {
-            mask &= !self.promote_bb;
+            mask = mask.and_not(self.promote_bb);
             k.index()
         };
         for j in 0..3 {
             if (i >> j & 1) > 0 {
                 mask &= self.kind_bb[j];
             } else {
-                mask &= !self.kind_bb[j];
+                mask = mask.and_not(self.kind_bb[j]);
             }
         }
         mask

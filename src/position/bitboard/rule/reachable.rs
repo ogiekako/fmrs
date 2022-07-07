@@ -17,11 +17,12 @@ pub fn reachable(
 ) -> BitBoard {
     let mask = reachable_sub(black_pieces | white_pieces, color, pos, kind);
     match color {
-        Color::Black => mask & !black_pieces,
-        Color::White => mask & !white_pieces,
+        Color::Black => mask.and_not(black_pieces),
+        Color::White => mask.and_not(white_pieces),
     }
 }
 
+#[inline(never)]
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
     if !kind.is_line_piece() {
         return power(color, pos, kind);
@@ -36,6 +37,7 @@ fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> B
     }
 }
 
+#[inline(never)]
 fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
     let power = lance_power(color, pos);
     let block = occupied & power;

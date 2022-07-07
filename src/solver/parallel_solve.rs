@@ -7,14 +7,10 @@ use sysinfo::SystemExt;
 
 use crate::{
     piece::Color,
-    position::{advance, Position},
+    position::{advance, Digest, Position, PositionExt},
 };
 
-use super::{
-    reconstruct::reconstruct_solutions,
-    solve::{digest, Digest},
-    Solution,
-};
+use super::{reconstruct::reconstruct_solutions, Solution};
 
 pub(super) fn solve(
     position: Position,
@@ -23,7 +19,7 @@ pub(super) fn solve(
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
     let mut memo = HashMap::new();
-    memo.insert(digest(&position), step);
+    memo.insert(position.digest(), step);
     let memo_next = HashMap::new();
     let all_positions = vec![position];
 
@@ -164,7 +160,7 @@ impl Task {
                         break;
                     }
 
-                    let digest = digest(&np);
+                    let digest = np.digest();
                     if self.memo_next.contains_key(&digest) {
                         continue;
                     }

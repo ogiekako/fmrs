@@ -5,13 +5,10 @@ use std::{
 
 use crate::{
     piece::Color,
-    position::{advance, previous, Movement, Position, PositionExt},
+    position::{advance, previous, Digest, Movement, Position, PositionExt},
 };
 
-use super::{
-    solve::{digest, Digest},
-    Solution,
-};
+use super::Solution;
 
 pub(super) fn solve(
     initial_position: Position,
@@ -21,7 +18,7 @@ pub(super) fn solve(
     let mut current_white_positions = advance(&initial_position)?;
     let mut memo_white_positions = BTreeMap::new();
     for p in current_white_positions.iter() {
-        memo_white_positions.insert(digest(p), 0i32);
+        memo_white_positions.insert(p.digest(), 0i32);
     }
     let mut deadend_white_positions = BTreeSet::new();
 
@@ -43,7 +40,7 @@ pub(super) fn solve(
 
                 let mut next_white_positions = advance(&black_position)?;
                 while let Some(next_white_position) = next_white_positions.pop() {
-                    let digest = digest(&next_white_position);
+                    let digest = next_white_position.digest();
                     if deadend_white_positions.contains(&digest) {
                         continue;
                     }
@@ -59,7 +56,7 @@ pub(super) fn solve(
             if !has_next_position && !white_position.pawn_drop() {
                 mate_positions.push(white_position);
             } else if white_position_is_deadend {
-                let digest = digest(&white_position);
+                let digest = white_position.digest();
                 deadend_white_positions.insert(digest);
                 memo_white_positions.remove(&digest);
             }
@@ -89,7 +86,7 @@ pub(super) fn solve(
             let mut res = vec![];
             for mate_position in mate_positions {
                 res.append(&mut reconstruct_solutions(
-                    digest(&initial_position),
+                    initial_position.digest(),
                     mate_position,
                     &memo_white_positions,
                     solutions_upto - res.len(),
@@ -112,7 +109,7 @@ fn reconstruct_solutions(
     memo_white_positions: &BTreeMap<Digest, i32>,
     solutions_upto: usize,
 ) -> Vec<Vec<Movement>> {
-    let half_step = *memo_white_positions.get(&digest(&mate_position)).unwrap();
+    let half_step = *memo_white_positions.get(&mate_position.digest()).unwrap();
     let ctx = Context::new(
         initial_position_digest,
         memo_white_positions,
@@ -163,7 +160,7 @@ impl<'a> Context<'a> {
             if position.checked_slow(Color::White) {
                 // Do nothing
             } else if half_step == 0 {
-                if digest(position) == self.initial_position_digest {
+                if position.digest() == self.initial_position_digest {
                     self.push_solution();
                 }
             } else {
@@ -171,7 +168,7 @@ impl<'a> Context<'a> {
                     let white_movement = position.undo_move(&white_undo);
                     self.solution.borrow_mut().push(white_movement);
 
-                    if self.memo_white_positions.get(&digest(position)) == Some(&(half_step - 1)) {
+                    if self.memo_white_positions.get(&position.digest()) == Some(&(half_step - 1)) {
                         self.reconstruct_white(position, half_step - 1);
                     }
 
