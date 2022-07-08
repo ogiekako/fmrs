@@ -2,7 +2,7 @@ use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
 use futures::StreamExt;
 use serde::Serialize;
 
-use crate::{jkf::JsonKifFormat, piece::Color, solver::Algorithm};
+use crate::{jkf::JsonKifFormat, solver::Algorithm};
 
 pub async fn server(port: u16) -> anyhow::Result<()> {
     let address = format!("localhost:{}", port);
@@ -38,7 +38,7 @@ enum SolveResponse {
 // Returns line delimited json stream
 #[post("/solve")]
 async fn solve(body_sfen: String) -> HttpResponse {
-    let (problem, _) = match crate::sfen::decode_position(&body_sfen) {
+    let problem = match crate::sfen::decode_position(&body_sfen) {
         Ok(problem) => problem,
         Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
     };
@@ -53,11 +53,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
             Some(10),
             Algorithm::Parallel,
         ) {
-            Ok(solutions) => SolveResponse::Solved(crate::converter::convert(
-                &problem,
-                Color::Black,
-                &solutions,
-            )),
+            Ok(solutions) => SolveResponse::Solved(crate::converter::convert(&problem, &solutions)),
             Err(e) => SolveResponse::Error(e.to_string()),
         };
         res_tx.unbounded_send(res).unwrap();

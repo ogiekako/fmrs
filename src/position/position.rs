@@ -3,8 +3,10 @@ use crate::piece::*;
 #[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Position {
     color_bb: ColorBitBoard,
-    kind_bb: KindBitBoard,
+    promote_bb: BitBoard,
+    kind_bb: [BitBoard; 3],
     hands: Hands,
+    turn: Color,
     pawn_drop: bool,
 }
 
@@ -12,7 +14,7 @@ pub type Digest = u64;
 
 #[test]
 fn test_position_size() {
-    assert_eq!(88, std::mem::size_of::<Position>());
+    assert_eq!(104, std::mem::size_of::<Position>());
 }
 
 use crate::sfen;
@@ -21,24 +23,31 @@ use std::hash::Hash;
 use std::hash::Hasher;
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", sfen::encode_position(self, Color::Black))
+        write!(f, "{}", sfen::encode_position(self))
     }
 }
 
 use super::bitboard::BitBoard;
 use super::bitboard::ColorBitBoard;
-use super::bitboard::KindBitBoard;
 use super::hands::Hands;
 use super::Square;
 
 impl Position {
     pub fn new() -> Self {
         Self {
+            kind_bb: [BitBoard::empty(); 3],
+            promote_bb: BitBoard::empty(),
             color_bb: ColorBitBoard::empty(),
-            kind_bb: KindBitBoard::empty(),
             hands: Hands::new(),
+            turn: Black,
             pawn_drop: false,
         }
+    }
+    pub fn turn(&self) -> Color {
+        self.turn
+    }
+    pub fn set_turn(&mut self, c: Color) {
+        self.turn = c;
     }
     pub fn hands(&self) -> &Hands {
         &self.hands
@@ -53,14 +62,28 @@ impl Position {
         self.pawn_drop = x;
     }
     pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
-        let mask = if let Some(c) = color {
-            self.color_bb.bitboard(c)
+        let mut mask = if let Some(c) = color {
+            self.color_bb.get(c)
         } else {
             self.color_bb.both()
         };
 
         let k = if let Some(k) = kind { k } else { return mask };
-        self.kind_bb.bitboard(k, mask)
+        let i = if let Some(raw) = k.unpromote() {
+            mask &= self.promote_bb;
+            raw.index()
+        } else {
+            mask = mask.and_not(self.promote_bb);
+            k.index()
+        };
+        for j in 0..3 {
+            if (i >> j & 1) > 0 {
+                mask &= self.kind_bb[j];
+            } else {
+                mask = mask.and_not(self.kind_bb[j]);
+            }
+        }
+        mask
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let color = if self.bitboard(Some(Color::Black), None).get(pos) {
@@ -70,13 +93,34 @@ impl Position {
         } else {
             return None;
         };
-        Some((color, self.kind_bb.get(pos)))
+        let mut k = 0;
+        for i in 0..3 {
+            if self.kind_bb[i].get(pos) {
+                k |= 1 << i;
+            }
+        }
+        let kind = Kind::from_index(k);
+        if self.promote_bb.get(pos) {
+            Some((color, kind.promote().unwrap()))
+        } else {
+            Some((color, kind))
+        }
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert!(!self.color_bb.bitboard(c).get(pos));
+        debug_assert!(!self.color_bb.get(c).get(pos));
 
         self.color_bb.set(c, pos);
-        self.kind_bb.set(pos, k);
+        let i = if let Some(raw) = k.unpromote() {
+            self.promote_bb.set(pos);
+            raw.index()
+        } else {
+            k.index()
+        };
+        for j in 0..3 {
+            if (i >> j & 1) > 0 {
+                self.kind_bb[j].set(pos);
+            }
+        }
     }
     pub fn digest(&self) -> Digest {
         let mut hasher = twox_hash::Xxh3Hash64::default();
@@ -84,9 +128,19 @@ impl Position {
         hasher.finish()
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert!(self.color_bb.bitboard(c).get(pos));
+        debug_assert!(self.color_bb.get(c).get(pos));
 
         self.color_bb.unset(c, pos);
-        self.kind_bb.unset(pos, k);
+        let i = if let Some(raw) = k.unpromote() {
+            self.promote_bb.unset(pos);
+            raw.index()
+        } else {
+            k.index()
+        };
+        for j in 0..3 {
+            if (i >> j & 1) > 0 {
+                self.kind_bb[j].unset(pos);
+            }
+        }
     }
 }

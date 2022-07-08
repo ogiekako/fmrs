@@ -46,7 +46,7 @@ fn decode_hand_kind(ch: char) -> anyhow::Result<(Color, Kind)> {
 }
 
 // Encoded string doesn't include optional move count data.
-pub fn encode_position(board: &Position, turn: Color) -> String {
+pub fn encode_position(board: &Position) -> String {
     let mut res = String::new();
     for row in 0..9 {
         let mut count_empty = 0i32;
@@ -70,7 +70,7 @@ pub fn encode_position(board: &Position, turn: Color) -> String {
     }
     res.push(' ');
 
-    res.push(match turn {
+    res.push(match board.turn() {
         Black => 'b',
         White => 'w',
     });
@@ -103,7 +103,7 @@ pub fn encode_position(board: &Position, turn: Color) -> String {
 }
 
 // Ingore optional move count if any.
-pub fn decode_position(sfen: &str) -> anyhow::Result<(Position, Color)> {
+pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
     let v: Vec<&str> = sfen.split(' ').collect();
     if v.len() < 3 {
         bail!("Insufficient number of fields");
@@ -163,14 +163,14 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<(Position, Color)> {
         }
     }
 
-    let turn = match v[1] {
-        "b" => Black,
-        "w" => White,
+    match v[1] {
+        "b" => board.set_turn(Black),
+        "w" => board.set_turn(White),
         _ => bail!("Illegal turn string {}", v[1]),
-    };
+    }
 
     if v[2] == "-" {
-        return Ok((board, turn));
+        return Ok(board);
     }
 
     let mut hand_count = 0;
@@ -191,7 +191,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<(Position, Color)> {
         }
         hand_count = 0;
     }
-    Ok((board, turn))
+    Ok(board)
 }
 
 #[test]
@@ -239,25 +239,39 @@ fn test_encode() {
     board.hands_mut().add(White, Pawn);
     board.hands_mut().add(White, Pawn);
 
-    let turn = White;
+    board.set_turn(White);
 
     assert_eq!(
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
-        &encode_position(&board, turn)
+        &encode_position(&board)
     );
 }
 
 #[test]
 fn test_decode() {
-    for sfen in [
+    assert_eq!(
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
+        &encode_position(
+            &decode_position(
+                "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p"
+            )
+            .expect("Failed to decode")
+        )
+    );
+    assert_eq!(
         "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -",
+        &encode_position(
+            &decode_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -")
+                .expect("Failed to decode")
+        )
+    );
+    assert_eq!(
         "3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p",
-    ] {
-        let (position, turn) = decode_position(sfen).expect("Failed to decode");
-        let got = encode_position(&position, turn);
-        assert_eq!(got, sfen);
-    }
+        &encode_position(
+            &decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
+                .expect("Failed to decode")
+        )
+    );
 }
 
 fn encode_square(pos: Square) -> String {
@@ -334,7 +348,7 @@ pub fn encode_move(m: &Movement) -> String {
 #[cfg(test)]
 pub mod tests {
     use crate::{
-        piece::{Color, Kind},
+        piece::Kind,
         position::Square,
         position::{Movement, Position},
     };
@@ -369,13 +383,13 @@ pub mod tests {
         format!("http://sfenreader.appspot.com/sfen?sfen={}%201", t)
     }
 
-    pub fn encode_position_url(board: &Position, turn: Color) -> String {
-        to_url(&encode_position(board, turn))
+    pub fn encode_position_url(board: &Position) -> String {
+        to_url(&encode_position(board))
     }
 
-    pub const START: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
+    pub const START: &'static str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
     // The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
-    pub const RYUO: &str =
+    pub const RYUO: &'static str =
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
     // http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
 
@@ -383,12 +397,12 @@ pub mod tests {
     fn test_encode_position_url() {
         use pretty_assertions::assert_eq;
 
-        let (position, turn) = decode_position(START).unwrap();
-        assert_eq!(encode_position_url(&position, turn),
+        let board = decode_position(START).unwrap();
+        assert_eq!(encode_position_url(&board),
     "http://sfenreader.appspot.com/sfen?sfen=lnsgkgsnl%252F1r5b1%252Fppppppppp%252F9%252F9%252F9%252FPPPPPPPPP%252F1B5R1%252FLNSGKGSNL%2520b%2520-%201");
 
-        let (position, turn) = decode_position(RYUO).unwrap();
-        assert_eq!(encode_position_url(&position, turn),
+        let board = decode_position(RYUO).unwrap();
+        assert_eq!(encode_position_url(&board),
     "http://sfenreader.appspot.com/sfen?sfen=8l%252F1l%252BR2P3%252Fp2pBG1pp%252Fkps1p4%252FNn1P2G2%252FP1P1P2PP%252F1PS6%252F1KSG3%252Br1%252FLN2%252Bp3L%2520w%2520Sbgn3p%201")
     }
 }

@@ -1,7 +1,7 @@
 use crate::{
     position::PositionExt,
     sfen,
-    solver::{self, Algorithm}, piece::Color,
+    solver::{self, Algorithm},
 };
 
 pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
@@ -11,7 +11,7 @@ pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
     let mut s = "".to_string();
     std::io::stdin().read_line(&mut s)?;
 
-    let (position, _) = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
+    let position = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
     let answer = solver::solve(position.clone(), Some(10), algorithm)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -25,10 +25,8 @@ pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
         println!("Multiple solutions found: showing only the first one");
     }
     let mut position = position;
-    let mut turn = Color::Black;
     for x in answer[0].iter() {
-        position.do_move(x, turn);
-        turn = turn.opposite();
+        position.do_move(x);
         println!("{}", sfen::encode_move(x));
     }
     println!("last state: {:?}", position);

@@ -5,10 +5,7 @@ use std::{
 
 use sysinfo::SystemExt;
 
-use crate::{
-    piece::Color,
-    position::{advance, Digest, Position, PositionExt},
-};
+use crate::position::{advance, Digest, Position, PositionExt};
 
 use super::{reconstruct::reconstruct_solutions, Solution};
 
@@ -86,11 +83,6 @@ impl Task {
         let mut mate_positions = vec![];
         let mut all_next_positions = Vec::new();
         for step in start_step.. {
-            let turn = if step % 2 == 0 {
-                Color::Black
-            } else {
-                Color::White
-            };
             let threads_to_spawn = {
                 let mut g = self.active_thread_count.lock().unwrap();
 
@@ -156,7 +148,7 @@ impl Task {
 
             while let Some(position) = self.all_positions.pop() {
                 let (mut new_next_positions, is_mate) =
-                    advance(&position, turn, &mut self.memo_next, step + 1)?;
+                    advance(&position, &mut self.memo_next, step + 1)?;
 
                 if step < mate_bound {
                     all_next_positions.append(&mut new_next_positions);

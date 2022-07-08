@@ -8,18 +8,17 @@ use super::{black, white};
 
 pub fn advance(
     position: &Position,
-    turn: Color,
     memo: &mut HashMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
-    match turn {
+    match position.turn() {
         Color::Black => black::advance(position, memo, next_step).map(|x| (x, false)),
         Color::White => white::advance(position, memo, next_step),
     }
 }
 
-pub fn advance_old(position: &Position, turn: Color) -> anyhow::Result<Vec<Position>> {
-    match turn {
+pub fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+    match position.turn() {
         Color::Black => black::advance_old(position),
         Color::White => white::advance_old(position),
     }
@@ -72,9 +71,9 @@ mod tests {
         ] {
             eprintln!("{}", tc.0);
 
-            let (position, turn) =
+            let position =
                 sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
-            let mut got = super::advance_old(&position, turn).unwrap();
+            let mut got = super::advance_old(&position).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" "))
@@ -82,7 +81,7 @@ mod tests {
                 .iter()
                 .map(|m| {
                     let mut b = position.clone();
-                    b.do_move(m, turn);
+                    b.do_move(m);
                     b
                 })
                 .collect::<Vec<Position>>();

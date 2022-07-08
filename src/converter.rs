@@ -114,12 +114,11 @@ fn tail_move_format(move_move_format: jkf::MoveMoveFormat) -> jkf::MoveFormat {
 fn update_move_format(
     mut move_format: &mut Vec<jkf::MoveFormat>,
     mut position: Position,
-    mut turn: Color,
     solution: &Solution,
 ) {
     let mut i = 0;
     for movement in solution {
-        let color = color(turn);
+        let color = color(position.turn());
         let (from, to, piece, same, promote, capture) = match movement {
             Movement::Drop(to, k) => (None, place_format(*to), kind(*k), None, None, None),
             Movement::Move {
@@ -153,8 +152,7 @@ fn update_move_format(
             capture,
             relative: None,
         };
-        position.do_move(movement, turn);
-        turn = turn.opposite();
+        position.do_move(movement);
 
         if i >= move_format.len() {
             move_format.push(tail_move_format(move_move_format));
@@ -199,13 +197,13 @@ fn update_move_format(
     }
 }
 
-pub fn convert(position: &Position, turn: Color, solutions: &[Solution]) -> JsonKifFormat {
+pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
     let header = BTreeMap::default();
     let initial = Some(initial(position));
     let moves = {
         let mut moves = vec![];
         for solution in solutions {
-            update_move_format(&mut moves, position.clone(), turn, solution);
+            update_move_format(&mut moves, position.clone(), solution);
         }
         let move0 = jkf::MoveFormat::default();
         vec![move0].into_iter().chain(moves.into_iter()).collect()
@@ -240,12 +238,12 @@ mod tests {
             let want: JsonKifFormat = serde_json::from_str(want).unwrap();
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
-            let (problem, turn) = crate::sfen::decode_position(problem).unwrap();
+            let problem = crate::sfen::decode_position(problem).unwrap();
             let mut solutions =
                 crate::solver::solve(problem.clone(), None, Algorithm::Parallel).unwrap();
             solutions.sort();
 
-            let got = super::convert(&problem, turn, &solutions);
+            let got = super::convert(&problem, &solutions);
             let got = serde_json::to_string(&got).unwrap();
             eprintln!("got = {}", got);
             pretty_assertions::assert_eq!(got, want);

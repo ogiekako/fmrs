@@ -7,8 +7,8 @@ use super::{
     rule, Position, Square, UndoMove,
 };
 
-pub fn previous(position: Position, turn: Color, allow_drop_pawn: bool) -> Vec<UndoMove> {
-    let ctx = Context::new(position, turn, allow_drop_pawn);
+pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
+    let ctx = Context::new(position, allow_drop_pawn);
     ctx.previous();
     ctx.result.take()
 }
@@ -23,7 +23,8 @@ struct Context {
 }
 
 impl Context {
-    fn new(position: Position, turn: Color, allow_drop_pawn: bool) -> Self {
+    fn new(position: Position, allow_drop_pawn: bool) -> Self {
+        let turn = position.turn();
         let black_pieces = position.bitboard(Color::Black.into(), None);
         let white_pieces = position.bitboard(Color::White.into(), None);
         Self {
@@ -71,8 +72,7 @@ impl Context {
                 self.turn,
                 dest,
                 prev_kind,
-            )
-            .and_not(self.black_pieces | self.white_pieces);
+            ).and_not(self.black_pieces | self.white_pieces);
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,
@@ -119,7 +119,7 @@ impl Context {
             if *promote {
                 kind = kind.unpromote().unwrap();
             }
-            if !rule::is_allowed_move(self.turn.opposite(), *from, *to, kind, *promote) {
+            if !rule::is_allowed_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
                 return;
             }
         }

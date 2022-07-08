@@ -1,9 +1,6 @@
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::{
-    piece::Color,
-    position::{previous, Digest, Movement, Position, PositionExt},
-};
+use crate::position::{previous, Digest, Movement, Position, PositionExt};
 
 pub(super) fn reconstruct_solutions(
     mut mate: Position,
@@ -62,22 +59,16 @@ impl<'a> Context<'a> {
             return;
         }
 
-        let turn = if step % 2 == 0 {
-            Color::Black
-        } else {
-            Color::White
-        };
-
         let mut has_previous = false;
-        for undo_move in previous(position.clone(), turn, step < self.mate_in) {
-            let movement = position.undo_move(&undo_move, turn);
+        for undo_move in previous(position.clone(), step < self.mate_in) {
+            let movement = position.undo_move(&undo_move);
             if memo_previous.get(&position.digest()) == Some(&(step - 1)) {
                 has_previous = true;
                 self.solution.borrow_mut().push(movement);
                 self.reconstruct(position, step - 1);
                 self.solution.borrow_mut().pop().unwrap();
             }
-            position.do_move(&movement, turn.opposite());
+            position.do_move(&movement);
         }
         assert!(has_previous, "previous not found: {:?}", position);
     }

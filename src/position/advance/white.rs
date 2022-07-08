@@ -22,6 +22,7 @@ pub(super) fn advance(
     memo: &mut HashMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
+    debug_assert_eq!(position.turn(), Color::White);
     let ctx = Context::new(position, memo, next_step)?;
     ctx.advance();
     Ok((ctx.result.take(), ctx.is_mate.take()))
@@ -260,7 +261,7 @@ impl<'a> Context<'a> {
         }
 
         let mut next_position = self.position.clone();
-        next_position.do_move(movement, Color::White);
+        next_position.do_move(movement);
 
         if self.attacker.double_check && common::checked(&next_position, Color::White) {
             return;
