@@ -44,13 +44,14 @@ macro_rules! def_op {
             type Output = Self;
 
             fn $op(self, rhs: Self) -> Self {
-                Self::from_u128(self.x.$op(rhs.x))
+                Self {
+                    x: self.x.$op(rhs.x),
+                }
             }
         }
     };
 }
 
-def_op!(Shr, shr);
 def_op!(BitAnd, bitand);
 def_op!(BitOr, bitor);
 
