@@ -19,6 +19,8 @@ fn test_position_size() {
 
 use crate::sfen;
 use std::fmt;
+use std::hash::Hash;
+use std::hash::Hasher;
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", sfen::encode_position(self))
@@ -120,17 +122,9 @@ impl Position {
         }
     }
     pub fn digest(&self) -> Digest {
-        let mut res = 0u128;
-        res = res.wrapping_mul(127) + self.color_bb[0].x;
-        res = res.wrapping_mul(127) + self.color_bb[1].x;
-        res = res.wrapping_mul(127) + self.promote_bb.x;
-        res = res.wrapping_mul(127) + self.kind_bb[0].x;
-        res = res.wrapping_mul(127) + self.kind_bb[1].x;
-        res = res.wrapping_mul(127) + self.kind_bb[2].x;
-        (res >> 64) as Digest
-            ^ res as Digest
-            ^ self.hands.x << 1
-            ^ if self.pawn_drop { 1 } else { 0 }
+        let mut hasher = twox_hash::Xxh3Hash64::default();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb[c.index()].get(pos));

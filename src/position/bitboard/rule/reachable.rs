@@ -45,8 +45,8 @@ fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
         return power;
     }
     BitBoard::from_u128(match color {
-        Color::Black => (1 << pos.index()) - ((block.x + 1).next_power_of_two() >> 1),
-        Color::White => ((block.x - 1) ^ block.x) & power.x,
+        Color::Black => (1 << pos.index()) - ((block.u128() + 1).next_power_of_two() >> 1),
+        Color::White => ((block.u128() - 1) ^ block.u128()) & power.u128(),
     })
 }
 

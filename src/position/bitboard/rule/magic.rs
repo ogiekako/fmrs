@@ -14,7 +14,7 @@ pub(super) struct Magic {
 impl Magic {
     fn reachable(&self, occupied: BitBoard) -> BitBoard {
         let block = self.block_mask & occupied;
-        self.table[self.magic.index(digest(block))]
+        self.table[self.magic.index(block.digest() as usize)]
     }
     fn zero() -> Self {
         Magic {
@@ -68,10 +68,6 @@ struct Pattern {
     reachable: BitBoard,
 }
 
-fn digest(block: BitBoard) -> usize {
-    (block.x >> 64) as usize ^ block.x as usize
-}
-
 fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let mut block_mask = BitBoard::new();
     for (dc, dr) in dirs {
@@ -83,6 +79,7 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
             }
         }
     }
+
     let patterns: Vec<Pattern> = block_mask
         .subsets()
         .map(|block| {
@@ -103,6 +100,7 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
             Pattern { block, reachable }
         })
         .collect();
+
     let reachable_index = {
         let mut index = HashMap::new();
         for pattern in patterns.iter() {
@@ -116,12 +114,12 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let mut targets = vec![vec![]; reachable_index.len()];
     for pattern in patterns.iter() {
         let i = reachable_index.get(&pattern.reachable).unwrap();
-        targets[*i].push(digest(pattern.block));
+        targets[*i].push(pattern.block.digest() as usize);
     }
     let magic = MagicCore::new(&targets)?;
     let mut table = vec![BitBoard::new(); magic.table_len()];
     for pattern in patterns.iter() {
-        table[magic.index(digest(pattern.block))] = pattern.reachable;
+        table[magic.index(pattern.block.digest() as usize)] = pattern.reachable;
     }
     Ok(Magic {
         block_mask,

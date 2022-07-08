@@ -33,7 +33,7 @@ impl MagicCore {
                 return Ok(cand);
             }
         }
-        bail!("magic not found");
+        bail!("magic not found: {:?}", targets);
     }
 
     pub(super) fn index(&self, target: usize) -> usize {
