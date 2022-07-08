@@ -2,7 +2,7 @@ use super::square::Square;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BitBoard {
-    pub(super) x: u128,
+    pub(in crate::position) x: u128,
 }
 
 impl BitBoard {

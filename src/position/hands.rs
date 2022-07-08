@@ -7,7 +7,7 @@ use crate::piece::{Color, Kind, KINDS, NUM_HAND_KIND};
 pub struct Hands {
     // 0-7  : black pawn, 8-11 : black lance, ..., 28-31: black rook
     // 32-39: white pawn, 40-43: white lance, ..., 60-63: white rook
-    x: u64,
+    pub(super) x: u64,
 }
 
 impl Hands {

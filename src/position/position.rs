@@ -10,6 +10,8 @@ pub struct Position {
     pawn_drop: bool,
 }
 
+pub type Digest = u64;
+
 #[test]
 fn test_position_size() {
     assert_eq!(112, std::mem::size_of::<Position>());
@@ -116,6 +118,19 @@ impl Position {
                 self.kind_bb[j].set(pos);
             }
         }
+    }
+    pub fn digest(&self) -> Digest {
+        let mut res = 0u128;
+        res = res.wrapping_mul(127) + self.color_bb[0].x;
+        res = res.wrapping_mul(127) + self.color_bb[1].x;
+        res = res.wrapping_mul(127) + self.promote_bb.x;
+        res = res.wrapping_mul(127) + self.kind_bb[0].x;
+        res = res.wrapping_mul(127) + self.kind_bb[1].x;
+        res = res.wrapping_mul(127) + self.kind_bb[2].x;
+        (res >> 64) as Digest
+            ^ res as Digest
+            ^ self.hands.x << 1
+            ^ if self.pawn_drop { 1 } else { 0 }
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb[c.index()].get(pos));

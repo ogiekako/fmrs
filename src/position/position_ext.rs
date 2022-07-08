@@ -18,13 +18,10 @@ pub enum UndoMove {
     },
 }
 
-pub type Digest = u64;
-
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoMove;
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
     fn checked_slow(&self, c: Color) -> bool;
-    fn digest(&self) -> Digest;
 }
 
 impl PositionExt for Position {
@@ -130,12 +127,6 @@ impl PositionExt for Position {
                 .is_some(),
             None => false,
         }
-    }
-
-    fn digest(&self) -> Digest {
-        let mut hasher = twox_hash::Xxh3Hash64::default();
-        self.hash(&mut hasher);
-        hasher.finish()
     }
 }
 
