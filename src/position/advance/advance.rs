@@ -1,12 +1,25 @@
-use crate::piece::Color;
+use std::collections::HashMap;
+
+use crate::{piece::Color, position::Digest};
 
 use crate::position::Position;
 
 use super::{black, white};
 
-pub fn advance(position: &Position) -> anyhow::Result<Vec<Position>> {
+pub fn advance(
+    position: &Position,
+    memo: &mut HashMap<Digest, usize>,
+    next_step: usize,
+) -> anyhow::Result<Vec<Position>> {
     match position.turn() {
-        Color::Black => black::advance(position),
+        Color::Black => black::advance(position, memo, next_step),
+        Color::White => white::advance(position),
+    }
+}
+
+pub fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+    match position.turn() {
+        Color::Black => black::advance_old(position),
         Color::White => white::advance(position),
     }
 }
@@ -60,7 +73,7 @@ mod tests {
 
             let position =
                 sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
-            let mut got = super::advance(&position).unwrap();
+            let mut got = super::advance_old(&position).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" "))

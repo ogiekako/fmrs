@@ -5,6 +5,7 @@ use anyhow::bail;
 
 use crate::piece::{Color, Kind};
 
+use crate::position::Digest;
 use crate::position::{
     bitboard::{self, BitBoard},
     rule, Movement, Position, PositionExt, Square,
@@ -12,15 +13,25 @@ use crate::position::{
 
 use super::common::{self, Pinned};
 
-pub(super) fn advance(position: &Position) -> anyhow::Result<Vec<Position>> {
+pub(super) fn advance(
+    position: &Position,
+    memo: &mut HashMap<Digest, usize>,
+    next_step: usize,
+) -> anyhow::Result<Vec<Position>> {
     debug_assert_eq!(position.turn(), Color::Black);
-    let ctx = Context::new(position)?;
+    let ctx = Context::new(position, memo, next_step)?;
     ctx.advance();
     Ok(ctx.result.take())
 }
 
+pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+    advance(position, &mut HashMap::new(), 0)
+}
+
 struct Context<'a> {
     position: &'a Position,
+    memo: RefCell<&'a mut HashMap<Digest, usize>>,
+    next_step: usize,
     white_king_pos: Square,
     black_king_checked: bool,
     black_pieces: BitBoard,
@@ -31,7 +42,11 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    fn new(position: &'a Position) -> anyhow::Result<Self> {
+    fn new(
+        position: &'a Position,
+        memo: &'a mut HashMap<Digest, usize>,
+        next_step: usize,
+    ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
             .bitboard(Color::White.into(), Kind::King.into())
             .next()
@@ -61,6 +76,8 @@ impl<'a> Context<'a> {
 
         Ok(Self {
             position,
+            memo: memo.into(),
+            next_step,
             white_king_pos,
             black_king_checked,
             black_pieces,
@@ -300,6 +317,12 @@ impl<'a> Context<'a> {
             "Black king checked: {:?}",
             next_position
         );
+
+        let digest = next_position.digest();
+        if self.memo.borrow().contains_key(&digest) {
+            return;
+        }
+        self.memo.borrow_mut().insert(digest, self.next_step);
 
         self.result.borrow_mut().push(next_position);
     }

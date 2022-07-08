@@ -151,7 +151,7 @@ impl Task {
 
             while let Some(position) = self.all_positions.pop() {
                 let mut has_next_position = false;
-                let next_positions = advance(&position)?;
+                let next_positions = advance(&position, &mut self.memo_next, step + 1)?;
 
                 for np in next_positions {
                     has_next_position = true;
@@ -160,11 +160,13 @@ impl Task {
                         break;
                     }
 
-                    let digest = np.digest();
-                    if self.memo_next.contains_key(&digest) {
-                        continue;
+                    if position.turn() == Color::White {
+                        let digest = np.digest();
+                        if self.memo_next.contains_key(&digest) {
+                            continue;
+                        }
+                        self.memo_next.insert(digest, step + 1);
                     }
-                    self.memo_next.insert(digest, step + 1);
                     all_next_positions.push(np);
                 }
                 if !has_next_position && position.turn() == Color::White && !position.pawn_drop() {

@@ -5,7 +5,7 @@ use std::{
 
 use crate::{
     piece::Color,
-    position::{advance, previous, Digest, Movement, Position, PositionExt},
+    position::{advance_old, previous, Digest, Movement, Position, PositionExt},
 };
 
 use super::Solution;
@@ -15,7 +15,7 @@ pub(super) fn solve(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut current_white_positions = advance(&initial_position)?;
+    let mut current_white_positions = advance_old(&initial_position)?;
     let mut memo_white_positions = BTreeMap::new();
     for p in current_white_positions.iter() {
         memo_white_positions.insert(p.digest(), 0i32);
@@ -29,7 +29,7 @@ pub(super) fn solve(
 
         while let Some(white_position) = current_white_positions.pop() {
             let mut has_next_position = false;
-            let mut black_positions = advance(&white_position)?;
+            let mut black_positions = advance_old(&white_position)?;
 
             let mut white_position_is_deadend = true;
             while let Some(black_position) = black_positions.pop() {
@@ -38,7 +38,7 @@ pub(super) fn solve(
                     break;
                 }
 
-                let mut next_white_positions = advance(&black_position)?;
+                let mut next_white_positions = advance_old(&black_position)?;
                 while let Some(next_white_position) = next_white_positions.pop() {
                     let digest = next_white_position.digest();
                     if deadend_white_positions.contains(&digest) {
