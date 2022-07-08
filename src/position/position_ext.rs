@@ -19,20 +19,19 @@ pub enum UndoMove {
 }
 
 pub trait PositionExt {
-    fn do_move(&mut self, m: &Movement) -> UndoMove;
-    fn undo_move(&mut self, m: &UndoMove) -> Movement;
+    fn do_move(&mut self, m: &Movement, turn: Color) -> UndoMove;
+    fn undo_move(&mut self, m: &UndoMove, turn: Color) -> Movement;
     fn checked_slow(&self, c: Color) -> bool;
 }
 
 impl PositionExt for Position {
-    fn do_move(&mut self, m: &Movement) -> UndoMove {
-        let color = self.turn();
+    fn do_move(&mut self, m: &Movement, turn: Color) -> UndoMove {
         let token;
         match m {
             Movement::Drop(pos, k) => {
                 let (pos, k) = (*pos, *k);
-                self.hands_mut().remove(color, k);
-                self.set(pos, color, k);
+                self.hands_mut().remove(turn, k);
+                self.set(pos, turn, k);
                 token = UndoMove::UnDrop((pos, self.pawn_drop()));
                 self.set_pawn_drop(k == Kind::Pawn);
             }
@@ -42,18 +41,18 @@ impl PositionExt for Position {
                 promote,
             } => {
                 let kind = self.get(*source).unwrap().1;
-                self.unset(*source, color, kind);
+                self.unset(*source, turn, kind);
                 let capture = if let Some(capture) = self.get(*dest).map(|(_c, k)| k) {
-                    self.unset(*dest, color.opposite(), capture);
-                    self.hands_mut().add(color, capture.maybe_unpromote());
+                    self.unset(*dest, turn.opposite(), capture);
+                    self.hands_mut().add(turn, capture.maybe_unpromote());
                     Some(capture)
                 } else {
                     None
                 };
                 if *promote {
-                    self.set(*dest, color, kind.promote().unwrap());
+                    self.set(*dest, turn, kind.promote().unwrap());
                 } else {
-                    self.set(*dest, color, kind);
+                    self.set(*dest, turn, kind);
                 }
                 token = UndoMove::UnMove {
                     source: *source,
@@ -65,16 +64,14 @@ impl PositionExt for Position {
                 self.set_pawn_drop(false);
             }
         }
-        self.set_turn(color.opposite());
         token
     }
 
     // Undoes an movement. The token should be valid for the current position and otherwise it panics.
     // Returns the movement to redo.
-    fn undo_move(&mut self, token: &UndoMove) -> Movement {
+    fn undo_move(&mut self, token: &UndoMove, turn: Color) -> Movement {
         use UndoMove::*;
-        let prev_turn = self.turn().opposite();
-        self.set_turn(prev_turn);
+        let prev_turn = turn.opposite();
         match token {
             UnDrop((pos, pawn_drop)) => {
                 let (c, k) = self
@@ -185,13 +182,13 @@ mod tests {
             ),
         ] {
             let (board_sfen, movement, want) = (tc.0, tc.1, tc.2);
-            let mut board = sfen::decode_position(board_sfen).unwrap();
-            let token = board.do_move(&movement);
-            assert_eq!(want, sfen::encode_position(&board));
-            let m = board.undo_move(&token);
-            assert_eq!(board_sfen, sfen::encode_position(&board));
-            board.do_move(&m);
-            assert_eq!(want, sfen::encode_position(&board));
+            let (mut board, turn) = sfen::decode_position(board_sfen).unwrap();
+            let token = board.do_move(&movement, turn);
+            assert_eq!(want, sfen::encode_position(&board, turn.opposite()));
+            let m = board.undo_move(&token, turn.opposite());
+            assert_eq!(board_sfen, sfen::encode_position(&board, turn));
+            board.do_move(&m, turn);
+            assert_eq!(want, sfen::encode_position(&board, turn.opposite()));
         }
     }
 }

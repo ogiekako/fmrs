@@ -1,4 +1,5 @@
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(u8)]
 pub enum Color {
     Black, // Moves first. e.g. Tsume kata.
     White, // Uke kata.

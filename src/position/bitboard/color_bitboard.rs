@@ -1,73 +1,42 @@
 use crate::piece::Color;
 
-use super::{BitBoard, Square};
+use super::{bitboard_pair::BitBoardPair, BitBoard, Square};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ColorBitBoard {
-    black_bitboard_x: u64,
-    black_bitboard_y: u32,
-    white_bitboard_y: u32,
-    white_bitboard_x: u64,
-}
+pub struct ColorBitBoard(BitBoardPair);
 
 impl ColorBitBoard {
     pub fn empty() -> Self {
-        Self {
-            black_bitboard_x: 0,
-            black_bitboard_y: 0,
-            white_bitboard_x: 0,
-            white_bitboard_y: 0,
-        }
+        Self(BitBoardPair::empty())
     }
-    pub fn get(&self, color: Color) -> BitBoard {
+    pub fn bitboard(&self, color: Color) -> BitBoard {
         match color {
-            Color::Black => BitBoard::new(self.black_bitboard_x, self.black_bitboard_y),
-            Color::White => BitBoard::new(self.white_bitboard_x, self.white_bitboard_y),
+            Color::Black => self.0.get0(),
+            Color::White => self.0.get1(),
         }
     }
     pub fn set(&mut self, color: Color, pos: Square) {
-        let i = pos.index();
         match color {
             Color::Black => {
-                if i < 64 {
-                    self.black_bitboard_x |= 1 << i;
-                } else {
-                    self.black_bitboard_y |= 1 << (i - 64);
-                }
+                self.0.set0(pos);
             }
             Color::White => {
-                if i < 64 {
-                    self.white_bitboard_x |= 1 << i;
-                } else {
-                    self.white_bitboard_y |= 1 << (i - 64);
-                }
+                self.0.set1(pos);
             }
         };
     }
     pub fn unset(&mut self, color: Color, pos: Square) {
-        let i = pos.index();
         match color {
             Color::Black => {
-                if i < 64 {
-                    self.black_bitboard_x &= !(1 << i);
-                } else {
-                    self.black_bitboard_y &= !(1 << (i - 64));
-                }
+                self.0.unset0(pos);
             }
             Color::White => {
-                if i < 64 {
-                    self.white_bitboard_x &= !(1 << i);
-                } else {
-                    self.white_bitboard_y &= !(1 << (i - 64));
-                }
+                self.0.unset1(pos);
             }
         };
     }
     pub fn both(&self) -> BitBoard {
-        BitBoard::new(
-            self.black_bitboard_x | self.white_bitboard_x,
-            self.black_bitboard_y | self.white_bitboard_y,
-        )
+        self.0.both()
     }
 }
 

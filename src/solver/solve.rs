@@ -34,13 +34,9 @@ pub fn solve_with_progress(
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
 ) -> anyhow::Result<Vec<Solution>> {
-    if position.turn() != Black {
-        anyhow::bail!("The turn should be from black");
-    }
     if position.checked_slow(White) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
-    debug_assert_ne!(position.turn() == Black, position.checked_slow(White));
 
     match algorithm {
         Algorithm::MemorySave => {
@@ -105,15 +101,15 @@ mod tests {
             ),
         ] {
             for algorithm in Algorithm::iter() {
-                let board = sfen::decode_position(tc.0).expect("Failed to parse");
+                let (position, _) = sfen::decode_position(tc.0).expect("Failed to parse");
                 let want: Vec<Solution> =
                     tc.1.clone()
                         .into_iter()
                         .map(|x| sfen::decode_moves(x).unwrap())
                         .collect();
 
-                eprintln!("Solving {:?} (algo={:?})", board, algorithm);
-                let got = solve(board, None, algorithm).unwrap();
+                eprintln!("Solving {:?} (algo={:?})", position, algorithm);
+                let got = solve(position, None, algorithm).unwrap();
 
                 assert_eq!(got, want);
             }
@@ -134,7 +130,7 @@ mod tests {
             "9/7PP/7Lk/9/7LK/7LL/9/9/9 b 2r2b4g4s4n16p 1",
         ] {
             for algorithm in Algorithm::iter() {
-                let board = sfen::decode_position(sfen).unwrap();
+                let (board, _) = sfen::decode_position(sfen).unwrap();
                 let got = solve(board.clone(), None, algorithm).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);

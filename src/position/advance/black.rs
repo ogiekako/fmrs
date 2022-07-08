@@ -18,7 +18,6 @@ pub(super) fn advance(
     memo: &mut HashMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<Vec<Position>> {
-    debug_assert_eq!(position.turn(), Color::Black);
     let ctx = Context::new(position, memo, next_step)?;
     ctx.advance();
     Ok(ctx.result.take())
@@ -304,7 +303,7 @@ impl<'a> Context<'a> {
         }
 
         let mut next_position = self.position.clone();
-        next_position.do_move(movement);
+        next_position.do_move(movement, Color::Black);
 
         if (self.black_king_checked || kind == Kind::King)
             && common::checked(&next_position, Color::Black)

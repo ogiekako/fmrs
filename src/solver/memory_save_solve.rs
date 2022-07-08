@@ -15,7 +15,7 @@ pub(super) fn solve(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut current_white_positions = advance_old(&initial_position)?;
+    let mut current_white_positions = advance_old(&initial_position, Color::Black)?;
     let mut memo_white_positions = BTreeMap::new();
     for p in current_white_positions.iter() {
         memo_white_positions.insert(p.digest(), 0i32);
@@ -29,7 +29,7 @@ pub(super) fn solve(
 
         while let Some(white_position) = current_white_positions.pop() {
             let mut has_next_position = false;
-            let mut black_positions = advance_old(&white_position)?;
+            let mut black_positions = advance_old(&white_position, Color::White)?;
 
             let mut white_position_is_deadend = true;
             while let Some(black_position) = black_positions.pop() {
@@ -38,7 +38,7 @@ pub(super) fn solve(
                     break;
                 }
 
-                let mut next_white_positions = advance_old(&black_position)?;
+                let mut next_white_positions = advance_old(&black_position, Color::Black)?;
                 while let Some(next_white_position) = next_white_positions.pop() {
                     let digest = next_white_position.digest();
                     if deadend_white_positions.contains(&digest) {
@@ -147,14 +147,12 @@ impl<'a> Context<'a> {
     }
 
     fn reconstruct_white(&self, position: &mut Position, half_step: i32) {
-        debug_assert_eq!(position.turn(), Color::White);
-
         if self.result.borrow().len() >= self.solutions_upto {
             return;
         }
 
-        for black_undo in previous(position.clone(), half_step < self.mate_in) {
-            let black_movement = position.undo_move(&black_undo);
+        for black_undo in previous(position.clone(), Color::White, half_step < self.mate_in) {
+            let black_movement = position.undo_move(&black_undo, Color::White);
             self.solution.borrow_mut().push(black_movement);
 
             if position.checked_slow(Color::White) {
@@ -164,8 +162,8 @@ impl<'a> Context<'a> {
                     self.push_solution();
                 }
             } else {
-                for white_undo in previous(position.clone(), true) {
-                    let white_movement = position.undo_move(&white_undo);
+                for white_undo in previous(position.clone(), Color::Black, true) {
+                    let white_movement = position.undo_move(&white_undo, Color::Black);
                     self.solution.borrow_mut().push(white_movement);
 
                     if self.memo_white_positions.get(&position.digest()) == Some(&(half_step - 1)) {
@@ -173,12 +171,12 @@ impl<'a> Context<'a> {
                     }
 
                     self.solution.borrow_mut().pop();
-                    position.do_move(&white_movement);
+                    position.do_move(&white_movement, Color::White);
                 }
             }
 
             self.solution.borrow_mut().pop();
-            position.do_move(&black_movement);
+            position.do_move(&black_movement, Color::Black);
         }
     }
 
