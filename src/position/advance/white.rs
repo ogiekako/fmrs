@@ -1,9 +1,11 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use anyhow::bail;
 
 use crate::piece::{Color, Kind};
 
+use crate::position::Digest;
 use crate::position::{
     bitboard::{self, BitBoard},
     Movement, Position, PositionExt, Square,
@@ -11,15 +13,25 @@ use crate::position::{
 
 use super::common;
 
-pub(super) fn advance(position: &Position) -> anyhow::Result<Vec<Position>> {
+pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+    advance(position, &mut HashMap::new(), 0).map(|x| x.0)
+}
+
+pub(super) fn advance(
+    position: &Position,
+    memo: &mut HashMap<Digest, usize>,
+    next_step: usize,
+) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::White);
-    let ctx = Context::new(position)?;
+    let ctx = Context::new(position, memo, next_step)?;
     ctx.advance();
-    Ok(ctx.result.take())
+    Ok((ctx.result.take(), ctx.is_mate.take()))
 }
 
 struct Context<'a> {
     position: &'a Position,
+    memo: RefCell<&'a mut HashMap<Digest, usize>>,
+    next_step: usize,
     white_king_pos: Square,
     black_pieces: BitBoard,
     white_pieces: BitBoard,
@@ -27,10 +39,15 @@ struct Context<'a> {
     attacker: Attacker,
     pawn_mask: usize,
     result: RefCell<Vec<Position>>,
+    is_mate: RefCell<bool>,
 }
 
 impl<'a> Context<'a> {
-    fn new(position: &'a Position) -> anyhow::Result<Self> {
+    fn new(
+        position: &'a Position,
+        memo: &'a mut HashMap<Digest, usize>,
+        next_step: usize,
+    ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
             .bitboard(Color::White.into(), Kind::King.into())
             .next()
@@ -60,6 +77,8 @@ impl<'a> Context<'a> {
 
         Ok(Self {
             position,
+            memo: memo.into(),
+            next_step,
             white_king_pos,
             black_pieces,
             white_pieces,
@@ -67,6 +86,7 @@ impl<'a> Context<'a> {
             attacker,
             pawn_mask,
             result: vec![].into(),
+            is_mate: true.into(),
         })
     }
 
@@ -254,6 +274,13 @@ impl<'a> Context<'a> {
             movement,
             next_position
         );
+
+        *self.is_mate.borrow_mut() = false;
+        let digest = next_position.digest();
+        if self.memo.borrow().contains_key(&digest) {
+            return;
+        }
+        self.memo.borrow_mut().insert(digest, self.next_step);
 
         self.result.borrow_mut().push(next_position);
     }

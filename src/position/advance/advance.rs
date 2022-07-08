@@ -10,17 +10,17 @@ pub fn advance(
     position: &Position,
     memo: &mut HashMap<Digest, usize>,
     next_step: usize,
-) -> anyhow::Result<Vec<Position>> {
+) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     match position.turn() {
-        Color::Black => black::advance(position, memo, next_step),
-        Color::White => white::advance(position),
+        Color::Black => black::advance(position, memo, next_step).map(|x| (x, false)),
+        Color::White => white::advance(position, memo, next_step),
     }
 }
 
 pub fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
     match position.turn() {
         Color::Black => black::advance_old(position),
-        Color::White => white::advance(position),
+        Color::White => white::advance_old(position),
     }
 }
 

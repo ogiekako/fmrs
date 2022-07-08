@@ -5,10 +5,7 @@ use std::{
 
 use sysinfo::SystemExt;
 
-use crate::{
-    piece::Color,
-    position::{advance, Digest, Position, PositionExt},
-};
+use crate::position::{advance, Digest, Position, PositionExt};
 
 use super::{reconstruct::reconstruct_solutions, Solution};
 
@@ -150,26 +147,13 @@ impl Task {
             }
 
             while let Some(position) = self.all_positions.pop() {
-                let mut has_next_position = false;
-                let next_positions = advance(&position, &mut self.memo_next, step + 1)?;
+                let (mut new_next_positions, is_mate) =
+                    advance(&position, &mut self.memo_next, step + 1)?;
 
-                for np in next_positions {
-                    has_next_position = true;
-
-                    if step == mate_bound {
-                        break;
-                    }
-
-                    if position.turn() == Color::White {
-                        let digest = np.digest();
-                        if self.memo_next.contains_key(&digest) {
-                            continue;
-                        }
-                        self.memo_next.insert(digest, step + 1);
-                    }
-                    all_next_positions.push(np);
+                if step < mate_bound {
+                    all_next_positions.append(&mut new_next_positions);
                 }
-                if !has_next_position && position.turn() == Color::White && !position.pawn_drop() {
+                if is_mate && !position.pawn_drop() {
                     mate_positions.push(position);
 
                     let mut g = self.mate_in.lock().unwrap();
