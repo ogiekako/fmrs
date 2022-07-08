@@ -2,7 +2,7 @@ use crate::piece::*;
 
 #[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
 pub struct Position {
-    color_bb: [BitBoard; 2],
+    color_bb: ColorBitBoard,
     promote_bb: BitBoard,
     kind_bb: [BitBoard; 3],
     hands: Hands,
@@ -14,7 +14,7 @@ pub type Digest = u64;
 
 #[test]
 fn test_position_size() {
-    assert_eq!(112, std::mem::size_of::<Position>());
+    assert_eq!(104, std::mem::size_of::<Position>());
 }
 
 use crate::sfen;
@@ -28,15 +28,16 @@ impl fmt::Debug for Position {
 }
 
 use super::bitboard::BitBoard;
+use super::bitboard::ColorBitBoard;
 use super::hands::Hands;
 use super::Square;
 
 impl Position {
     pub fn new() -> Self {
         Self {
-            kind_bb: [BitBoard::new(); 3],
-            promote_bb: BitBoard::new(),
-            color_bb: [BitBoard::new(); 2],
+            kind_bb: [BitBoard::empty(); 3],
+            promote_bb: BitBoard::empty(),
+            color_bb: ColorBitBoard::empty(),
             hands: Hands::new(),
             turn: Black,
             pawn_drop: false,
@@ -62,9 +63,9 @@ impl Position {
     }
     pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
         let mut mask = if let Some(c) = color {
-            self.color_bb[c.index()]
+            self.color_bb.get(c)
         } else {
-            self.color_bb[0] | self.color_bb[1]
+            self.color_bb.both()
         };
 
         let k = if let Some(k) = kind { k } else { return mask };
@@ -106,9 +107,9 @@ impl Position {
         }
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert!(!self.color_bb[c.index()].get(pos));
+        debug_assert!(!self.color_bb.get(c).get(pos));
 
-        self.color_bb[c.index()].set(pos);
+        self.color_bb.set(c, pos);
         let i = if let Some(raw) = k.unpromote() {
             self.promote_bb.set(pos);
             raw.index()
@@ -127,9 +128,9 @@ impl Position {
         hasher.finish()
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert!(self.color_bb[c.index()].get(pos));
+        debug_assert!(self.color_bb.get(c).get(pos));
 
-        self.color_bb[c.index()].unset(pos);
+        self.color_bb.unset(c, pos);
         let i = if let Some(raw) = k.unpromote() {
             self.promote_bb.unset(pos);
             raw.index()

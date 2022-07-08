@@ -118,7 +118,7 @@ fn powers(black_shifts: &[(isize, isize)]) -> [[BitBoard; 81]; 2] {
 
 fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
     let shifts = shifts.collect::<Vec<_>>();
-    let mut res = [BitBoard::new(); 81];
+    let mut res = [BitBoard::empty(); 81];
     for col in 0..9 {
         for row in 0..9 {
             let pos = Square::new(col, row);

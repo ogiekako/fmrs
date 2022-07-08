@@ -5,7 +5,7 @@ macro_rules! bitboard {
             if v.len() != 9 {
                 panic!("Exactly 9 elements should be given.");
             }
-            let mut res = crate::position::bitboard::BitBoard::new();
+            let mut res = crate::position::bitboard::BitBoard::empty();
             for i in 0..9 {
                 if v[i].len() != 9 {
                     panic!("v[{}] = {:?} should contain exactly 9 characters.", i, v[i]);

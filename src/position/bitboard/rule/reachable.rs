@@ -105,7 +105,7 @@ mod tests {
             super::reachable_sub(occupied, Color::Black, Square::new(2, 1), Kind::Lance)
         );
         assert_eq!(
-            BitBoard::new(),
+            BitBoard::empty(),
             super::reachable_sub(occupied, Color::Black, Square::new(2, 0), Kind::Lance)
         );
         assert_eq!(

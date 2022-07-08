@@ -7,8 +7,11 @@ pub struct BitBoard {
 }
 
 impl BitBoard {
-    pub fn new() -> BitBoard {
-        BitBoard { x: 0, y: 0 }
+    pub fn empty() -> Self {
+        Self { x: 0, y: 0 }
+    }
+    pub(super) fn new(x: u64, y: u32) -> Self {
+        Self {x, y}
     }
     pub fn is_empty(&self) -> bool {
         self.x == 0 && self.y == 0
@@ -157,7 +160,7 @@ mod tests {
     #[test]
     fn test_bitboard_next() {
         let x = Square::new(1, 2);
-        let mut tmpl = BitBoard::new();
+        let mut tmpl = BitBoard::empty();
         tmpl.set(x);
         let tmpl = tmpl;
 
