@@ -169,7 +169,11 @@ impl<'a> Context<'a> {
             if source_kind == Kind::King {
                 continue;
             }
-            let source_power = bitboard::power(self.turn, source_pos, source_kind);
+            let source_power = if self.pinned.is_pinned(source_pos) {
+                self.pinned.legal_dests(source_pos)
+            } else {
+                bitboard::power(self.turn, source_pos, source_kind)
+            };
             if source_power.get(dest) {
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
@@ -211,6 +215,9 @@ impl<'a> Context<'a> {
                 leap_kind,
             ) & on_board;
             for source_pos in sources {
+                if !self.pinned.legal_move(source_pos, dest) {
+                    continue;
+                }
                 let source_kind = self.position.get(source_pos).unwrap().1;
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
@@ -235,16 +242,6 @@ impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) {
         if !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask) {
             return;
-        }
-        if let Movement::Move {
-            source,
-            dest,
-            promote: _,
-        } = movement
-        {
-            if !self.pinned.legal_move(*source, *dest) {
-                return;
-            }
         }
 
         let mut next_position = self.position.clone();

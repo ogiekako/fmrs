@@ -88,16 +88,39 @@ pub(super) fn maybe_legal_movement(
 
 // pinned piece and its movable positions (capturing included) pairs.
 #[derive(Debug)]
-pub(super) struct Pinned(Vec<(Square, BitBoard)>);
+pub(super) struct Pinned {
+    mask: BitBoard,
+    allowed_dests: Vec<(Square, BitBoard)>,
+}
 
 impl Pinned {
-    pub(super) fn legal_move(&self, source: Square, dest: Square) -> bool {
-        for (pinned_pos, movable) in self.0.iter() {
+    pub fn empty() -> Self {
+        Self {
+            mask: BitBoard::empty(),
+            allowed_dests: vec![],
+        }
+    }
+    fn new(allowed_dests: Vec<(Square, BitBoard)>) -> Self {
+        let mut mask = BitBoard::empty();
+        allowed_dests.iter().for_each(|(x, _)| mask.set(*x));
+        Self {
+            mask,
+            allowed_dests,
+        }
+    }
+    pub fn legal_move(&self, pos: Square, dest: Square) -> bool {
+        !self.is_pinned(pos) || self.legal_dests(pos).get(dest)
+    }
+    pub fn is_pinned(&self, pos: Square) -> bool {
+        self.mask.get(pos)
+    }
+    pub fn legal_dests(&self, source: Square) -> BitBoard {
+        for (pinned_pos, movable) in self.allowed_dests.iter() {
             if source == *pinned_pos {
-                return movable.get(dest);
+                return *movable;
             }
         }
-        true
+        panic!("BUG: is_pinned(source) should be true");
     }
 }
 
@@ -158,5 +181,5 @@ pub(super) fn pinned(
             res.push((pinned_pos, pinned_reachable & same_line))
         }
     }
-    Pinned(res)
+    Pinned::new(res)
 }

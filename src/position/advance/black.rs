@@ -34,7 +34,7 @@ struct Context<'a> {
     black_king_checked: bool,
     black_pieces: BitBoard,
     white_pieces: BitBoard,
-    pinned: Option<Pinned>,
+    pinned: Pinned,
     pawn_mask: usize,
     // Mutable fields
     memo: &'a mut IntMap<Digest, usize>,
@@ -64,7 +64,8 @@ impl<'a> Context<'a> {
             .next()
             .map(|king_pos| {
                 common::pinned(position, black_pieces, white_pieces, Color::Black, king_pos)
-            });
+            })
+            .unwrap_or_else(Pinned::empty);
 
         let pawn_mask = {
             let mut mask = Default::default();
@@ -137,7 +138,11 @@ impl<'a> Context<'a> {
             {
                 continue;
             }
-            let attacker_power = bitboard::power(Color::Black, attacker_pos, attacker_source_kind);
+            let attacker_power = if self.pinned.is_pinned(attacker_pos) {
+                self.pinned.legal_dests(attacker_pos)
+            } else {
+                bitboard::power(Color::Black, attacker_pos, attacker_source_kind)
+            };
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
                     continue;
@@ -192,13 +197,17 @@ impl<'a> Context<'a> {
                 let attack_squares = self.attack_squares(attacker_dest_kind);
 
                 for attacker_pos in attackers {
-                    let attacker_reachable = bitboard::reachable(
-                        self.black_pieces,
-                        self.white_pieces,
-                        Color::Black,
-                        attacker_pos,
-                        attacker_source_kind,
-                    );
+                    let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
+                        self.pinned.legal_dests(attacker_pos)
+                    } else {
+                        bitboard::reachable(
+                            self.black_pieces,
+                            self.white_pieces,
+                            Color::Black,
+                            attacker_pos,
+                            attacker_source_kind,
+                        )
+                    };
 
                     for dest in attacker_reachable & attack_squares {
                         self.maybe_add_move(
@@ -260,10 +269,11 @@ impl<'a> Context<'a> {
                 };
                 let blocker_kind = self.position.get(blocker_pos).unwrap().1;
 
-                let blocker_dests = {
-                    let attacker_preventing =
-                        bitboard::power(Color::White, self.white_king_pos, kind)
-                            & bitboard::power(Color::Black, attacker_pos, kind);
+                let attacker_preventing = bitboard::power(Color::White, self.white_king_pos, kind)
+                    & bitboard::power(Color::Black, attacker_pos, kind);
+                let blocker_dests = if self.pinned.is_pinned(blocker_pos) {
+                    self.pinned.legal_dests(blocker_pos)
+                } else {
                     bitboard::reachable(
                         self.black_pieces,
                         self.white_pieces,
@@ -271,8 +281,8 @@ impl<'a> Context<'a> {
                         blocker_pos,
                         blocker_kind,
                     )
-                    .and_not(attacker_preventing)
-                };
+                }
+                .and_not(attacker_preventing);
                 for blocker_dest in blocker_dests {
                     self.maybe_add_move(
                         &Movement::Move {
@@ -306,18 +316,6 @@ impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) {
         if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
             return;
-        }
-        if let Some(pinned) = self.pinned.as_ref() {
-            if let Movement::Move {
-                source: from,
-                dest: to,
-                promote: _,
-            } = movement
-            {
-                if !pinned.legal_move(*from, *to) {
-                    return;
-                }
-            }
         }
 
         let mut next_position = self.position.clone();

@@ -36,9 +36,16 @@ fn bench_black_pinned(c: &mut Criterion) {
     });
 }
 
+fn bench_solve3(c: &mut Criterion) {
+    let position = decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap();
+    c.bench_function("solve3", |b| {
+        b.iter(|| advance_old(black_box(&position)).unwrap())
+    });
+}
+
 criterion_group!(
     name = benches;
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3,
 );
 criterion_main!(benches);
