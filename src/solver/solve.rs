@@ -14,6 +14,7 @@ pub enum Algorithm {
 }
 
 impl Algorithm {
+    #[cfg(test)]
     fn iter() -> impl Iterator<Item = Algorithm> {
         [Algorithm::MemorySave, Algorithm::Parallel].into_iter()
     }

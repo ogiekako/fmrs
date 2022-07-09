@@ -1,5 +1,3 @@
-use std::hash::{Hash, Hasher};
-
 use crate::piece::{Color, Kind};
 
 use super::{

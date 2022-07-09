@@ -5,13 +5,13 @@ use std::{
 
 use sysinfo::SystemExt;
 
-use crate::position::{advance, Digest, Position, PositionExt};
+use crate::position::{advance, Digest, Position};
 
 use super::{reconstruct::reconstruct_solutions, Solution};
 
 pub(super) fn solve(
     position: Position,
-    progress: futures::channel::mpsc::UnboundedSender<usize>,
+    _progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
