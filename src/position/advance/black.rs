@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 
 use anyhow::bail;
@@ -19,9 +18,9 @@ pub(super) fn advance(
     next_step: usize,
 ) -> anyhow::Result<Vec<Position>> {
     debug_assert_eq!(position.turn(), Color::Black);
-    let ctx = Context::new(position, memo, next_step)?;
+    let mut ctx = Context::new(position, memo, next_step)?;
     ctx.advance();
-    Ok(ctx.result.take())
+    Ok(ctx.result)
 }
 
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
@@ -30,7 +29,6 @@ pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> 
 
 struct Context<'a> {
     position: &'a Position,
-    memo: RefCell<&'a mut HashMap<Digest, usize>>,
     next_step: usize,
     white_king_pos: Square,
     black_king_checked: bool,
@@ -38,7 +36,9 @@ struct Context<'a> {
     white_pieces: BitBoard,
     pinned: Option<Pinned>,
     pawn_mask: usize,
-    result: RefCell<Vec<Position>>,
+    // Mutable fields
+    memo: &'a mut HashMap<Digest, usize>,
+    result: Vec<Position>,
 }
 
 impl<'a> Context<'a> {
@@ -88,13 +88,13 @@ impl<'a> Context<'a> {
         })
     }
 
-    fn advance(&self) {
+    fn advance(&mut self) {
         self.drops();
         self.direct_attack_moves();
         self.discovered_attack_moves();
     }
 
-    fn drops(&self) {
+    fn drops(&mut self) {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self.attack_squares(kind).and_not(self.white_pieces);
             empty_attack_squares.for_each(|pos| {
@@ -103,13 +103,13 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn direct_attack_moves(&self) {
+    fn direct_attack_moves(&mut self) {
         self.non_leap_piece_direct_attack();
         self.leap_piece_direct_attack();
     }
 
     #[inline(never)]
-    fn non_leap_piece_direct_attack(&self) {
+    fn non_leap_piece_direct_attack(&mut self) {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
         for attacker_pos in lion_king_range & self.black_pieces {
@@ -146,7 +146,7 @@ impl<'a> Context<'a> {
     }
 
     #[inline(never)]
-    fn leap_piece_direct_attack(&self) {
+    fn leap_piece_direct_attack(&mut self) {
         for attacker_source_kind in [
             Kind::Lance,
             Kind::Knight,
@@ -199,7 +199,7 @@ impl<'a> Context<'a> {
     }
 
     #[inline(never)]
-    fn discovered_attack_moves(&self) {
+    fn discovered_attack_moves(&mut self) {
         for kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
             let attacker_cands = {
                 let mut cands = self.position.bitboard(Some(Color::Black), Some(kind));
@@ -286,7 +286,7 @@ impl<'a> Context<'a> {
 
 // Helper
 impl<'a> Context<'a> {
-    fn maybe_add_move(&self, movement: &Movement, kind: Kind) {
+    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) {
         if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
             return;
         }
@@ -319,12 +319,12 @@ impl<'a> Context<'a> {
         );
 
         let digest = next_position.digest();
-        if self.memo.borrow().contains_key(&digest) {
+        if self.memo.contains_key(&digest) {
             return;
         }
-        self.memo.borrow_mut().insert(digest, self.next_step);
+        self.memo.insert(digest, self.next_step);
 
-        self.result.borrow_mut().push(next_position);
+        self.result.push(next_position);
     }
 
     // Squares moving to which produces a check.
