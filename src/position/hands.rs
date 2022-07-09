@@ -7,8 +7,10 @@ use crate::piece::{Color, Kind, KINDS, NUM_HAND_KIND};
 // The number of other kinds should be less than 16. (4 bits)
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Ord, PartialOrd, Serialize)]
 pub struct Hands {
-    // 0-7  : black pawn, 8-11 : black lance, ..., 28-31: black rook
-    // 32-39: white pawn, 40-43: white lance, ..., 60-63: white rook
+    // 0-6  : black pawn, 7-10 : black lance, ..., 27-30: black rook
+    // 32-38: white pawn, 39-42: white lance, ..., 59-62: white rook
+    // 31: turn (0: black, 1: white)
+    // 63: pawn_drop
     pub(super) x: u64,
 }
 
@@ -26,7 +28,7 @@ impl Hands {
     fn max_count(k: Kind) -> usize {
         debug_assert!(k.is_hand_piece());
         if k == Kind::Pawn {
-            255
+            127
         } else {
             15
         }
@@ -52,7 +54,7 @@ impl Hands {
         let i = if k == Kind::Pawn {
             0
         } else {
-            k.index() * 4 + 4
+            k.index() * 4 + 3
         };
         if c == Color::White {
             i + 32
@@ -62,5 +64,30 @@ impl Hands {
     }
     fn bit_of(c: Color, k: Kind) -> u64 {
         1 << (Hands::shift_of(c, k) as u64)
+    }
+    pub fn set_turn(&mut self, c: Color) {
+        if c == Color::Black {
+            self.x &= !(1 << 31);
+        } else {
+            self.x |= 1 << 31;
+        }
+    }
+    pub fn turn(&self) -> Color {
+        if self.x >> 31 & 1 > 0 {
+            Color::White
+        } else {
+            Color::Black
+        }
+    }
+
+    pub fn set_pawn_drop(&mut self, x: bool) {
+        if x {
+            self.x |= 1 << 63;
+        } else {
+            self.x &= !(1 << 63);
+        }
+    }
+    pub fn pawn_drop(&self) -> bool {
+        self.x >> 63 & 1 > 0
     }
 }

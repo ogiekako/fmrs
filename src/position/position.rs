@@ -7,8 +7,6 @@ pub struct Position {
     color_bb: ColorBitBoard, // 24 bytes
     kind_bb: KindBitBoard,   // 48 bytes
     hands: Hands,            // 8 bytes
-    turn: Color,
-    pawn_drop: bool,
 }
 
 impl Default for Position {
@@ -21,7 +19,7 @@ pub type Digest = u64;
 
 #[test]
 fn test_position_size() {
-    assert_eq!(88, std::mem::size_of::<Position>());
+    assert_eq!(80, std::mem::size_of::<Position>());
 }
 
 use crate::sfen;
@@ -45,15 +43,13 @@ impl Position {
             color_bb: ColorBitBoard::empty(),
             kind_bb: KindBitBoard::empty(),
             hands: Hands::new(),
-            turn: Black,
-            pawn_drop: false,
         }
     }
     pub fn turn(&self) -> Color {
-        self.turn
+        self.hands.turn()
     }
     pub fn set_turn(&mut self, c: Color) {
-        self.turn = c;
+        self.hands.set_turn(c);
     }
     pub fn hands(&self) -> &Hands {
         &self.hands
@@ -62,10 +58,10 @@ impl Position {
         &mut self.hands
     }
     pub fn pawn_drop(&self) -> bool {
-        self.pawn_drop
+        self.hands.pawn_drop()
     }
     pub(super) fn set_pawn_drop(&mut self, x: bool) {
-        self.pawn_drop = x;
+        self.hands.set_pawn_drop(x)
     }
     pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
         let mask = if let Some(c) = color {
@@ -94,7 +90,7 @@ impl Position {
         self.kind_bb.set(pos, k);
     }
     pub fn digest(&self) -> Digest {
-        xxhash_rust::xxh3::xxh3_64(&self.bytes())
+        xxhash_rust::xxh3::xxh3_64(self.as_bytes())
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb.bitboard(c).get(pos));
@@ -103,7 +99,12 @@ impl Position {
         self.kind_bb.unset(pos, k);
     }
 
-    fn bytes(&self) -> Vec<u8> {
-        bincode::serialize(self).unwrap()
+    fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                self as *const Position as *const u8,
+                std::mem::size_of::<Position>(),
+            )
+        }
     }
 }
