@@ -5,6 +5,10 @@ authors = ["Keigo Oka <ogiekako@gmail.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+
+[[bin]]
+name = "fmrs"
 
 [dependencies]
 lazy_static = "1.4.0"
@@ -31,6 +35,11 @@ sysinfo = "0.24.6"
 
 [dev-dependencies]
 pretty_assertions = "0.6.1"
+criterion = "0.3.6"
 
 [profile.dev]
 opt-level = 1
+
+[[bench]]
+name = "bench"
+harness = false
