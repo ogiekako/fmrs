@@ -35,7 +35,7 @@ pub(super) fn solve(
 #[cfg(test)]
 const TRIGGER_PARALLEL_SOLVE: usize = 2;
 #[cfg(not(test))]
-const TRIGGER_PARALLEL_SOLVE: usize = 1_000_000;
+const TRIGGER_PARALLEL_SOLVE: usize = 2_000_000;
 
 const NTHREAD: usize = 16;
 
@@ -70,11 +70,15 @@ impl Task {
         }
     }
 
-    fn size_estimate(&self) -> usize {
-        self.all_positions.len() * std::mem::size_of::<Position>()
-            + (self.memo.len() + self.memo_next.len())
-                * (std::mem::size_of::<Digest>() + std::mem::size_of::<usize>())
-                * 2
+    fn spawn_limit(&self, available_memory: usize) -> usize {
+        let queue_size = self.all_positions.len() * std::mem::size_of::<Position>();
+        if available_memory < queue_size {
+            return 0;
+        }
+        let memo_size = (self.memo.len() + self.memo_next.len())
+            * (std::mem::size_of::<Digest>() + std::mem::size_of::<usize>())
+            * 2;
+        (available_memory - queue_size) / memo_size
     }
 
     fn solve(mut self, start_step: usize) -> anyhow::Result<Vec<Solution>> {
@@ -84,14 +88,12 @@ impl Task {
             let threads_to_spawn = {
                 let mut g = self.active_thread_count.lock().unwrap();
 
-                let available_memory = sysinfo::System::new_all().available_memory() as isize
-                    * 1024
-                    - 2 * 1024 * 1024 * 1024;
-                let size_estimate = self.size_estimate() as isize;
-                let spawn_limit = available_memory / size_estimate;
+                let available_memory =
+                    sysinfo::System::new_all().available_memory() as usize * 1024;
+                let spawn_limit = self.spawn_limit(available_memory);
 
                 if spawn_limit > 1
-                    && step > start_step + 10
+                    && step > start_step + 5
                     && self.all_positions.len() >= TRIGGER_PARALLEL_SOLVE
                     && *g < NTHREAD
                 {
@@ -118,6 +120,8 @@ impl Task {
                     );
                     handles.push(std::thread::spawn(move || task.solve(step)));
                 }
+                let (mate_in, solutions_upto) = (self.mate_in, self.solutions_upto);
+
                 let mut all_solutions = vec![];
                 for handle in handles {
                     all_solutions.append(&mut handle.join().unwrap()?);
@@ -125,7 +129,7 @@ impl Task {
                 if all_solutions.is_empty() {
                     return Ok(all_solutions);
                 }
-                let mate_in = self.mate_in.lock().unwrap().unwrap();
+                let mate_in = mate_in.lock().unwrap().unwrap();
                 let mut shortest_solutions = vec![];
                 for solution in all_solutions {
                     if solution.len() == mate_in {
@@ -135,7 +139,7 @@ impl Task {
                 shortest_solutions.sort();
                 return Ok(shortest_solutions
                     .into_iter()
-                    .take(self.solutions_upto)
+                    .take(solutions_upto)
                     .collect());
             }
 
