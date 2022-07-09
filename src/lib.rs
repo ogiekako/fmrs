@@ -4,10 +4,10 @@ use solver::Algorithm;
 mod command;
 mod converter;
 mod jkf;
-mod piece;
-mod position;
-mod sfen;
-mod solver;
+pub mod piece;
+pub mod position;
+pub mod sfen;
+pub mod solver;
 #[macro_use]
 extern crate lazy_static;
 
