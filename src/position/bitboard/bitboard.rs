@@ -11,7 +11,7 @@ impl BitBoard {
         Self { x: 0, y: 0 }
     }
     pub(super) fn new(x: u64, y: u32) -> Self {
-        Self {x, y}
+        Self { x, y }
     }
     pub fn is_empty(&self) -> bool {
         self.x == 0 && self.y == 0
@@ -22,14 +22,6 @@ impl BitBoard {
             self.x |= 1 << i;
         } else {
             self.y |= 1 << (i - 64);
-        }
-    }
-    pub fn unset(&mut self, pos: Square) {
-        let i = pos.index();
-        if i < 64 {
-            self.x &= !(1 << i);
-        } else {
-            self.y &= !(1 << (i - 64));
         }
     }
     pub fn get(&self, pos: Square) -> bool {
