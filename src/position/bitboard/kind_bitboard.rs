@@ -70,7 +70,7 @@ impl KindBitBoard {
         } else {
             kind.index()
         };
-        if (i >> 0 & 1) > 0 {
+        if (i & 1) > 0 {
             self.promote_kind0.set1(pos);
         }
         if (i >> 1 & 1) > 0 {
@@ -87,7 +87,7 @@ impl KindBitBoard {
         } else {
             kind.index()
         };
-        if (i >> 0 & 1) > 0 {
+        if (i & 1) > 0 {
             self.promote_kind0.unset1(pos);
         }
         if (i >> 1 & 1) > 0 {

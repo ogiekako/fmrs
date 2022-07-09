@@ -3,10 +3,7 @@ use crate::{
     position::bitboard::{BitBoard, Square},
 };
 
-use super::{
-    magic,
-    power::{lance_power, power},
-};
+use super::{magic, power::power};
 
 pub fn reachable(
     black_pieces: BitBoard,
@@ -22,7 +19,6 @@ pub fn reachable(
     }
 }
 
-#[inline(never)]
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
     if !kind.is_line_piece() {
         return power(color, pos, kind);
@@ -37,23 +33,35 @@ fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> B
     }
 }
 
-#[inline(never)]
-fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
-    let power = lance_power(color, pos);
-    let block = occupied & power;
-    if block.is_empty() {
-        return power;
-    }
-    BitBoard::from_u128(match color {
-        Color::Black => (1 << pos.index()) - ((block.u128() + 1).next_power_of_two() >> 1),
-        Color::White => ((block.u128() - 1) ^ block.u128()) & power.u128(),
-    })
+fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    magic::rook_reachable_row(occupied, pos)
+        | lance_reachable(occupied, Color::Black, pos)
+        | lance_reachable(occupied, Color::White, pos)
 }
 
-fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    lance_reachable(occupied, Color::Black, pos)
-        | lance_reachable(occupied, Color::White, pos)
-        | magic::rook_reachable_row(occupied, pos)
+#[inline(never)]
+fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
+    let power = power(color, pos, Kind::Lance);
+    let block = (occupied & power).u128();
+    if block == 0 {
+        return power;
+    }
+    match color {
+        Color::Black => BitBoard::from_u128((1 << pos.index()) - highest_one_bit(block)),
+        Color::White => BitBoard::from_u128((block - 1) ^ block) & power,
+    }
+}
+
+fn highest_one_bit(mut i: u128) -> u128 {
+    // HD, Figure 3-1
+    i |= i >> 1;
+    i |= i >> 2;
+    i |= i >> 4;
+    i |= i >> 8;
+    i |= i >> 16;
+    i |= i >> 32;
+    i |= i >> 64;
+    i ^ (i >> 1)
 }
 
 #[cfg(test)]

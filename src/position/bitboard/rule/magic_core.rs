@@ -9,9 +9,6 @@ pub(super) struct MagicCore {
 
 const GIVE_UP: usize = 100_000;
 impl MagicCore {
-    pub(super) fn zero() -> Self {
-        Self { magic: 0, shift: 0 }
-    }
     pub(super) fn new(targets: &[Vec<usize>]) -> anyhow::Result<Self> {
         let mut n = 0;
         for ts in targets {
@@ -23,8 +20,8 @@ impl MagicCore {
         for _ in 0..GIVE_UP {
             let mut magic = 0;
             for i in 0..usize::BITS {
-                // Set 1 with 15% of probability.
-                if rng.gen_range(0u8..100) < 15 {
+                let one_probability = 15;
+                if rng.gen_range(0u8..100) < one_probability {
                     magic |= 1 << i;
                 }
             }

@@ -16,13 +16,6 @@ impl Magic {
         let block = self.block_mask & occupied;
         self.table[self.magic.index(block.digest() as usize)]
     }
-    fn zero() -> Self {
-        Magic {
-            block_mask: BitBoard::empty(),
-            magic: MagicCore::zero(),
-            table: vec![],
-        }
-    }
 }
 
 pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
@@ -45,19 +38,19 @@ lazy_static! {
         res
     };
     static ref BISHOP_MAGIC: Vec<(Magic, Magic)> = {
-        let mut res = vec![(Magic::zero(), Magic::zero()); 81];
+        let mut res = vec![];
         for pos in Square::iter() {
-            res[pos.index()] = (
+            res.push((
                 new_magic(pos, &[(-1, -1), (1, 1)]).unwrap(),
                 new_magic(pos, &[(-1, 1), (1, -1)]).unwrap(),
-            );
+            ));
         }
         res
     };
     static ref ROOK_MAGIC_ROW: Vec<Magic> = {
-        let mut res = vec![Magic::zero(); 81];
+        let mut res = vec![];
         for pos in Square::iter() {
-            res[pos.index()] = new_magic(pos, &[(-1, 0), (1, 0)]).unwrap();
+            res.push(new_magic(pos, &[(-1, 0), (1, 0)]).unwrap());
         }
         res
     };

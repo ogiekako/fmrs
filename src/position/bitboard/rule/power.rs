@@ -2,89 +2,41 @@ use crate::piece::{Color, Kind};
 
 use super::super::{BitBoard, Square};
 
-#[inline(never)]
 pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
-    match kind {
-        Kind::King => king_power(pos),
-        Kind::Pawn => PAWN_POWER[color.index()][pos.index()],
-        Kind::Knight => KNIGHT_POWER[color.index()][pos.index()],
-        Kind::Silver => SILVER_POWER[color.index()][pos.index()],
-        Kind::Gold | Kind::ProPawn | Kind::ProLance | Kind::ProKnight | Kind::ProSilver => {
-            GOLD_POWER[color.index()][pos.index()]
-        }
-        Kind::Lance => lance_power(color, pos),
-        Kind::Rook => rook_power(pos),
-        Kind::ProRook => rook_power(pos) | king_power(pos),
-        Kind::Bishop => bishop_power(pos),
-        Kind::ProBishop => bishop_power(pos) | king_power(pos),
-    }
+    POWERS[kind.index()][color.index()][pos.index()]
 }
 
-pub(super) fn king_power(pos: Square) -> BitBoard {
-    KING_POWER[pos.index()]
-}
-
-pub(super) fn bishop_power(pos: Square) -> BitBoard {
-    BitBoard::from_u128(SAME_DIAG1[diag1(pos)] ^ SAME_DIAG2[diag2(pos)])
-}
-
-fn diag1(pos: Square) -> usize {
-    pos.col() + pos.row()
-}
-
-fn diag2(pos: Square) -> usize {
-    pos.col() + 8 - pos.row()
-}
+type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
-    static ref SAME_DIAG1: [u128; 17] = {
-        let mut res = [0; 17];
-        Square::iter().for_each(|pos| res[diag1(pos)] |= 1 << pos.index());
-        res
-    };
-    static ref SAME_DIAG2: [u128; 17] = {
-        let mut res = [0; 17];
-        Square::iter().for_each(|pos| res[diag2(pos)] |= 1 << pos.index());
-        res
-    };
-}
-
-pub(super) fn rook_power(pos: Square) -> BitBoard {
-    BitBoard::from_u128(SAME_COLUMN[pos.col()] ^ SAME_ROW[pos.row()])
-}
-
-lazy_static! {
-    static ref SAME_COLUMN: [u128; 9] = {
-        let mut res = [0; 9];
-        for col in 0..9 {
-            for row in 0..9 {
-                res[col] |= 1 << Square::new(col, row).index()
-            }
+    static ref POWERS: Vec<KindPower> = {
+        let mut res = vec![];
+        for kind in Kind::iter() {
+            res.push(match kind {
+                Kind::Pawn => *PAWN_POWER,
+                Kind::Lance => *LANCE_POWER,
+                Kind::Knight => *KNIGHT_POWER,
+                Kind::Silver => *SILVER_POWER,
+                Kind::Gold => *GOLD_POWER,
+                Kind::Bishop => *BISHOP_POWER,
+                Kind::Rook => *ROOK_POWER,
+                Kind::King => [*KING_POWER, *KING_POWER],
+                Kind::ProPawn => *GOLD_POWER,
+                Kind::ProLance => *GOLD_POWER,
+                Kind::ProKnight => *GOLD_POWER,
+                Kind::ProSilver => *GOLD_POWER,
+                Kind::ProBishop => *PRO_BISHOP_POWER,
+                Kind::ProRook => *PRO_ROOK_POWER,
+            });
         }
         res
     };
-    static ref SAME_ROW: [u128; 9] = {
-        let mut res = [0; 9];
-        for row in 0..9 {
-            for col in 0..9 {
-                res[row] |= 1 << Square::new(col, row).index()
-            }
-        }
-        res
-    };
-}
-
-pub(super) fn lance_power(color: Color, pos: Square) -> BitBoard {
-    LANCE_POWER[color.index()][pos.index()]
-}
-
-lazy_static! {
-    static ref PAWN_POWER: [[BitBoard; 81]; 2] = powers(&[(0, -1)]);
-    static ref KNIGHT_POWER: [[BitBoard; 81]; 2] = powers(&[(-1, -2), (1, -2)]);
-    static ref SILVER_POWER: [[BitBoard; 81]; 2] =
-        powers(&[(-1, -1), (-1, 1), (0, -1), (1, -1), (1, 1)]);
-    static ref GOLD_POWER: [[BitBoard; 81]; 2] =
-        powers(&[(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)]);
+    static ref PAWN_POWER: KindPower = powers([(0, -1)].into_iter());
+    static ref KNIGHT_POWER: KindPower = powers([(-1, -2), (1, -2)].into_iter());
+    static ref SILVER_POWER: KindPower =
+        powers([(-1, -1), (-1, 1), (0, -1), (1, -1), (1, 1)].into_iter());
+    static ref GOLD_POWER: KindPower =
+        powers([(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)].into_iter());
     static ref KING_POWER: [BitBoard; 81] = powers_sub(
         [
             (-1, -1),
@@ -98,19 +50,39 @@ lazy_static! {
         ]
         .into_iter()
     );
-    static ref LANCE_POWER: [[BitBoard; 81]; 2] = powers(&[
-        (0, -1),
-        (0, -2),
-        (0, -3),
-        (0, -4),
-        (0, -5),
-        (0, -6),
-        (0, -7),
-        (0, -8)
-    ]);
+    static ref LANCE_POWER: KindPower = powers(run((0, -1)));
+    static ref BISHOP_POWER: KindPower = powers(
+        run((-1, -1))
+            .chain(run((-1, 1)))
+            .chain(run((1, -1)))
+            .chain(run((1, 1)))
+    );
+    static ref ROOK_POWER: KindPower = powers(
+        run((-1, 0))
+            .chain(run((0, -1)))
+            .chain(run((0, 1)))
+            .chain(run((1, 0)))
+    );
+    static ref PRO_BISHOP_POWER: KindPower = powers(
+        run((-1, -1))
+            .chain(run((-1, 1)))
+            .chain(run((1, -1)))
+            .chain(run((1, 1)).chain([(-1, 0), (0, -1), (0, 1), (1, 0)].into_iter()))
+    );
+    static ref PRO_ROOK_POWER: KindPower = powers(
+        run((-1, 0))
+            .chain(run((0, -1)))
+            .chain(run((0, 1)))
+            .chain(run((1, 0)).chain([(-1, -1), (-1, 1), (1, -1), (1, 1)].into_iter()))
+    );
 }
 
-fn powers(black_shifts: &[(isize, isize)]) -> [[BitBoard; 81]; 2] {
+fn run(dir: (isize, isize)) -> impl Iterator<Item = (isize, isize)> {
+    (1..9).into_iter().map(move |i| (dir.0 * i, dir.1 * i))
+}
+
+fn powers(black_shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {
+    let black_shifts = black_shifts.collect::<Vec<_>>();
     let black = powers_sub(black_shifts.iter().map(|(col, row)| (*col, *row)));
     let white = powers_sub(black_shifts.iter().map(|(col, row)| (*col, -row)));
     [black, white]

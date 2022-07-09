@@ -67,6 +67,7 @@ macro_rules! def_op {
 
 def_op!(BitAnd, bitand);
 def_op!(BitOr, bitor);
+def_op!(BitXor, bitxor);
 
 macro_rules! def_op_assign {
     ($ty: ident, $op: ident) => {
@@ -140,7 +141,7 @@ impl BitBoard {
         }
     }
     pub(super) fn digest(&self) -> u64 {
-        self.x.wrapping_mul(127).wrapping_add(self.y as u64)
+        self.x + self.y as u64
     }
 }
 

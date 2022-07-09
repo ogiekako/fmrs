@@ -387,9 +387,9 @@ pub mod tests {
         to_url(&encode_position(board))
     }
 
-    pub const START: &'static str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
+    pub const START: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
     // The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
-    pub const RYUO: &'static str =
+    pub const RYUO: &str =
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
     // http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
 

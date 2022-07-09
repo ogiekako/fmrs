@@ -76,7 +76,7 @@ impl<'a> Context<'a> {
 
         Ok(Self {
             position,
-            memo: memo.into(),
+            memo,
             next_step,
             white_king_pos,
             black_king_checked,
@@ -84,7 +84,7 @@ impl<'a> Context<'a> {
             white_pieces,
             pinned,
             pawn_mask,
-            result: vec![].into(),
+            result: vec![],
         })
     }
 
