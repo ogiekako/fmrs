@@ -18,7 +18,7 @@ pub async fn server(port: u16) -> anyhow::Result<()> {
 #[get("/{filename:.*}")]
 async fn index(req: HttpRequest) -> Result<actix_files::NamedFile, actix_web::Error> {
     let name = req.match_info().query("filename");
-    static_file(if name.is_empty() { "index.html" } else { &name })
+    static_file(if name.is_empty() { "index.html" } else { name })
 }
 
 fn static_file(name: &str) -> Result<actix_files::NamedFile, actix_web::Error> {

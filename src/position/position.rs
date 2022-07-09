@@ -10,6 +10,12 @@ pub struct Position {
     pawn_drop: bool,
 }
 
+impl Default for Position {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub type Digest = u64;
 
 #[test]

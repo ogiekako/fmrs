@@ -1,3 +1,6 @@
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::module_inception)]
+
 use clap::Parser;
 use solver::Algorithm;
 

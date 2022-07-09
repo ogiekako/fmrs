@@ -10,6 +10,12 @@ pub struct Hands {
     pub(super) x: u64,
 }
 
+impl Default for Hands {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hands {
     pub fn new() -> Hands {
         Hands { x: 0 }
