@@ -5,3 +5,4 @@ mod white;
 
 pub use advance::advance;
 pub use advance::advance_old;
+pub use common::checked;

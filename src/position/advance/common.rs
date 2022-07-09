@@ -6,7 +6,7 @@ use crate::{
     },
 };
 
-pub(super) fn checked(position: &Position, color: Color) -> bool {
+pub fn checked(position: &Position, color: Color) -> bool {
     let king_pos = {
         if let Some(king_pos) = position.bitboard(color.into(), Kind::King.into()).next() {
             king_pos

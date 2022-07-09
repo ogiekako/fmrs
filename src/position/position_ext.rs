@@ -2,7 +2,7 @@ use crate::piece::{Color, Kind};
 
 use super::{
     bitboard::{self},
-    Movement, Position, Square,
+    checked, Movement, Position, Square,
 };
 
 pub enum UndoMove {
@@ -119,27 +119,8 @@ impl PositionExt for Position {
     }
 
     fn checked_slow(&self, c: Color) -> bool {
-        match king(self, c) {
-            Some(king_pos) => attackers_to_with_king(self, king_pos, c.opposite())
-                .next()
-                .is_some(),
-            None => false,
-        }
+        checked(self, c)
     }
-}
-
-fn attackers_to_with_king(
-    position: &Position,
-    target: Square,
-    color: Color,
-) -> impl Iterator<Item = (Square, Kind)> + '_ {
-    let black_pieces = position.bitboard(Color::Black.into(), None);
-    let white_pieces = position.bitboard(Color::White.into(), None);
-    Kind::iter().flat_map(move |kind| {
-        let b = bitboard::reachable(black_pieces, white_pieces, color.opposite(), target, kind)
-            & position.bitboard(Some(color), Some(kind));
-        b.map(move |from| (from, kind))
-    })
 }
 
 fn king(position: &Position, c: Color) -> Option<Square> {
