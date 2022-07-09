@@ -1,6 +1,8 @@
+use serde::Serialize;
+
 use super::{BitBoard, Square};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct BitBoardPair {
     bitboard0_x: u64,
     bitboard0_y: u32,

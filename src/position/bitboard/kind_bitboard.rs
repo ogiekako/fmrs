@@ -1,8 +1,10 @@
+use serde::Serialize;
+
 use crate::piece::Kind;
 
 use super::{bitboard_pair::BitBoardPair, BitBoard, Square};
 
-#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct KindBitBoard {
     promote_kind0: BitBoardPair,
     kind1_kind2: BitBoardPair,

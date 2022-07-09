@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub enum Color {
     Black, // Moves first. e.g. Tsume kata.
     White, // Uke kata.
@@ -44,6 +44,7 @@ pub enum Kind {
     ProRook,
 }
 
+use serde::Serialize;
 pub use Kind::*;
 
 pub const KINDS: [Kind; NUM_KIND] = [

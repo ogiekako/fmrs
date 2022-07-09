@@ -794,6 +794,7 @@ dependencies = [
  "sysinfo",
  "twox-hash",
  "url",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -1401,6 +1402,7 @@ checksum = "1bba88ee898c63351101af3e60c66c5398c517681ce533eef8caff10ecf11ec1"
 dependencies = [
  "backtrace",
  "cfg-if",
+ "criterion",
  "findshlibs",
  "inferno",
  "libc",
@@ -2238,6 +2240,12 @@ name = "windows_x86_64_msvc"
 version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c811ca4a8c853ef420abd8592ba53ddbbac90410fab6903b3e79972a631f7680"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "074914ea4eec286eb8d1fd745768504f420a1f7b7919185682a4a267bed7d2e7"
 
 [[package]]
 name = "yaml-rust"

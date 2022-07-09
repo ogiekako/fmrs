@@ -1,9 +1,11 @@
+use serde::Serialize;
+
 use crate::piece::{Color, Kind, KINDS, NUM_HAND_KIND};
 
 // Hands represents hands of both side.
 // The number of pawns should be less than 256. (8 bits)
 // The number of other kinds should be less than 16. (4 bits)
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Ord, PartialOrd)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug, Ord, PartialOrd, Serialize)]
 pub struct Hands {
     // 0-7  : black pawn, 8-11 : black lance, ..., 28-31: black rook
     // 32-39: white pawn, 40-43: white lance, ..., 60-63: white rook

@@ -1,10 +1,12 @@
+use serde::Serialize;
+
 use crate::piece::*;
 
-#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct Position {
-    color_bb: ColorBitBoard,
-    kind_bb: KindBitBoard,
-    hands: Hands,
+    color_bb: ColorBitBoard, // 24 bytes
+    kind_bb: KindBitBoard,   // 48 bytes
+    hands: Hands,            // 8 bytes
     turn: Color,
     pawn_drop: bool,
 }
@@ -25,7 +27,6 @@ fn test_position_size() {
 use crate::sfen;
 use std::fmt;
 use std::hash::Hash;
-use std::hash::Hasher;
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", sfen::encode_position(self))
@@ -93,14 +94,16 @@ impl Position {
         self.kind_bb.set(pos, k);
     }
     pub fn digest(&self) -> Digest {
-        let mut hasher = twox_hash::Xxh3Hash64::default();
-        self.hash(&mut hasher);
-        hasher.finish()
+        xxhash_rust::xxh3::xxh3_64(&self.bytes())
     }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb.bitboard(c).get(pos));
 
         self.color_bb.unset(c, pos);
         self.kind_bb.unset(pos, k);
+    }
+
+    fn bytes(&self) -> Vec<u8> {
+        bincode::serialize(self).unwrap()
     }
 }

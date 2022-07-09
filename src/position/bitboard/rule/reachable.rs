@@ -47,21 +47,16 @@ fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
         return power;
     }
     match color {
-        Color::Black => BitBoard::from_u128((1 << pos.index()) - highest_one_bit(block)),
+        Color::Black => power.and_not(BitBoard::from_u128(black_lance_unreachable(block))),
         Color::White => BitBoard::from_u128((block - 1) ^ block) & power,
     }
 }
 
-fn highest_one_bit(mut i: u128) -> u128 {
-    // HD, Figure 3-1
-    i |= i >> 1;
-    i |= i >> 2;
-    i |= i >> 4;
-    i |= i >> 8;
-    i |= i >> 16;
-    i |= i >> 32;
-    i |= i >> 64;
-    i ^ (i >> 1)
+fn black_lance_unreachable(mut block: u128) -> u128 {
+    block |= block >> 1;
+    block |= block >> 2;
+    block |= block >> 4;
+    block >> 1
 }
 
 #[cfg(test)]

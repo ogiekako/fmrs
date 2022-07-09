@@ -1,8 +1,10 @@
+use serde::Serialize;
+
 use crate::piece::Color;
 
 use super::{bitboard_pair::BitBoardPair, BitBoard, Square};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 pub struct ColorBitBoard(BitBoardPair);
 
 impl ColorBitBoard {

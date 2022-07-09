@@ -1,9 +1,6 @@
 use crate::piece::{Color, Kind};
 
-use super::{
-    bitboard::{self},
-    checked, Movement, Position, Square,
-};
+use super::{checked, Movement, Position, Square};
 
 pub enum UndoMove {
     UnDrop((Square, bool /* pawn drop */)),
@@ -121,10 +118,6 @@ impl PositionExt for Position {
     fn checked_slow(&self, c: Color) -> bool {
         checked(self, c)
     }
-}
-
-fn king(position: &Position, c: Color) -> Option<Square> {
-    position.bitboard(Some(c), Some(Kind::King)).next()
 }
 
 #[cfg(test)]
