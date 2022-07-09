@@ -1,7 +1,7 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
 
 use anyhow::bail;
+use nohash_hasher::IntMap;
 
 use crate::piece::{Color, Kind};
 
@@ -14,23 +14,22 @@ use crate::position::{
 use super::common;
 
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
-    advance(position, &mut HashMap::new(), 0).map(|x| x.0)
+    advance(position, &mut IntMap::default(), 0).map(|x| x.0)
 }
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut HashMap<Digest, usize>,
+    memo: &mut IntMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::White);
-    let ctx = Context::new(position, memo, next_step)?;
+    let mut ctx = Context::new(position, memo, next_step)?;
     ctx.advance();
-    Ok((ctx.result.take(), ctx.is_mate.take()))
+    Ok((ctx.result, ctx.is_mate))
 }
 
 struct Context<'a> {
     position: &'a Position,
-    memo: RefCell<&'a mut HashMap<Digest, usize>>,
     next_step: usize,
     white_king_pos: Square,
     black_pieces: BitBoard,
@@ -38,14 +37,16 @@ struct Context<'a> {
     pinned: common::Pinned,
     attacker: Attacker,
     pawn_mask: usize,
-    result: RefCell<Vec<Position>>,
-    is_mate: RefCell<bool>,
+    // mutable fields
+    memo: &'a mut IntMap<Digest, usize>,
+    result: Vec<Position>,
+    is_mate: bool,
 }
 
 impl<'a> Context<'a> {
     fn new(
         position: &'a Position,
-        memo: &'a mut HashMap<Digest, usize>,
+        memo: &'a mut IntMap<Digest, usize>,
         next_step: usize,
     ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
@@ -90,7 +91,7 @@ impl<'a> Context<'a> {
         })
     }
 
-    fn advance(&self) {
+    fn advance(&mut self) {
         if !self.attacker.double_check {
             self.white_block(self.attacker.pos, self.attacker.kind);
             self.white_capture(self.attacker.pos);
@@ -98,7 +99,7 @@ impl<'a> Context<'a> {
         self.white_king_move();
     }
 
-    fn white_block(&self, attacker_pos: Square, attacker_kind: Kind) {
+    fn white_block(&mut self, attacker_pos: Square, attacker_kind: Kind) {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
             for dest in blockable {
@@ -107,11 +108,11 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn white_capture(&self, attacker_pos: Square) {
+    fn white_capture(&mut self, attacker_pos: Square) {
         self.add_movements_to(attacker_pos, false)
     }
 
-    fn white_king_move(&self) {
+    fn white_king_move(&mut self) {
         let king_reachable = bitboard::reachable(
             self.black_pieces,
             self.white_pieces,
@@ -165,7 +166,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn add_movements_to(&self, dest: Square, include_drop: bool) {
+    fn add_movements_to(&mut self, dest: Square, include_drop: bool) {
         // Drop
         if include_drop {
             for kind in self.position.hands().kinds(Color::White) {
@@ -243,9 +244,14 @@ impl<'a> Context<'a> {
     }
 }
 
+#[inline(never)]
+fn clone_position(position: &Position) -> Position {
+    position.clone()
+}
+
 // Helper methods
 impl<'a> Context<'a> {
-    fn maybe_add_move(&self, movement: &Movement, kind: Kind) {
+    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) {
         if !common::maybe_legal_movement(Color::White, movement, kind, self.pawn_mask) {
             return;
         }
@@ -260,7 +266,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        let mut next_position = self.position.clone();
+        let mut next_position = clone_position(self.position);
         next_position.do_move(movement);
 
         if self.attacker.double_check && common::checked(&next_position, Color::White) {
@@ -274,15 +280,19 @@ impl<'a> Context<'a> {
             movement,
             next_position
         );
+        self.do_push(next_position);
+    }
 
-        *self.is_mate.borrow_mut() = false;
+    #[inline(never)]
+    fn do_push(&mut self, next_position: Position) {
+        self.is_mate = false;
         let digest = next_position.digest();
-        if self.memo.borrow().contains_key(&digest) {
+        if self.memo.contains_key(&digest) {
             return;
         }
-        self.memo.borrow_mut().insert(digest, self.next_step);
+        self.memo.insert(digest, self.next_step);
 
-        self.result.borrow_mut().push(next_position);
+        self.result.push(next_position);
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
