@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use anyhow::bail;
+use nohash_hasher::IntMap;
 
 use crate::piece::{Color, Kind};
 
@@ -13,12 +12,12 @@ use crate::position::{
 use super::common;
 
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
-    advance(position, &mut HashMap::new(), 0).map(|x| x.0)
+    advance(position, &mut IntMap::default(), 0).map(|x| x.0)
 }
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut HashMap<Digest, usize>,
+    memo: &mut IntMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::White);
@@ -37,7 +36,7 @@ struct Context<'a> {
     attacker: Attacker,
     pawn_mask: usize,
     // Mutable fields
-    memo: &'a mut HashMap<Digest, usize>,
+    memo: &'a mut IntMap<Digest, usize>,
     result: Vec<Position>,
     is_mate: bool,
 }
@@ -45,7 +44,7 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         position: &'a Position,
-        memo: &'a mut HashMap<Digest, usize>,
+        memo: &'a mut IntMap<Digest, usize>,
         next_step: usize,
     ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position

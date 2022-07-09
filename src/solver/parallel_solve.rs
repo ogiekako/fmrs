@@ -1,8 +1,6 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
+use nohash_hasher::IntMap;
 use sysinfo::SystemExt;
 
 use crate::position::{advance, Digest, Position};
@@ -15,9 +13,9 @@ pub(super) fn solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
-    let mut memo = HashMap::new();
+    let mut memo = IntMap::default();
     memo.insert(position.digest(), step);
-    let memo_next = HashMap::new();
+    let memo_next = IntMap::default();
     let all_positions = vec![position];
 
     let task = Task::new(
@@ -43,8 +41,8 @@ const NTHREAD: usize = 16;
 
 struct Task {
     all_positions: Vec<Position>,
-    memo: HashMap<Digest, usize>,
-    memo_next: HashMap<Digest, usize>,
+    memo: IntMap<Digest, usize>,
+    memo_next: IntMap<Digest, usize>,
     mate_in: Arc<Mutex<Option<usize>>>,
     solutions_upto: usize,
     active_thread_count: Arc<Mutex<usize>>,
@@ -54,8 +52,8 @@ struct Task {
 impl Task {
     fn new(
         all_positions: Vec<Position>,
-        memo: HashMap<Digest, usize>,
-        memo_next: HashMap<Digest, usize>,
+        memo: IntMap<Digest, usize>,
+        memo_next: IntMap<Digest, usize>,
         mate_in: Arc<Mutex<Option<usize>>>,
         solutions_upto: usize,
         active_thread_count: Arc<Mutex<usize>>,
