@@ -1,9 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
-use nohash_hasher::IntMap;
 use sysinfo::SystemExt;
 
-use crate::position::{advance, Digest, Position};
+use crate::position::{advance, Digest, Position, PositionExt};
 
 use super::{reconstruct::reconstruct_solutions, Solution};
 
@@ -13,9 +15,9 @@ pub(super) fn solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
-    let mut memo = IntMap::default();
+    let mut memo = HashMap::new();
     memo.insert(position.digest(), step);
-    let memo_next = IntMap::default();
+    let memo_next = HashMap::new();
     let all_positions = vec![position];
 
     let task = Task::new(
@@ -35,14 +37,14 @@ pub(super) fn solve(
 #[cfg(test)]
 const TRIGGER_PARALLEL_SOLVE: usize = 2;
 #[cfg(not(test))]
-const TRIGGER_PARALLEL_SOLVE: usize = 500_000;
+const TRIGGER_PARALLEL_SOLVE: usize = 1_000_000;
 
 const NTHREAD: usize = 16;
 
 struct Task {
     all_positions: Vec<Position>,
-    memo: IntMap<Digest, usize>,
-    memo_next: IntMap<Digest, usize>,
+    memo: HashMap<Digest, usize>,
+    memo_next: HashMap<Digest, usize>,
     mate_in: Arc<Mutex<Option<usize>>>,
     solutions_upto: usize,
     active_thread_count: Arc<Mutex<usize>>,
@@ -52,8 +54,8 @@ struct Task {
 impl Task {
     fn new(
         all_positions: Vec<Position>,
-        memo: IntMap<Digest, usize>,
-        memo_next: IntMap<Digest, usize>,
+        memo: HashMap<Digest, usize>,
+        memo_next: HashMap<Digest, usize>,
         mate_in: Arc<Mutex<Option<usize>>>,
         solutions_upto: usize,
         active_thread_count: Arc<Mutex<usize>>,
@@ -74,7 +76,7 @@ impl Task {
         self.all_positions.len() * std::mem::size_of::<Position>()
             + (self.memo.len() + self.memo_next.len())
                 * (std::mem::size_of::<Digest>() + std::mem::size_of::<usize>())
-                * 4
+                * 2
     }
 
     fn solve(mut self, start_step: usize) -> anyhow::Result<Vec<Solution>> {
@@ -84,8 +86,9 @@ impl Task {
             let threads_to_spawn = {
                 let mut g = self.active_thread_count.lock().unwrap();
 
-                let available_memory =
-                    sysinfo::System::new_all().available_memory() as isize * 1024;
+                let available_memory = sysinfo::System::new_all().available_memory() as isize
+                    * 1024
+                    - 2 * 1024 * 1024 * 1024;
                 let size_estimate = self.size_estimate() as isize;
                 let spawn_limit = available_memory / size_estimate;
 

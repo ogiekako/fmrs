@@ -25,7 +25,6 @@ pub trait PositionExt {
 }
 
 impl PositionExt for Position {
-    #[inline(never)]
     fn do_move(&mut self, m: &Movement) -> UndoMove {
         let color = self.turn();
         let token;

@@ -1,13 +1,11 @@
-use std::{cell::RefCell};
-
-use nohash_hasher::IntMap;
+use std::{cell::RefCell, collections::HashMap};
 
 use crate::position::{previous, Digest, Movement, Position, PositionExt};
 
 pub(super) fn reconstruct_solutions(
     mut mate: Position,
-    memo_black_turn: &IntMap<Digest, usize>,
-    memo_white_turn: &IntMap<Digest, usize>,
+    memo_black_turn: &HashMap<Digest, usize>,
+    memo_white_turn: &HashMap<Digest, usize>,
     solutions_upto: usize,
 ) -> Vec<Vec<Movement>> {
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
@@ -18,8 +16,8 @@ pub(super) fn reconstruct_solutions(
 }
 
 struct Context<'a> {
-    memo_black_turn: &'a IntMap<Digest, usize>,
-    memo_white_turn: &'a IntMap<Digest, usize>,
+    memo_black_turn: &'a HashMap<Digest, usize>,
+    memo_white_turn: &'a HashMap<Digest, usize>,
     mate_in: usize,
     result: RefCell<Vec<Vec<Movement>>>,
     solution: RefCell<Vec<Movement>>, // reverse order
@@ -28,8 +26,8 @@ struct Context<'a> {
 
 impl<'a> Context<'a> {
     fn new(
-        memo_black_turn: &'a IntMap<Digest, usize>,
-        memo_white_turn: &'a IntMap<Digest, usize>,
+        memo_black_turn: &'a HashMap<Digest, usize>,
+        memo_white_turn: &'a HashMap<Digest, usize>,
         mate_in: usize,
         solutions_upto: usize,
     ) -> Self {

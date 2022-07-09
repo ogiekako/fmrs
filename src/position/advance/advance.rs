@@ -1,4 +1,4 @@
-use nohash_hasher::IntMap;
+use std::collections::HashMap;
 
 use crate::{piece::Color, position::Digest};
 
@@ -8,7 +8,7 @@ use super::{black, white};
 
 pub fn advance(
     position: &Position,
-    memo: &mut IntMap<Digest, usize>,
+    memo: &mut HashMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     match position.turn() {

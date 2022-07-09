@@ -65,7 +65,6 @@ pub(super) fn checked(position: &Position, color: Color) -> bool {
 }
 
 // Checks double pawn, unmovable pieces.
-#[inline(never)]
 pub(super) fn maybe_legal_movement(
     turn: Color,
     movement: &Movement,
@@ -92,10 +91,9 @@ pub(super) fn maybe_legal_movement(
 pub(super) struct Pinned(Vec<(Square, BitBoard)>);
 
 impl Pinned {
-    #[inline(never)]
     pub(super) fn legal_move(&self, source: Square, dest: Square) -> bool {
         for (pinned_pos, movable) in self.0.iter() {
-            if &source == pinned_pos {
+            if source == *pinned_pos {
                 return movable.get(dest);
             }
         }

@@ -1,7 +1,7 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 use anyhow::bail;
-use nohash_hasher::IntMap;
 
 use crate::piece::{Color, Kind};
 
@@ -15,7 +15,7 @@ use super::common::{self, Pinned};
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut IntMap<Digest, usize>,
+    memo: &mut HashMap<Digest, usize>,
     next_step: usize,
 ) -> anyhow::Result<Vec<Position>> {
     debug_assert_eq!(position.turn(), Color::Black);
@@ -25,12 +25,12 @@ pub(super) fn advance(
 }
 
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
-    advance(position, &mut IntMap::default(), 0)
+    advance(position, &mut HashMap::new(), 0)
 }
 
 struct Context<'a> {
     position: &'a Position,
-    memo: RefCell<&'a mut IntMap<Digest, usize>>,
+    memo: RefCell<&'a mut HashMap<Digest, usize>>,
     next_step: usize,
     white_king_pos: Square,
     black_king_checked: bool,
@@ -44,7 +44,7 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         position: &'a Position,
-        memo: &'a mut IntMap<Digest, usize>,
+        memo: &'a mut HashMap<Digest, usize>,
         next_step: usize,
     ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
