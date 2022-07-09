@@ -9,6 +9,7 @@ use crate::position::{
     rule, Movement, Position, PositionExt, Square,
 };
 
+use super::attack_prevent::attack_preventing_movements;
 use super::common::{self, Pinned};
 
 pub(super) fn advance(
@@ -88,6 +89,23 @@ impl<'a> Context<'a> {
     }
 
     fn advance(&mut self) {
+        if self.black_king_checked {
+            let black_king_pos = self
+                .position
+                .bitboard(Color::Black.into(), Kind::King.into())
+                .next()
+                .unwrap();
+            attack_preventing_movements(
+                self.position,
+                self.memo,
+                self.next_step,
+                black_king_pos,
+                true,
+            )
+            .unwrap();
+            return;
+        }
+
         self.drops();
         self.direct_attack_moves();
         self.discovered_attack_moves();
@@ -305,9 +323,7 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if (self.black_king_checked || kind == Kind::King)
-            && common::checked(&next_position, Color::Black)
-        {
+        if kind == Kind::King && common::checked(&next_position, Color::Black) {
             return;
         }
 

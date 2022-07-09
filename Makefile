@@ -18,4 +18,4 @@ bench_slow:
 criterion:
 	mkdir -p prof && \
 	cargo criterion --bench bench -- --profile-time 5 && \
-	(cd prof && go tool pprof -gif ../target/criterion/profile/black_advance/profile.pb)
+	(cd prof && go tool pprof -gif ../target/criterion/profile/*/profile.pb)
