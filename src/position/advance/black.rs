@@ -234,85 +234,47 @@ impl<'a> Context<'a> {
 
     #[inline(never)]
     fn discovered_attack_moves(&mut self) {
-        for kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
-            let attacker_cands = {
-                let mut cands = self.position.bitboard(Some(Color::Black), Some(kind));
-                if kind != Kind::Lance {
-                    cands |= self
-                        .position
-                        .bitboard(Some(Color::Black), Some(kind.promote().unwrap()));
-                }
-                if cands.is_empty() {
-                    continue;
-                }
-                cands &= bitboard::power(Color::White, self.white_king_pos, kind);
-                if cands.is_empty() {
-                    continue;
-                }
-                cands
-            };
-            let blocker_cands = bitboard::reachable(
+        let blockers = pinned(
+            self.position,
+            self.black_pieces,
+            self.white_pieces,
+            Color::White,
+            self.white_king_pos,
+            Color::Black,
+        );
+        for (blocker_pos, blocker_pinned_area) in blockers.iter() {
+            let (blocker_pos, blocker_pinned_area) = (*blocker_pos, *blocker_pinned_area);
+            let blocker_kind = self.position.get(blocker_pos).unwrap().1;
+            let mut blocker_dest_cands = bitboard::reachable(
                 self.black_pieces,
                 self.white_pieces,
-                Color::White,
-                self.white_king_pos,
-                kind,
-            );
-            if blocker_cands.is_empty() {
-                continue;
+                Color::Black,
+                blocker_pos,
+                blocker_kind,
+            )
+            .and_not(blocker_pinned_area);
+            if self.pinned.is_pinned(blocker_pos) {
+                blocker_dest_cands &= self.pinned.pinned_area(blocker_pos);
             }
-            for attacker_pos in attacker_cands {
-                let blocker_pos = {
-                    let pos = bitboard::reachable(
-                        self.white_pieces,
-                        self.black_pieces,
-                        Color::Black,
-                        attacker_pos,
-                        kind,
-                    ) & blocker_cands;
-                    if pos.is_empty() {
-                        continue;
-                    }
-                    pos.into_iter().next().unwrap()
-                };
-                let blocker_kind = self.position.get(blocker_pos).unwrap().1;
-
-                let attacker_preventing = bitboard::power(Color::White, self.white_king_pos, kind)
-                    & bitboard::power(Color::Black, attacker_pos, kind);
-                let blocker_dests = if self.pinned.is_pinned(blocker_pos) {
-                    self.pinned.pinned_area(blocker_pos)
-                } else {
-                    bitboard::reachable(
-                        self.black_pieces,
-                        self.white_pieces,
-                        Color::Black,
-                        blocker_pos,
-                        blocker_kind,
-                    )
-                }
-                .and_not(attacker_preventing);
-                for blocker_dest in blocker_dests {
+            let maybe_promotable = blocker_kind.promote().is_some();
+            for blocker_dest in blocker_dest_cands {
+                self.maybe_add_move(
+                    &Movement::Move {
+                        source: blocker_pos,
+                        dest: blocker_dest,
+                        promote: false,
+                    },
+                    blocker_kind,
+                );
+                if maybe_promotable {
                     self.maybe_add_move(
                         &Movement::Move {
                             source: blocker_pos,
                             dest: blocker_dest,
-                            promote: false,
+                            promote: true,
                         },
                         blocker_kind,
-                    );
-                    if (rule::promotable(blocker_pos, Color::Black)
-                        || rule::promotable(blocker_dest, Color::Black))
-                        && blocker_kind.promote().is_some()
-                    {
-                        self.maybe_add_move(
-                            &Movement::Move {
-                                source: blocker_pos,
-                                dest: blocker_dest,
-                                promote: true,
-                            },
-                            blocker_kind,
-                        )
-                    }
+                    )
                 }
             }
         }
