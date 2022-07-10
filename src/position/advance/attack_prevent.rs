@@ -8,7 +8,10 @@ use crate::{
     },
 };
 
-use super::common;
+use super::{
+    common,
+    pinned::{pinned, Pinned},
+};
 
 pub(super) fn attack_preventing_movements(
     position: &Position,
@@ -28,7 +31,7 @@ struct Context<'a> {
     king_pos: Square,
     black_pieces: BitBoard,
     white_pieces: BitBoard,
-    pinned: common::Pinned,
+    pinned: Pinned,
     attacker: Attacker,
     pawn_mask: usize,
     next_step: usize,
@@ -51,7 +54,7 @@ impl<'a> Context<'a> {
         let black_pieces = position.bitboard(Color::Black.into(), None);
         let white_pieces = position.bitboard(Color::White.into(), None);
         let attacker = attacker(position, black_pieces, white_pieces, king_pos)?;
-        let pinned = common::pinned(position, black_pieces, white_pieces, turn, king_pos);
+        let pinned = pinned(position, black_pieces, white_pieces, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
             for pos in position.bitboard(turn.into(), Kind::Pawn.into()) {
@@ -170,7 +173,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             let source_power = if self.pinned.is_pinned(source_pos) {
-                self.pinned.legal_dests(source_pos)
+                self.pinned.pinned_area(source_pos)
             } else {
                 bitboard::power(self.turn, source_pos, source_kind)
             };
@@ -215,7 +218,7 @@ impl<'a> Context<'a> {
                 leap_kind,
             ) & on_board;
             for source_pos in sources {
-                if !self.pinned.legal_move(source_pos, dest) {
+                if self.pinned.is_unpin_move(source_pos, dest) {
                     continue;
                 }
                 let source_kind = self.position.get(source_pos).unwrap().1;

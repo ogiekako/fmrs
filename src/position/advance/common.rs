@@ -1,8 +1,8 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{self, BitBoard},
-        rule, Movement, Position, Square,
+        bitboard,
+        rule, Movement, Position,
     },
 };
 
@@ -84,103 +84,4 @@ pub(super) fn maybe_legal_movement(
             promote,
         } => rule::is_allowed_move(turn, *source, *dest, kind, *promote),
     }
-}
-
-// pinned piece and its movable positions (capturing included) pairs.
-#[derive(Debug)]
-pub(super) struct Pinned {
-    mask: BitBoard,
-    allowed_dests: Vec<(Square, BitBoard)>,
-}
-
-impl Pinned {
-    pub fn empty() -> Self {
-        Self {
-            mask: BitBoard::empty(),
-            allowed_dests: vec![],
-        }
-    }
-    fn new(allowed_dests: Vec<(Square, BitBoard)>) -> Self {
-        let mut mask = BitBoard::empty();
-        allowed_dests.iter().for_each(|(x, _)| mask.set(*x));
-        Self {
-            mask,
-            allowed_dests,
-        }
-    }
-    pub fn legal_move(&self, pos: Square, dest: Square) -> bool {
-        !self.is_pinned(pos) || self.legal_dests(pos).get(dest)
-    }
-    pub fn is_pinned(&self, pos: Square) -> bool {
-        self.mask.get(pos)
-    }
-    pub fn legal_dests(&self, source: Square) -> BitBoard {
-        for (pinned_pos, movable) in self.allowed_dests.iter() {
-            if source == *pinned_pos {
-                return *movable;
-            }
-        }
-        panic!("BUG: is_pinned(source) should be true");
-    }
-}
-
-pub(super) fn pinned(
-    position: &Position,
-    black_pieces: BitBoard,
-    white_pieces: BitBoard,
-    king_color: Color,
-    king_pos: Square,
-) -> Pinned {
-    let mut res = vec![];
-    for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
-        let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
-        let attackers = if attacker_kind == Kind::Lance {
-            position.bitboard(king_color.opposite().into(), attacker_kind.into())
-        } else {
-            position.bitboard(king_color.opposite().into(), attacker_kind.into())
-                | position.bitboard(king_color.opposite().into(), attacker_kind.promote())
-        } & power_mask;
-        if attackers.is_empty() {
-            continue;
-        }
-        let king_seeing = bitboard::reachable(
-            white_pieces,
-            black_pieces,
-            king_color,
-            king_pos,
-            attacker_kind,
-        );
-        for attacker_pos in attackers {
-            let attacker_reachable = bitboard::reachable(
-                black_pieces,
-                white_pieces,
-                king_color.opposite(),
-                attacker_pos,
-                attacker_kind,
-            );
-            if attacker_reachable.get(king_pos) {
-                continue;
-            }
-            let pinned_pos = {
-                let mut pinned = king_seeing & attacker_reachable;
-                if pinned.is_empty() {
-                    continue;
-                }
-                pinned.next().unwrap()
-            };
-            let pinned_kind = position.get(pinned_pos).unwrap().1;
-            let pinned_reachable = bitboard::reachable(
-                black_pieces,
-                white_pieces,
-                king_color,
-                pinned_pos,
-                pinned_kind,
-            );
-            let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)
-                & bitboard::power(king_color.opposite(), attacker_pos, attacker_kind);
-            same_line.set(attacker_pos);
-            res.push((pinned_pos, pinned_reachable & same_line))
-        }
-    }
-    Pinned::new(res)
 }

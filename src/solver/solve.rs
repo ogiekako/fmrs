@@ -114,11 +114,13 @@ mod tests {
             ),
             (
                 // http://sfenreader.appspot.com/sfen?sfen=k8%2Fl8%2F9%2F9%2F9%2F9%2F9%2FL8%2FK6Br%20b%20rb4g4s4n2l18p%201
+                // Capturing a pinning piece (lance)
                 "k8/l8/9/9/9/9/9/L8/K6Br b rb4g4s4n2l18p 1",
                 vec!["9892+"],
             ),
             (
                 // http://sfenreader.appspot.com/sfen?sfen=8k%2F7b1%2F9%2F9%2F9%2F9%2F9%2F1B7%2FK6Lr%20b%20r4g4s4n3l18p%201
+                // Capturing a pinning piece (bishop)
                 "8k/7b1/9/9/9/9/9/1B7/K6Lr b r4g4s4n3l18p 1",
                 vec!["8822+"],
             ),

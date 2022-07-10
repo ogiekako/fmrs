@@ -10,7 +10,8 @@ use crate::position::{
 };
 
 use super::attack_prevent::attack_preventing_movements;
-use super::common::{self, Pinned};
+use super::common;
+use super::pinned::{pinned, Pinned};
 
 pub(super) fn advance(
     position: &Position,
@@ -63,7 +64,14 @@ impl<'a> Context<'a> {
             .bitboard(Color::Black.into(), Kind::King.into())
             .next()
             .map(|king_pos| {
-                common::pinned(position, black_pieces, white_pieces, Color::Black, king_pos)
+                pinned(
+                    position,
+                    black_pieces,
+                    white_pieces,
+                    Color::Black,
+                    king_pos,
+                    Color::Black,
+                )
             })
             .unwrap_or_else(Pinned::empty);
 
@@ -139,7 +147,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
-                self.pinned.legal_dests(attacker_pos)
+                self.pinned.pinned_area(attacker_pos)
             } else {
                 bitboard::power(Color::Black, attacker_pos, attacker_source_kind)
             };
@@ -198,7 +206,7 @@ impl<'a> Context<'a> {
 
                 for attacker_pos in attackers {
                     let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
-                        self.pinned.legal_dests(attacker_pos)
+                        self.pinned.pinned_area(attacker_pos)
                     } else {
                         bitboard::reachable(
                             self.black_pieces,
@@ -272,7 +280,7 @@ impl<'a> Context<'a> {
                 let attacker_preventing = bitboard::power(Color::White, self.white_king_pos, kind)
                     & bitboard::power(Color::Black, attacker_pos, kind);
                 let blocker_dests = if self.pinned.is_pinned(blocker_pos) {
-                    self.pinned.legal_dests(blocker_pos)
+                    self.pinned.pinned_area(blocker_pos)
                 } else {
                     bitboard::reachable(
                         self.black_pieces,
