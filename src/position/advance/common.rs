@@ -176,8 +176,9 @@ pub(super) fn pinned(
                 pinned_pos,
                 pinned_kind,
             );
-            let same_line = bitboard::power(king_color, king_pos, attacker_kind)
+            let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)
                 & bitboard::power(king_color.opposite(), attacker_pos, attacker_kind);
+            same_line.set(attacker_pos);
             res.push((pinned_pos, pinned_reachable & same_line))
         }
     }
