@@ -1,7 +1,4 @@
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet},
-};
+use std::{cell::RefCell, collections::BTreeMap};
 
 use crate::{
     piece::Color,
@@ -20,7 +17,6 @@ pub(super) fn solve(
     for p in current_white_positions.iter() {
         memo_white_positions.insert(p.digest(), 0i32);
     }
-    let mut deadend_white_positions = BTreeSet::new();
 
     let mut mate_positions = vec![];
 
@@ -41,9 +37,6 @@ pub(super) fn solve(
                 let mut next_white_positions = advance_old(&black_position)?;
                 while let Some(next_white_position) = next_white_positions.pop() {
                     let digest = next_white_position.digest();
-                    if deadend_white_positions.contains(&digest) {
-                        continue;
-                    }
                     white_position_is_deadend = false;
                     if memo_white_positions.contains_key(&digest) {
                         continue;
@@ -57,7 +50,6 @@ pub(super) fn solve(
                 mate_positions.push(white_position);
             } else if white_position_is_deadend {
                 let digest = white_position.digest();
-                deadend_white_positions.insert(digest);
                 memo_white_positions.remove(&digest);
             }
         }
@@ -70,11 +62,10 @@ pub(super) fn solve(
 
         progress.unbounded_send(half_step as usize * 2)?;
         eprintln!(
-            "step = {}, queue = {}, memo = {}, deadend = {}",
+            "step = {}, queue = {}, memo = {}",
             half_step * 2,
             current_white_positions.len(),
             memo_white_positions.len(),
-            deadend_white_positions.len(),
         )
     }
     mate_positions.sort();
