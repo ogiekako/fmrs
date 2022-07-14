@@ -24,7 +24,7 @@ pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
     }
     eprintln!("Solved in {} steps", answer[0].len());
     if answer.len() > 1 {
-        println!("Multiple solutions found: showing only the first one");
+        eprintln!("Multiple solutions found: showing only the first one");
     }
     let mut position = position;
     for x in answer[0].iter() {
