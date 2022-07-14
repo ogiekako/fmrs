@@ -5,11 +5,13 @@ use crate::{
 };
 
 pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
-    println!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
-    print!("> ");
+    eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
+    eprint!("> ");
 
     let mut s = "".to_string();
     std::io::stdin().read_line(&mut s)?;
+
+    print!("position {} moves", s);
 
     let position = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
@@ -17,18 +19,19 @@ pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if answer.is_empty() {
-        println!("No solution");
+        eprintln!("No solution");
         return Ok(());
     }
-    println!("Solved in {} steps", answer[0].len());
+    eprintln!("Solved in {} steps", answer[0].len());
     if answer.len() > 1 {
         println!("Multiple solutions found: showing only the first one");
     }
     let mut position = position;
     for x in answer[0].iter() {
         position.do_move(x);
-        println!("{}", sfen::encode_move(x));
+        print!(" {}", sfen::encode_move(x));
     }
-    println!("last state: {:?}", position);
+    println!();
+    eprintln!("last state: {:?}", position);
     Ok(())
 }
