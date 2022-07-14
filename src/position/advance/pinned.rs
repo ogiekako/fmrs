@@ -31,9 +31,6 @@ impl Pinned {
     pub fn is_pinned(&self, pos: Square) -> bool {
         self.mask.get(pos)
     }
-    pub fn pinned_mask(&self) -> BitBoard {
-        self.mask
-    }
     pub fn iter(&self) -> impl Iterator<Item = &(Square, BitBoard)> {
         self.pinned_area.iter()
     }

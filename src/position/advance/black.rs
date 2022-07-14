@@ -5,8 +5,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::Digest;
 use crate::position::{
-    bitboard::{self, BitBoard},
-    rule, Movement, Position, PositionExt, Square,
+    bitboard::{self, BitBoard}, Movement, Position, PositionExt, Square,
 };
 
 use super::attack_prevent::attack_preventing_movements;
