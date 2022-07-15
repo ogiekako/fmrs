@@ -89,9 +89,6 @@ impl Position {
         self.color_bb.set(c, pos);
         self.kind_bb.set(pos, k);
     }
-    pub fn digest(&self) -> Digest {
-        xxhash_rust::xxh3::xxh3_64(self.as_bytes())
-    }
     pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb.bitboard(c).get(pos));
 
@@ -99,6 +96,9 @@ impl Position {
         self.kind_bb.unset(pos, k);
     }
 
+    pub fn digest(&self) -> Digest {
+        xxhash_rust::xxh3::xxh3_64(self.as_bytes())
+    }
     fn as_bytes(&self) -> &[u8] {
         unsafe {
             std::slice::from_raw_parts(

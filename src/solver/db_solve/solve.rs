@@ -5,7 +5,7 @@ use crate::{
     position::{advance_old, previous, Digest, Movement, Position, PositionExt},
 };
 
-use super::{super::Solution, db::Sqlite};
+use super::{super::Solution, db::Database};
 
 pub fn solve(
     initial_position: Position,
@@ -13,7 +13,7 @@ pub fn solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let mut current_white_positions = advance_old(&initial_position)?;
-    let memo_white_positions = Sqlite::new()?;
+    let memo_white_positions = Database::new()?;
     for p in current_white_positions.iter() {
         memo_white_positions.insert(p.digest(), 0i32)?;
     }
@@ -88,7 +88,7 @@ pub fn solve(
 fn reconstruct_solutions(
     initial_position_digest: Digest,
     mut mate_position: Position,
-    memo_white_positions: &Sqlite,
+    memo_white_positions: &Database,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Vec<Movement>>> {
     let half_step = memo_white_positions.get(&mate_position.digest())?.unwrap();
@@ -104,7 +104,7 @@ fn reconstruct_solutions(
 
 struct Context<'a> {
     initial_position_digest: Digest,
-    memo_white_positions: &'a Sqlite,
+    memo_white_positions: &'a Database,
     mate_in: i32,
     result: RefCell<Vec<Vec<Movement>>>,
     solution: RefCell<Vec<Movement>>, // reverse order
@@ -114,7 +114,7 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         initial_position_digest: Digest,
-        memo_white_positions: &'a Sqlite,
+        memo_white_positions: &'a Database,
         mate_in: i32,
         solutions_upto: usize,
     ) -> Self {

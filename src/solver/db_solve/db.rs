@@ -1,41 +1,43 @@
-pub struct Sqlite {
+use sled::Mode;
+use sysinfo::SystemExt;
+
+pub struct Database {
     tree: sled::Db,
 }
 
-const DB_NAME: &str = "./solve.db";
-
-impl Sqlite {
+impl Database {
     pub fn new() -> anyhow::Result<Self> {
-        if std::path::Path::new(DB_NAME).exists() {
-            std::fs::remove_dir_all(DB_NAME)?;
-        }
-        let conn = sled::open(DB_NAME)?;
-        Ok(Self { tree: conn })
+        let config = sled::Config::default()
+            .mode(Mode::HighThroughput)
+            .temporary(true)
+            .cache_capacity(sysinfo::System::new_all().available_memory() * 1024);
+        let db = config.open()?;
+        Ok(Self { tree: db })
     }
 
     pub fn insert(&self, digest: u64, step: i32) -> anyhow::Result<()> {
         self.tree
-            .insert(digest.to_ne_bytes(), &step.to_ne_bytes())?;
+            .insert(&digest.to_be_bytes(), &step.to_be_bytes())?;
         Ok(())
     }
 
     pub fn get(&self, digest: &u64) -> anyhow::Result<Option<i32>> {
-        let value = self.tree.get(digest.to_ne_bytes())?;
-        Ok(value.map(|x| i32::from_ne_bytes(x.as_ref().try_into().unwrap())))
+        let value = self.tree.get(&digest.to_be_bytes())?;
+        Ok(value.map(|x| i32::from_be_bytes(x.as_ref().try_into().unwrap())))
     }
 
     pub fn contains_key(&self, digest: &u64) -> anyhow::Result<bool> {
-        Ok(self.get(digest)?.is_some())
+        Ok(self.tree.contains_key(&digest.to_be_bytes())?)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Sqlite;
+    use super::Database;
 
     #[test]
     fn insert_get() {
-        let db = Sqlite::new().unwrap();
+        let db = Database::new().unwrap();
         db.insert(1, 2).unwrap();
         db.insert(u64::MAX, 3).unwrap();
         assert_eq!(db.get(&1).unwrap(), 2.into());
