@@ -19,10 +19,11 @@ impl DatabaseGet for Database {
 
 impl Database {
     pub fn new() -> anyhow::Result<Self> {
+        let available_memory = sysinfo::System::new_all().available_memory() * 1024;
         let config = sled::Config::default()
             .mode(Mode::HighThroughput)
             .temporary(true)
-            .cache_capacity(sysinfo::System::new_all().available_memory() * 1024);
+            .cache_capacity(available_memory * 8 / 10);
         let db = config.open()?;
         Ok(Self { tree: db })
     }
