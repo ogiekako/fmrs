@@ -1,4 +1,4 @@
-import { Color, Kind, Position } from "../model"
+import { Color, Kind, Position } from "../position"
 
 export type State = {
     position: Position,

@@ -3,7 +3,7 @@ import Board from './Board';
 import Hands from './Hands';
 import { newState, updatedState, updateStateOnRightClick } from './state';
 import * as types from './types';
-import * as model from '../model';
+import * as model from '../position';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,

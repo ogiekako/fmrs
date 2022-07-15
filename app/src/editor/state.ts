@@ -1,4 +1,4 @@
-import * as model from '../model';
+import * as model from '../position';
 import { cloneState } from './clone';
 import * as types from './types';
 
