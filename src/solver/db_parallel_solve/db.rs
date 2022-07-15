@@ -25,7 +25,7 @@ impl Database {
             .path(tempdir)
             .mode(Mode::HighThroughput)
             .temporary(true)
-            .cache_capacity(available_memory * 8 / 10);
+            .cache_capacity(available_memory * 5 / 10);
         let db = config.open()?;
         Ok(Self { tree: db })
     }
