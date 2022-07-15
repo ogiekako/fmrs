@@ -1,4 +1,4 @@
-use sled::{IVec, Mode};
+use sled::Mode;
 use sysinfo::SystemExt;
 
 #[derive(Clone)]
@@ -33,19 +33,15 @@ impl Database {
         Ok(Self { tree: db })
     }
 
-    // If digest is contained, updates the value and returns true.
-    // Otherwise, does nothing and returns false.
+    // If digest is contained, does nothing and returns true.
+    // Otherwise, updates the value and returns false.
     pub fn insert_if_empty(&self, digest: u64, step: i32) -> anyhow::Result<bool> {
-        Ok(self
-            .tree
-            .fetch_and_update(&digest.to_be_bytes(), move |x| {
-                Some(if let Some(x) = x {
-                    IVec::from(x)
-                } else {
-                    IVec::from(&step.to_be_bytes())
-                })
-            })?
-            .is_some())
+        let res = self.tree.compare_and_swap(
+            &digest.to_be_bytes(),
+            None as Option<&[u8]>,
+            Some(&step.to_be_bytes()),
+        )?;
+        Ok(res.is_err())
     }
 }
 
