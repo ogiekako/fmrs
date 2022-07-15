@@ -79,6 +79,7 @@ fn step(
             },
         ));
     }
+    drop(current_white_positions);
 
     let mut all_next_white_positions = vec![];
     let mut mate_positions = vec![];
