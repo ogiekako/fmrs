@@ -19,8 +19,10 @@ impl DatabaseGet for Database {
 
 impl Database {
     pub fn new() -> anyhow::Result<Self> {
+        let tempdir = tempfile::tempdir()?;
         let available_memory = sysinfo::System::new_all().available_memory() * 1024;
         let config = sled::Config::default()
+            .path(tempdir)
             .mode(Mode::HighThroughput)
             .temporary(true)
             .cache_capacity(available_memory * 8 / 10);
