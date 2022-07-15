@@ -3,7 +3,6 @@ use crate::position::Movement;
 use crate::position::Position;
 use crate::position::PositionExt;
 use crate::solver::db_parallel_solve;
-use crate::solver::db_solve;
 use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
 
@@ -13,7 +12,6 @@ pub type Solution = Vec<Movement>;
 pub enum Algorithm {
     MemorySave,
     Parallel,
-    Db,
     DbParallel,
 }
 
@@ -23,7 +21,6 @@ impl Algorithm {
         [
             Algorithm::MemorySave,
             Algorithm::Parallel,
-            Algorithm::Db,
             Algorithm::DbParallel,
         ]
         .into_iter()
@@ -57,7 +54,6 @@ pub fn solve_with_progress(
     match algorithm {
         Algorithm::MemorySave => memory_save_solve::solve(position, progress, solutions_upto),
         Algorithm::Parallel => parallel_solve::solve(position, progress, solutions_upto),
-        Algorithm::Db => db_solve::solve(position, progress, solutions_upto),
         Algorithm::DbParallel => db_parallel_solve::solve(position, progress, solutions_upto),
     }
 }
