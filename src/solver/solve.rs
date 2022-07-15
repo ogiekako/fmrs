@@ -2,6 +2,7 @@ use crate::piece::*;
 use crate::position::Movement;
 use crate::position::Position;
 use crate::position::PositionExt;
+use crate::solver::db_parallel_solve;
 use crate::solver::db_solve;
 use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
@@ -13,12 +14,19 @@ pub enum Algorithm {
     MemorySave,
     Parallel,
     Db,
+    DbParallel,
 }
 
 impl Algorithm {
     #[cfg(test)]
     fn iter() -> impl Iterator<Item = Algorithm> {
-        [Algorithm::MemorySave, Algorithm::Parallel, Algorithm::Db].into_iter()
+        [
+            Algorithm::MemorySave,
+            Algorithm::Parallel,
+            Algorithm::Db,
+            Algorithm::DbParallel,
+        ]
+        .into_iter()
     }
 }
 
@@ -45,14 +53,12 @@ pub fn solve_with_progress(
     }
     debug_assert_ne!(position.turn() == Black, position.checked_slow(White));
 
+    let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
-        Algorithm::MemorySave => {
-            memory_save_solve::solve(position, progress, solutions_upto.unwrap_or(usize::MAX))
-        }
-        Algorithm::Parallel => {
-            parallel_solve::solve(position, progress, solutions_upto.unwrap_or(usize::MAX))
-        }
-        Algorithm::Db => db_solve::solve(position, progress, solutions_upto.unwrap_or(usize::MAX)),
+        Algorithm::MemorySave => memory_save_solve::solve(position, progress, solutions_upto),
+        Algorithm::Parallel => parallel_solve::solve(position, progress, solutions_upto),
+        Algorithm::Db => db_solve::solve(position, progress, solutions_upto),
+        Algorithm::DbParallel => db_parallel_solve::solve(position, progress, solutions_upto),
     }
 }
 
@@ -171,6 +177,7 @@ mod tests {
         ] {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(sfen).unwrap();
+                eprintln!("solving {}", sfen);
                 let got = solve(board.clone(), None, algorithm).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
