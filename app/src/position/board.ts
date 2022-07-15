@@ -1,5 +1,8 @@
 import { Piece } from ".";
 
+/**
+ * (row, col)
+ */
 export type Board = (Piece | undefined)[][];
 
 export function emptyBoard(): Board {

@@ -1,4 +1,4 @@
-import { Board, Color, Hands, Kind, Piece, Position } from ".";
+import { Board, Color, Hands, Kind, Piece, Position } from "..";
 
 export function sfen(position: Position): string {
     const board = encodeBoard(position.board);

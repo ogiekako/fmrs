@@ -1,0 +1,1 @@
+export { sfen } from './encode';

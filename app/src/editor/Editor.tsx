@@ -4,6 +4,7 @@ import Hands from './Hands';
 import { newState, updatedState, updateStateOnRightClick } from './state';
 import * as types from './types';
 import * as model from '../position';
+import { decode } from '../position/sfen/decode';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
@@ -30,7 +31,15 @@ export function Editor(props: {
         <Hands hands={state.position.hands['white']} selected={whiteHandSelected} onClick={k => setState(state => updatedState(state, { ty: 'hand', color: 'white', kind: k }))} />
         <Board pieces={state.position.board} selected={boardSelected} onClick={pos => setState(state => updatedState(state, { ty: 'board', pos }))} onRightClick={pos => setState(state => updateStateOnRightClick(state, pos))} />
         <Hands hands={state.position.hands['black']} selected={blackHandSelected} onClick={k => setState(state => updatedState(state, { ty: 'hand', color: 'black', kind: k }))} />
-        <div>SFEN <input type="text" readOnly={true} value={sfen} style={{ width: 250 }} /></div>
+        <div>SFEN <input type="text" value={sfen} onChange={e => {
+            if (e.target.value === sfen) {
+                return;
+            }
+            setState({
+                position: decode(e.target.value),
+                selected: undefined,
+            });
+        }} style={{ width: 250 }} /></div>
         <button disabled={solving} onClick={async (e) => {
             setSolving(true);
             try {
