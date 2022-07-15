@@ -17,10 +17,18 @@ impl DatabaseGet for Database {
     }
 }
 
+const GB: u64 = 1024 * 1024 * 1024;
+
 impl Database {
     pub fn new() -> anyhow::Result<Self> {
         let tempdir = tempfile::tempdir()?;
-        let config = sled::Config::default().path(tempdir).temporary(true);
+        let available_memory = sysinfo::System::new_all().available_memory() * 1024;
+        let cache_capacity = (available_memory - 64 * GB).max(GB);
+        let config = sled::Config::default()
+            .path(tempdir)
+            .mode(Mode::HighThroughput)
+            .temporary(true)
+            .cache_capacity(cache_capacity);
         let db = config.open()?;
         Ok(Self { tree: db })
     }
