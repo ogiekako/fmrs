@@ -1,5 +1,5 @@
 import * as types from './types';
-import * as model from '../position';
+import * as model from '../../position';
 
 export function cloneState(state: types.State): types.State {
     return {

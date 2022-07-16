@@ -1,11 +1,9 @@
 import { Board, emptyHands, Hands, Kind, Piece, Position } from "..";
 
 export function decode(sfen: string): Position {
-    const [boardStr, _turnStr, handsStr, _moveCountStr] = sfen.split(' ');
+    const [boardStr, , handsStr,] = sfen.split(' ');
     const board = decodeBoard(boardStr);
-    // const _turn = decodeTurn(turnStr);
     const hands = decodeHands(handsStr);
-    // const _moveCount = decodeMoveCount(moveCountStr);
     return {
         board,
         hands,

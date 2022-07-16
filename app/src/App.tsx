@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Editor as Editor } from './editor/Editor';
-import { Solution } from './solution';
+import { Editor as Editor } from './ui/editor/Editor';
+import { Solution } from './ui/solution';
 
 function App() {
   const [jkf, setJkf] = useState("");

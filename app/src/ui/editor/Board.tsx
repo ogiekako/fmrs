@@ -1,5 +1,5 @@
 import { SELECTED_COLOR } from './constants';
-import * as model from '../position';
+import * as model from '../../position';
 
 export default function Board(props: { pieces: model.Board, selected: [number, number] | undefined, onClick: (pos: [number, number]) => void, onRightClick: (pos: [number, number]) => void }) {
     const board = [];

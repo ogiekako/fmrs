@@ -3,8 +3,8 @@ import Board from './Board';
 import Hands from './Hands';
 import { newState, updatedState, updateStateOnRightClick } from './state';
 import * as types from './types';
-import * as model from '../position';
-import { decode } from '../position/sfen/decode';
+import * as model from '../../position';
+import { decode } from '../../position/sfen/decode';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
