@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Editor as Editor } from './ui/editor/Editor';
+import { Editor } from './ui/editor/Editor';
 import { Solution } from './ui/solution';
 
 function App() {
