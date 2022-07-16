@@ -51,7 +51,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
             step_tx,
             problem.clone(),
             Some(10),
-            Algorithm::Parallel,
+            Algorithm::DbParallel,
         ) {
             Ok(solutions) => SolveResponse::Solved(crate::converter::convert(&problem, &solutions)),
             Err(e) => SolveResponse::Error(e.to_string()),
