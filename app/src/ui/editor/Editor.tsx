@@ -5,6 +5,7 @@ import { newState, update, updateOnRightClick } from './state/state';
 import * as types from './types';
 import * as model from '../../model';
 import { decode } from '../../model/sfen/decode';
+import Button from 'react-bootstrap/Button';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
@@ -40,7 +41,7 @@ export function Editor(props: {
                 selected: undefined,
             });
         }} style={{ width: 250 }} /></div>
-        <button disabled={solving} onClick={async (e) => {
+        <Button disabled={solving} onClick={async (e) => {
             setSolving(true);
             try {
                 for await (let line of solve(sfen)) {
@@ -56,7 +57,7 @@ export function Editor(props: {
             } finally {
                 setSolving(false);
             }
-        }}>Solve</button>
+        }}>Solve</Button>
     </div>
 }
 
