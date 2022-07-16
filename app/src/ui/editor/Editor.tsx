@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import Board from './Board';
 import Hands from './Hands';
-import { newState, updatedState, updateStateOnRightClick } from './state';
+import { newState, update, updateOnRightClick } from './state/state';
 import * as types from './types';
-import * as model from '../../position';
-import { decode } from '../../position/sfen/decode';
+import * as model from '../../model';
+import { decode } from '../../model/sfen/decode';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
@@ -28,9 +28,9 @@ export function Editor(props: {
     const sfen = model.sfen(state.position);
 
     return <div>
-        <Hands hands={state.position.hands['white']} selected={whiteHandSelected} onClick={k => setState(state => updatedState(state, { ty: 'hand', color: 'white', kind: k }))} />
-        <Board pieces={state.position.board} selected={boardSelected} onClick={pos => setState(state => updatedState(state, { ty: 'board', pos }))} onRightClick={pos => setState(state => updateStateOnRightClick(state, pos))} />
-        <Hands hands={state.position.hands['black']} selected={blackHandSelected} onClick={k => setState(state => updatedState(state, { ty: 'hand', color: 'black', kind: k }))} />
+        <Hands hands={state.position.hands['white']} selected={whiteHandSelected} onClick={k => setState(state => update(state, { ty: 'hand', color: 'white', kind: k }))} />
+        <Board pieces={state.position.board} selected={boardSelected} onClick={pos => setState(state => update(state, { ty: 'board', pos }))} onRightClick={pos => setState(state => updateOnRightClick(state, pos))} />
+        <Hands hands={state.position.hands['black']} selected={blackHandSelected} onClick={k => setState(state => update(state, { ty: 'hand', color: 'black', kind: k }))} />
         <div>SFEN <input type="text" value={sfen} onChange={e => {
             if (e.target.value === sfen) {
                 return;
