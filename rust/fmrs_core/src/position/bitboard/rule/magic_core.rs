@@ -3,18 +3,18 @@ use rand::{Rng, SeedableRng};
 
 #[derive(Clone)]
 pub(super) struct MagicCore {
-    magic: usize,
-    shift: usize,
+    magic: u64,
+    shift: u64,
 }
 
 const GIVE_UP: usize = 100_000;
 impl MagicCore {
-    pub(super) fn new(targets: &[Vec<usize>]) -> anyhow::Result<Self> {
+    pub(super) fn new(targets: &[Vec<u64>]) -> anyhow::Result<Self> {
         let mut n = 0;
         for ts in targets {
             n += ts.len();
         }
-        let shift = n.leading_zeros() as usize;
+        let shift = n.leading_zeros() as u64;
 
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
         for _ in 0..GIVE_UP {
@@ -33,24 +33,24 @@ impl MagicCore {
         bail!("magic not found: {:?}", targets);
     }
 
-    pub(super) fn index(&self, target: usize) -> usize {
+    pub(super) fn index(&self, target: u64) -> u64 {
         target.wrapping_mul(self.magic) >> self.shift
     }
 
     pub(super) fn table_len(&self) -> usize {
-        1 << (usize::BITS as usize - self.shift)
+        1 << (u64::BITS as u64 - self.shift)
     }
 }
 
-fn is_valid_magic(magic: &MagicCore, targets: &[Vec<usize>]) -> bool {
+fn is_valid_magic(magic: &MagicCore, targets: &[Vec<u64>]) -> bool {
     let mut mapping = vec![None; magic.table_len()];
     for (i, ts) in targets.iter().enumerate() {
         for target in ts {
-            let j = magic.index(*target);
-            if mapping[j] != None && mapping[j] != Some(i) {
+            let j = magic.index(*target) as usize;
+            if mapping[j] != None && mapping[j] != Some(i as u64) {
                 return false;
             }
-            mapping[j] = Some(i)
+            mapping[j] = Some(i as u64)
         }
     }
     true

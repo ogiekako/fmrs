@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use fmrs_core::jkf::{self, JsonKifFormat};
-use fmrs_core::solve::Solution;
-use fmrs_core::{
+use crate::jkf::{self, JsonKifFormat};
+use crate::solve::Solution;
+use crate::{
     piece::{Color, Kind},
     position::{Hands, Movement, Position, PositionExt, Square},
 };
@@ -217,8 +217,9 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
 
 #[cfg(test)]
 mod tests {
-    use crate::solver::Algorithm;
-    use fmrs_core::jkf::JsonKifFormat;
+    use crate::jkf::JsonKifFormat;
+    use crate::solve::{Solution, SolverStatus};
+    use crate::{position::Position, solve::StandardSolver};
 
     #[test]
     fn convert() {
@@ -239,15 +240,26 @@ mod tests {
             let want: JsonKifFormat = serde_json::from_str(want).unwrap();
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
-            let problem = fmrs_core::sfen::decode_position(problem).unwrap();
-            let mut solutions =
-                crate::solver::solve(problem.clone(), None, Algorithm::Parallel).unwrap();
+            let problem = crate::sfen::decode_position(problem).unwrap();
+            let mut solutions = solve(problem.clone(), 10).unwrap();
             solutions.sort();
 
             let got = super::convert(&problem, &solutions);
             let got = serde_json::to_string(&got).unwrap();
             eprintln!("got = {}", got);
             pretty_assertions::assert_eq!(got, want);
+        }
+    }
+
+    fn solve(position: Position, solutions_upto: usize) -> anyhow::Result<Vec<Solution>> {
+        let mut solver = StandardSolver::new(position, solutions_upto);
+        loop {
+            let status = solver.advance()?;
+            match status {
+                SolverStatus::Intermediate => continue,
+                SolverStatus::Mate(solutions) => return Ok(solutions),
+                SolverStatus::NoSolution => return Ok(vec![]),
+            }
         }
     }
 }

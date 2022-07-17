@@ -5,7 +5,6 @@ use clap::Parser;
 use solver::Algorithm;
 
 mod command;
-mod converter;
 pub mod solver;
 
 #[derive(Parser)]

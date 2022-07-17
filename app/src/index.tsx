@@ -4,8 +4,6 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-const rust = import("../../dist/pkg/index");
-
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
@@ -14,10 +12,6 @@ root.render(
     <App />
   </React.StrictMode>
 );
-
-rust.then(x => {
-  x.greet();
-});
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

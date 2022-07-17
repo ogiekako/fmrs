@@ -275,7 +275,11 @@ fn test_decode() {
 }
 
 fn encode_square(pos: Square) -> String {
-    format!("{}{}", pos.col() + 1, char::from_u32(pos.row() as u32 + b'a' as u32).unwrap())
+    format!(
+        "{}{}",
+        pos.col() + 1,
+        char::from_u32(pos.row() as u32 + b'a' as u32).unwrap()
+    )
 }
 
 fn decode_square(s: &str) -> anyhow::Result<Square> {

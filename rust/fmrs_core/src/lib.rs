@@ -6,6 +6,7 @@ pub mod piece;
 pub mod position;
 pub mod sfen;
 pub mod solve;
+pub mod converter;
 
 #[cfg(test)]
 mod tests {

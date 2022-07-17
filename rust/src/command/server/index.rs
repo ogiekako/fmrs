@@ -54,7 +54,9 @@ async fn solve(body_sfen: String) -> HttpResponse {
             Some(10),
             Algorithm::DbParallel,
         ) {
-            Ok(solutions) => SolveResponse::Solved(crate::converter::convert(&problem, &solutions)),
+            Ok(solutions) => {
+                SolveResponse::Solved(fmrs_core::converter::convert(&problem, &solutions))
+            }
             Err(e) => SolveResponse::Error(e.to_string()),
         };
         res_tx.unbounded_send(res).unwrap();

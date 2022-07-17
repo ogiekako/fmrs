@@ -14,7 +14,7 @@ pub(super) struct Magic {
 impl Magic {
     fn reachable(&self, occupied: BitBoard) -> BitBoard {
         let block = self.block_mask & occupied;
-        self.table[self.magic.index(block.digest() as usize)]
+        self.table[self.magic.index(block.digest()) as usize]
     }
 }
 
@@ -107,12 +107,12 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let mut targets = vec![vec![]; reachable_index.len()];
     for pattern in patterns.iter() {
         let i = reachable_index.get(&pattern.reachable).unwrap();
-        targets[*i].push(pattern.block.digest() as usize);
+        targets[*i].push(pattern.block.digest());
     }
     let magic = MagicCore::new(&targets)?;
     let mut table = vec![BitBoard::empty(); magic.table_len()];
     for pattern in patterns.iter() {
-        table[magic.index(pattern.block.digest() as usize)] = pattern.reachable;
+        table[magic.index(pattern.block.digest()) as usize] = pattern.reachable;
     }
     Ok(Magic {
         block_mask,
