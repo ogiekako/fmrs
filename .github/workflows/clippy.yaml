@@ -20,7 +20,4 @@ jobs:
         with:
           toolchain: stable
           override: true
-
-      - uses: actions-rs/cargo@v1.0.1
-        with:
-          command: clippy
+      - run: cargo clippy

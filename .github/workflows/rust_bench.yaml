@@ -33,10 +33,6 @@ jobs:
           toolchain: stable
           override: true
 
-      - uses: actions-rs/cargo@v1.0.1
-        with:
-          command: check
-
       - name: test
         run: cargo test --all
 
