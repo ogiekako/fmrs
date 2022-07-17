@@ -41,6 +41,9 @@ module.exports = {
             outDir: path.resolve(__dirname, 'dist/pkg'),
         }),
     ],
+    experiments: {
+        asyncWebAssembly: true,
+    },
     devServer: {
         static: {
             directory: path.join(__dirname, 'dist'),

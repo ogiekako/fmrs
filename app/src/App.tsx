@@ -9,7 +9,6 @@ function App() {
   return <div className="container">
     <h1>Shogi Help Mate Solver</h1>
     <Editor onSolved={jkf => {
-      console.log(`solved!! `, jkf);
       setJkf(jkf);
     }} />
     {jkf ? <Solution jkf={jkf} /> : <></>}
