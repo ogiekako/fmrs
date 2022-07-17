@@ -12,7 +12,7 @@ export function Info() {
         </Tooltip>
     );
 
-    return (
+    return <div>
         <OverlayTrigger
             placement="right"
             delay={{ show: 100, hide: 100 }}
@@ -22,5 +22,5 @@ export function Info() {
                 <BsInfoCircle />
             </div>
         </OverlayTrigger >
-    );
+    </div>;
 }

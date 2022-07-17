@@ -7,6 +7,7 @@ import * as model from '../../model';
 import { decode } from '../../model/sfen/decode';
 import { Button } from 'react-bootstrap';
 import { Info } from './Info';
+import { Position } from './Position';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
@@ -14,41 +15,12 @@ export function Editor(props: {
     const [state, dispatch] = useReducer(reduce, newState());
     const [solving, setSolving] = useState<boolean>(() => false);
 
-    let boardSelected = undefined;
-    let whiteHandSelected = undefined;
-    let blackHandSelected = undefined;
-    if (state.selected) {
-        if (state.selected.ty === 'board') {
-            boardSelected = state.selected.pos;
-        } else if (state.selected.color === 'white') {
-            whiteHandSelected = state.selected.kind
-        } else {
-            blackHandSelected = state.selected.kind
-        }
-    }
-
     const sfen = model.sfen(state.position);
 
     return <div>
         <div className="d-flex">
-            <div>
-                <Hands
-                    hands={state.position.hands['white']}
-                    selected={whiteHandSelected}
-                    onClick={kind => dispatch({ ty: 'click-hand', color: 'white', kind })} />
-                <Board
-                    pieces={state.position.board}
-                    selected={boardSelected}
-                    onClick={pos => dispatch({ ty: 'click-board', pos })}
-                    onRightClick={pos => dispatch({ ty: 'right-click-board', pos })} />
-                <Hands
-                    hands={state.position.hands['black']}
-                    selected={blackHandSelected}
-                    onClick={kind => dispatch({ ty: 'click-hand', color: 'black', kind })} />
-            </div>
-            <div>
-                <Info />
-            </div>
+            <Position position={state.position} selected={state.selected} dispatch={dispatch} />
+            <Info />
         </div>
         <div>SFEN <input type="text" value={sfen} onChange={e => {
             if (e.target.value === sfen) {
