@@ -101,7 +101,6 @@ function handleClick(original: types.State, event: types.ClickBoardEvent | types
     mutableState.position.board[event.pos[0]][event.pos[1]] = from;
     mutableState.position.board[original.selected.pos[0]][original.selected.pos[1]] = undefined;
     return mutableState;
-
 }
 
 function handleRightClick(mutableState: types.State, pos: [number, number]): types.State {

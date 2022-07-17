@@ -5,6 +5,7 @@ export function cloneState(state: types.State): types.State {
     return {
         position: model.clonePosition(state.position),
         selected: cloneSelected(state.selected),
+        solving: state.solving,
     }
 }
 

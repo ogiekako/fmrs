@@ -37,4 +37,4 @@ export type Event = ClickHandEvent | ClickBoardEvent | {
     solving: boolean,
 }
 
-export type Reducer = (event: Event) => void
+export type Dispatcher = (event: Event) => void

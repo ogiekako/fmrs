@@ -1,36 +1,26 @@
-import { useReducer, useState } from 'react';
+import { useReducer } from 'react';
 import { newState, reduce } from './state/state';
-import * as model from '../../model';
 import { Button } from 'react-bootstrap';
 import { Info } from './Info';
 import { Position } from './Position';
-import { decode } from '../../model/sfen/decode';
+import Sfen from './Sfen';
+import { sfen } from '../../model';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
 }) {
     const [state, dispatch] = useReducer(reduce, newState());
 
-    const sfen = model.sfen(state.position);
-
     return <div>
         <div className="d-flex">
             <Position position={state.position} selected={state.selected} dispatch={dispatch} />
             <Info />
         </div>
-        <div>SFEN <input type="text" value={sfen} onChange={e => {
-            if (e.target.value === sfen) {
-                return;
-            }
-            dispatch({
-                ty: 'set-position',
-                position: decode(e.target.value),
-            });
-        }} style={{ width: 250 }} /></div>
+        <Sfen position={state.position} dispatch={dispatch} />
         <Button disabled={state.solving} onClick={async (e) => {
             dispatch({ ty: 'set-solving', solving: true });
             try {
-                for await (let line of solve(sfen)) {
+                for await (let line of solve(sfen(state.position))) {
                     const obj = JSON.parse(line);
                     if (obj['Solved']) {
                         props.onSolved(JSON.stringify(obj['Solved']))
