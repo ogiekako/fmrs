@@ -3,7 +3,7 @@ import Board from './Board';
 import Hands from './Hands';
 import * as types from './types';
 
-export function Position(props: {
+export default function Position(props: {
     position: model.Position,
     selected: types.Selected | undefined,
     dispatch: types.Dispatcher,
