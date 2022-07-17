@@ -9,9 +9,6 @@ export default function Sfen(props: {
 }) {
     const sfen = model.encodeSfen(props.position);
     return <div>SFEN <input className={props.disabled ? "text-muted" : ""} type="text" readOnly={props.disabled} value={sfen} onChange={e => {
-        if (props.disabled) {
-            return;
-        }
         if (e.target.value === sfen) {
             return;
         }
