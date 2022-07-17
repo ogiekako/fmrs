@@ -1,5 +1,3 @@
-import React from 'react';
-import Button from 'react-bootstrap/Button';
 import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Tooltip from 'react-bootstrap/Tooltip';
 import { BsInfoCircle } from 'react-icons/bs';
@@ -20,11 +18,9 @@ export function Info() {
             delay={{ show: 100, hide: 100 }}
             overlay={renderTooltip}
         >
-            <Button variant="">
+            <div>
                 <BsInfoCircle />
-            </Button>
-        </OverlayTrigger>
+            </div>
+        </OverlayTrigger >
     );
 }
-
-export default Info;

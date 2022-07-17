@@ -9,29 +9,35 @@ export function newState(): types.State {
     }
 }
 
-export function update(original: types.State, event: types.ClickEvent): types.State {
+export function update(original: types.State, event: types.Event): types.State {
+    if (event.ty === 'right-click-board') {
+        return updateOnRightClick(original, event.pos);
+    }
     const mutableState = cloneState(original);
     if (!original.selected) {
-        if (event.ty === 'hand') {
+        if (event.ty === 'click-hand') {
             if (event.kind === undefined) {
                 return mutableState;
             }
             mutableState.selected = {
-                ty: event.ty,
+                ty: 'hand',
                 color: event.color,
                 kind: event.kind
             };
             return mutableState;
         }
         if (original.position.board[event.pos[0]][event.pos[1]]) {
-            mutableState.selected = event;
+            mutableState.selected = {
+                ty: 'board',
+                pos: event.pos,
+            };
         }
         return mutableState;
     }
 
     mutableState.selected = undefined;
 
-    if (event.ty === 'hand') {
+    if (event.ty === 'click-hand') {
         if (original.selected.ty === 'hand') {
             mutableState.position.hands[original.selected.color][original.selected.kind]--;
             mutableState.position.hands[event.color][original.selected.kind]++;
@@ -83,7 +89,7 @@ export function update(original: types.State, event: types.ClickEvent): types.St
     return mutableState;
 }
 
-export function updateOnRightClick(original: types.State, pos: [number, number]): types.State {
+function updateOnRightClick(original: types.State, pos: [number, number]): types.State {
     const mutableState = cloneState(original);
     const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import Board from './Board';
 import Hands from './Hands';
-import { newState, update, updateOnRightClick } from './state/state';
+import { newState, update } from './state/state';
 import * as types from './types';
 import * as model from '../../model';
 import { decode } from '../../model/sfen/decode';
 import { Button } from 'react-bootstrap';
-import Info from './Info';
+import { Info } from './Info';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
@@ -32,9 +32,13 @@ export function Editor(props: {
     return <div>
         <div className="d-flex">
             <div>
-                <Hands hands={state.position.hands['white']} selected={whiteHandSelected} onClick={k => setState(state => update(state, { ty: 'hand', color: 'white', kind: k }))} />
-                <Board pieces={state.position.board} selected={boardSelected} onClick={pos => setState(state => update(state, { ty: 'board', pos }))} onRightClick={pos => setState(state => updateOnRightClick(state, pos))} />
-                <Hands hands={state.position.hands['black']} selected={blackHandSelected} onClick={k => setState(state => update(state, { ty: 'hand', color: 'black', kind: k }))} />
+                <Hands
+                    hands={state.position.hands['white']}
+                    selected={whiteHandSelected}
+                    onClick={kind => setState(state => update(state, { ty: 'click-hand', color: 'white', kind }))}
+                />
+                <Board pieces={state.position.board} selected={boardSelected} onClick={pos => setState(state => update(state, { ty: 'click-board', pos }))} onRightClick={pos => setState(state => update(state, { ty: 'right-click-board', pos }))} />
+                <Hands hands={state.position.hands['black']} selected={blackHandSelected} onClick={k => setState(state => update(state, { ty: 'click-hand', color: 'black', kind: k }))} />
             </div>
             <div>
                 <Info />
