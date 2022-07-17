@@ -6,7 +6,6 @@ use solver::Algorithm;
 
 mod command;
 mod converter;
-mod jkf;
 pub mod piece;
 pub mod position;
 pub mod sfen;

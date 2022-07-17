@@ -1,8 +1,9 @@
 use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
+use fmrs_core::jkf::JsonKifFormat;
 use futures::StreamExt;
 use serde::Serialize;
 
-use crate::{jkf::JsonKifFormat, solver::Algorithm};
+use crate::solver::Algorithm;
 
 pub async fn server(port: u16) -> anyhow::Result<()> {
     let address = format!("localhost:{}", port);
