@@ -2,3 +2,4 @@
 **/*.rs.bk
 
 /prof
+/node_modules
