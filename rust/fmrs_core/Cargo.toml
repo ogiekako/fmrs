@@ -6,8 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.58"
+getrandom = { version = "0.2", features = ["js"] }
+lazy_static = "1.4.0"
+nohash-hasher = "0.2.0"
+percent-encoding = "2.1.0"
+rand = { version = "0.8.5" }
 serde = { version = "1.0.139", features = ["derive"] }
 serde_repr = "0.1.8"
+xxhash-rust = { version = "0.8.5", features = ["xxh3"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

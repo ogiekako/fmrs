@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
-use crate::{
+use fmrs_core::jkf::{self, JsonKifFormat};
+use fmrs_core::{
     piece::{Color, Kind},
     position::{Hands, Movement, Position, PositionExt, Square},
-    solver::Solution,
 };
-use fmrs_core::jkf::{self, JsonKifFormat};
+
+use crate::solver::Solution;
 
 fn color(color: Color) -> jkf::Color {
     match color {
@@ -239,7 +240,7 @@ mod tests {
             let want: JsonKifFormat = serde_json::from_str(want).unwrap();
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
-            let problem = crate::sfen::decode_position(problem).unwrap();
+            let problem = fmrs_core::sfen::decode_position(problem).unwrap();
             let mut solutions =
                 crate::solver::solve(problem.clone(), None, Algorithm::Parallel).unwrap();
             solutions.sort();

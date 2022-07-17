@@ -1,5 +1,5 @@
 use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
-use fmrs_core::jkf::JsonKifFormat;
+use fmrs_core::{jkf::JsonKifFormat, sfen};
 use futures::StreamExt;
 use serde::Serialize;
 
@@ -39,7 +39,7 @@ enum SolveResponse {
 // Returns line delimited json stream
 #[post("/solve")]
 async fn solve(body_sfen: String) -> HttpResponse {
-    let problem = match crate::sfen::decode_position(&body_sfen) {
+    let problem = match sfen::decode_position(&body_sfen) {
         Ok(problem) => problem,
         Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
     };

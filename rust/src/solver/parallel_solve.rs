@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use nohash_hasher::IntMap;
 use sysinfo::SystemExt;
 
-use crate::position::{advance, Digest, Position};
+use fmrs_core::position::{advance, Digest, Position};
 
 use super::{reconstruct::reconstruct_solutions, Solution};
 

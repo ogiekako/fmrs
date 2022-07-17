@@ -1,6 +1,6 @@
 use std::{cell::RefCell, collections::BTreeMap};
 
-use crate::{
+use fmrs_core::{
     piece::Color,
     position::{advance_old, previous, Digest, Movement, Position, PositionExt},
 };

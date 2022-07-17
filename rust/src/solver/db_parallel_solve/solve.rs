@@ -1,4 +1,4 @@
-use crate::position::{advance_old, Movement, Position};
+use fmrs_core::position::{advance_old, Movement, Position};
 
 use super::{super::Solution, db::Database, reconstruct::reconstruct_solutions};
 

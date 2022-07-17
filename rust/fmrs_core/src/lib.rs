@@ -1,4 +1,10 @@
+#[macro_use]
+extern crate lazy_static;
+
 pub mod jkf;
+pub mod piece;
+pub mod position;
+pub mod sfen;
 
 #[cfg(test)]
 mod tests {

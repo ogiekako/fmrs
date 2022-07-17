@@ -1,8 +1,6 @@
-use crate::{
-    position::PositionExt,
-    sfen,
-    solver::{self, Algorithm},
-};
+use fmrs_core::{position::PositionExt, sfen};
+
+use crate::solver::{self, Algorithm};
 
 pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
     eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");

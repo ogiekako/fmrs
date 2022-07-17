@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use nohash_hasher::IntMap;
 
-use crate::position::{previous, Digest, Movement, Position, PositionExt};
+use fmrs_core::position::{previous, Digest, Movement, Position, PositionExt};
 
 pub(super) fn reconstruct_solutions(
     mut mate: Position,

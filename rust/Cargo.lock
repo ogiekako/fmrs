@@ -819,10 +819,17 @@ dependencies = [
 name = "fmrs_core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "getrandom",
+ "lazy_static",
+ "nohash-hasher",
+ "percent-encoding",
  "pretty_assertions 1.2.1",
+ "rand",
  "serde",
  "serde_json",
  "serde_repr",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -966,8 +973,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4eb1a864a501629691edf6c15a593b7a51eebaa1e8468e9ddc623de7c9b58ec6"
 dependencies = [
  "cfg-if 1.0.0",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]

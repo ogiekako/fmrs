@@ -1,11 +1,9 @@
 use std::{fs::File, io::Write};
 
+use fmrs_core::sfen;
 use pprof::protos::Message;
 
-use crate::{
-    sfen,
-    solver::{self, Algorithm},
-};
+use crate::solver::{self, Algorithm};
 
 pub fn bench() -> anyhow::Result<()> {
     // let problem = include_str!("../../problems/forest-06-10_97.sfen");

@@ -1,10 +1,10 @@
-use crate::piece::*;
-use crate::position::Movement;
-use crate::position::Position;
-use crate::position::PositionExt;
 use crate::solver::db_parallel_solve;
 use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
+use fmrs_core::piece::*;
+use fmrs_core::position::Movement;
+use fmrs_core::position::Position;
+use fmrs_core::position::PositionExt;
 
 pub type Solution = Vec<Movement>;
 
@@ -62,14 +62,12 @@ pub fn solve_with_progress(
 mod tests {
     use solve::Algorithm;
 
-    use crate::{
-        position::Movement,
-        solver::{solve, Solution},
-    };
+    use crate::solver::{solve, Solution};
+    use fmrs_core::position::Movement;
 
     #[test]
     fn test_solve() {
-        use crate::sfen;
+        use fmrs_core::sfen;
 
         for tc in vec![
             (
@@ -160,7 +158,7 @@ mod tests {
 
     #[test]
     fn no_answer() {
-        use crate::sfen;
+        use fmrs_core::sfen;
 
         for sfen in [
             "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",

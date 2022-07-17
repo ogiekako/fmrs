@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 
-use crate::{
+use fmrs_core::{
     piece::Color,
     position::{previous, Digest, Movement, Position, PositionExt},
 };

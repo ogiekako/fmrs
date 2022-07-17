@@ -6,12 +6,7 @@ use solver::Algorithm;
 
 mod command;
 mod converter;
-pub mod piece;
-pub mod position;
-pub mod sfen;
 pub mod solver;
-#[macro_use]
-extern crate lazy_static;
 
 #[derive(Parser)]
 struct Args {
