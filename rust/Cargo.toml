@@ -11,9 +11,10 @@ edition = "2021"
 name = "fmrs"
 
 [workspace]
-members = ["wasm"]
+members = ["wasm", "fmrs_core"]
 
 [dependencies]
+fmrs_core = { path = "./fmrs_core" }
 lazy_static = "1.4.0"
 
 serde = { version = "1.0.137", features = ["derive"] }

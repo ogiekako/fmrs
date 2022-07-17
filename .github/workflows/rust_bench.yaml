@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+defaults:
+  run:
+    working-directory: rust
+
 jobs:
   build:
     runs-on: ubuntu-20.04
@@ -34,7 +38,7 @@ jobs:
           command: check
 
       - name: test
-        run: cargo test
+        run: cargo test --all
 
       - name: bench
         run: cargo bench

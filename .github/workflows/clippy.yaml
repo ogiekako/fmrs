@@ -5,6 +5,10 @@ on:
     branches:
       - main
 
+defaults:
+  run:
+    working-directory: "./rust"
+
 jobs:
   build:
     runs-on: ubuntu-20.04
