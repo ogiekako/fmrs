@@ -7,6 +7,7 @@ export default function Position(props: {
     position: model.Position,
     selected: types.Selected | undefined,
     dispatch: types.Dispatcher,
+    disabled: boolean,
 }) {
     let boardSelected = undefined;
     let whiteHandSelected = undefined;
@@ -21,7 +22,7 @@ export default function Position(props: {
         }
     }
 
-    return <div>
+    return <div className={props.disabled ? "text-muted" : ""}>
         <Hands
             hands={props.position.hands['white']}
             selected={whiteHandSelected}

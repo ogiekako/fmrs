@@ -17,6 +17,9 @@ export function newState(): types.State {
 }
 
 export function reduce(original: types.State, event: types.Event): types.State {
+    if (original.solving && event.ty !== 'set-solving') {
+        return original;
+    }
     let mutableState;
     switch (event.ty) {
         case 'click-board':

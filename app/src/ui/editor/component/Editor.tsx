@@ -14,14 +14,14 @@ export function Editor(props: {
     return <div>
         <div className="d-flex">
             <div>
-                <Position position={state.position} selected={state.selected} dispatch={dispatch} />
+                <Position position={state.position} selected={state.selected} dispatch={dispatch} disabled={state.solving} />
             </div>
             <Info />
             <div className="p-3">
-                <Problems position={state.position} problems={state.problems} dispatch={dispatch} />
+                <Problems position={state.position} problems={state.problems} dispatch={dispatch} disabled={state.solving} />
             </div>
         </div>
-        <Sfen position={state.position} dispatch={dispatch} />
-        <SolveButton position={state.position} disabled={state.solving} dispatch={dispatch} onSolved={props.onSolved} />
+        <Sfen position={state.position} dispatch={dispatch} disabled={state.solving} />
+        <SolveButton position={state.position} solving={state.solving} dispatch={dispatch} onSolved={props.onSolved} />
     </div>
 }
