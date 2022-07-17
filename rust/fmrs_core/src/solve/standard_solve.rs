@@ -12,6 +12,7 @@ pub struct StandardSolver {
     memo_next: IntMap<Digest, u32>,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum SolverStatus {
     Intermediate,
     Mate(Vec<Solution>),
@@ -57,6 +58,7 @@ impl StandardSolver {
                     self.solutions_upto - res.len(),
                 ))
             }
+            res.sort();
             return Ok(SolverStatus::Mate(res));
         }
         if all_next_positions.is_empty() {

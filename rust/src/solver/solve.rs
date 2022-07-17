@@ -1,6 +1,7 @@
 use crate::solver::db_parallel_solve;
 use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
+use crate::solver::standard_solve;
 use fmrs_core::piece::*;
 use fmrs_core::position::Position;
 use fmrs_core::position::PositionExt;
@@ -11,6 +12,7 @@ pub enum Algorithm {
     MemorySave,
     Parallel,
     DbParallel,
+    Standard,
 }
 
 impl Algorithm {
@@ -20,6 +22,7 @@ impl Algorithm {
             Algorithm::MemorySave,
             Algorithm::Parallel,
             Algorithm::DbParallel,
+            Algorithm::Standard,
         ]
         .into_iter()
     }
@@ -53,6 +56,7 @@ pub fn solve_with_progress(
         Algorithm::MemorySave => memory_save_solve::solve(position, progress, solutions_upto),
         Algorithm::Parallel => parallel_solve::solve(position, progress, solutions_upto),
         Algorithm::DbParallel => db_parallel_solve::solve(position, progress, solutions_upto),
+        Algorithm::Standard => standard_solve::solve(position, solutions_upto),
     }
 }
 
