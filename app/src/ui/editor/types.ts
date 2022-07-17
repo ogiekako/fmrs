@@ -14,14 +14,21 @@ export type Selected = {
     pos: [number, number] // zero-origin
 }
 
-export type Event = {
-    ty: 'click-hand'
+export type ClickHandEvent = {
+    ty: 'click-hand',
     color: Color,
     kind: Kind | undefined
-} | {
-    ty: 'click-board'
-    pos: [number, number]
-} | {
+}
+
+export type ClickBoardEvent = {
+    ty: 'click-board',
+    pos: [number, number],
+}
+
+export type Event = ClickHandEvent | ClickBoardEvent | {
     ty: 'right-click-board',
     pos: [number, number]
+} | {
+    ty: 'set-position',
+    position: Position,
 }

@@ -9,10 +9,20 @@ export function newState(): types.State {
     }
 }
 
-export function update(original: types.State, event: types.Event): types.State {
+export function reduce(original: types.State, event: types.Event): types.State {
     if (event.ty === 'right-click-board') {
-        return updateOnRightClick(original, event.pos);
+        return handleRightClick(original, event.pos);
     }
+    if (event.ty === 'set-position') {
+        return {
+            position: event.position,
+            selected: undefined,
+        };
+    }
+    return handleClick(original, event)
+}
+
+function handleClick(original: types.State, event: types.ClickBoardEvent | types.ClickHandEvent): types.State {
     const mutableState = cloneState(original);
     if (!original.selected) {
         if (event.ty === 'click-hand') {
@@ -87,9 +97,10 @@ export function update(original: types.State, event: types.Event): types.State {
     mutableState.position.board[event.pos[0]][event.pos[1]] = from;
     mutableState.position.board[original.selected.pos[0]][original.selected.pos[1]] = undefined;
     return mutableState;
+
 }
 
-function updateOnRightClick(original: types.State, pos: [number, number]): types.State {
+function handleRightClick(original: types.State, pos: [number, number]): types.State {
     const mutableState = cloneState(original);
     const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {
