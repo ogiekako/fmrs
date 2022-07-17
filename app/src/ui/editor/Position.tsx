@@ -6,7 +6,7 @@ import * as types from './types';
 export function Position(props: {
     position: model.Position,
     selected: types.Selected | undefined,
-    dispatch: (event: types.Event) => void
+    dispatch: types.Reducer,
 }) {
     let boardSelected = undefined;
     let whiteHandSelected = undefined;

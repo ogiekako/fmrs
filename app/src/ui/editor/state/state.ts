@@ -6,18 +6,22 @@ export function newState(): types.State {
     return {
         position: position.create(),
         selected: undefined,
+        solving: false,
     }
 }
 
 export function reduce(original: types.State, event: types.Event): types.State {
-    if (event.ty === 'right-click-board') {
-        return handleRightClick(original, event.pos);
-    }
-    if (event.ty === 'set-position') {
-        return {
-            position: event.position,
-            selected: undefined,
-        };
+    const mutableState = cloneState(original);
+    switch (event.ty) {
+        case 'right-click-board':
+            return handleRightClick(mutableState, event.pos);
+        case 'set-position':
+            mutableState.position = event.position;
+            mutableState.selected = undefined;
+            return mutableState;
+        case 'set-solving':
+            mutableState.solving = event.solving;
+            return mutableState
     }
     return handleClick(original, event)
 }
@@ -100,8 +104,7 @@ function handleClick(original: types.State, event: types.ClickBoardEvent | types
 
 }
 
-function handleRightClick(original: types.State, pos: [number, number]): types.State {
-    const mutableState = cloneState(original);
+function handleRightClick(mutableState: types.State, pos: [number, number]): types.State {
     const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {
         return mutableState;

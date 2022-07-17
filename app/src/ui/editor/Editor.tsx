@@ -1,19 +1,15 @@
 import { useReducer, useState } from 'react';
-import Board from './Board';
-import Hands from './Hands';
 import { newState, reduce } from './state/state';
-import * as types from './types';
 import * as model from '../../model';
-import { decode } from '../../model/sfen/decode';
 import { Button } from 'react-bootstrap';
 import { Info } from './Info';
 import { Position } from './Position';
+import { decode } from '../../model/sfen/decode';
 
 export function Editor(props: {
     onSolved: (jkf: string) => void,
 }) {
     const [state, dispatch] = useReducer(reduce, newState());
-    const [solving, setSolving] = useState<boolean>(() => false);
 
     const sfen = model.sfen(state.position);
 
@@ -31,8 +27,8 @@ export function Editor(props: {
                 position: decode(e.target.value),
             });
         }} style={{ width: 250 }} /></div>
-        <Button disabled={solving} onClick={async (e) => {
-            setSolving(true);
+        <Button disabled={state.solving} onClick={async (e) => {
+            dispatch({ ty: 'set-solving', solving: true });
             try {
                 for await (let line of solve(sfen)) {
                     const obj = JSON.parse(line);
@@ -45,7 +41,7 @@ export function Editor(props: {
             } catch (e: any) {
                 console.error(e)
             } finally {
-                setSolving(false);
+                dispatch({ ty: 'set-solving', solving: false });
             }
         }}>Solve</Button>
     </div>

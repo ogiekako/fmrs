@@ -3,6 +3,7 @@ import { Color, Kind, Position } from "../../model"
 export type State = {
     position: Position,
     selected: Selected | undefined,
+    solving: boolean,
 }
 
 export type Selected = {
@@ -31,4 +32,9 @@ export type Event = ClickHandEvent | ClickBoardEvent | {
 } | {
     ty: 'set-position',
     position: Position,
+} | {
+    ty: 'set-solving',
+    solving: boolean,
 }
+
+export type Reducer = (event: Event) => void
