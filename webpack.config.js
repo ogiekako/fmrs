@@ -37,7 +37,7 @@ module.exports = {
             template: './app/public/index.html'
         }),
         new WasmPackPlugin({
-            crateDirectory: path.resolve(__dirname, "wasm"),
+            crateDirectory: path.resolve(__dirname, "rust/wasm"),
             outDir: path.resolve(__dirname, 'dist/pkg'),
         }),
     ],
