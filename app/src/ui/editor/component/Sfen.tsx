@@ -1,6 +1,6 @@
-import * as model from '../../model';
-import { decode } from '../../model/sfen/decode';
-import * as types from './types';
+import * as model from '../../../model';
+import { decode } from '../../../model/sfen/decode';
+import * as types from '../types';
 
 export default function Sfen(props: {
     position: model.Position,

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Editor } from './ui/editor/Editor';
+import { Editor } from './ui/editor/component/Editor';
 import { Solution } from './ui/solution';
 import 'bootstrap/dist/css/bootstrap.min.css';
 

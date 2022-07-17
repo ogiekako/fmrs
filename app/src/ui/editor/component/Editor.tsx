@@ -1,5 +1,5 @@
 import { useReducer } from 'react';
-import { newState, reduce } from './state/state';
+import { newState, reduce } from '../state/state';
 import Info from './Info';
 import Position from './Position';
 import Sfen from './Sfen';

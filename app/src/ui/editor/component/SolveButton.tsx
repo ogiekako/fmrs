@@ -1,6 +1,6 @@
 import { Button } from 'react-bootstrap';
-import * as model from '../../model';
-import * as types from './types';
+import * as model from '../../../model';
+import * as types from '../types';
 
 export default function SolveButton(props: {
     position: model.Position,
