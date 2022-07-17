@@ -6,6 +6,7 @@ export function cloneState(state: types.State): types.State {
         position: model.clonePosition(state.position),
         selected: cloneSelected(state.selected),
         solving: state.solving,
+        problems: cloneProblems(state.problems),
     }
 }
 
@@ -23,3 +24,6 @@ function cloneSelected(selected: types.Selected | undefined): types.Selected | u
     };
 }
 
+function cloneProblems(problems: Array<[model.Position, string]>): Array<[model.Position, string]> {
+    return problems.map(([position, name]) => [model.clonePosition(position), name])
+}

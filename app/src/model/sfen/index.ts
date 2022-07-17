@@ -1,1 +1,2 @@
-export { sfen } from './encode';
+export { encodeSfen } from './encode';
+export { decodeSfen } from './decode';

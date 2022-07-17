@@ -1,29 +1,43 @@
 import { cloneState } from '../clone';
 import * as types from '../types';
 import * as position from './position';
+import * as model from '../../../model';
 
 export function newState(): types.State {
+    const initialPosition = position.create();
     return {
-        position: position.create(),
+        position: initialPosition,
         selected: undefined,
         solving: false,
+        problems: [
+            [initialPosition, "empty"],
+            [model.decodeSfen("rBK4S1/L1G2+SL1B/4L+P1N1/1nngpsp2/1grl1g1P1/1kP1n1P2/3P1P3/4+p4/P1s1P4 b P6p 1"), "jugemu_32189"]
+        ],
     }
 }
 
 export function reduce(original: types.State, event: types.Event): types.State {
-    const mutableState = cloneState(original);
+    let mutableState;
     switch (event.ty) {
+        case 'click-board':
+        case 'click-hand':
+            return handleClick(original, event)
         case 'right-click-board':
-            return handleRightClick(mutableState, event.pos);
+            return handleRightClick(original, event.pos);
         case 'set-position':
+            mutableState = cloneState(original);
             mutableState.position = event.position;
             mutableState.selected = undefined;
             return mutableState;
         case 'set-solving':
+            mutableState = cloneState(original);
             mutableState.solving = event.solving;
             return mutableState
+        case 'set-problems':
+            mutableState = cloneState(original);
+            mutableState.problems = event.problems;
+            return mutableState
     }
-    return handleClick(original, event)
 }
 
 function handleClick(original: types.State, event: types.ClickBoardEvent | types.ClickHandEvent): types.State {
@@ -103,7 +117,8 @@ function handleClick(original: types.State, event: types.ClickBoardEvent | types
     return mutableState;
 }
 
-function handleRightClick(mutableState: types.State, pos: [number, number]): types.State {
+function handleRightClick(original: types.State, pos: [number, number]): types.State {
+    const mutableState = cloneState(original);
     const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {
         return mutableState;

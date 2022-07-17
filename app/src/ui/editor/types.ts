@@ -4,7 +4,10 @@ export type State = {
     position: Position,
     selected: Selected | undefined,
     solving: boolean,
+    problems: Array<Problem>,
 }
+
+export type Problem = [Position, /* name */ string];
 
 export type Selected = {
     ty: 'hand'
@@ -35,6 +38,9 @@ export type Event = ClickHandEvent | ClickBoardEvent | {
 } | {
     ty: 'set-solving',
     solving: boolean,
+} | {
+    ty: 'set-problems',
+    problems: Array<Problem>,
 }
 
 export type Dispatcher = (event: Event) => void

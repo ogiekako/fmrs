@@ -11,7 +11,7 @@ export default function SolveButton(props: {
     return <Button disabled={props.disabled} onClick={async (e) => {
         props.dispatch({ ty: 'set-solving', solving: true });
         try {
-            for await (let line of solve(model.sfen(props.position))) {
+            for await (let line of solve(model.encodeSfen(props.position))) {
                 const obj = JSON.parse(line);
                 if (obj['Solved']) {
                     props.onSolved(JSON.stringify(obj['Solved']))

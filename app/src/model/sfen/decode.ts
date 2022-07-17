@@ -1,6 +1,6 @@
 import { Board, emptyHands, Hands, Kind, Piece, Position } from "..";
 
-export function decode(sfen: string): Position {
+export function decodeSfen(sfen: string): Position {
     const [boardStr, , handsStr,] = sfen.split(' ');
     const board = decodeBoard(boardStr);
     const hands = decodeHands(handsStr);

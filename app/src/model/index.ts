@@ -5,4 +5,4 @@ export type { Piece } from './piece'
 export { type Board, emptyBoard } from './board'
 export type { Position } from './position'
 export { clonePosition } from './clone'
-export { sfen } from './sfen';
+export { encodeSfen, decodeSfen } from './sfen';
