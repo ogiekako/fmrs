@@ -10,6 +10,9 @@ edition = "2021"
 [[bin]]
 name = "fmrs"
 
+[workspace]
+members = ["wasm"]
+
 [dependencies]
 lazy_static = "1.4.0"
 
