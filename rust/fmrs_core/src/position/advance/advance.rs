@@ -8,8 +8,8 @@ use super::{black, white};
 
 pub fn advance(
     position: &Position,
-    memo: &mut IntMap<Digest, usize>,
-    next_step: usize,
+    memo: &mut IntMap<Digest, u32>,
+    next_step: u32,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     match position.turn() {
         Color::Black => black::advance(position, memo, next_step).map(|x| (x, false)),

@@ -3,9 +3,8 @@ use std::{cell::RefCell, collections::BTreeMap};
 use fmrs_core::{
     piece::Color,
     position::{advance_old, previous, Digest, Movement, Position, PositionExt},
+    solve::Solution,
 };
-
-use super::Solution;
 
 pub(super) fn solve(
     initial_position: Position,

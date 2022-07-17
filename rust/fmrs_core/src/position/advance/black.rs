@@ -5,7 +5,8 @@ use crate::piece::{Color, Kind};
 
 use crate::position::Digest;
 use crate::position::{
-    bitboard::{self, BitBoard}, Movement, Position, PositionExt, Square,
+    bitboard::{self, BitBoard},
+    Movement, Position, PositionExt, Square,
 };
 
 use super::attack_prevent::attack_preventing_movements;
@@ -14,8 +15,8 @@ use super::pinned::{pinned, Pinned};
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut IntMap<Digest, usize>,
-    next_step: usize,
+    memo: &mut IntMap<Digest, u32>,
+    next_step: u32,
 ) -> anyhow::Result<Vec<Position>> {
     debug_assert_eq!(position.turn(), Color::Black);
     let mut ctx = Context::new(position, memo, next_step)?;
@@ -29,7 +30,7 @@ pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> 
 
 struct Context<'a> {
     position: &'a Position,
-    next_step: usize,
+    next_step: u32,
     white_king_pos: Square,
     black_king_checked: bool,
     black_pieces: BitBoard,
@@ -37,15 +38,15 @@ struct Context<'a> {
     pinned: Pinned,
     pawn_mask: usize,
     // Mutable fields
-    memo: &'a mut IntMap<Digest, usize>,
+    memo: &'a mut IntMap<Digest, u32>,
     result: Vec<Position>,
 }
 
 impl<'a> Context<'a> {
     fn new(
         position: &'a Position,
-        memo: &'a mut IntMap<Digest, usize>,
-        next_step: usize,
+        memo: &'a mut IntMap<Digest, u32>,
+        next_step: u32,
     ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
             .bitboard(Color::White.into(), Kind::King.into())

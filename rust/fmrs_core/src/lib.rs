@@ -5,6 +5,7 @@ pub mod jkf;
 pub mod piece;
 pub mod position;
 pub mod sfen;
+pub mod solve;
 
 #[cfg(test)]
 mod tests {

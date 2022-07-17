@@ -12,8 +12,8 @@ pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> 
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut IntMap<Digest, usize>,
-    next_step: usize,
+    memo: &mut IntMap<Digest, u32>,
+    next_step: u32,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::White);
     let king_pos = position

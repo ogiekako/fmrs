@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 
 use fmrs_core::jkf::{self, JsonKifFormat};
+use fmrs_core::solve::Solution;
 use fmrs_core::{
     piece::{Color, Kind},
     position::{Hands, Movement, Position, PositionExt, Square},
 };
-
-use crate::solver::Solution;
 
 fn color(color: Color) -> jkf::Color {
     match color {

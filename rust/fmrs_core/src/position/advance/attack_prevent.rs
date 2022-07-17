@@ -15,8 +15,8 @@ use super::{
 
 pub(super) fn attack_preventing_movements(
     position: &Position,
-    memo: &mut IntMap<Digest, usize>,
-    next_step: usize,
+    memo: &mut IntMap<Digest, u32>,
+    next_step: u32,
     king_pos: Square,
     should_return_check: bool,
 ) -> Option<(Vec<Position>, /* is mate */ bool)> {
@@ -34,10 +34,10 @@ struct Context<'a> {
     pinned: Pinned,
     attacker: Attacker,
     pawn_mask: usize,
-    next_step: usize,
+    next_step: u32,
     should_return_check: bool,
     // Mutable fields
-    memo: &'a mut IntMap<Digest, usize>,
+    memo: &'a mut IntMap<Digest, u32>,
     result: Vec<Position>,
     is_mate: bool,
 }
@@ -45,8 +45,8 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         position: &'a Position,
-        memo: &'a mut IntMap<Digest, usize>,
-        next_step: usize,
+        memo: &'a mut IntMap<Digest, u32>,
+        next_step: u32,
         king_pos: Square,
         should_return_check: bool,
     ) -> Option<Self> {

@@ -5,7 +5,7 @@ use sysinfo::SystemExt;
 
 use fmrs_core::position::{advance, Digest, Position};
 
-use super::{reconstruct::reconstruct_solutions, Solution};
+use fmrs_core::solve::{reconstruct_solutions, Solution};
 
 pub(super) fn solve(
     position: Position,
@@ -41,9 +41,9 @@ const NTHREAD: usize = 16;
 
 struct Task {
     all_positions: Vec<Position>,
-    memo: IntMap<Digest, usize>,
-    memo_next: IntMap<Digest, usize>,
-    mate_in: Arc<Mutex<Option<usize>>>,
+    memo: IntMap<Digest, u32>,
+    memo_next: IntMap<Digest, u32>,
+    mate_in: Arc<Mutex<Option<u32>>>,
     solutions_upto: usize,
     active_thread_count: Arc<Mutex<usize>>,
     generation: usize,
@@ -52,9 +52,9 @@ struct Task {
 impl Task {
     fn new(
         all_positions: Vec<Position>,
-        memo: IntMap<Digest, usize>,
-        memo_next: IntMap<Digest, usize>,
-        mate_in: Arc<Mutex<Option<usize>>>,
+        memo: IntMap<Digest, u32>,
+        memo_next: IntMap<Digest, u32>,
+        mate_in: Arc<Mutex<Option<u32>>>,
         solutions_upto: usize,
         active_thread_count: Arc<Mutex<usize>>,
         generation: usize,
@@ -81,7 +81,7 @@ impl Task {
         (available_memory - queue_size) / memo_size
     }
 
-    fn solve(mut self, start_step: usize) -> anyhow::Result<Vec<Solution>> {
+    fn solve(mut self, start_step: u32) -> anyhow::Result<Vec<Solution>> {
         let mut mate_positions = vec![];
         let mut all_next_positions = Vec::new();
         for step in start_step.. {
@@ -132,7 +132,7 @@ impl Task {
                 let mate_in = mate_in.lock().unwrap().unwrap();
                 let mut shortest_solutions = vec![];
                 for solution in all_solutions {
-                    if solution.len() == mate_in {
+                    if solution.len() == mate_in as usize {
                         shortest_solutions.push(solution);
                     }
                 }
@@ -143,7 +143,7 @@ impl Task {
                     .collect());
             }
 
-            let mate_bound = self.mate_in.lock().unwrap().unwrap_or(usize::MAX);
+            let mate_bound = self.mate_in.lock().unwrap().unwrap_or(u32::MAX);
             if step > mate_bound {
                 return Ok(vec![]);
             }

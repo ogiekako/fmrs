@@ -42,4 +42,4 @@ jobs:
       - uses: actions/upload-artifact@v1
         with:
           name: fmrs_${{ github.sha }}_bench
-          path: ./target/criterion
+          path: ./rust/target/criterion

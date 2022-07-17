@@ -2,11 +2,9 @@ use crate::solver::db_parallel_solve;
 use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
 use fmrs_core::piece::*;
-use fmrs_core::position::Movement;
 use fmrs_core::position::Position;
 use fmrs_core::position::PositionExt;
-
-pub type Solution = Vec<Movement>;
+use fmrs_core::solve::Solution;
 
 #[derive(Debug, Clone, clap::ValueEnum)]
 pub enum Algorithm {
@@ -62,8 +60,8 @@ pub fn solve_with_progress(
 mod tests {
     use solve::Algorithm;
 
-    use crate::solver::{solve, Solution};
-    use fmrs_core::position::Movement;
+    use crate::solver::solve;
+    use fmrs_core::{position::Movement, solve::Solution};
 
     #[test]
     fn test_solve() {

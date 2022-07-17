@@ -1,6 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fmrs::position::advance_old;
-use fmrs::sfen::decode_position;
+use fmrs_core::position::advance_old;
+use fmrs_core::sfen::decode_position;
 use pprof::criterion::{Output, PProfProfiler};
 
 fn bench_black_advance(c: &mut Criterion) {

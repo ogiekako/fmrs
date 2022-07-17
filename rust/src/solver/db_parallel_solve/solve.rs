@@ -1,6 +1,9 @@
-use fmrs_core::position::{advance_old, Movement, Position};
+use fmrs_core::{
+    position::{advance_old, Movement, Position},
+    solve::Solution,
+};
 
-use super::{super::Solution, db::Database, reconstruct::reconstruct_solutions};
+use super::{db::Database, reconstruct::reconstruct_solutions};
 
 pub fn solve(
     initial_position: Position,
