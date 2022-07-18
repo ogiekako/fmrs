@@ -22,6 +22,9 @@ function SolutionCount(props: {
     count: number
     limit: number
 }) {
+    if (!props.count) {
+        return <div></div>;
+    }
     if (props.count > props.limit) {
         return <div>More than {props.limit} solutions found</div>
     } else if (props.count > 1) {

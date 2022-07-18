@@ -156,7 +156,9 @@ function handleRightClick(original: types.State, pos: [number, number]): types.S
 }
 
 function maybeClearSolveResponse(mutableState: types.State) {
-    if (mutableState.solveResponse && mutableState.solveResponse.ty !== 'solved') {
+    if (!mutableState.solveResponse || mutableState.solveResponse.ty !== 'solved') {
         mutableState.solveResponse = undefined
+        return;
     }
+    mutableState.solveResponse.response.solutions = 0;
 }

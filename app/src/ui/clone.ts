@@ -5,9 +5,9 @@ export function cloneState(state: types.State): types.State {
     return {
         position: model.clonePosition(state.position),
         selected: cloneSelected(state.selected),
-        solving: state.solving,
+        solving: state.solving && Object.assign({}, state.solving),
         problems: cloneProblems(state.problems),
-        solveResponse: state.solveResponse,
+        solveResponse: state.solveResponse && Object.assign({}, state.solveResponse),
     }
 }
 
