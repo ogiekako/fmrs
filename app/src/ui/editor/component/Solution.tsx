@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export function Solution(props: { jkf: string }) {
+export default function Solution(props: { jkf: string }) {
     const outer = useRef<HTMLDivElement>(null);
     const id = generateId(props.jkf);
 

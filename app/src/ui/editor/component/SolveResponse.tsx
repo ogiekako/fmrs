@@ -1,5 +1,5 @@
-import { Solution } from '../../solution';
 import * as types from '../types';
+import Solution from './Solution';
 
 export default function SolveResponse(props: {
     solveResponse: types.SolveResponse
