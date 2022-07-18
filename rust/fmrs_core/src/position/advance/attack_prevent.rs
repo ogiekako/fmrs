@@ -253,6 +253,7 @@ impl<'a> Context<'a> {
         if self.attacker.double_check && common::checked(&next_position, self.turn) {
             return;
         }
+
         if self.should_return_check && !common::checked(&next_position, self.turn.opposite()) {
             return;
         }

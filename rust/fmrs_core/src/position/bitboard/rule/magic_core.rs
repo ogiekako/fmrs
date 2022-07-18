@@ -14,15 +14,15 @@ impl MagicCore {
         for ts in targets {
             n += ts.len();
         }
-        let shift = n.leading_zeros() as u64;
+        let shift = (n as u64).leading_zeros() as u64;
 
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
         for _ in 0..GIVE_UP {
             let mut magic = 0;
-            for i in 0..usize::BITS {
+            for i in 0..u64::BITS {
                 let one_probability = 15;
                 if rng.gen_range(0u8..100) < one_probability {
-                    magic |= 1 << i;
+                    magic |= 1u64 << i;
                 }
             }
             let cand = Self { magic, shift };
@@ -38,7 +38,7 @@ impl MagicCore {
     }
 
     pub(super) fn table_len(&self) -> usize {
-        1 << (u64::BITS as u64 - self.shift)
+        1usize << (u64::BITS as u64 - self.shift)
     }
 }
 

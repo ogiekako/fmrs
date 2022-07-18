@@ -104,14 +104,15 @@ impl<'a> Context<'a> {
                 .bitboard(Color::Black.into(), Kind::King.into())
                 .next()
                 .unwrap();
-            attack_preventing_movements(
+            self.result = attack_preventing_movements(
                 self.position,
                 self.memo,
                 self.next_step,
                 black_king_pos,
                 true,
             )
-            .unwrap();
+            .unwrap()
+            .0;
             return;
         }
 

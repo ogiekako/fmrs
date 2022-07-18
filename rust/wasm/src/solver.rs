@@ -6,6 +6,8 @@ use fmrs_core::{
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
+use crate::utils::set_panic_hook;
+
 #[wasm_bindgen]
 pub struct Solver {
     initial_position: Position,
@@ -17,6 +19,8 @@ pub struct Solver {
 #[wasm_bindgen]
 impl Solver {
     pub fn new(problem_sfen: String, solutions_upto: u32) -> Self {
+        set_panic_hook();
+
         let position = sfen::decode_position(&problem_sfen).unwrap();
         Self {
             initial_position: position.clone(),

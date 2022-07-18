@@ -135,6 +135,11 @@ mod tests {
                 "3ppppp1/9/2B6/K2+P4r/9/llll5/nnnn5/bggs4s/rggs3sk b 12p 1",
                 vec!["6454"],
             ),
+            (
+                // http://sfenreader.appspot.com/sfen?sfen=9%2FG2s4G%2FLLpNGNpPP%2F4L4%2F1sN3N2%2F1g1bpb1ss%2F1pL3R2%2FP4k3%2F1PPPP3K%20b%202Pr5p%201
+                "9/G2s4G/LLpNGNpPP/4L4/1sN3N2/1g1bpb1ss/1pL3R2/P4k3/1PPPP3K b 2Pr5p 1",
+                vec!["P*4i 4h3g P*3h 3g3f 3h3g 3f4g 4i4h 4g5g 5i5h 5g6g 6i6h 6g7g 7i7h 7g7f 7h7g 7f7e 7g7f 7e7d 7f7e 7d8c 9b8b 8c8b 9c9b+ 8b7b 9b8b 7b6a 5c5b"],
+            ),
             // http://cavesfairy.g1.xrea.com/pub/qgfairy/
             (
                 // 06-07 (57 steps)
