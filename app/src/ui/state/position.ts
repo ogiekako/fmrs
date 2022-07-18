@@ -1,4 +1,4 @@
-import * as model from "../../../model";
+import * as model from "../../model";
 
 export function create(): model.Position {
     const pieces = model.emptyBoard();

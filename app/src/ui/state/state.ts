@@ -1,7 +1,7 @@
 import { cloneState } from '../clone';
 import * as types from '../types';
 import * as position from './position';
-import * as model from '../../../model';
+import * as model from '../../model';
 
 export function newState(): types.State {
     const initialPosition = position.create();

@@ -1,4 +1,4 @@
-import * as model from '../../../model';
+import * as model from '../../model';
 import Board from './Board';
 import Hands from './Hands';
 import * as types from '../types';

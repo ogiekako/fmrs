@@ -1,5 +1,5 @@
 import { SELECTED_COLOR } from '../constants';
-import * as model from '../../../model';
+import * as model from '../../model';
 
 const RAW_KINDS: Array<model.Kind> = ['P', 'L', 'N', 'S', 'G', 'B', 'R'];
 

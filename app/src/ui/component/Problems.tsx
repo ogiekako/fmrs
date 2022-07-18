@@ -1,7 +1,7 @@
 import { Button, CloseButton, Dropdown } from 'react-bootstrap';
 import DropdownItem from 'react-bootstrap/esm/DropdownItem';
 import DropdownMenu from 'react-bootstrap/esm/DropdownMenu';
-import * as model from '../../../model';
+import * as model from '../../model';
 import * as types from '../types';
 
 export default function Problems(props: {

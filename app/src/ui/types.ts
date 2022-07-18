@@ -1,5 +1,5 @@
-import { Color, Kind, Position } from "../../model"
-import * as solve from "../../solve"
+import { Color, Kind, Position } from "../model"
+import * as solve from "../solve"
 
 export type State = {
     position: Position,

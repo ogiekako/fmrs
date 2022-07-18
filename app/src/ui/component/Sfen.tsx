@@ -1,5 +1,5 @@
-import * as model from '../../../model';
-import { decodeSfen } from '../../../model/sfen/decode';
+import * as model from '../../model';
+import { decodeSfen } from '../../model/sfen/decode';
 import * as types from '../types';
 
 export default function Sfen(props: {

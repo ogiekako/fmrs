@@ -1,8 +1,8 @@
 import { Button, Spinner } from 'react-bootstrap';
-import * as model from '../../../model';
+import * as model from '../../model';
 import * as types from '../types';
-import * as solve from '../../../solve';
-import { solveServer } from '../../../solve/server_solver';
+import * as solve from '../../solve';
+import { solveServer } from '../../solve/server_solver';
 import SolveResponse from './SolveResponse';
 
 const USE_WASM = true;
