@@ -22,6 +22,6 @@ export function Editor(props: {
             </div>
         </div>
         <Sfen position={state.position} dispatch={dispatch} disabled={!!state.solving} />
-        <SolveButton position={state.position} solving={state.solving} dispatch={dispatch} onSolved={props.onSolved} />
+        <SolveButton position={state.position} solving={state.solving} solveError={state.solveError} dispatch={dispatch} onSolved={props.onSolved} />
     </div>
 }

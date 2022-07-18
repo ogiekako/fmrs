@@ -7,6 +7,7 @@ export function cloneState(state: types.State): types.State {
         selected: cloneSelected(state.selected),
         solving: state.solving,
         problems: cloneProblems(state.problems),
+        solveError: state.solveError,
     }
 }
 
