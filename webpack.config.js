@@ -3,10 +3,10 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 
 module.exports = {
-    mode: 'development',
+    mode: 'production',
     entry: './app/src/index.tsx',
     output: {
-        path: path.join(__dirname, 'dist'),
+        path: path.join(__dirname, 'docs'),
         filename: 'main.js',
     },
     module: {
@@ -38,7 +38,7 @@ module.exports = {
         }),
         new WasmPackPlugin({
             crateDirectory: path.resolve(__dirname, "rust/wasm"),
-            outDir: path.resolve(__dirname, 'dist/pkg'),
+            outDir: path.resolve(__dirname, 'docs/pkg'),
         }),
     ],
     experiments: {
@@ -49,7 +49,7 @@ module.exports = {
     },
     devServer: {
         static: {
-            directory: path.join(__dirname, 'dist'),
+            directory: path.join(__dirname, 'docs'),
         },
         port: 3000,
     },

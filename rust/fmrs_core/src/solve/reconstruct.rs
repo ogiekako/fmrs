@@ -62,10 +62,10 @@ impl<'a> Context<'a> {
                 *visit_count += 1;
             }
 
-            let (memo, memo_previous) = if step % 2 == 0 {
-                (self.memo_black_turn, self.memo_white_turn)
+            let memo_previous = if step % 2 == 0 {
+                self.memo_white_turn
             } else {
-                (self.memo_white_turn, self.memo_black_turn)
+                self.memo_black_turn
             };
 
             for undo_move in previous(position.clone(), step < self.mate_in) {

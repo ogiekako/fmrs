@@ -1,5 +1,5 @@
 import { CancellationToken } from ".";
-import { Solver } from "../../../dist/pkg";
+import { Solver } from "../../../docs/pkg";
 
 /**
  * @returns JSON string representing solutions or an empty string if solution
