@@ -52,7 +52,7 @@ impl StandardSolver {
             let mut res = vec![];
             for mate_position in mate_positions {
                 res.append(&mut reconstruct_solutions(
-                    mate_position,
+                    &mate_position,
                     &self.memo_next,
                     &self.memo,
                     self.solutions_upto - res.len(),
