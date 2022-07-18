@@ -15,7 +15,8 @@ export default function SolveButton(props: {
     const buttonText = props.solving ? "Cancel" : "Solve";
     const buttonVariant = props.solving ? "danger" : "primary"
     return <div className="d-flex" style={{ gap: "5px" }}>
-        <Button variant={buttonVariant} onClick={async () => {
+        <Button variant={buttonVariant} onClick={async e => {
+            e.currentTarget.blur();
             if (props.solving) {
                 props.solving.cancelToken.cancel();
                 return;
@@ -53,7 +54,7 @@ export default function SolveButton(props: {
         {
             props.solving ?
                 <>
-                    <span>Step<br/>{props.solving.step}</span>
+                    <span>Step<br />{props.solving.step}</span>
                     <Spinner animation="border" role="status">
                         <span className="visually-hidden">Solving...</span>
                     </Spinner>

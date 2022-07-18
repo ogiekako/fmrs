@@ -3,7 +3,6 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 
 module.exports = {
-    mode: 'production',
     entry: './app/src/index.tsx',
     output: {
         path: path.join(__dirname, 'docs'),

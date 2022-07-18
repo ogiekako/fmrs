@@ -35,7 +35,8 @@ export default function Problems(props: {
             }>
                 <div className="d-flex justify-content-between">
                     <span className={props.disabled ? "text-muted" : ""}>{name}</span>
-                    <CloseButton variant="white" onClick={() => {
+                    <CloseButton onClick={e => {
+                        e.stopPropagation();
                         const problems = [...props.problems.slice(0, i), ...props.problems.slice(i + 1)];
                         props.dispatch({ ty: 'set-problems', problems });
                     }} />

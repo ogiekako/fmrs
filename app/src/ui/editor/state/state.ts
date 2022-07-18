@@ -10,9 +10,10 @@ export function newState(): types.State {
         selected: undefined,
         solving: undefined,
         problems: [
-            [initialPosition, "empty"],
-            [model.decodeSfen("rBK4S1/L1G2+SL1B/4L+P1N1/1nngpsp2/1grl1g1P1/1kP1n1P2/3P1P3/4+p4/P1s1P4 b P6p 1"), "jugemu_32189"],
-            [model.decodeSfen("5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1"), "ryu_no_agito_12555"]
+            [initialPosition, "双玉のみ"],
+            [model.decodeSfen("4k4/9/9/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1"), "単玉のみ"],
+            [model.decodeSfen("rBK4S1/L1G2+SL1B/4L+P1N1/1nngpsp2/1grl1g1P1/1kP1n1P2/3P1P3/4+p4/P1s1P4 b P6p 1"), "加藤徹「寿限無」完全限定化案（森茂・橋本孝治・浦壁和彦による）"],
+            [model.decodeSfen("5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1"), "森茂「龍の顎」"]
         ],
     }
 }
