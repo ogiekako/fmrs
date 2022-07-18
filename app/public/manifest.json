@@ -1,6 +1,6 @@
 {
-  "short_name": "Shogi Help Mate Solver",
-  "name": "Shogi Help Mate Solver",
+  "short_name": "Shogi Helpmate Solver",
+  "name": "Shogi Helpmate Solver",
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",

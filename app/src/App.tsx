@@ -7,7 +7,7 @@ function App() {
   const [jkf, setJkf] = useState("");
 
   return <div className="container">
-    <h1>Shogi Help Mate Solver</h1>
+    <h1>Shogi Helpmate Solver</h1>
     <Editor onSolved={jkf => {
       setJkf(jkf);
     }} />

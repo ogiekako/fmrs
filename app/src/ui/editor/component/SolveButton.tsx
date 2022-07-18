@@ -54,11 +54,11 @@ export default function SolveButton(props: {
         {
             props.solving ?
                 <>
-                    <span>Step<br />{props.solving.step}</span>
+                    <span style={{ fontSize: "0.8em" }}>Step<br />{props.solving.step}</span>
                     <Spinner animation="border" role="status">
                         <span className="visually-hidden">Solving...</span>
                     </Spinner>
                 </> : <></>
         }
-    </div>
+    </div >
 }
