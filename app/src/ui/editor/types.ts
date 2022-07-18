@@ -6,7 +6,7 @@ export type State = {
     selected: Selected | undefined,
     solving: Solving | undefined,
     problems: Array<Problem>,
-    solveError: string,
+    solveResponse: SolveResponse | undefined,
 }
 
 export type Problem = [Position, /* name */ string];
@@ -23,6 +23,16 @@ export type Selected = {
 export type Solving = {
     cancelToken: solve.CancellationToken
     step: number,
+}
+
+export type SolveResponse = {
+    ty: 'solved',
+    response: solve.Response
+} | {
+    ty: 'no-solution'
+} | {
+    ty: 'error'
+    message: string,
 }
 
 export type ClickHandEvent = {
@@ -49,8 +59,8 @@ export type Event = ClickHandEvent | ClickBoardEvent | {
     ty: 'set-problems',
     problems: Array<Problem>,
 } | {
-    ty: 'set-solve-error',
-    solveError: string,
+    ty: 'set-solve-response',
+    response: SolveResponse | undefined,
 }
 
 export type Dispatcher = (event: Event) => void

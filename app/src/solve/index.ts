@@ -23,15 +23,17 @@ export async function isServerAvailable(): Promise<boolean> {
     return resp.ok
 }
 
-/**
- * @returns JSON string representing solutions
- */
+export type Response = {
+    solutions: number,
+    jkf: string,
+}
+
 export async function solve(
     position: model.Position,
     n: number,
     cancelToken: CancellationToken,
     onStep: (step: number) => void
-): Promise<string> {
+): Promise<Response | undefined> {
     // TODO: use server when available
     return await solveWasm(model.encodeSfen(position), n, cancelToken, onStep);
 }

@@ -3,16 +3,18 @@ import * as model from '../../../model';
 import * as types from '../types';
 import * as solve from '../../../solve';
 import { solveServer } from '../../../solve/server_solver';
+import SolveResponse from './SolveResponse';
 
 const USE_WASM = true;
 
 export default function SolveButton(props: {
     position: model.Position,
     solving: types.Solving | undefined,
-    solveError: string,
+    solveResponse: types.SolveResponse | undefined,
     dispatch: types.Dispatcher,
     onSolved: (jkf: string) => void,
 }) {
+    const n = 10;
     const buttonText = props.solving ? "Cancel" : "Solve";
     const buttonVariant = props.solving ? "danger" : "primary"
     return <div>
@@ -25,23 +27,23 @@ export default function SolveButton(props: {
                 }
                 const cancelToken = new solve.CancellationToken();
                 props.dispatch({ ty: 'set-solving', solving: { cancelToken, step: 0 } });
-                props.dispatch({ ty: 'set-solve-error', solveError: "" });
+                props.dispatch({ ty: 'set-solve-response', response: undefined });
                 try {
                     if (USE_WASM) {
-                        const n = 10;
                         const cancelToken = new solve.CancellationToken();
                         const onStep = (step: number) => {
                             props.dispatch({ ty: 'set-solving', solving: { cancelToken, step } });
                         };
                         try {
-                            const solutions = await solve.solve(props.position, n, cancelToken, onStep);
-                            if (solutions) {
-                                props.onSolved(solutions)
+                            const response = await solve.solve(props.position, n, cancelToken, onStep);
+                            if (response) {
+                                props.dispatch({ ty: 'set-solve-response', response: { ty: 'solved', response } })
+                                props.onSolved(response.jkf)
                             } else if (!cancelToken.isCanceled()) {
-                                props.dispatch({ ty: 'set-solve-error', solveError: "No solution" });
+                                props.dispatch({ ty: 'set-solve-response', response: { ty: 'no-solution' } });
                             }
                         } catch (e: any) {
-                            props.dispatch({ ty: 'set-solve-error', solveError: (e as Error).message });
+                            props.dispatch({ ty: 'set-solve-response', response: { ty: 'error', message: (e as Error).message } });
                         }
                         return
                     }
@@ -70,8 +72,6 @@ export default function SolveButton(props: {
                     </> : <></>
             }
         </div >
-        {
-            props.solveError ? <div>{props.solveError}</div> : <></>
-        }
-    </div>
+        {props.solveResponse ? <SolveResponse solveResponse={props.solveResponse} solutionLimit={n} /> : <></>}
+    </div >
 }

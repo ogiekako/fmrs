@@ -15,12 +15,12 @@ export function newState(): types.State {
             [model.decodeSfen("rBK4S1/L1G2+SL1B/4L+P1N1/1nngpsp2/1grl1g1P1/1kP1n1P2/3P1P3/4+p4/P1s1P4 b P6p 1"), "加藤徹「寿限無」完全限定化案（森茂・橋本孝治・浦壁和彦による）"],
             [model.decodeSfen("5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1"), "森茂「龍の顎」"]
         ],
-        solveError: "",
+        solveResponse: undefined,
     }
 }
 
 export function reduce(original: types.State, event: types.Event): types.State {
-    if (original.solving && event.ty !== 'set-solving' && event.ty !== 'set-solve-error') {
+    if (original.solving && event.ty !== 'set-solving' && event.ty !== 'set-solve-response') {
         return original;
     }
     let mutableState;
@@ -34,27 +34,27 @@ export function reduce(original: types.State, event: types.Event): types.State {
             mutableState = cloneState(original);
             mutableState.position = event.position;
             mutableState.selected = undefined;
-            mutableState.solveError = "";
+            mutableState.solveResponse = undefined;
             return mutableState;
         case 'set-solving':
             mutableState = cloneState(original);
             mutableState.solving = event.solving;
-            event.solving && (mutableState.solveError = "");
+            event.solving && (mutableState.solveResponse = undefined);
             return mutableState
         case 'set-problems':
             mutableState = cloneState(original);
             mutableState.problems = event.problems;
             return mutableState
-        case 'set-solve-error':
+        case 'set-solve-response':
             mutableState = cloneState(original);
-            mutableState.solveError = event.solveError;
+            mutableState.solveResponse = event.response;
             return mutableState
     }
 }
 
 function handleClick(original: types.State, event: types.ClickBoardEvent | types.ClickHandEvent): types.State {
     const mutableState = cloneState(original);
-    mutableState.solveError = "";
+    mutableState.solveResponse = undefined;
     if (!original.selected) {
         if (event.ty === 'click-hand') {
             if (event.kind === undefined) {
@@ -132,7 +132,7 @@ function handleClick(original: types.State, event: types.ClickBoardEvent | types
 
 function handleRightClick(original: types.State, pos: [number, number]): types.State {
     const mutableState = cloneState(original);
-    mutableState.solveError = "";
+    mutableState.solveResponse = undefined;
     const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {
         return mutableState;

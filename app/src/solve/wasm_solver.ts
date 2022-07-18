@@ -1,34 +1,28 @@
-import { CancellationToken } from ".";
-import { Solver } from "../../../docs/pkg";
+import { CancellationToken, Response } from ".";
+import { JsonResponse, Solver } from "../../../docs/pkg";
 
 /**
- * @returns JSON string representing solutions or an empty string if solution
- * is not found or operation is canceled.
+ * @returns solutions or undefined if solution is not found.
  */
-export async function solveWasm(sfen: string, n: number, cancel: CancellationToken, onStep: (step: number) => void): Promise<string> {
+export async function solveWasm(sfen: string, n: number, cancel: CancellationToken, onStep: (step: number) => void): Promise<Response | undefined> {
     const solver = Solver.new(sfen, n + 1);
-    try {
-        const res = await solveWasmInner(solver, cancel, onStep);
-        solver.free();
-        return res
-    } catch (e: any) {
-        console.error(e)
-        return ""
-    }
+    const response = await solveWasmInner(solver, cancel, onStep);
+    solver.free();
+    return response && { solutions: response.solutions(), jkf: response.jkf() };
 }
 
-async function solveWasmInner(solver: Solver, cancel: CancellationToken, onStep: (step: number) => void): Promise<string> {
+async function solveWasmInner(solver: Solver, cancel: CancellationToken, onStep: (step: number) => void): Promise<JsonResponse | undefined> {
     let step = 0;
     let nextAwaitStep = nextAwait(step);
     while (!cancel.isCanceled()) {
         const error = solver.advance();
         if (error) {
             console.error(error);
-            return "";
+            throw new Error(error);
         }
         onStep(++step);
         if (solver.no_solution()) {
-            return ""
+            return undefined
         }
         if (solver.solutions_found()) {
             return solver.solutions_json();
@@ -38,7 +32,7 @@ async function solveWasmInner(solver: Solver, cancel: CancellationToken, onStep:
             nextAwaitStep = nextAwait(step);
         }
     }
-    return "";
+    return undefined;
 }
 
 function nextAwait(step: number) {

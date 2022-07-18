@@ -6,7 +6,7 @@ use fmrs_core::{
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::utils::set_panic_hook;
+use crate::{response::JsonResponse, utils::set_panic_hook};
 
 #[wasm_bindgen]
 pub struct Solver {
@@ -64,9 +64,12 @@ impl Solver {
     }
 
     // jkf format
-    pub fn solutions_json(&self) -> String {
+    pub fn solutions_json(&self) -> JsonResponse {
         let jkf = converter::convert(&self.initial_position, &self.solutions);
-        serde_json::to_string(&jkf).unwrap()
+        JsonResponse {
+            solutions: self.solutions.len() as u32,
+            jkf: serde_json::to_string(&jkf).unwrap(),
+        }
     }
 }
 
