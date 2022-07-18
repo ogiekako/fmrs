@@ -3,7 +3,7 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 
 module.exports = {
-    mode: 'development',
+    mode: 'production',
     entry: './app/src/index.tsx',
     output: {
         path: path.join(__dirname, 'dist'),
@@ -14,10 +14,10 @@ module.exports = {
             {
                 test: /\.tsx?$/,
                 use: [
-                    {
-                        loader: 'babel-loader',
-                        options: { presets: ['@babel/preset-env', '@babel/react'] },
-                    },
+                    // {
+                    //     loader: 'babel-loader',
+                    //     options: { presets: ['@babel/preset-env', '@babel/react'] },
+                    // },
                     {
                         loader: 'ts-loader',
                         options: {
@@ -43,6 +43,9 @@ module.exports = {
     ],
     experiments: {
         asyncWebAssembly: true,
+    },
+    performance: {
+        hints: false,
     },
     devServer: {
         static: {

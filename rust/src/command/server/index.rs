@@ -9,7 +9,7 @@ pub async fn server(port: u16) -> anyhow::Result<()> {
     let address = format!("localhost:{}", port);
     eprintln!("Serving rsfm on http://{}", address);
 
-    HttpServer::new(|| App::new().service(index).service(solve))
+    HttpServer::new(|| App::new().service(fmrs_alive).service(index).service(solve))
         .bind(address)?
         .run()
         .await?;
@@ -69,4 +69,9 @@ async fn solve(body_sfen: String) -> HttpResponse {
         .streaming::<_, String>(
             stream.map(|x| Ok((serde_json::to_string(&x).unwrap() + "\n").into())),
         )
+}
+
+#[get("/fmrs_alive")]
+async fn fmrs_alive() -> &'static str {
+    "OK"
 }

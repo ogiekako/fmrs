@@ -1,9 +1,10 @@
 import { Color, Kind, Position } from "../../model"
+import * as solve from "../../solve"
 
 export type State = {
     position: Position,
     selected: Selected | undefined,
-    solving: boolean,
+    solving: Solving | undefined,
     problems: Array<Problem>,
 }
 
@@ -16,6 +17,11 @@ export type Selected = {
 } | {
     ty: 'board'
     pos: [number, number] // zero-origin
+}
+
+export type Solving = {
+    cancelToken: solve.CancellationToken
+    step: number,
 }
 
 export type ClickHandEvent = {
@@ -37,7 +43,7 @@ export type Event = ClickHandEvent | ClickBoardEvent | {
     position: Position,
 } | {
     ty: 'set-solving',
-    solving: boolean,
+    solving: Solving | undefined,
 } | {
     ty: 'set-problems',
     problems: Array<Problem>,
