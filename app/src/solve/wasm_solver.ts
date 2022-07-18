@@ -42,10 +42,10 @@ async function solveWasmInner(solver: Solver, cancel: CancellationToken, onStep:
 }
 
 function nextAwait(step: number) {
-    if (step < 1000) {
+    if (step < 100) {
         return step + 1;
     }
-    if (step < 10000) {
+    if (step < 1000) {
         return step + 10;
     }
     return step + 100;
