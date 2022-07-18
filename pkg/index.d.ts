@@ -5,6 +5,19 @@
 export function greet(): void;
 /**
 */
+export class JsonResponse {
+  free(): void;
+/**
+* @returns {number}
+*/
+  solutions(): number;
+/**
+* @returns {string}
+*/
+  jkf(): string;
+}
+/**
+*/
 export class Solver {
   free(): void;
 /**
@@ -32,7 +45,7 @@ export class Solver {
 */
   solutions_sfen(): string;
 /**
-* @returns {string}
+* @returns {JsonResponse}
 */
-  solutions_json(): string;
+  solutions_json(): JsonResponse;
 }

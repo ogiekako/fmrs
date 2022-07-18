@@ -37,6 +37,14 @@ function getUint8Memory0() {
 function getStringFromWasm0(ptr, len) {
     return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len));
 }
+
+let cachedInt32Memory0;
+function getInt32Memory0() {
+    if (cachedInt32Memory0.byteLength === 0) {
+        cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
+    }
+    return cachedInt32Memory0;
+}
 /**
 */
 export function greet() {
@@ -100,14 +108,6 @@ function passStringToWasm0(arg, malloc, realloc) {
     return ptr;
 }
 
-let cachedInt32Memory0;
-function getInt32Memory0() {
-    if (cachedInt32Memory0.byteLength === 0) {
-        cachedInt32Memory0 = new Int32Array(wasm.memory.buffer);
-    }
-    return cachedInt32Memory0;
-}
-
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
     const idx = heap_next;
@@ -115,6 +115,52 @@ function addHeapObject(obj) {
 
     heap[idx] = obj;
     return idx;
+}
+/**
+*/
+export class JsonResponse {
+
+    static __wrap(ptr) {
+        const obj = Object.create(JsonResponse.prototype);
+        obj.ptr = ptr;
+
+        return obj;
+    }
+
+    __destroy_into_raw() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_jsonresponse_free(ptr);
+    }
+    /**
+    * @returns {number}
+    */
+    solutions() {
+        const ret = wasm.jsonresponse_solutions(this.ptr);
+        return ret >>> 0;
+    }
+    /**
+    * @returns {string}
+    */
+    jkf() {
+        try {
+            const ptr = this.__destroy_into_raw();
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.jsonresponse_jkf(retptr, ptr);
+            var r0 = getInt32Memory0()[retptr / 4 + 0];
+            var r1 = getInt32Memory0()[retptr / 4 + 1];
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_free(r0, r1);
+        }
+    }
 }
 /**
 */
@@ -196,19 +242,11 @@ export class Solver {
         }
     }
     /**
-    * @returns {string}
+    * @returns {JsonResponse}
     */
     solutions_json() {
-        try {
-            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.solver_solutions_json(retptr, this.ptr);
-            var r0 = getInt32Memory0()[retptr / 4 + 0];
-            var r1 = getInt32Memory0()[retptr / 4 + 1];
-            return getStringFromWasm0(r0, r1);
-        } finally {
-            wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_free(r0, r1);
-        }
+        const ret = wasm.solver_solutions_json(this.ptr);
+        return JsonResponse.__wrap(ret);
     }
 }
 
