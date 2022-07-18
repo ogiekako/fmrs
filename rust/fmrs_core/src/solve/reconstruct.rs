@@ -1,28 +1,27 @@
-use std::cell::RefCell;
+use std::collections::VecDeque;
 
 use nohash_hasher::IntMap;
 
-use crate::position::{previous, Digest, Movement, Position, PositionExt};
+use crate::position::{previous, Digest, Position, PositionExt};
+
+use super::Solution;
 
 pub fn reconstruct_solutions(
-    mut mate: Position,
+    mate: &Position,
     memo_black_turn: &IntMap<Digest, u32>,
     memo_white_turn: &IntMap<Digest, u32>,
     solutions_upto: usize,
-) -> Vec<Vec<Movement>> {
+) -> Vec<Solution> {
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
     let step = *memo_white_turn.get(&mate.digest()).unwrap();
     let ctx = Context::new(memo_black_turn, memo_white_turn, step, solutions_upto);
-    ctx.reconstruct(&mut mate, step);
-    ctx.result.take()
+    ctx.reconstruct_bfs(mate)
 }
 
 struct Context<'a> {
     memo_black_turn: &'a IntMap<Digest, u32>,
     memo_white_turn: &'a IntMap<Digest, u32>,
     mate_in: u32,
-    result: RefCell<Vec<Vec<Movement>>>,
-    solution: RefCell<Vec<Movement>>, // reverse order
     solutions_upto: usize,
 }
 
@@ -37,47 +36,48 @@ impl<'a> Context<'a> {
             memo_black_turn,
             memo_white_turn,
             mate_in,
-            result: vec![].into(),
-            solution: vec![].into(),
             solutions_upto,
         }
     }
 
-    fn reconstruct(&self, position: &mut Position, step: u32) {
-        if self.result.borrow().len() >= self.solutions_upto {
-            return;
-        }
-
-        let (memo, memo_previous) = if step % 2 == 0 {
-            (self.memo_black_turn, self.memo_white_turn)
-        } else {
-            (self.memo_white_turn, self.memo_black_turn)
-        };
-        debug_assert!(memo.contains_key(&position.digest()));
-        debug_assert_eq!(memo.get(&position.digest()), Some(&step));
-
-        if step == 0 {
-            self.push_solution();
-            return;
-        }
-
-        let mut has_previous = false;
-        for undo_move in previous(position.clone(), step < self.mate_in) {
-            let movement = position.undo_move(&undo_move);
-            if memo_previous.get(&position.digest()) == Some(&(step - 1)) {
-                has_previous = true;
-                self.solution.borrow_mut().push(movement);
-                self.reconstruct(position, step - 1);
-                self.solution.borrow_mut().pop().unwrap();
+    fn reconstruct_bfs(&self, mate_position: &Position) -> Vec<Solution> {
+        let mut position_visit_count = IntMap::default();
+        let mut queue = VecDeque::new();
+        queue.push_back((mate_position.clone(), self.mate_in, vec![]));
+        let mut res = vec![];
+        while let Some((mut position, step, mut solution_rev)) = queue.pop_front() {
+            if res.len() >= self.solutions_upto {
+                break;
             }
-            position.do_move(&movement);
-        }
-        assert!(has_previous, "previous not found: {:?}", position);
-    }
+            if step == 0 {
+                res.push(solution_rev.into_iter().rev().collect::<Vec<_>>());
+                continue;
+            }
+            {
+                let digest = position.digest();
+                let visit_count = position_visit_count.entry(digest).or_insert(0);
+                if *visit_count >= self.solutions_upto as u64 {
+                    continue;
+                }
+                *visit_count += 1;
+            }
 
-    fn push_solution(&self) {
-        self.result
-            .borrow_mut()
-            .push(self.solution.borrow().clone().into_iter().rev().collect());
+            let (memo, memo_previous) = if step % 2 == 0 {
+                (self.memo_black_turn, self.memo_white_turn)
+            } else {
+                (self.memo_white_turn, self.memo_black_turn)
+            };
+
+            for undo_move in previous(position.clone(), step < self.mate_in) {
+                let movement = position.undo_move(&undo_move);
+                if memo_previous.get(&position.digest()) == Some(&(step - 1)) {
+                    solution_rev.push(movement);
+                    queue.push_back((position.clone(), step - 1, solution_rev.clone())); // TODO: avoid O(n^2) operation
+                    solution_rev.pop().unwrap();
+                }
+                position.do_move(&movement);
+            }
+        }
+        res
     }
 }

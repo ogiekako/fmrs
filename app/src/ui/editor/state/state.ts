@@ -11,6 +11,7 @@ export function newState(): types.State {
         solving: undefined,
         problems: [
             [initialPosition, "empty"],
+            [model.decodeSfen("rBK4S1/L1G2+SL1B/4L+P1N1/1nngpsp2/1grl1g1P1/1kP1n1P2/3P1P3/4+p4/P1s1P4 b P6p 1"), "jugemu_32189"],
             [model.decodeSfen("5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1"), "ryu_no_agito_12555"]
         ],
     }

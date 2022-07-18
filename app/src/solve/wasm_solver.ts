@@ -19,6 +19,7 @@ export async function solveWasm(sfen: string, n: number, cancel: CancellationTok
 
 async function solveWasmInner(solver: Solver, cancel: CancellationToken, onStep: (step: number) => void): Promise<string> {
     let step = 0;
+    let nextAwaitStep = nextAwait(step);
     while (!cancel.isCanceled()) {
         const error = solver.advance();
         if (error) {
@@ -32,7 +33,20 @@ async function solveWasmInner(solver: Solver, cancel: CancellationToken, onStep:
         if (solver.solutions_found()) {
             return solver.solutions_json();
         }
-        await new Promise(resolve => setTimeout(resolve, 0));
+        if (step >= nextAwaitStep) {
+            await new Promise(resolve => setTimeout(resolve, 0));
+            nextAwaitStep = nextAwait(step);
+        }
     }
     return "";
+}
+
+function nextAwait(step: number) {
+    if (step < 1000) {
+        return step + 1;
+    }
+    if (step < 10000) {
+        return step + 10;
+    }
+    return step + 100;
 }
