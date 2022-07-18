@@ -1,3 +1,4 @@
+import { Solution } from '../../solution';
 import * as types from '../types';
 
 export default function SolveResponse(props: {
@@ -10,13 +11,22 @@ export default function SolveResponse(props: {
         case 'no-solution':
             return <div>No solution</div>;
         case 'solved':
-            const solutionCount = props.solveResponse.response.solutions;
-            if (solutionCount > props.solutionLimit) {
-                return <div>More than {props.solutionLimit} solutions found</div>
-            } else if (solutionCount > 1) {
-                return <div>{solutionCount} solutions found</div>
-            } else {
-                return <div>{solutionCount} solution found</div>
-            }
+            return <>
+                <SolutionCount count={props.solveResponse.response.solutions} limit={props.solutionLimit} />
+                <Solution jkf={props.solveResponse.response.jkf} />
+            </>
+    }
+}
+
+function SolutionCount(props: {
+    count: number
+    limit: number
+}) {
+    if (props.count > props.limit) {
+        return <div>More than {props.limit} solutions found</div>
+    } else if (props.count > 1) {
+        return <div>{props.count} solutions found</div>
+    } else {
+        return <div>{props.count} solution found</div>
     }
 }

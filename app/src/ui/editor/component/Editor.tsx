@@ -6,9 +6,7 @@ import Problems from './Problems';
 import Sfen from './Sfen';
 import SolveButton from './SolveButton';
 
-export function Editor(props: {
-    onSolved: (jkf: string) => void,
-}) {
+export function Editor(props: {}) {
     const [state, dispatch] = useReducer(reduce, newState());
 
     return <div>
@@ -22,6 +20,6 @@ export function Editor(props: {
             </div>
         </div>
         <Sfen position={state.position} dispatch={dispatch} disabled={!!state.solving} />
-        <SolveButton position={state.position} solving={state.solving} solveResponse={state.solveResponse} dispatch={dispatch} onSolved={props.onSolved} />
+        <SolveButton position={state.position} solving={state.solving} solveResponse={state.solveResponse} dispatch={dispatch} />
     </div>
 }

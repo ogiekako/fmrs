@@ -34,12 +34,14 @@ export function reduce(original: types.State, event: types.Event): types.State {
             mutableState = cloneState(original);
             mutableState.position = event.position;
             mutableState.selected = undefined;
-            mutableState.solveResponse = undefined;
+            maybeClearSolveResponse(mutableState);
             return mutableState;
         case 'set-solving':
             mutableState = cloneState(original);
             mutableState.solving = event.solving;
-            event.solving && (mutableState.solveResponse = undefined);
+            if (event.solving) {
+                maybeClearSolveResponse(mutableState);
+            }
             return mutableState
         case 'set-problems':
             mutableState = cloneState(original);
@@ -54,7 +56,7 @@ export function reduce(original: types.State, event: types.Event): types.State {
 
 function handleClick(original: types.State, event: types.ClickBoardEvent | types.ClickHandEvent): types.State {
     const mutableState = cloneState(original);
-    mutableState.solveResponse = undefined;
+    maybeClearSolveResponse(mutableState);
     if (!original.selected) {
         if (event.ty === 'click-hand') {
             if (event.kind === undefined) {
@@ -132,7 +134,7 @@ function handleClick(original: types.State, event: types.ClickBoardEvent | types
 
 function handleRightClick(original: types.State, pos: [number, number]): types.State {
     const mutableState = cloneState(original);
-    mutableState.solveResponse = undefined;
+    maybeClearSolveResponse(mutableState);
     const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
     if (!mutablePiece) {
         return mutableState;
@@ -151,4 +153,10 @@ function handleRightClick(original: types.State, pos: [number, number]): types.S
     mutablePiece.color = mutablePiece.color === 'black' ? 'white' : 'black';
     mutablePiece.promoted = false;
     return mutableState;
+}
+
+function maybeClearSolveResponse(mutableState: types.State) {
+    if (mutableState.solveResponse && mutableState.solveResponse.ty !== 'solved') {
+        mutableState.solveResponse = undefined
+    }
 }

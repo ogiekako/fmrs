@@ -4,14 +4,9 @@ import { Solution } from './ui/solution';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
-  const [jkf, setJkf] = useState("");
-
   return <div className="container">
     <h1>Shogi Helpmate Solver</h1>
-    <Editor onSolved={jkf => {
-      setJkf(jkf);
-    }} />
-    {jkf ? <Solution jkf={jkf} /> : <></>}
+    <Editor />
   </div>;
 }
 

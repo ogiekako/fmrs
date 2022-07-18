@@ -25,6 +25,10 @@ export function Solution(props: { jkf: string }) {
             // Somehow setTimeout is needed to prevent flushing.
             setTimeout(() => inner.style.visibility = "", 0);
         })
+
+        return () => {
+            URL.revokeObjectURL(url);
+        }
     }, [props.jkf, outer, id])
     return <div ref={outer}></div>
 }

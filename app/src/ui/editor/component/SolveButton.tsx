@@ -12,7 +12,6 @@ export default function SolveButton(props: {
     solving: types.Solving | undefined,
     solveResponse: types.SolveResponse | undefined,
     dispatch: types.Dispatcher,
-    onSolved: (jkf: string) => void,
 }) {
     const n = 10;
     const buttonText = props.solving ? "Cancel" : "Solve";
@@ -26,39 +25,24 @@ export default function SolveButton(props: {
                     return;
                 }
                 const cancelToken = new solve.CancellationToken();
+
                 props.dispatch({ ty: 'set-solving', solving: { cancelToken, step: 0 } });
                 props.dispatch({ ty: 'set-solve-response', response: undefined });
+
+                const onStep = (step: number) => {
+                    props.dispatch({ ty: 'set-solving', solving: { cancelToken, step } });
+                };
                 try {
-                    if (USE_WASM) {
-                        const cancelToken = new solve.CancellationToken();
-                        const onStep = (step: number) => {
-                            props.dispatch({ ty: 'set-solving', solving: { cancelToken, step } });
-                        };
-                        try {
-                            const response = await solve.solve(props.position, n, cancelToken, onStep);
-                            if (response) {
-                                props.dispatch({ ty: 'set-solve-response', response: { ty: 'solved', response } })
-                                props.onSolved(response.jkf)
-                            } else if (!cancelToken.isCanceled()) {
-                                props.dispatch({ ty: 'set-solve-response', response: { ty: 'no-solution' } });
-                            }
-                        } catch (e: any) {
-                            props.dispatch({ ty: 'set-solve-response', response: { ty: 'error', message: (e as Error).message } });
-                        }
-                        return
-                    }
-                    // request to server
-                    for await (let line of solveServer(model.encodeSfen(props.position))) {
-                        const obj = JSON.parse(line);
-                        if (obj['Solved']) {
-                            props.onSolved(JSON.stringify(obj['Solved']))
-                        } else {
-                            console.log(line);
-                        }
+                    const response = await solve.solve(props.position, n, cancelToken, onStep);
+                    if (response) {
+                        props.dispatch({ ty: 'set-solve-response', response: { ty: 'solved', response } })
+                    } else if (!cancelToken.isCanceled()) {
+                        props.dispatch({ ty: 'set-solve-response', response: { ty: 'no-solution' } });
                     }
                 } catch (e: any) {
-                    console.error(e)
-                } finally {
+                    props.dispatch({ ty: 'set-solve-response', response: { ty: 'error', message: (e as Error).message } });
+                }
+                finally {
                     props.dispatch({ ty: 'set-solving', solving: undefined });
                 }
             }}>{buttonText}</Button>
