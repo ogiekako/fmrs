@@ -7,7 +7,7 @@ export default function SolveResponse(props: {
 }) {
     switch (props.solveResponse.ty) {
         case 'error':
-            return <div>{props.solveResponse.message}</div>;
+            return <div>Internal error: {props.solveResponse.message}</div>;
         case 'no-solution':
             return <div>No solution</div>;
         case 'solved':

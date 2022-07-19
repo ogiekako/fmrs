@@ -13,7 +13,7 @@ export default function SolveButton(props: {
     solveResponse: types.SolveResponse | undefined,
     dispatch: types.Dispatcher,
 }) {
-    const n = 10;
+    const solutionLimit = 10;
     const buttonText = props.solving ? "Cancel" : "Solve";
     const buttonVariant = props.solving ? "danger" : "primary"
     return <div>
@@ -33,13 +33,14 @@ export default function SolveButton(props: {
                     props.dispatch({ ty: 'set-solving', solving: { cancelToken, step } });
                 };
                 try {
-                    const response = await solve.solve(props.position, n, cancelToken, onStep);
+                    const response = await solve.solve(props.position, solutionLimit, cancelToken, onStep);
                     if (response) {
                         props.dispatch({ ty: 'set-solve-response', response: { ty: 'solved', response } })
                     } else if (!cancelToken.isCanceled()) {
                         props.dispatch({ ty: 'set-solve-response', response: { ty: 'no-solution' } });
                     }
                 } catch (e: any) {
+                    console.error(e);
                     props.dispatch({ ty: 'set-solve-response', response: { ty: 'error', message: (e as Error).message } });
                 }
                 finally {
@@ -56,6 +57,6 @@ export default function SolveButton(props: {
                     </> : <></>
             }
         </div >
-        {props.solveResponse ? <SolveResponse solveResponse={props.solveResponse} solutionLimit={n} /> : <></>}
+        {props.solveResponse ? <SolveResponse solveResponse={props.solveResponse} solutionLimit={solutionLimit} /> : <></>}
     </div >
 }
