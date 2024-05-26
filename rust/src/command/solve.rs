@@ -2,18 +2,24 @@ use fmrs_core::{position::PositionExt, sfen};
 
 use crate::solver::{self, Algorithm};
 
-pub async fn solve(algorithm: Algorithm, sefn: Option<String>) -> anyhow::Result<()> {
-    if sefn.is_none() {
-    eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
-    eprint!("> ");
+pub async fn solve(algorithm: Algorithm, problem_sfen: Option<String>) -> anyhow::Result<()> {
+    let position = sfen::decode_position(
+        match problem_sfen {
+            Some(s) => s,
+            None => {
+                eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
+                eprint!("> ");
 
-    let mut s = "".to_string();
-    std::io::stdin().read_line(&mut s)?;
+                let mut s = "".to_string();
+                std::io::stdin().read_line(&mut s)?;
 
-    print!("position {} moves", s);
-    }
-
-    let position = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
+                print!("position {} moves", s);
+                s
+            }
+        }
+        .as_str(),
+    )
+    .map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
     let answer = solver::solve(position.clone(), Some(10), algorithm)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
