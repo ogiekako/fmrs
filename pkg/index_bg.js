@@ -45,11 +45,6 @@ function getInt32Memory0() {
     }
     return cachedInt32Memory0;
 }
-/**
-*/
-export function greet() {
-    wasm.greet();
-}
 
 let WASM_VECTOR_LEN = 0;
 
@@ -106,6 +101,11 @@ function passStringToWasm0(arg, malloc, realloc) {
 
     WASM_VECTOR_LEN = offset;
     return ptr;
+}
+/**
+*/
+export function greet() {
+    wasm.greet();
 }
 
 function addHeapObject(obj) {
