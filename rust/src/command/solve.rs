@@ -2,7 +2,8 @@ use fmrs_core::{position::PositionExt, sfen};
 
 use crate::solver::{self, Algorithm};
 
-pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
+pub async fn solve(algorithm: Algorithm, sefn: Option<String>) -> anyhow::Result<()> {
+    if sefn.is_none() {
     eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
     eprint!("> ");
 
@@ -10,6 +11,7 @@ pub async fn solve(algorithm: Algorithm) -> anyhow::Result<()> {
     std::io::stdin().read_line(&mut s)?;
 
     print!("position {} moves", s);
+    }
 
     let position = sfen::decode_position(&s).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 

@@ -19,6 +19,7 @@ enum Action {
     Solve {
         #[clap(value_enum)]
         algorithm: Algorithm,
+        sfen: Option<String>,
     },
     Server,
 }
@@ -28,7 +29,7 @@ pub async fn do_main() -> anyhow::Result<()> {
 
     match args.action {
         Action::Bench => command::bench()?,
-        Action::Solve { algorithm } => command::solve(algorithm).await?,
+        Action::Solve { algorithm, sfen } => command::solve(algorithm, sefn).await?,
         Action::Server => command::server(1234).await?,
     }
     Ok(())
