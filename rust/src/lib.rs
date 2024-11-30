@@ -22,6 +22,10 @@ enum Action {
         sfen: Option<String>,
     },
     Server,
+    OneWayMate {
+        seed: u64,
+        iteration: usize,
+    },
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
@@ -31,6 +35,7 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::Bench => command::bench()?,
         Action::Solve { algorithm, sfen } => command::solve(algorithm, sfen).await?,
         Action::Server => command::server(1234).await?,
+        Action::OneWayMate { seed, iteration } => command::one_way_mate(seed, iteration).await?,
     }
     Ok(())
 }

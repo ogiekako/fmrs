@@ -1,4 +1,6 @@
 use anyhow::bail;
+use percent_encoding::utf8_percent_encode;
+use percent_encoding::NON_ALPHANUMERIC;
 
 /// SFEN format is defined in
 /// https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
@@ -192,6 +194,13 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
         hand_count = 0;
     }
     Ok(board)
+}
+
+pub fn sfen_to_image_url(sfen: &str) -> String {
+    format!(
+        "http://sfenreader.appspot.com/sfen?sfen={}",
+        utf8_percent_encode(sfen, NON_ALPHANUMERIC)
+    )
 }
 
 #[test]

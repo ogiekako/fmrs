@@ -63,7 +63,8 @@ impl Position {
     pub(super) fn set_pawn_drop(&mut self, x: bool) {
         self.hands.set_pawn_drop(x)
     }
-    pub(super) fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
+    /// Returns a bitboard of pieces of the specified color and kind.
+    pub fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
         let mask = if let Some(c) = color {
             self.color_bb.bitboard(c)
         } else {
@@ -89,7 +90,7 @@ impl Position {
         self.color_bb.set(c, pos);
         self.kind_bb.set(pos, k);
     }
-    pub(super) fn unset(&mut self, pos: Square, c: Color, k: Kind) {
+    pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb.bitboard(c).get(pos));
 
         self.color_bb.unset(c, pos);
@@ -106,5 +107,9 @@ impl Position {
                 std::mem::size_of::<Position>(),
             )
         }
+    }
+
+    pub fn from_sfen(s: &str) -> anyhow::Result<Self> {
+        sfen::decode_position(s)
     }
 }

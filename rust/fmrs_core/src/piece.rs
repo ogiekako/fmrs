@@ -3,6 +3,7 @@ pub enum Color {
     Black, // Moves first. e.g. Tsume kata.
     White, // Uke kata.
 }
+use rand::prelude::Distribution;
 pub use Color::*;
 
 impl Color {
@@ -16,6 +17,16 @@ impl Color {
         match self {
             Black => White,
             White => Black,
+        }
+    }
+}
+
+impl Distribution<Color> for rand::distributions::Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Color {
+        if rng.gen() {
+            Black
+        } else {
+            White
         }
     }
 }
@@ -42,6 +53,12 @@ pub enum Kind {
     ProSilver,
     ProBishop,
     ProRook,
+}
+
+impl Distribution<Kind> for rand::distributions::Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Kind {
+        Kind::from_index(rng.gen_range(0..NUM_KIND))
+    }
 }
 
 use serde::Serialize;

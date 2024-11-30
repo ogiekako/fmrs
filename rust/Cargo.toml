@@ -21,7 +21,7 @@ serde = { version = "1.0.137", features = ["derive"] }
 serde_yaml = "0.8"
 bincode = "1.2.0"
 
-rand = "0.8.5"
+rand = { version = "0.8.5", features = ["small_rng"] }
 sled = { version = "0.34.7" } # default-features = false
 url = "2.1.0"
 percent-encoding = "2.1.0"

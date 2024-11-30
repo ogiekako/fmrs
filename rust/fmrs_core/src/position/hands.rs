@@ -26,7 +26,7 @@ impl Hands {
     }
 
     fn max_count(k: Kind) -> usize {
-        debug_assert!(k.is_hand_piece());
+        debug_assert!(k.is_hand_piece(), "{k:?}");
         if k == Kind::Pawn {
             127
         } else {
@@ -34,6 +34,9 @@ impl Hands {
         }
     }
     pub fn count(&self, c: Color, k: Kind) -> usize {
+        if k == Kind::King {
+            return 0;
+        }
         debug_assert!(k.is_hand_piece());
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
@@ -89,5 +92,11 @@ impl Hands {
     }
     pub fn pawn_drop(&self) -> bool {
         self.x >> 63 & 1 > 0
+    }
+
+    pub fn is_empty(&self, c: Color) -> bool {
+        KINDS[0..NUM_HAND_KIND]
+            .iter()
+            .all(|&k| self.count(c, k) == 0)
     }
 }

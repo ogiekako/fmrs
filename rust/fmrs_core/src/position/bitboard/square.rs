@@ -1,3 +1,5 @@
+use rand::{distributions::Standard, prelude::Distribution};
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Square {
     x: usize,
@@ -27,5 +29,11 @@ impl Square {
 impl std::fmt::Debug for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}{}", self.col() + 1, self.row() + 1)
+    }
+}
+
+impl Distribution<Square> for Standard {
+    fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Square {
+        Square::from_index(rng.gen_range(0..81))
     }
 }
