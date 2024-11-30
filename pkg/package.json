@@ -1,5 +1,6 @@
 {
   "name": "wasm",
+  "type": "module",
   "collaborators": [
     "Your Name <you@example.com>"
   ],
@@ -10,7 +11,7 @@
     "index_bg.js",
     "index.d.ts"
   ],
-  "module": "index.js",
+  "main": "index.js",
   "types": "index.d.ts",
   "sideEffects": [
     "./index.js",
