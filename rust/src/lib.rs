@@ -29,6 +29,8 @@ enum Action {
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
+    env_logger::init();
+
     let args = Args::parse();
 
     match args.action {

@@ -4,11 +4,12 @@ use fmrs_core::{
     position::{advance, checked, Position, Square},
     sfen,
 };
-use nohash_hasher::IntMap;
+use log::info;
+use nohash_hasher::{IntMap, IntSet};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 pub(super) fn generate_one_way_mate_with_sa(seed: u64, iteration: usize) -> anyhow::Result<()> {
-    let mut g = Generator::new(seed, iteration, 1.2);
+    let mut g = Generator::new(seed, iteration, 2.0);
     let problem = g.generate();
 
     let steps = one_way_mate_steps(problem.clone());
@@ -56,10 +57,10 @@ impl Generator {
 
     fn generate(&mut self) -> Position {
         for iter in 0..self.iteration {
-            if iter % 1_000_000 == 0 {
-                eprintln!(
-                    "iter={} score={} best={} temp={} position={}",
-                    iter,
+            if iter * 100 / self.iteration < (iter + 1) * 100 / self.iteration {
+                info!(
+                    "iter={} score={} best={} temp={:.3} position={}",
+                    iter + 1,
                     self.score,
                     self.best_score,
                     self.temp(iter),
@@ -107,7 +108,7 @@ impl Generator {
     }
 
     fn temp(&self, iter: usize) -> f64 {
-        self.temp_power(iter, 2.0)
+        self.temp_power(iter, 2.5)
     }
 
     fn temp_power(&self, iter: usize, exp: f64) -> f64 {
@@ -122,9 +123,9 @@ impl Generator {
 
     fn random_action(&mut self) -> Action {
         loop {
-            match self.rng.gen_range(0..30) {
-                0..=9 => return Action::Move(self.rng.gen(), self.rng.gen()),
-                10..=19 => {
+            match self.rng.gen_range(0..100) {
+                0..=9 => return Action::Swap(self.rng.gen(), self.rng.gen()),
+                10..=14 => {
                     return Action::FromHand(
                         self.rng.gen(),
                         self.rng.gen(),
@@ -132,34 +133,64 @@ impl Generator {
                         self.rng.gen(),
                     )
                 }
-                20..=29 => return Action::ToHand(self.rng.gen(), Color::White),
-                _ => continue,
+                20..=24 => return Action::ToHand(self.rng.gen(), Color::White),
+                30..=30 => return Action::ToHand(self.rng.gen(), Color::Black),
+                40..=49 => {
+                    return Action::TwoActions(
+                        Box::new(self.random_action()),
+                        Box::new(self.random_action()),
+                    )
+                }
+                50..=59 => return Action::Move(self.rng.gen(), self.rng.gen()),
+                _ => (),
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum Action {
-    Move(Square, Square),                 // move a piece to an empty square
+    Move(Square, Square),
+    Swap(Square, Square),
     FromHand(Color, Square, Color, Kind), // drop to an empty square
     ToHand(Square, Color),                // move a piece to hand
+    TwoActions(Box<Action>, Box<Action>),
 }
 
 impl Action {
     fn try_apply(self, position: &mut Position) -> anyhow::Result<Action> {
         match self {
             Action::Move(from, to) => {
-                if position.get(to).is_some() {
-                    bail!("to is not empty");
-                }
                 if let Some((color, kind)) = position.get(from) {
+                    if position.get(to).is_some() {
+                        bail!("to is not empty");
+                    }
                     position.unset(from, color, kind);
                     position.set(to, color, kind);
                     return Ok(Action::Move(to, from));
                 } else {
                     bail!("from is empty");
                 }
+            }
+            Action::Swap(a, b) => {
+                match (position.get(a), position.get(b)) {
+                    (None, None) => bail!("both are None"),
+                    (None, Some((b_color, b_kind))) => {
+                        position.unset(b, b_color, b_kind);
+                        position.set(a, b_color, b_kind);
+                    }
+                    (Some((a_color, a_kind)), None) => {
+                        position.unset(a, a_color, a_kind);
+                        position.set(b, a_color, a_kind);
+                    }
+                    (Some((a_color, a_kind)), Some((b_color, b_kind))) => {
+                        position.unset(a, a_color, a_kind);
+                        position.unset(b, b_color, b_kind);
+                        position.set(a, b_color, b_kind);
+                        position.set(b, a_color, a_kind);
+                    }
+                }
+                return Ok(Action::Swap(a, b));
             }
             Action::FromHand(hand_color, pos, color, kind) => {
                 if position.get(pos).is_some() {
@@ -187,6 +218,18 @@ impl Action {
                     bail!("from is empty");
                 }
             }
+            Action::TwoActions(a, b) => {
+                let undo_a = a.try_apply(position)?;
+                match b.try_apply(position) {
+                    Ok(undo_b) => {
+                        return Ok(Action::TwoActions(Box::new(undo_b), Box::new(undo_a)))
+                    }
+                    Err(e) => {
+                        undo_a.try_apply(position).unwrap();
+                        return Err(e);
+                    }
+                }
+            }
         }
     }
 }
@@ -199,6 +242,9 @@ fn one_way_mate_steps(mut position: Position) -> Option<usize> {
     if checked(&position, Color::White) {
         return None;
     }
+
+    let mut visited = IntSet::default();
+    visited.insert(position.digest());
 
     // TODO: `advance` without cache.
     for step in (1..).step_by(2) {
@@ -221,6 +267,10 @@ fn one_way_mate_steps(mut position: Position) -> Option<usize> {
             return None;
         }
         position = black_positions.remove(0);
+
+        if !visited.insert(position.digest()) {
+            return None;
+        }
     }
     unreachable!();
 }

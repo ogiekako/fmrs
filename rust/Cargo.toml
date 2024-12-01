@@ -41,6 +41,8 @@ sysinfo = "0.24.6"
 xxhash-rust = { version = "0.8.5", features = ["xxh3"] }
 nohash-hasher = "0.2.0"
 tempfile = "3.3.0"
+log = "0.4.22"
+env_logger = "0.11.5"
 [dev-dependencies]
 pretty_assertions = "0.6.1"
 criterion = "0.3.6"
