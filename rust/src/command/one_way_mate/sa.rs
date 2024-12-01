@@ -244,7 +244,6 @@ fn one_way_mate_steps(mut position: Position) -> Option<usize> {
     }
 
     let mut visited = IntSet::default();
-    visited.insert(position.digest());
 
     // TODO: `advance` without cache.
     for step in (1..).step_by(2) {
@@ -266,11 +265,12 @@ fn one_way_mate_steps(mut position: Position) -> Option<usize> {
         if black_positions.len() != 1 {
             return None;
         }
-        position = black_positions.remove(0);
 
         if !visited.insert(position.digest()) {
             return None;
         }
+
+        position = black_positions.remove(0);
     }
     unreachable!();
 }
