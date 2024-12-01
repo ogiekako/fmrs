@@ -1,6 +1,7 @@
 use anyhow::bail;
 use percent_encoding::utf8_percent_encode;
 use percent_encoding::NON_ALPHANUMERIC;
+use url::Url;
 
 /// SFEN format is defined in
 /// https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
@@ -201,6 +202,19 @@ pub fn sfen_to_image_url(sfen: &str) -> String {
         "http://sfenreader.appspot.com/sfen?sfen={}",
         utf8_percent_encode(sfen, NON_ALPHANUMERIC)
     )
+}
+
+pub fn from_image_url(url: &str) -> anyhow::Result<String> {
+    let url = Url::parse(url)?;
+    let encoded_sfen = url
+        .query_pairs()
+        .find(|(key, _)| key == "sfen")
+        .map(|(_, value)| Ok(value.to_string()))
+        .unwrap_or_else(|| bail!("No sfen parameter"))?;
+    Ok(percent_encoding::percent_decode_str(&encoded_sfen)
+        .decode_utf8()?
+        .chars()
+        .collect())
 }
 
 #[test]

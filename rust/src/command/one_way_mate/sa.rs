@@ -1,12 +1,8 @@
-use anyhow::bail;
-use fmrs_core::{
-    piece::{Color, Kind},
-    position::{advance, checked, Position, Square},
-    sfen,
-};
+use fmrs_core::{piece::Color, position::Position, sfen};
 use log::info;
-use nohash_hasher::{IntMap, IntSet};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
+
+use super::{action::Action, solve::one_way_mate_steps};
 
 pub(super) fn generate_one_way_mate_with_sa(seed: u64, iteration: usize) -> anyhow::Result<()> {
     let mut g = Generator::new(seed, iteration, 2.0);
@@ -148,129 +144,6 @@ impl Generator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Action {
-    Move(Square, Square),
-    Swap(Square, Square),
-    FromHand(Color, Square, Color, Kind), // drop to an empty square
-    ToHand(Square, Color),                // move a piece to hand
-    TwoActions(Box<Action>, Box<Action>),
-}
-
-impl Action {
-    fn try_apply(self, position: &mut Position) -> anyhow::Result<Action> {
-        match self {
-            Action::Move(from, to) => {
-                if let Some((color, kind)) = position.get(from) {
-                    if position.get(to).is_some() {
-                        bail!("to is not empty");
-                    }
-                    position.unset(from, color, kind);
-                    position.set(to, color, kind);
-                    return Ok(Action::Move(to, from));
-                } else {
-                    bail!("from is empty");
-                }
-            }
-            Action::Swap(a, b) => {
-                match (position.get(a), position.get(b)) {
-                    (None, None) => bail!("both are None"),
-                    (None, Some((b_color, b_kind))) => {
-                        position.unset(b, b_color, b_kind);
-                        position.set(a, b_color, b_kind);
-                    }
-                    (Some((a_color, a_kind)), None) => {
-                        position.unset(a, a_color, a_kind);
-                        position.set(b, a_color, a_kind);
-                    }
-                    (Some((a_color, a_kind)), Some((b_color, b_kind))) => {
-                        position.unset(a, a_color, a_kind);
-                        position.unset(b, b_color, b_kind);
-                        position.set(a, b_color, b_kind);
-                        position.set(b, a_color, a_kind);
-                    }
-                }
-                return Ok(Action::Swap(a, b));
-            }
-            Action::FromHand(hand_color, pos, color, kind) => {
-                if position.get(pos).is_some() {
-                    bail!("to is not empty");
-                }
-                let hands = position.hands_mut();
-                let hand_kind = kind.maybe_unpromote();
-                if hands.count(hand_color, hand_kind) == 0 {
-                    bail!("no piece in hand");
-                }
-                hands.remove(hand_color, hand_kind);
-                position.set(pos, color, kind);
-                return Ok(Action::ToHand(pos, hand_color));
-            }
-            Action::ToHand(pos, hand_color) => {
-                if let Some((color, kind)) = position.get(pos) {
-                    if kind == Kind::King {
-                        bail!("cannot take king");
-                    }
-                    let hand_kind = kind.maybe_unpromote();
-                    position.hands_mut().add(hand_color, hand_kind);
-                    position.unset(pos, color, kind);
-                    Ok(Action::FromHand(hand_color, pos, color, kind))
-                } else {
-                    bail!("from is empty");
-                }
-            }
-            Action::TwoActions(a, b) => {
-                let undo_a = a.try_apply(position)?;
-                match b.try_apply(position) {
-                    Ok(undo_b) => {
-                        return Ok(Action::TwoActions(Box::new(undo_b), Box::new(undo_a)))
-                    }
-                    Err(e) => {
-                        undo_a.try_apply(position).unwrap();
-                        return Err(e);
-                    }
-                }
-            }
-        }
-    }
-}
-
 fn score(position: Position) -> f64 {
     one_way_mate_steps(position).map_or(0.0, |x| x as f64)
-}
-
-fn one_way_mate_steps(mut position: Position) -> Option<usize> {
-    if checked(&position, Color::White) {
-        return None;
-    }
-
-    let mut visited = IntSet::default();
-
-    // TODO: `advance` without cache.
-    for step in (1..).step_by(2) {
-        let (white_positions, _) = advance(&position, &mut IntMap::default(), step).unwrap();
-        if white_positions.len() != 1 {
-            return None;
-        }
-
-        let (mut black_positions, is_mate) =
-            advance(&white_positions[0], &mut IntMap::default(), step + 1).unwrap();
-
-        if is_mate && !white_positions[0].pawn_drop() {
-            if !white_positions[0].hands().is_empty(Color::Black) {
-                return None;
-            }
-            return (step as usize).into();
-        }
-
-        if black_positions.len() != 1 {
-            return None;
-        }
-
-        if !visited.insert(position.digest()) {
-            return None;
-        }
-
-        position = black_positions.remove(0);
-    }
-    unreachable!();
 }

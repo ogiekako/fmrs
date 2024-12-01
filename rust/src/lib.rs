@@ -1,7 +1,9 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::module_inception)]
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use command::OneWayMateGenerator;
+use fmrs_core::sfen;
 use solver::Algorithm;
 
 mod command;
@@ -13,7 +15,7 @@ struct Args {
     action: Action,
 }
 
-#[derive(clap::Subcommand)]
+#[derive(Subcommand)]
 enum Action {
     Bench,
     Solve {
@@ -23,8 +25,20 @@ enum Action {
     },
     Server,
     OneWayMate {
+        #[arg(long, default_value = "beam")]
+        #[clap(value_enum)]
+        algorithm: OneWayMateGenerator,
+        #[arg(long, default_value = "0")]
         seed: u64,
+        #[arg(long, default_value = "100000000")] // 100M
         iteration: usize,
+        #[arg(long, default_value = "2000")]
+        start: usize,
+        #[arg(long, default_value = "100000")] // 100K
+        bucket: usize,
+    },
+    FromImage {
+        url: String,
     },
 }
 
@@ -37,7 +51,14 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::Bench => command::bench()?,
         Action::Solve { algorithm, sfen } => command::solve(algorithm, sfen).await?,
         Action::Server => command::server(1234).await?,
-        Action::OneWayMate { seed, iteration } => command::one_way_mate(seed, iteration).await?,
+        Action::OneWayMate {
+            algorithm,
+            seed,
+            iteration,
+            start,
+            bucket,
+        } => command::one_way_mate(algorithm, seed, iteration, start, bucket).await?,
+        Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
     }
     Ok(())
 }
