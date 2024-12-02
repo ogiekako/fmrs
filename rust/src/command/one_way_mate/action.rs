@@ -1,5 +1,6 @@
 use anyhow::bail;
 use fmrs_core::{
+    direction::Direction,
     piece::{Color, Kind},
     position::{Position, Square},
 };
@@ -11,6 +12,7 @@ pub(super) enum Action {
     FromHand(Color, Square, Color, Kind), // drop to an empty square
     ToHand(Square, Color),                // move a piece to hand
     TwoActions(Box<Action>, Box<Action>),
+    Shift(Direction),
 }
 
 impl Action {
@@ -88,6 +90,10 @@ impl Action {
                         return Err(e);
                     }
                 }
+            }
+            Action::Shift(dir) => {
+                position.shift(dir);
+                Ok(Action::Shift(dir.opposite()))
             }
         }
     }

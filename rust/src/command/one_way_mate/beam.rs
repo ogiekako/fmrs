@@ -21,7 +21,7 @@ pub(super) fn generate_one_way_mate_with_beam(
 
     println!(
         "generated problem: {}",
-        sfen::sfen_to_image_url(&sfen::encode_position(&problem.position))
+        &sfen::encode_position(&problem.position)
     );
     println!("generated problem steps = {}", problem.step);
 
@@ -39,9 +39,10 @@ struct Generator {
     best_problem: Problem,
 }
 
-const SEARCH_DEPTH: usize = 5;
-const SEARCH_ITER_MULT: usize = 10000;
+const SEARCH_DEPTH: usize = 6;
+const SEARCH_ITER_MULT: usize = 20000;
 const USE_MULT: usize = 5;
+const MAX_PRODUCE: usize = 2;
 
 impl Generator {
     fn new(seed: u64, start: usize, bucket: usize) -> Self {
@@ -80,15 +81,16 @@ impl Generator {
             }
             let problem = {
                 let problem = &mut self.problems[self.head];
-                problem.used += 1;
                 if problem.used
                     >= (problem.step.next_power_of_two().trailing_zeros() + 1) as usize * USE_MULT
+                    || problem.produced >= MAX_PRODUCE
                 {
                     self.problems.remove(self.head);
                     continue;
                 }
+                problem.used += 1;
                 self.head += 1;
-                &*problem
+                problem
             };
 
             let mut position = problem.position.clone();
@@ -118,6 +120,8 @@ impl Generator {
                 undo_to_solvable.clear();
 
                 if step > problem.step {
+                    problem.produced += 1;
+
                     let new_problem = Problem::new(position.clone(), step);
                     if self.best_problem.step < step {
                         self.best_problem = new_problem.clone();
@@ -142,7 +146,7 @@ impl Generator {
 
 fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
     loop {
-        match rng.gen_range(0..50) {
+        match rng.gen_range(0..100) {
             0..=9 => return Action::Move(rng.gen(), rng.gen()),
             10..=19 => return Action::Swap(rng.gen(), rng.gen()),
             20..=29 => return Action::FromHand(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
@@ -156,6 +160,7 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
                     },
                 )
             }
+            40..=49 => return Action::Shift(rng.gen()),
             _ => (),
         }
     }
@@ -190,14 +195,18 @@ fn random_one_way_mate_positions(rng: &mut SmallRng, count: usize) -> Vec<(Posit
 struct Problem {
     position: Position,
     step: usize,
+
     used: usize,
+    produced: usize,
 }
+
 impl Problem {
     fn new(position: Position, step: usize) -> Self {
         Self {
             position,
             step,
             used: 0,
+            produced: 0,
         }
     }
 }

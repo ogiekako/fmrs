@@ -1,5 +1,6 @@
 use serde::Serialize;
 
+use crate::direction::Direction;
 use crate::piece::*;
 
 #[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize)]
@@ -111,5 +112,10 @@ impl Position {
 
     pub fn from_sfen(s: &str) -> anyhow::Result<Self> {
         sfen::decode_position(s)
+    }
+
+    pub fn shift(&mut self, dir: Direction) {
+        self.color_bb.shift(dir);
+        self.kind_bb.shift(dir);
     }
 }

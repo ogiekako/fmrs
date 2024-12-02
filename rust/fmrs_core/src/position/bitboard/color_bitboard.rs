@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::piece::Color;
+use crate::{direction::Direction, piece::Color};
 
 use super::{bitboard_pair::BitBoardPair, BitBoard, Square};
 
@@ -39,6 +39,10 @@ impl ColorBitBoard {
     }
     pub fn both(&self) -> BitBoard {
         self.0.both()
+    }
+
+    pub(crate) fn shift(&mut self, dir: Direction) {
+        self.0.shift(dir);
     }
 }
 

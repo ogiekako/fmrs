@@ -1,12 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod converter;
+pub mod direction;
 pub mod jkf;
 pub mod piece;
 pub mod position;
 pub mod sfen;
 pub mod solve;
-pub mod converter;
 
 #[cfg(test)]
 mod tests {

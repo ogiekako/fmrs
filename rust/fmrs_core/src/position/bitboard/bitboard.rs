@@ -1,9 +1,11 @@
+use crate::direction::Direction;
+
 use super::square::Square;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct BitBoard {
-    x: u64,
-    y: u32,
+    pub(crate) x: u64,
+    pub(crate) y: u32,
 }
 
 impl BitBoard {
@@ -36,6 +38,42 @@ impl BitBoard {
         self.x &= !mask.x;
         self.y &= !mask.y;
         self
+    }
+
+    pub(crate) fn shift(&mut self, dir: Direction) {
+        match dir {
+            Direction::Up => {
+                let x_mask = 0b1000000001000000001000000001000000001000000001000000001000000001u64;
+                let y_mask = 0b100000000;
+
+                let x_upper = self.x & x_mask;
+                let y_upper = self.y & y_mask;
+
+                self.x = (self.x & !x_mask) >> 1 | x_upper << 8 | ((self.y & 1) as u64) << 63;
+                self.y =
+                    (self.y & !y_mask) >> 1 | y_upper << 8 | (((x_upper >> 63) & 1) as u32) << 7;
+            }
+            Direction::Down => {
+                let x_mask = 0b100000000100000000100000000100000000100000000100000000100000000u64;
+                let y_mask = 0b10000000010000000;
+
+                let x_lower = self.x & x_mask;
+                let y_lower = self.y & y_mask;
+
+                self.y = (self.y & !y_mask) << 1 | y_lower >> 8 | ((self.x >> 63) & 1) as u32;
+                self.x = (self.x & !x_mask) << 1 | x_lower >> 8 | ((y_lower >> 7 & 1) as u64) << 63;
+            }
+            Direction::Left => {
+                let left = (self.y >> 8) as u64;
+                self.y = (self.y << 9 | (self.x >> 64 - 9) as u32) & (1 << 17) - 1;
+                self.x = self.x << 9 | left;
+            }
+            Direction::Right => {
+                let right = (self.x & (1 << 9) - 1) as u32;
+                self.x = self.x >> 9 | (self.y as u64 & (1 << 9) - 1) << 64 - 9;
+                self.y = self.y >> 9 | right << 8;
+            }
+        }
     }
 }
 
@@ -147,7 +185,10 @@ impl BitBoard {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::bitboard::{bitboard::BitBoard, square::Square};
+    use crate::{
+        direction::Direction,
+        position::bitboard::{bitboard::BitBoard, square::Square, testing::bitboard},
+    };
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -176,6 +217,105 @@ mod tests {
                 BitBoard { x: 0, y: 0 },
                 BitBoard { x: 5, y: 1 },
             ]
+        );
+    }
+
+    #[test]
+    fn shift_lr() {
+        let mut bb = BitBoard::empty();
+        bb.set(Square::new(0, 0));
+        bb.set(Square::new(7, 0));
+        bb.set(Square::new(7, 1));
+        bb.set(Square::new(8, 8));
+
+        let orig = bb.clone();
+
+        bb.shift(Direction::Left);
+        assert_eq!(
+            bb,
+            bitboard!(
+                "*......*.",
+                "*........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                "........*",
+            )
+        );
+
+        bb.shift(Direction::Right);
+        assert_eq!(bb, orig);
+
+        bb.shift(Direction::Right);
+
+        assert_eq!(
+            bb,
+            bitboard!(
+                "*.*......",
+                "..*......",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".........",
+                ".*.......",
+            )
+        );
+    }
+
+    #[test]
+    fn shift_ud() {
+        let mut bb = bitboard!(
+            "**.*....*",
+            ".*......*",
+            ".*......*",
+            "........*",
+            "........*",
+            ".........",
+            "........*",
+            "........*",
+            "***.....*",
+        );
+        let orig = bb.clone();
+
+        bb.shift(Direction::Up);
+        assert_eq!(
+            bb,
+            bitboard!(
+                ".*......*",
+                ".*......*",
+                "........*",
+                "........*",
+                ".........",
+                "........*",
+                "........*",
+                "***.....*",
+                "**.*....*",
+            )
+        );
+
+        bb.shift(Direction::Down);
+        assert_eq!(bb, orig);
+
+        bb.shift(Direction::Down);
+
+        assert_eq!(
+            bb,
+            bitboard!(
+                "***.....*",
+                "**.*....*",
+                ".*......*",
+                ".*......*",
+                "........*",
+                "........*",
+                ".........",
+                "........*",
+                "........*",
+            )
         );
     }
 }

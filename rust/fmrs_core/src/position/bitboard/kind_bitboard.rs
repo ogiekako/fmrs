@@ -99,4 +99,9 @@ impl KindBitBoard {
             self.kind1_kind2.unset1(pos);
         }
     }
+
+    pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
+        self.promote_kind0.shift(dir);
+        self.kind1_kind2.shift(dir);
+    }
 }
