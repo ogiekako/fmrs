@@ -1,9 +1,6 @@
 use crate::{
     piece::{Color, Kind},
-    position::{
-        bitboard,
-        rule, Movement, Position,
-    },
+    position::{bitboard, rule, Movement, Position},
 };
 
 pub fn checked(position: &Position, color: Color) -> bool {

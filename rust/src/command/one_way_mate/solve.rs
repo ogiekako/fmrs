@@ -4,7 +4,7 @@ use fmrs_core::{
 };
 use nohash_hasher::{IntMap, IntSet};
 
-pub(super) fn one_way_mate_steps(mut position: Position) -> Option<usize> {
+pub fn one_way_mate_steps(mut position: Position) -> Option<usize> {
     if checked(&position, Color::White) {
         return None;
     }

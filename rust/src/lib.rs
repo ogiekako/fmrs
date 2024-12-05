@@ -2,12 +2,13 @@
 #![allow(clippy::module_inception)]
 
 use clap::{Parser, Subcommand};
+pub use command::one_way_mate_steps;
 use command::OneWayMateGenerator;
 use fmrs_core::sfen;
 use solver::Algorithm;
 
 mod command;
-pub mod solver;
+mod solver;
 
 #[derive(Parser)]
 struct Args {

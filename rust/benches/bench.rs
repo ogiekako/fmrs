@@ -1,4 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use fmrs::one_way_mate_steps;
 use fmrs_core::position::advance_old;
 use fmrs_core::sfen::decode_position;
 use pprof::criterion::{Output, PProfProfiler};
@@ -43,9 +44,24 @@ fn bench_solve3(c: &mut Criterion) {
     });
 }
 
+fn bench_oneway(c: &mut Criterion) {
+    let positions = [
+        (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap(), None),
+        (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+p+B+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/2n+p+p1k1g/7s1/1K1gs2+p1 b GSgsnlp 1").unwrap(), None),
+        (decode_position(include_str!("../problems/diamond.sfen")).unwrap(), Some(55)),
+    ];
+    c.bench_function("oneway", |b| {
+        b.iter(|| {
+            positions.iter().for_each(|(position, steps)| {
+                assert_eq!(one_way_mate_steps(black_box(position).clone()), *steps)
+            })
+        })
+    });
+}
+
 criterion_group!(
     name = benches;
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3,
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway
 );
 criterion_main!(benches);
