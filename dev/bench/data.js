@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733401367321,
+  "lastUpdate": 1733404192215,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -269,6 +269,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 42867,
             "range": "± 310",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "10ec35148130c0fa32f15ac4ccd840039721409e",
+          "message": "Fix gh-pages by fixing rust version",
+          "timestamp": "2024-12-05T22:06:10+09:00",
+          "tree_id": "3f7101b4b7d6d4c57f0cb0a3f6b22de5886f57fe",
+          "url": "https://github.com/ogiekako/fmrs/commit/10ec35148130c0fa32f15ac4ccd840039721409e"
+        },
+        "date": 1733404191201,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4141,
+            "range": "± 136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7533,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 604,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4144,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 42906,
+            "range": "± 219",
             "unit": "ns/iter"
           }
         ]
