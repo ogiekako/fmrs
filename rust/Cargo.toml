@@ -5,10 +5,14 @@ authors = ["Keigo Oka <ogiekako@gmail.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [lib]
+# https://bheisler.github.io/criterion.rs/book/faq.html#cargo-bench-gives-unrecognized-option-errors-for-valid-command-line-options
+bench = false
 
 [[bin]]
 name = "fmrs"
+bench = false
 
 [workspace]
 members = ["wasm", "fmrs_core"]
