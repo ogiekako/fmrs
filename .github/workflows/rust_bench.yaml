@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: rustup toolchain update nightly && rustup default nightly
       - name: Run benchmark
-        run: cd rust && cargo +nightly bench | tee rust/output.txt
+        run: cd rust && cargo +nightly bench | tee output.txt
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
