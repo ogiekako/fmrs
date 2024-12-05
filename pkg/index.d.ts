@@ -1,51 +1,25 @@
 /* tslint:disable */
 /* eslint-disable */
-/**
-*/
 export function greet(): void;
-/**
-*/
 export class JsonResponse {
+  private constructor();
   free(): void;
-/**
-* @returns {number}
-*/
   solutions(): number;
-/**
-* @returns {string}
-*/
   jkf(): string;
 }
-/**
-*/
 export class Solver {
+  private constructor();
   free(): void;
-/**
-* @param {string} problem_sfen
-* @param {number} solutions_upto
-* @returns {Solver}
-*/
   static new(problem_sfen: string, solutions_upto: number): Solver;
-/**
-* Returns non-empty string in case of an error.
-* @returns {string}
-*/
+  /**
+   * Returns non-empty string in case of an error.
+   */
   advance(): string;
-/**
-* @returns {boolean}
-*/
   no_solution(): boolean;
-/**
-* @returns {boolean}
-*/
   solutions_found(): boolean;
-/**
-* Newline-delimited sfen moves
-* @returns {string}
-*/
+  /**
+   * Newline-delimited sfen moves
+   */
   solutions_sfen(): string;
-/**
-* @returns {JsonResponse}
-*/
   solutions_json(): JsonResponse;
 }
