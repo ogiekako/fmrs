@@ -8,7 +8,7 @@ pub(super) fn generate_one_way_mate_with_sa(seed: u64, iteration: usize) -> anyh
     let mut g = Generator::new(seed, iteration, 2.0);
     let problem = g.generate();
 
-    let steps = one_way_mate_steps(problem.clone());
+    let steps = one_way_mate_steps(&problem);
 
     if let Some(steps) = steps {
         println!(
@@ -145,5 +145,5 @@ impl Generator {
 }
 
 fn score(position: Position) -> f64 {
-    one_way_mate_steps(position).map_or(0.0, |x| x as f64)
+    one_way_mate_steps(&position).map_or(0.0, |x| x as f64)
 }

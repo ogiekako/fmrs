@@ -4,7 +4,8 @@ use fmrs_core::{
 };
 use nohash_hasher::{IntMap, IntSet};
 
-pub fn one_way_mate_steps(mut position: Position) -> Option<usize> {
+pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
+    let mut position = position.clone();
     if checked(&position, Color::White) {
         return None;
     }
@@ -39,4 +40,55 @@ pub fn one_way_mate_steps(mut position: Position) -> Option<usize> {
         position = black_positions.remove(0);
     }
     unreachable!();
+}
+
+#[cfg(test)]
+mod tests {
+    use rand::{rngs::SmallRng, Rng, SeedableRng};
+
+    use super::*;
+    use crate::command::one_way_mate::action::Action;
+
+    #[test]
+    fn test_one_way_mate_steps() {
+        let mut rng = SmallRng::seed_from_u64(0);
+
+        let mut got: Vec<usize> = vec![];
+        for _ in 0..3 {
+            let mut sum_steps = 0;
+            let mut position =
+                Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
+
+            for _ in 0..1_000_000 {
+                let action = random_action(&mut rng);
+                if action.try_apply(&mut position).is_err() {
+                    continue;
+                }
+                if let Some(steps) = one_way_mate_steps(&position) {
+                    sum_steps += steps;
+                }
+            }
+            got.push(sum_steps);
+        }
+        assert_eq!(got, vec![33, 22, 54]);
+    }
+
+    #[test]
+    fn test_diamond() {
+        let position = Position::from_sfen(include_str!("../../../problems/diamond.sfen")).unwrap();
+        assert_eq!(one_way_mate_steps(&position), Some(55));
+    }
+
+    fn random_action(rng: &mut SmallRng) -> Action {
+        loop {
+            match rng.gen_range(0..100) {
+                0..=9 => return Action::Move(rng.gen(), rng.gen()),
+                10..=19 => return Action::Swap(rng.gen(), rng.gen()),
+                20..=29 => return Action::FromHand(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
+                30..=39 => return Action::ToHand(rng.gen(), Color::White),
+                40..=49 => return Action::Shift(rng.gen()),
+                _ => (),
+            }
+        }
+    }
 }

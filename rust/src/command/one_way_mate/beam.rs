@@ -103,7 +103,7 @@ impl Generator {
                 let Ok(undo_action) = action.try_apply(&mut position) else {
                     continue;
                 };
-                let step = one_way_mate_steps(position.clone()).unwrap_or(0);
+                let step = one_way_mate_steps(&position).unwrap_or(0);
 
                 if step < problem.step {
                     undo_to_solvable.push(undo_action);
@@ -183,7 +183,7 @@ fn random_one_way_mate_positions(rng: &mut SmallRng, count: usize) -> Vec<(Posit
                 if action.try_apply(&mut position).is_err() {
                     continue;
                 }
-                if let Some(step) = one_way_mate_steps(position.clone()) {
+                if let Some(step) = one_way_mate_steps(&position) {
                     return (position, step);
                 }
             }
