@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733401162051,
+  "lastUpdate": 1733401367321,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -215,6 +215,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 42661,
             "range": "± 122",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "e6edc615ad1372d26468f6d8da82793d43f747a4",
+          "message": "Try fixing \"parseVec could not cast the value\"",
+          "timestamp": "2024-12-05T21:18:59+09:00",
+          "tree_id": "fac47221edafb6ad233971257568d9c2972cf660",
+          "url": "https://github.com/ogiekako/fmrs/commit/e6edc615ad1372d26468f6d8da82793d43f747a4"
+        },
+        "date": 1733401366930,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4273,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7483,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 603,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4199,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 42867,
+            "range": "± 310",
             "unit": "ns/iter"
           }
         ]
