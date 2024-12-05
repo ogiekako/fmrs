@@ -34,3 +34,5 @@ wasm-bindgen-test = "0.3.13"
 [profile.release]
 # Tell `rustc` to optimize for small code size.
 opt-level = "s"
+# https://github.com/bevyengine/bevy/issues/16030
+strip = true
