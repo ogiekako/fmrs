@@ -43,6 +43,7 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    #[inline(never)]
     fn new(
         position: &'a Position,
         memo: &'a mut IntMap<Digest, u32>,
@@ -80,6 +81,7 @@ impl<'a> Context<'a> {
         .into()
     }
 
+    #[inline(never)]
     fn advance(&mut self) {
         if !self.attacker.double_check {
             self.block(self.attacker.pos, self.attacker.kind);
@@ -88,6 +90,7 @@ impl<'a> Context<'a> {
         self.king_move();
     }
 
+    #[inline(never)]
     fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
@@ -97,10 +100,12 @@ impl<'a> Context<'a> {
         }
     }
 
+    #[inline(never)]
     fn capture(&mut self, attacker_pos: Square) {
         self.add_movements_to(attacker_pos, false)
     }
 
+    #[inline(never)]
     fn king_move(&mut self) {
         let king_reachable = bitboard::reachable(
             self.black_pieces,
