@@ -14,6 +14,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v2
       - name: Set up Rust
+        # TODO: update to https://github.com/dtolnay/rust-toolchain
         uses: actions-rs/toolchain@v1
         with:
           # https://github.com/webpack/webpack/issues/15566#issuecomment-2421667784
@@ -32,3 +33,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: gh-pages
           FOLDER: docs
+          CLEAN_EXCLUDE: dev
