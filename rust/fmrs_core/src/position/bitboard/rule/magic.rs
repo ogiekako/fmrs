@@ -97,16 +97,16 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let reachable_index = {
         let mut index = HashMap::new();
         for pattern in patterns.iter() {
-            if index.contains_key(&pattern.reachable) {
+            if index.contains_key(&pattern.reachable.u128()) {
                 continue;
             }
-            index.insert(pattern.reachable, index.len());
+            index.insert(pattern.reachable.u128(), index.len());
         }
         index
     };
     let mut targets = vec![vec![]; reachable_index.len()];
     for pattern in patterns.iter() {
-        let i = reachable_index.get(&pattern.reachable).unwrap();
+        let i = reachable_index.get(&pattern.reachable.u128()).unwrap();
         targets[*i].push(pattern.block.digest());
     }
     let magic = MagicCore::new(&targets)?;

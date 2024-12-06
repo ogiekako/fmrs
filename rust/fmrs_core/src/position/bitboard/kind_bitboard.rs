@@ -2,7 +2,7 @@ use crate::piece::Kind;
 
 use super::{BitBoard, Square};
 
-#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct KindBitBoard {
     promote: BitBoard,
     kind0: BitBoard,
