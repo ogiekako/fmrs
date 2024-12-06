@@ -52,7 +52,8 @@ pub enum Kind {
     ProKnight,
     ProSilver,
     ProBishop,
-    ProRook,
+    ProRook, // 13
+             // 14
 }
 
 impl Distribution<Kind> for rand::distributions::Standard {
