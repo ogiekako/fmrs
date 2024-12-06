@@ -7,6 +7,7 @@ pub struct Square {
 
 impl Square {
     pub fn new(col: usize, row: usize) -> Self {
+        debug_assert!(col < 9 && row < 9);
         Self { x: col * 9 + row }
     }
     pub fn col(self) -> usize {
@@ -22,6 +23,7 @@ impl Square {
         self.x
     }
     pub(super) fn from_index(x: usize) -> Self {
+        debug_assert!(x < 81);
         Self { x }
     }
 }

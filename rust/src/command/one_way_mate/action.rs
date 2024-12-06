@@ -25,7 +25,7 @@ impl Action {
                     }
                     position.unset(from, color, kind);
                     position.set(to, color, kind);
-                    return Ok(Action::Move(to, from));
+                    Ok(Action::Move(to, from))
                 } else {
                     bail!("from is empty");
                 }
@@ -51,7 +51,7 @@ impl Action {
                         position.set(b, a_color, a_kind);
                     }
                 }
-                return Ok(Action::Swap(a, b));
+                Ok(Action::Swap(a, b))
             }
             Action::FromHand(hand_color, pos, color, kind) => {
                 if position.get(pos).is_some() {
@@ -64,7 +64,7 @@ impl Action {
                 }
                 hands.remove(hand_color, hand_kind);
                 position.set(pos, color, kind);
-                return Ok(Action::ToHand(pos, hand_color));
+                Ok(Action::ToHand(pos, hand_color))
             }
             Action::ToHand(pos, hand_color) => {
                 if let Some((color, kind)) = position.get(pos) {
@@ -82,12 +82,10 @@ impl Action {
             Action::TwoActions(a, b) => {
                 let undo_a = a.try_apply(position)?;
                 match b.try_apply(position) {
-                    Ok(undo_b) => {
-                        return Ok(Action::TwoActions(Box::new(undo_b), Box::new(undo_a)))
-                    }
+                    Ok(undo_b) => Ok(Action::TwoActions(Box::new(undo_b), Box::new(undo_a))),
                     Err(e) => {
                         undo_a.try_apply(position).unwrap();
-                        return Err(e);
+                        Err(e)
                     }
                 }
             }

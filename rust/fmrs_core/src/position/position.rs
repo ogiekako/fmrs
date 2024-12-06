@@ -1,13 +1,12 @@
-use serde::Serialize;
-
 use crate::direction::Direction;
 use crate::piece::*;
 
-#[derive(Clone, Eq, Hash, PartialEq, Ord, PartialOrd, Serialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Position {
-    color_bb: ColorBitBoard, // 24 bytes
-    kind_bb: KindBitBoard,   // 48 bytes
+    color_bb: ColorBitBoard, // 32 bytes
+    kind_bb: KindBitBoard,   // 64 bytes
     hands: Hands,            // 8 bytes
+    _padding: u64,           // 8 bytes
 }
 
 impl Default for Position {
@@ -20,12 +19,12 @@ pub type Digest = u64;
 
 #[test]
 fn test_position_size() {
-    assert_eq!(80, std::mem::size_of::<Position>());
+    assert_eq!(112, std::mem::size_of::<Position>());
 }
 
 use crate::sfen;
 use std::fmt;
-use std::hash::Hash;
+
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", sfen::encode_position(self))
@@ -44,6 +43,7 @@ impl Position {
             color_bb: ColorBitBoard::empty(),
             kind_bb: KindBitBoard::empty(),
             hands: Hands::new(),
+            _padding: 0,
         }
     }
     pub fn turn(&self) -> Color {

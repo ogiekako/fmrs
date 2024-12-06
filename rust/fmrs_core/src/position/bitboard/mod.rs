@@ -1,5 +1,4 @@
 mod bitboard;
-mod bitboard_pair;
 mod color_bitboard;
 mod kind_bitboard;
 mod rule;

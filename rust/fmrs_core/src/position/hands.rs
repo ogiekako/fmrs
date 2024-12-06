@@ -14,6 +14,11 @@ pub struct Hands {
     pub(super) x: u64,
 }
 
+#[test]
+fn test_hands_size() {
+    assert_eq!(8, std::mem::size_of::<Hands>());
+}
+
 impl Default for Hands {
     fn default() -> Self {
         Self::new()

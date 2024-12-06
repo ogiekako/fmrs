@@ -2,76 +2,57 @@ use crate::direction::Direction;
 
 use super::square::Square;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct BitBoard {
-    pub(crate) x: u64,
-    pub(crate) y: u32,
-}
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct BitBoard(u128);
 
 impl BitBoard {
     pub fn empty() -> Self {
-        Self { x: 0, y: 0 }
-    }
-    pub(super) fn new(x: u64, y: u32) -> Self {
-        Self { x, y }
+        Self(0)
     }
     pub fn is_empty(&self) -> bool {
-        self.x == 0 && self.y == 0
+        self.0 == 0
     }
     pub fn set(&mut self, pos: Square) {
         let i = pos.index();
-        if i < 64 {
-            self.x |= 1 << i;
-        } else {
-            self.y |= 1 << (i - 64);
-        }
+        self.0 |= 1 << i;
+    }
+    pub fn unset(&mut self, pos: Square) {
+        let i = pos.index();
+        self.0 &= !(1 << i);
     }
     pub fn get(&self, pos: Square) -> bool {
         let i = pos.index();
-        if i < 64 {
-            self.x >> i & 1 == 1
-        } else {
-            self.y >> (i - 64) & 1 == 1
-        }
+        self.0 >> i & 1 != 0
     }
     pub fn and_not(mut self, mask: BitBoard) -> BitBoard {
-        self.x &= !mask.x;
-        self.y &= !mask.y;
+        self.0 &= !mask.0;
         self
     }
 
     pub(crate) fn shift(&mut self, dir: Direction) {
         match dir {
             Direction::Up => {
-                let x_mask = 0b1000000001000000001000000001000000001000000001000000001000000001u64;
-                let y_mask = 0b100000000;
+                let mask =
+                    0b1000000001000000001000000001000000001000000001000000001000000001000000001u128;
 
-                let x_upper = self.x & x_mask;
-                let y_upper = self.y & y_mask;
+                let upper = self.0 & mask;
 
-                self.x = (self.x & !x_mask) >> 1 | x_upper << 8 | ((self.y & 1) as u64) << 63;
-                self.y =
-                    (self.y & !y_mask) >> 1 | y_upper << 8 | (((x_upper >> 63) & 1) as u32) << 7;
+                self.0 = (self.0 & !mask) >> 1 | upper << 8;
             }
             Direction::Down => {
-                let x_mask = 0b100000000100000000100000000100000000100000000100000000100000000u64;
-                let y_mask = 0b10000000010000000;
+                let mask = 0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128;
 
-                let x_lower = self.x & x_mask;
-                let y_lower = self.y & y_mask;
+                let lower = self.0 & mask;
 
-                self.y = (self.y & !y_mask) << 1 | y_lower >> 8 | ((self.x >> 63) & 1) as u32;
-                self.x = (self.x & !x_mask) << 1 | x_lower >> 8 | ((y_lower >> 7 & 1) as u64) << 63;
+                self.0 = (self.0 & !mask) << 1 | lower >> 8;
             }
             Direction::Left => {
-                let left = (self.y >> 8) as u64;
-                self.y = (self.y << 9 | (self.x >> 64 - 9) as u32) & (1 << 17) - 1;
-                self.x = self.x << 9 | left;
+                let left = self.0 >> 72;
+                self.0 = (self.0 << 9 | left) & ((1 << 81) - 1);
             }
             Direction::Right => {
-                let right = (self.x & (1 << 9) - 1) as u32;
-                self.x = self.x >> 9 | (self.y as u64 & (1 << 9) - 1) << 64 - 9;
-                self.y = self.y >> 9 | right << 8;
+                let right = self.0 & ((1 << 9) - 1);
+                self.0 = self.0 >> 9 | right << 72;
             }
         }
     }
@@ -94,10 +75,7 @@ macro_rules! def_op {
             type Output = Self;
 
             fn $op(self, rhs: Self) -> Self {
-                Self {
-                    x: self.x.$op(rhs.x),
-                    y: self.y.$op(rhs.y),
-                }
+                Self(self.0.$op(rhs.0))
             }
         }
     };
@@ -111,8 +89,7 @@ macro_rules! def_op_assign {
     ($ty: ident, $op: ident) => {
         impl std::ops::$ty for BitBoard {
             fn $op(&mut self, rhs: Self) {
-                self.x.$op(rhs.x);
-                self.y.$op(rhs.y);
+                self.0.$op(rhs.0);
             }
         }
     };
@@ -149,19 +126,14 @@ impl std::fmt::Debug for BitBoard {
 
 impl BitBoard {
     pub(super) fn u128(&self) -> u128 {
-        self.x as u128 | (self.y as u128) << 64
+        self.0
     }
     // Assumes self is not empty.
     fn pop(&mut self) -> Square {
-        if self.x == 0 {
-            let res = Square::from_index(self.y.trailing_zeros() as usize + 64);
-            self.y = self.y & (self.y - 1);
-            res
-        } else {
-            let res = Square::from_index(self.x.trailing_zeros() as usize);
-            self.x = self.x & (self.x - 1);
-            res
-        }
+        debug_assert!(!self.is_empty());
+        let res = Square::from_index(self.0.trailing_zeros() as usize);
+        self.0 &= self.0 - 1;
+        res
     }
     pub(super) fn subsets(&self) -> impl Iterator<Item = BitBoard> {
         let orig = self.u128();
@@ -173,13 +145,10 @@ impl BitBoard {
     }
     pub(super) fn from_u128(x: u128) -> Self {
         debug_assert!(x < 1 << 81);
-        Self {
-            x: x as u64,
-            y: (x >> 64) as u32,
-        }
+        Self(x)
     }
     pub(super) fn digest(&self) -> u64 {
-        self.x + self.y as u64
+        (self.0 & 0xffff_ffff_ffff_ffff) as u64 + (self.0 >> 64) as u64
     }
 }
 
@@ -206,16 +175,16 @@ mod tests {
     #[test]
     fn test_bitboard_subsets() {
         assert_eq!(
-            BitBoard { x: 5, y: 1 }.subsets().collect::<Vec<BitBoard>>(),
+            BitBoard(5 | 1 << 64).subsets().collect::<Vec<BitBoard>>(),
             vec![
-                BitBoard { x: 4, y: 1 },
-                BitBoard { x: 1, y: 1 },
-                BitBoard { x: 0, y: 1 },
-                BitBoard { x: 5, y: 0 },
-                BitBoard { x: 4, y: 0 },
-                BitBoard { x: 1, y: 0 },
-                BitBoard { x: 0, y: 0 },
-                BitBoard { x: 5, y: 1 },
+                BitBoard(4 | 1 << 64),
+                BitBoard(1 | 1 << 64),
+                BitBoard(0 | 1 << 64),
+                BitBoard(5 | 0 << 64),
+                BitBoard(4 | 0 << 64),
+                BitBoard(1 | 0 << 64),
+                BitBoard(0 | 0 << 64),
+                BitBoard(5 | 1 << 64),
             ]
         );
     }
