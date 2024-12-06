@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733468724306,
+  "lastUpdate": 1733517330687,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -107,6 +107,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 42653,
             "range": "± 191",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "cde88776e29f3073b0abdf7715a89af9f246973b",
+          "message": "Add inline(never) to make profiling easier",
+          "timestamp": "2024-12-07T05:31:50+09:00",
+          "tree_id": "94572ade47c2ca38f88775b3bf31c66dc1fa4563",
+          "url": "https://github.com/ogiekako/fmrs/commit/cde88776e29f3073b0abdf7715a89af9f246973b"
+        },
+        "date": 1733517329705,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4200,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7324,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 605,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4159,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 43087,
+            "range": "± 85",
             "unit": "ns/iter"
           }
         ]
