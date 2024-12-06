@@ -38,6 +38,7 @@ actix-files = "0.6.1"
 pprof = { version = "0.10.0", features = [
     "criterion",
     "flamegraph",
+    "_protobuf",
     "protobuf-codec",
 ] }
 sysinfo = "0.24.6"

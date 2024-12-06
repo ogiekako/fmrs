@@ -61,6 +61,9 @@ fn bench_oneway(c: &mut Criterion) {
 
 criterion_group!(
     name = benches;
+    // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
+    // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
+    // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway
 );
