@@ -97,7 +97,7 @@ impl Task {
                     && self.all_positions.len() >= TRIGGER_PARALLEL_SOLVE
                     && *g < NTHREAD
                 {
-                    let threads_to_spawn = (NTHREAD + 1 - *g).min(spawn_limit as usize);
+                    let threads_to_spawn = (NTHREAD + 1 - *g).min(spawn_limit);
                     *g += threads_to_spawn - 1;
                     threads_to_spawn.into()
                 } else {
@@ -149,8 +149,12 @@ impl Task {
             }
 
             while let Some(position) = self.all_positions.pop() {
-                let (mut new_next_positions, is_mate) =
-                    advance(&position, &mut self.memo_next, step + 1)?;
+                let (mut new_next_positions, is_mate) = advance(
+                    &position,
+                    &mut self.memo_next,
+                    step + 1,
+                    &Default::default(),
+                )?;
 
                 if step < mate_bound {
                     all_next_positions.append(&mut new_next_positions);

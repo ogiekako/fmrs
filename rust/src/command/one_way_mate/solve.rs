@@ -1,6 +1,6 @@
 use fmrs_core::{
     piece::Color,
-    position::{advance, checked, Position},
+    position::{advance, checked, AdvanceOptions, Position},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -12,15 +12,26 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
 
     let mut visited = FxHashSet::default();
 
+    let options = {
+        let mut options = AdvanceOptions::default();
+        options.max_allowed_branches = Some(1);
+        options
+    };
+
+    let mut hashmap = FxHashMap::default();
+
     // TODO: `advance` without cache.
     for step in (1..).step_by(2) {
-        let (white_positions, _) = advance(&position, &mut FxHashMap::default(), step).unwrap();
+        hashmap.clear();
+        let (white_positions, _) = advance(&position, &mut hashmap, step, &options).ok()?;
+        debug_assert!(white_positions.len() <= 1);
         if white_positions.len() != 1 {
             return None;
         }
 
+        hashmap.clear();
         let (mut black_positions, is_mate) =
-            advance(&white_positions[0], &mut FxHashMap::default(), step + 1).unwrap();
+            advance(&white_positions[0], &mut hashmap, step + 1, &options).ok()?;
 
         if is_mate && !white_positions[0].pawn_drop() {
             if !white_positions[0].hands().is_empty(Color::Black) {
@@ -29,9 +40,7 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
             return (step as usize).into();
         }
 
-        if black_positions.len() != 1 {
-            return None;
-        }
+        debug_assert_eq!(black_positions.len(), 1);
 
         if !visited.insert(position.digest()) {
             return None;

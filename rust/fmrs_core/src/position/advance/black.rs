@@ -1,4 +1,4 @@
-use anyhow::bail;
+use anyhow::{bail, Result};
 use rustc_hash::FxHashMap;
 
 use crate::piece::{Color, Kind};
@@ -10,22 +10,28 @@ use crate::position::{
 };
 
 use super::attack_prevent::attack_preventing_movements;
-use super::common;
 use super::pinned::{pinned, Pinned};
+use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
     position: &Position,
     memo: &mut FxHashMap<Digest, u32>,
     next_step: u32,
+    options: &AdvanceOptions,
 ) -> anyhow::Result<Vec<Position>> {
     debug_assert_eq!(position.turn(), Color::Black);
-    let mut ctx = Context::new(position, memo, next_step)?;
-    ctx.advance();
+    let mut ctx = Context::new(position, memo, next_step, options)?;
+    ctx.advance()?;
     Ok(ctx.result)
 }
 
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
-    advance(position, &mut FxHashMap::default(), 0)
+    advance(
+        position,
+        &mut FxHashMap::default(),
+        0,
+        &AdvanceOptions::default(),
+    )
 }
 
 struct Context<'a> {
@@ -40,6 +46,8 @@ struct Context<'a> {
     // Mutable fields
     memo: &'a mut FxHashMap<Digest, u32>,
     result: Vec<Position>,
+
+    options: &'a AdvanceOptions,
 }
 
 impl<'a> Context<'a> {
@@ -47,6 +55,7 @@ impl<'a> Context<'a> {
         position: &'a Position,
         memo: &'a mut FxHashMap<Digest, u32>,
         next_step: u32,
+        options: &'a AdvanceOptions,
     ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
             .bitboard(Color::White.into(), Kind::King.into())
@@ -94,10 +103,11 @@ impl<'a> Context<'a> {
             pinned,
             pawn_mask,
             result: vec![],
+            options,
         })
     }
 
-    fn advance(&mut self) {
+    fn advance(&mut self) -> Result<()> {
         if self.black_king_checked {
             let black_king_pos = self
                 .position
@@ -110,33 +120,38 @@ impl<'a> Context<'a> {
                 self.next_step,
                 black_king_pos,
                 true,
-            )
-            .unwrap()
+                self.options,
+            )?
             .0;
-            return;
+            return Ok(());
         }
 
-        self.drops();
-        self.direct_attack_moves();
-        self.discovered_attack_moves();
+        self.drops()?;
+        self.direct_attack_moves()?;
+        self.discovered_attack_moves()?;
+
+        Ok(())
     }
 
-    fn drops(&mut self) {
+    fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self.attack_squares(kind).and_not(self.white_pieces);
-            empty_attack_squares.for_each(|pos| {
-                self.maybe_add_move(&Movement::Drop(pos, kind), kind);
-            })
+            for pos in empty_attack_squares {
+                self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
+            }
         }
+        Ok(())
     }
 
-    fn direct_attack_moves(&mut self) {
-        self.non_leap_piece_direct_attack();
-        self.leap_piece_direct_attack();
+    fn direct_attack_moves(&mut self) -> Result<()> {
+        self.non_leap_piece_direct_attack()?;
+        self.leap_piece_direct_attack()?;
+
+        Ok(())
     }
 
     #[inline(never)]
-    fn non_leap_piece_direct_attack(&mut self) {
+    fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
         for attacker_pos in lion_king_range & self.black_pieces {
@@ -170,14 +185,15 @@ impl<'a> Context<'a> {
                             promote,
                         },
                         attacker_source_kind,
-                    );
+                    )?;
                 }
             }
         }
+        Ok(())
     }
 
     #[inline(never)]
-    fn leap_piece_direct_attack(&mut self) {
+    fn leap_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
             Kind::Lance,
             Kind::Knight,
@@ -226,15 +242,16 @@ impl<'a> Context<'a> {
                                 promote,
                             },
                             attacker_source_kind,
-                        );
+                        )?;
                     }
                 }
             }
         }
+        Ok(())
     }
 
     #[inline(never)]
-    fn discovered_attack_moves(&mut self) {
+    fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
             self.black_pieces,
@@ -266,7 +283,7 @@ impl<'a> Context<'a> {
                         promote: false,
                     },
                     blocker_kind,
-                );
+                )?;
                 if maybe_promotable {
                     self.maybe_add_move(
                         &Movement::Move {
@@ -275,25 +292,26 @@ impl<'a> Context<'a> {
                             promote: true,
                         },
                         blocker_kind,
-                    )
+                    )?
                 }
             }
         }
+        Ok(())
     }
 }
 
 // Helper
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) {
+    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
-            return;
+            return Ok(());
         }
 
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
         if kind == Kind::King && common::checked(&next_position, Color::Black) {
-            return;
+            return Ok(());
         }
 
         debug_assert!(
@@ -304,11 +322,15 @@ impl<'a> Context<'a> {
 
         let digest = next_position.digest();
         if self.memo.contains_key(&digest) {
-            return;
+            return Ok(());
         }
         self.memo.insert(digest, self.next_step);
 
         self.result.push(next_position);
+
+        self.options.check_allowed_branches(&self.result)?;
+
+        Ok(())
     }
 
     // Squares moving to which produces a check.

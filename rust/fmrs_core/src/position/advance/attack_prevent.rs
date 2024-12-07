@@ -1,3 +1,4 @@
+use anyhow::Result;
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -11,6 +12,7 @@ use crate::{
 use super::{
     common,
     pinned::{pinned, Pinned},
+    AdvanceOptions,
 };
 
 pub(super) fn attack_preventing_movements(
@@ -19,10 +21,18 @@ pub(super) fn attack_preventing_movements(
     next_step: u32,
     king_pos: Square,
     should_return_check: bool,
-) -> Option<(Vec<Position>, /* is mate */ bool)> {
-    let mut ctx = Context::new(position, memo, next_step, king_pos, should_return_check)?;
-    ctx.advance();
-    Some((ctx.result, ctx.is_mate))
+    options: &AdvanceOptions,
+) -> Result<(Vec<Position>, /* is mate */ bool)> {
+    let mut ctx = Context::new(
+        position,
+        memo,
+        next_step,
+        king_pos,
+        should_return_check,
+        options,
+    );
+    ctx.advance()?;
+    Ok((ctx.result, ctx.is_mate))
 }
 
 struct Context<'a> {
@@ -40,6 +50,8 @@ struct Context<'a> {
     memo: &'a mut FxHashMap<Digest, u32>,
     result: Vec<Position>,
     is_mate: bool,
+
+    options: &'a AdvanceOptions,
 }
 
 impl<'a> Context<'a> {
@@ -50,11 +62,13 @@ impl<'a> Context<'a> {
         next_step: u32,
         king_pos: Square,
         should_return_check: bool,
-    ) -> Option<Self> {
+        options: &'a AdvanceOptions,
+    ) -> Self {
         let turn = position.turn();
         let black_pieces = position.bitboard(Color::Black.into(), None);
         let white_pieces = position.bitboard(Color::White.into(), None);
-        let attacker = attacker(position, black_pieces, white_pieces, king_pos)?;
+        let attacker =
+            attacker(position, black_pieces, white_pieces, king_pos).expect("no attacker");
         let pinned = pinned(position, black_pieces, white_pieces, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
@@ -77,36 +91,41 @@ impl<'a> Context<'a> {
             memo,
             result: vec![],
             is_mate: true,
+            options,
         }
-        .into()
     }
 
     #[inline(never)]
-    fn advance(&mut self) {
+    fn advance(&mut self) -> Result<()> {
         if !self.attacker.double_check {
-            self.block(self.attacker.pos, self.attacker.kind);
-            self.capture(self.attacker.pos);
+            self.block(self.attacker.pos, self.attacker.kind)?;
+            self.capture(self.attacker.pos)?;
         }
-        self.king_move();
+        self.king_move()?;
+
+        Ok(())
     }
 
     #[inline(never)]
-    fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) {
+    fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> Result<()> {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
             for dest in blockable {
-                self.add_movements_to(dest, true);
+                self.add_movements_to(dest, true)?;
             }
         }
+        Ok(())
     }
 
     #[inline(never)]
-    fn capture(&mut self, attacker_pos: Square) {
-        self.add_movements_to(attacker_pos, false)
+    fn capture(&mut self, attacker_pos: Square) -> Result<()> {
+        self.add_movements_to(attacker_pos, false)?;
+
+        Ok(())
     }
 
     #[inline(never)]
-    fn king_move(&mut self) {
+    fn king_move(&mut self) -> Result<()> {
         let king_reachable = bitboard::reachable(
             self.black_pieces,
             self.white_pieces,
@@ -157,15 +176,16 @@ impl<'a> Context<'a> {
                     promote: false,
                 },
                 Kind::King,
-            )
+            )?;
         }
+        Ok(())
     }
 
-    fn add_movements_to(&mut self, dest: Square, include_drop: bool) {
+    fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> Result<()> {
         // Drop
         if include_drop {
             for kind in self.position.hands().kinds(self.turn) {
-                self.maybe_add_move(&Movement::Drop(dest, kind), kind);
+                self.maybe_add_move(&Movement::Drop(dest, kind), kind)?;
             }
         }
 
@@ -194,7 +214,7 @@ impl<'a> Context<'a> {
                             promote,
                         },
                         source_kind,
-                    );
+                    )?;
                 }
             }
         }
@@ -238,29 +258,30 @@ impl<'a> Context<'a> {
                             promote,
                         },
                         source_kind,
-                    )
+                    )?;
                 }
             }
         }
+        Ok(())
     }
 }
 
 // Helper methods
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) {
+    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         if !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask) {
-            return;
+            return Ok(());
         }
 
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
         if self.attacker.double_check && common::checked(&next_position, self.turn) {
-            return;
+            return Ok(());
         }
 
         if self.should_return_check && !common::checked(&next_position, self.turn.opposite()) {
-            return;
+            return Ok(());
         }
 
         debug_assert!(
@@ -275,11 +296,15 @@ impl<'a> Context<'a> {
         self.is_mate = false;
         let digest = next_position.digest();
         if self.memo.contains_key(&digest) {
-            return;
+            return Ok(());
         }
         self.memo.insert(digest, self.next_step);
 
         self.result.push(next_position);
+
+        self.options.check_allowed_branches(&self.result)?;
+
+        Ok(())
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {

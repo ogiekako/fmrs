@@ -40,8 +40,12 @@ impl StandardSolver {
         let mut mate_positions = vec![];
         let mut all_next_positions = vec![];
         while let Some(position) = self.current.pop() {
-            let (mut new_next_positions, is_mate) =
-                position::advance(&position, &mut self.memo_next, self.step)?;
+            let (mut new_next_positions, is_mate) = position::advance(
+                &position,
+                &mut self.memo_next,
+                self.step,
+                &Default::default(),
+            )?;
             all_next_positions.append(&mut new_next_positions);
             if is_mate && !position.pawn_drop() {
                 mate_positions.push(position);

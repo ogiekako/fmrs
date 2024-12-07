@@ -4,16 +4,17 @@ use crate::{piece::Color, position::Digest};
 
 use crate::position::Position;
 
-use super::{black, white};
+use super::{black, white, AdvanceOptions};
 
 pub fn advance(
     position: &Position,
     memo: &mut FxHashMap<Digest, u32>,
     next_step: u32,
+    options: &AdvanceOptions,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     match position.turn() {
-        Color::Black => black::advance(position, memo, next_step).map(|x| (x, false)),
-        Color::White => white::advance(position, memo, next_step),
+        Color::Black => black::advance(position, memo, next_step, options).map(|x| (x, false)),
+        Color::White => white::advance(position, memo, next_step, options),
     }
 }
 

@@ -37,7 +37,7 @@ impl Database {
     // Otherwise, updates the value and returns false.
     pub fn insert_if_empty(&self, digest: u64, step: i32) -> anyhow::Result<bool> {
         let res = self.tree.compare_and_swap(
-            &digest.to_be_bytes(),
+            digest.to_be_bytes(),
             None as Option<&[u8]>,
             Some(&step.to_be_bytes()),
         )?;
