@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733605011686,
+  "lastUpdate": 1733605040843,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1133,6 +1133,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 29684,
             "range": "± 144",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "28cc6bed5dee539fc1ce608dafbbab8db9c96684",
+          "message": "nit",
+          "timestamp": "2024-12-08T05:55:39+09:00",
+          "tree_id": "eb52e58acce0f6891b998682ad5754b825e6b6a8",
+          "url": "https://github.com/ogiekako/fmrs/commit/28cc6bed5dee539fc1ce608dafbbab8db9c96684"
+        },
+        "date": 1733605039807,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4979,
+            "range": "± 138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 8372,
+            "range": "± 222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 576,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 5209,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29162,
+            "range": "± 202",
             "unit": "ns/iter"
           }
         ]
