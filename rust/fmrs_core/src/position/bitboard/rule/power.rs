@@ -7,10 +7,9 @@ pub fn power(color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
         ek.index() << 1 | color.index()
     } else {
         ek.index() + EssentialKind::Bishop.index()
-    } << 7
-        | pos.index();
-    debug_assert!(i < POWERS.len());
-    unsafe { *POWERS.get_unchecked(i) }
+    } | pos.index() * 16;
+    debug_assert!(i < POWERS2.len());
+    unsafe { *POWERS2.get_unchecked(i) }
 }
 
 pub fn king_power(pos: Square) -> BitBoard {
@@ -28,23 +27,33 @@ type KindPowerPair = [KindPower; 2];
 
 lazy_static! {
     static ref POWERS: Vec<BitBoard> = [
-        PAWN_POWER[0],
+        PAWN_POWER[0], // 0
         PAWN_POWER[1],
-        LANCE_POWER[0],
+        LANCE_POWER[0], // 2
         LANCE_POWER[1],
-        KNIGHT_POWER[0],
+        KNIGHT_POWER[0], // 4
         KNIGHT_POWER[1],
-        SILVER_POWER[0],
+        SILVER_POWER[0], // 6
         SILVER_POWER[1],
-        GOLD_POWER[0],
+        GOLD_POWER[0], // 8
         GOLD_POWER[1],
-        BISHOP_POWER.clone(),
-        ROOK_POWER.clone(),
-        KING_POWER.clone(),
-        PRO_BISHOP_POWER.clone(),
-        PRO_ROOK_POWER.clone(),
+        BISHOP_POWER.clone(), // 10
+        ROOK_POWER.clone(), // 11
+        KING_POWER.clone(), // 12
+        PRO_BISHOP_POWER.clone(), // 13
+        PRO_ROOK_POWER.clone(), // 14
+        // 15
     ]
     .concat();
+    static ref POWERS2: Vec<BitBoard> = {
+        let mut res = vec![BitBoard::default(); 128 * 16]; // pos * 16 + kind
+        for kind in 0..15 {
+            for pos in 0..81 {
+                res[pos * 16 + kind] = POWERS[kind * 128 + pos];
+            }
+        }
+        res
+    };
     static ref PAWN_POWER: KindPowerPair = powers([(0, -1)].into_iter());
     static ref KNIGHT_POWER: KindPowerPair = powers([(-1, -2), (1, -2)].into_iter());
     static ref SILVER_POWER: KindPowerPair =
