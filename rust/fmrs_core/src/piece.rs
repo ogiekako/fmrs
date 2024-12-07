@@ -73,6 +73,23 @@ pub const KINDS: [Kind; NUM_KIND] = [
 pub const NUM_HAND_KIND: usize = 7;
 pub const NUM_KIND: usize = 14;
 
+pub const KIND_TO_ESSENTIAL_KIND: [EssentialKind; NUM_KIND] = [
+    EssentialKind::Pawn,
+    EssentialKind::Lance,
+    EssentialKind::Knight,
+    EssentialKind::Silver,
+    EssentialKind::Gold,
+    EssentialKind::Bishop,
+    EssentialKind::Rook,
+    EssentialKind::King,
+    EssentialKind::Gold,
+    EssentialKind::Gold,
+    EssentialKind::Gold,
+    EssentialKind::Gold,
+    EssentialKind::ProBishop,
+    EssentialKind::ProRook,
+];
+
 impl Kind {
     pub fn index(&self) -> usize {
         *self as usize
@@ -118,23 +135,13 @@ impl Kind {
     pub fn is_hand_piece(&self) -> bool {
         matches!(self, Pawn | Lance | Knight | Silver | Gold | Bishop | Rook)
     }
+
     pub fn to_essential_kind(&self) -> EssentialKind {
-        match self {
-            Pawn => EssentialKind::Pawn,
-            Lance => EssentialKind::Lance,
-            Knight => EssentialKind::Knight,
-            Silver => EssentialKind::Silver,
-            Gold | ProPawn | ProLance | ProKnight | ProSilver => EssentialKind::Gold,
-            Bishop => EssentialKind::Bishop,
-            Rook => EssentialKind::Rook,
-            King => EssentialKind::King,
-            ProBishop => EssentialKind::ProBishop,
-            ProRook => EssentialKind::ProRook,
-        }
+        KIND_TO_ESSENTIAL_KIND[self.index()]
     }
 
     pub fn is_essentially_gold(&self) -> bool {
-        matches!(self, Gold | ProPawn | ProLance | ProKnight | ProSilver)
+        KIND_TO_ESSENTIAL_KIND[self.index()] == EssentialKind::Gold
     }
 }
 
@@ -170,7 +177,6 @@ impl EssentialKind {
         ESSENTIAL_KINDS.iter().copied()
     }
 
-    #[inline(always)]
     pub const fn index(&self) -> usize {
         *self as usize
     }

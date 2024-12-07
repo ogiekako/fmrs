@@ -77,7 +77,7 @@ impl Position {
         self.kind_bb.bitboard(k, *mask)
     }
 
-    pub fn essential_bitboard(&self, color: Option<Color>, ek: EssentialKind) -> BitBoard {
+    pub fn bitboard_essential_kind(&self, color: Option<Color>, ek: EssentialKind) -> BitBoard {
         if let Some(k) = ek.unique_kind() {
             self.bitboard(color, Some(k))
         } else {

@@ -36,7 +36,7 @@ pub fn checked(position: &Position, color: Color) -> bool {
         EssentialKind::ProBishop,
         EssentialKind::ProRook,
     ] {
-        let attackers = position.essential_bitboard(color.opposite().into(), attacker_kind);
+        let attackers = position.bitboard_essential_kind(color.opposite().into(), attacker_kind);
         if attackers.is_empty() {
             continue;
         }

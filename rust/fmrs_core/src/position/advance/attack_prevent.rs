@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     piece::{Color, EssentialKind, Kind},
     position::{
-        bitboard::{self, BitBoard},
+        bitboard::{self, king_power, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
     },
 };
@@ -119,18 +119,14 @@ impl<'a> Context<'a> {
 
     #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
-        let king_reachable = bitboard::reachable(
-            self.position.color_bb(),
-            self.turn,
-            self.king_pos,
-            EssentialKind::King,
-            false,
-        );
+        let king_power = king_power(self.king_pos);
+        let king_reachable = king_power.and_not(*self.position.color_bb().bitboard(self.turn));
+
         let mut under_attack = BitBoard::default();
         for attacker_kind in EssentialKind::iter() {
             for attacker_pos in self
                 .position
-                .essential_bitboard(self.turn.opposite().into(), attacker_kind)
+                .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
             {
                 let attacker_power =
                     bitboard::essential_power(self.turn.opposite(), attacker_pos, attacker_kind);
