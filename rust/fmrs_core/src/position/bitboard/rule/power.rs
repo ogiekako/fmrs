@@ -7,7 +7,7 @@ pub fn power(color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
         ek.index() << 1 | color.index()
     } else {
         ek.index() + EssentialKind::Bishop.index()
-    } | pos.index() * 16;
+    } | pos.index() << 4;
     debug_assert!(i < POWERS2.len());
     unsafe { *POWERS2.get_unchecked(i) }
 }
