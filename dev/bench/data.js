@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733541034301,
+  "lastUpdate": 1733544679444,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -593,6 +593,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 33190,
             "range": "± 515",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "4285c144f0f08ea093df80274ed58a21a23bce87",
+          "message": "Introduce EssentialKind",
+          "timestamp": "2024-12-07T13:07:27+09:00",
+          "tree_id": "04a4f62bf2ac02578dd06b646708c6c2281a1449",
+          "url": "https://github.com/ogiekako/fmrs/commit/4285c144f0f08ea093df80274ed58a21a23bce87"
+        },
+        "date": 1733544678892,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4874,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 8276,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 633,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4694,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33197,
+            "range": "± 125",
             "unit": "ns/iter"
           }
         ]
