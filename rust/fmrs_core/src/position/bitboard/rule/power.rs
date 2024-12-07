@@ -4,7 +4,7 @@ use super::super::{BitBoard, Square};
 
 #[inline(always)]
 pub fn essential_power(color: Color, pos: Square, ek: EssentialKind) -> &'static BitBoard {
-    &POWERS[essential_index(color, ek)][pos.index()]
+    &POWERS[essential_kind_index(color, ek)][pos.index()]
 }
 
 #[inline(always)]
@@ -12,25 +12,23 @@ pub fn king_power(pos: Square) -> &'static BitBoard {
     &KING_POWER[pos.index()]
 }
 
+const ESSENTIAL_KIND_INDEX: [usize; 20] = [
+    0, 1, // Pawn
+    2, 3, // Lance
+    4, 5, // Knight
+    6, 7, // Silver
+    13, 14, // Gold
+    8, 8, // Bishop
+    9, 9, // Rook
+    10, 10, // King
+    11, 11, // ProBishop
+    12, 12, // ProRook
+];
+
 #[inline(always)]
-const fn essential_index(color: Color, ek: EssentialKind) -> usize {
-    match (ek, color) {
-        (EssentialKind::Pawn, Color::Black) => 0,
-        (EssentialKind::Pawn, Color::White) => 1,
-        (EssentialKind::Lance, Color::Black) => 2,
-        (EssentialKind::Lance, Color::White) => 3,
-        (EssentialKind::Knight, Color::Black) => 4,
-        (EssentialKind::Knight, Color::White) => 5,
-        (EssentialKind::Silver, Color::Black) => 6,
-        (EssentialKind::Silver, Color::White) => 7,
-        (EssentialKind::Bishop, _) => 8,
-        (EssentialKind::Rook, _) => 9,
-        (EssentialKind::King, _) => 10,
-        (EssentialKind::ProBishop, _) => 11,
-        (EssentialKind::ProRook, _) => 12,
-        (EssentialKind::Gold, Color::Black) => 13,
-        (EssentialKind::Gold, Color::White) => 14,
-    }
+const fn essential_kind_index(color: Color, ek: EssentialKind) -> usize {
+    let i = ek.index() << 1 | color.index();
+    ESSENTIAL_KIND_INDEX[i]
 }
 
 type KindPower = [[BitBoard; 81]; 2];

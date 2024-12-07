@@ -336,17 +336,13 @@ impl<'a> Context<'a> {
 }
 
 fn lion_king_power(pos: Square) -> BitBoard {
-    let mut res = *bitboard::essential_power(Color::Black, pos, EssentialKind::King);
+    let mut res = *bitboard::king_power(pos);
     for i in [-1, 1] {
         for j in [-1, 1] {
             let col = pos.col() as isize + i;
             let row = pos.row() as isize + j;
             if (0..9).contains(&col) && (0..9).contains(&row) {
-                res |= *bitboard::essential_power(
-                    Color::Black,
-                    Square::new(col as usize, row as usize),
-                    EssentialKind::King,
-                );
+                res |= *bitboard::king_power(Square::new(col as usize, row as usize));
             }
         }
     }
