@@ -126,7 +126,7 @@ impl<'a> Context<'a> {
             Kind::King,
             false,
         );
-        let mut under_attack = BitBoard::empty();
+        let mut under_attack = BitBoard::default();
         for attacker_kind in Kind::iter() {
             for attacker_pos in self
                 .position
@@ -302,7 +302,7 @@ impl<'a> Context<'a> {
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
         if bitboard::power(self.turn, self.king_pos, Kind::King).get(attacker_pos) {
-            return BitBoard::empty();
+            return BitBoard::default();
         }
         bitboard::reachable(
             self.position.color_bb(),

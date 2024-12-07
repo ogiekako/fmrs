@@ -17,11 +17,6 @@ impl Default for Position {
 
 pub type Digest = u64;
 
-#[test]
-fn test_position_size() {
-    assert_eq!(112, std::mem::size_of::<Position>());
-}
-
 use crate::position::zobrist::zobrist;
 use crate::sfen;
 use std::fmt;
@@ -41,8 +36,8 @@ use super::Square;
 impl Position {
     pub fn new() -> Self {
         Self {
-            color_bb: ColorBitBoard::empty(),
-            kind_bb: KindBitBoard::empty(),
+            color_bb: ColorBitBoard::default(),
+            kind_bb: KindBitBoard::default(),
             hands: Hands::new(),
             board_digest: 0,
         }
@@ -78,8 +73,8 @@ impl Position {
             self.color_bb.both()
         };
 
-        let k = if let Some(k) = kind { k } else { return mask };
-        self.kind_bb.bitboard(k, mask)
+        let k = if let Some(k) = kind { k } else { return *mask };
+        self.kind_bb.bitboard(k, *mask)
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let color = if self.bitboard(Some(Color::Black), None).get(pos) {

@@ -123,7 +123,7 @@ impl<'a> Context<'a> {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self
                 .attack_squares(kind)
-                .and_not(self.position.color_bb().bitboard(Color::White));
+                .and_not(*self.position.color_bb().bitboard(Color::White));
             for pos in empty_attack_squares {
                 self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
             }
@@ -142,7 +142,7 @@ impl<'a> Context<'a> {
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
-        for attacker_pos in lion_king_range & self.position.color_bb().bitboard(Color::Black) {
+        for attacker_pos in lion_king_range & *self.position.color_bb().bitboard(Color::Black) {
             let attacker_source_kind = self.position.get(attacker_pos).unwrap().1;
             if attacker_source_kind == Kind::King
                 || attacker_source_kind == Kind::Knight

@@ -3,32 +3,50 @@ use crate::piece::{Color, Kind};
 use super::super::{BitBoard, Square};
 
 pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
-    POWERS[kind.index()][color.index()][pos.index()]
+    POWERS[index(color, kind)][pos.index()]
+}
+
+const fn index(color: Color, kind: Kind) -> usize {
+    match (kind, color) {
+        (Kind::Pawn, Color::Black) => 0,
+        (Kind::Pawn, Color::White) => 1,
+        (Kind::Lance, Color::Black) => 2,
+        (Kind::Lance, Color::White) => 3,
+        (Kind::Knight, Color::Black) => 4,
+        (Kind::Knight, Color::White) => 5,
+        (Kind::Silver, Color::Black) => 6,
+        (Kind::Silver, Color::White) => 7,
+        (Kind::Bishop, _) => 8,
+        (Kind::Rook, _) => 9,
+        (Kind::King, _) => 10,
+        (Kind::ProBishop, _) => 11,
+        (Kind::ProRook, _) => 12,
+        (_, Color::Black) => 13, // Gold
+        (_, Color::White) => 14,
+    }
 }
 
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
-    static ref POWERS: Vec<KindPower> = {
-        let mut res = vec![];
-        for kind in Kind::iter() {
-            res.push(match kind {
-                Kind::Pawn => *PAWN_POWER,
-                Kind::Lance => *LANCE_POWER,
-                Kind::Knight => *KNIGHT_POWER,
-                Kind::Silver => *SILVER_POWER,
-                Kind::Gold => *GOLD_POWER,
-                Kind::Bishop => *BISHOP_POWER,
-                Kind::Rook => *ROOK_POWER,
-                Kind::King => [*KING_POWER, *KING_POWER],
-                Kind::ProPawn => *GOLD_POWER,
-                Kind::ProLance => *GOLD_POWER,
-                Kind::ProKnight => *GOLD_POWER,
-                Kind::ProSilver => *GOLD_POWER,
-                Kind::ProBishop => *PRO_BISHOP_POWER,
-                Kind::ProRook => *PRO_ROOK_POWER,
-            });
-        }
+    static ref POWERS: Vec<[BitBoard; 81]> = {
+        let res = vec![
+            PAWN_POWER[0],
+            PAWN_POWER[1],
+            LANCE_POWER[0],
+            LANCE_POWER[1],
+            KNIGHT_POWER[0],
+            KNIGHT_POWER[1],
+            SILVER_POWER[0],
+            SILVER_POWER[1],
+            BISHOP_POWER[0],
+            ROOK_POWER[0],
+            KING_POWER.clone(),
+            PRO_BISHOP_POWER[0],
+            PRO_ROOK_POWER[0],
+            GOLD_POWER[0],
+            GOLD_POWER[1],
+        ];
         res
     };
     static ref PAWN_POWER: KindPower = powers([(0, -1)].into_iter());
@@ -90,7 +108,7 @@ fn powers(black_shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {
 
 fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
     let shifts = shifts.collect::<Vec<_>>();
-    let mut res = [BitBoard::empty(); 81];
+    let mut res = [BitBoard::default(); 81];
     for col in 0..9 {
         for row in 0..9 {
             let pos = Square::new(col, row);
