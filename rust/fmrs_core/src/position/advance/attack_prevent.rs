@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     piece::{Color, EssentialKind, Kind},
     position::{
-        bitboard::{self, king_power, BitBoard},
+        bitboard::{self, king_power, lion_king_power, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
     },
 };
@@ -53,7 +53,6 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    #[inline(never)]
     fn new(
         position: &'a Position,
         memo: &'a mut FxHashMap<Digest, u32>,
@@ -88,7 +87,6 @@ impl<'a> Context<'a> {
         }
     }
 
-    #[inline(never)]
     fn advance(&mut self) -> Result<()> {
         if !self.attacker.double_check {
             self.block(self.attacker.pos, self.attacker.kind)?;
@@ -99,7 +97,6 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
     fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> Result<()> {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
@@ -110,30 +107,56 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
     fn capture(&mut self, attacker_pos: Square) -> Result<()> {
         self.add_movements_to(attacker_pos, false)?;
 
         Ok(())
     }
 
-    #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
         let king_power = king_power(self.king_pos);
         let king_reachable = king_power.and_not(*self.position.color_bb().bitboard(self.turn));
 
+        let lion_king_power = lion_king_power(self.king_pos);
+
         let mut under_attack = BitBoard::default();
-        for attacker_kind in EssentialKind::iter() {
+
+        // Non leap pieces
+        for attacker_kind in [
+            EssentialKind::Pawn,
+            EssentialKind::Silver,
+            EssentialKind::Gold,
+            EssentialKind::King,
+        ] {
+            for attacker_pos in self
+                .position
+                .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
+                & lion_king_power
+            {
+                let attacker_power =
+                    bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
+                under_attack |= *attacker_power;
+            }
+        }
+
+        for attacker_kind in [
+            EssentialKind::Lance,
+            EssentialKind::Knight,
+            EssentialKind::Bishop,
+            EssentialKind::Rook,
+            EssentialKind::ProBishop,
+            EssentialKind::ProRook,
+        ] {
             for attacker_pos in self
                 .position
                 .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
             {
                 let attacker_power =
-                    bitboard::essential_power(self.turn.opposite(), attacker_pos, attacker_kind);
+                    bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
                 if (attacker_power & &king_reachable).is_empty() {
                     continue;
                 }
-                if !attacker_kind.is_line_piece() {
+                if attacker_kind == EssentialKind::Knight {
                     under_attack |= *attacker_power;
                     continue;
                 }
@@ -189,7 +212,7 @@ impl<'a> Context<'a> {
             let source_power = if self.pinned.is_pinned(source_pos) {
                 self.pinned.pinned_area(source_pos)
             } else {
-                *bitboard::essential_power(self.turn, source_pos, source_kind.to_essential_kind())
+                *bitboard::power(self.turn, source_pos, source_kind.to_essential_kind())
             };
             if source_power.get(dest) {
                 for promote in [false, true] {

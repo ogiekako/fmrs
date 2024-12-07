@@ -7,6 +7,7 @@ pub struct Position {
     kind_bb: KindBitBoard,   // 64 bytes
     hands: Hands,            // 8 bytes
     board_digest: u64,       // 8 bytes
+    __heavy: [u128; 0],
 }
 
 impl Default for Position {
@@ -40,6 +41,7 @@ impl Position {
             kind_bb: KindBitBoard::default(),
             hands: Hands::new(),
             board_digest: 0,
+            __heavy: Default::default(),
         }
     }
     pub fn turn(&self) -> Color {
@@ -74,7 +76,7 @@ impl Position {
         };
 
         let k = if let Some(k) = kind { k } else { return *mask };
-        self.kind_bb.bitboard(k, *mask)
+        self.kind_bb.bitboard(k) & mask
     }
 
     pub fn bitboard_essential_kind(&self, color: Option<Color>, ek: EssentialKind) -> BitBoard {

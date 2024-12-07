@@ -2,12 +2,26 @@ use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
-pub fn essential_power(color: Color, pos: Square, ek: EssentialKind) -> &'static BitBoard {
+pub fn power(color: Color, pos: Square, ek: EssentialKind) -> &'static BitBoard {
     &POWERS[essential_kind_index(color, ek)][pos.index()]
 }
 
 pub fn king_power(pos: Square) -> &'static BitBoard {
     &KING_POWER[pos.index()]
+}
+
+pub fn lion_king_power(pos: Square) -> BitBoard {
+    let mut res = *king_power(pos);
+    for i in [-1, 1] {
+        for j in [-1, 1] {
+            let col = pos.col() as isize + i;
+            let row = pos.row() as isize + j;
+            if (0..9).contains(&col) && (0..9).contains(&row) {
+                res |= *king_power(Square::new(col as usize, row as usize));
+            }
+        }
+    }
+    res
 }
 
 const ESSENTIAL_KIND_INDEX: [usize; 20] = [
@@ -144,7 +158,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            *super::essential_power(Color::Black, Square::new(1, 2), EssentialKind::Silver)
+            *super::power(Color::Black, Square::new(1, 2), EssentialKind::Silver)
         );
         assert_eq!(
             bitboard!(
@@ -158,7 +172,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            *super::essential_power(Color::White, Square::new(0, 0), EssentialKind::Pawn)
+            *super::power(Color::White, Square::new(0, 0), EssentialKind::Pawn)
         );
         assert_eq!(
             bitboard!(
@@ -172,7 +186,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            *super::essential_power(Color::White, Square::new(0, 0), EssentialKind::Gold)
+            *super::power(Color::White, Square::new(0, 0), EssentialKind::Gold)
         );
         assert_eq!(
             bitboard!(
@@ -186,7 +200,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            *super::essential_power(Color::Black, Square::new(1, 2), EssentialKind::King)
+            *super::power(Color::Black, Square::new(1, 2), EssentialKind::King)
         );
         assert_eq!(
             bitboard!(
@@ -200,7 +214,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            *super::essential_power(Color::Black, Square::new(1, 2), EssentialKind::ProRook)
+            *super::power(Color::Black, Square::new(1, 2), EssentialKind::ProRook)
         );
         assert_eq!(
             bitboard!(
@@ -214,7 +228,7 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            *super::essential_power(Color::Black, Square::new(0, 0), EssentialKind::Rook)
+            *super::power(Color::Black, Square::new(0, 0), EssentialKind::Rook)
         );
         assert_eq!(
             bitboard!(
@@ -228,7 +242,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            *super::essential_power(Color::White, Square::new(1, 2), EssentialKind::Lance)
+            *super::power(Color::White, Square::new(1, 2), EssentialKind::Lance)
         );
         assert_eq!(
             bitboard!(
@@ -242,7 +256,7 @@ mod tests {
                 "...*.....",
                 "..*......",
             ),
-            *super::essential_power(Color::White, Square::new(1, 3), EssentialKind::Bishop)
+            *super::power(Color::White, Square::new(1, 3), EssentialKind::Bishop)
         );
     }
 }

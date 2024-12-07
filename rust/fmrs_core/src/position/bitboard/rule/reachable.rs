@@ -4,7 +4,7 @@ use crate::{
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{essential_power, king_power, magic};
+use super::{king_power, magic, power};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -20,7 +20,6 @@ pub fn reachable(
     }))
 }
 
-#[inline(never)]
 fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
     match ek {
         EssentialKind::Lance => lance_reachable(occupied, color, pos),
@@ -28,11 +27,10 @@ fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, ek: EssentialKi
         EssentialKind::Rook => rook_reachable(occupied, pos),
         EssentialKind::ProBishop => king_power(pos) | &magic::bishop_reachable(occupied, pos),
         EssentialKind::ProRook => king_power(pos) | &rook_reachable(occupied, pos),
-        _ => *essential_power(color, pos, ek),
+        _ => *power(color, pos, ek),
     }
 }
 
-#[inline(never)]
 fn rook_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
     magic::rook_reachable_row(occupied, pos)
         | lance_reachable(occupied, Color::Black, pos)
@@ -46,7 +44,6 @@ const LOWER: BitBoard = BitBoard::from_u128(
     0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
 );
 
-#[inline(never)]
 fn lance_reachable(occupied: &BitBoard, color: Color, pos: Square) -> BitBoard {
     match color {
         Color::Black => {
