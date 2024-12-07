@@ -1,4 +1,4 @@
-use nohash_hasher::IntMap;
+use rustc_hash::FxHashMap;
 
 use crate::piece::{Color, Kind};
 
@@ -7,12 +7,12 @@ use crate::position::Digest;
 use crate::position::Position;
 
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
-    advance(position, &mut IntMap::default(), 0).map(|x| x.0)
+    advance(position, &mut FxHashMap::default(), 0).map(|x| x.0)
 }
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut IntMap<Digest, u32>,
+    memo: &mut FxHashMap<Digest, u32>,
     next_step: u32,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::White);

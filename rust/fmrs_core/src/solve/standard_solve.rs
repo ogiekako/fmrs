@@ -1,4 +1,4 @@
-use nohash_hasher::IntMap;
+use rustc_hash::FxHashMap;
 
 use crate::position::{self, Digest, Position};
 
@@ -8,8 +8,8 @@ pub struct StandardSolver {
     solutions_upto: usize,
     step: u32,
     current: Vec<Position>,
-    memo: IntMap<Digest, u32>,
-    memo_next: IntMap<Digest, u32>,
+    memo: FxHashMap<Digest, u32>,
+    memo_next: FxHashMap<Digest, u32>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -23,14 +23,14 @@ impl StandardSolver {
     pub fn new(position: Position, solutions_upto: usize) -> Self {
         let step = 0;
         let current = vec![position];
-        let mut memo = IntMap::default();
+        let mut memo = FxHashMap::default();
         memo.insert(current[0].digest(), step);
         Self {
             solutions_upto,
             step,
             current,
             memo,
-            memo_next: IntMap::default(),
+            memo_next: FxHashMap::default(),
         }
     }
 

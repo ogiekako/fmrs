@@ -2,7 +2,7 @@ use fmrs_core::{
     piece::Color,
     position::{advance, checked, Position},
 };
-use nohash_hasher::{IntMap, IntSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let mut position = position.clone();
@@ -10,17 +10,17 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         return None;
     }
 
-    let mut visited = IntSet::default();
+    let mut visited = FxHashSet::default();
 
     // TODO: `advance` without cache.
     for step in (1..).step_by(2) {
-        let (white_positions, _) = advance(&position, &mut IntMap::default(), step).unwrap();
+        let (white_positions, _) = advance(&position, &mut FxHashMap::default(), step).unwrap();
         if white_positions.len() != 1 {
             return None;
         }
 
         let (mut black_positions, is_mate) =
-            advance(&white_positions[0], &mut IntMap::default(), step + 1).unwrap();
+            advance(&white_positions[0], &mut FxHashMap::default(), step + 1).unwrap();
 
         if is_mate && !white_positions[0].pawn_drop() {
             if !white_positions[0].hands().is_empty(Color::Black) {

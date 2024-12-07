@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use nohash_hasher::IntMap;
+use rustc_hash::FxHashMap;
 
 use crate::position::{previous, Digest, Position, PositionExt};
 
@@ -8,8 +8,8 @@ use super::Solution;
 
 pub fn reconstruct_solutions(
     mate: &Position,
-    memo_black_turn: &IntMap<Digest, u32>,
-    memo_white_turn: &IntMap<Digest, u32>,
+    memo_black_turn: &FxHashMap<Digest, u32>,
+    memo_white_turn: &FxHashMap<Digest, u32>,
     solutions_upto: usize,
 ) -> Vec<Solution> {
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
@@ -19,16 +19,16 @@ pub fn reconstruct_solutions(
 }
 
 struct Context<'a> {
-    memo_black_turn: &'a IntMap<Digest, u32>,
-    memo_white_turn: &'a IntMap<Digest, u32>,
+    memo_black_turn: &'a FxHashMap<Digest, u32>,
+    memo_white_turn: &'a FxHashMap<Digest, u32>,
     mate_in: u32,
     solutions_upto: usize,
 }
 
 impl<'a> Context<'a> {
     fn new(
-        memo_black_turn: &'a IntMap<Digest, u32>,
-        memo_white_turn: &'a IntMap<Digest, u32>,
+        memo_black_turn: &'a FxHashMap<Digest, u32>,
+        memo_white_turn: &'a FxHashMap<Digest, u32>,
         mate_in: u32,
         solutions_upto: usize,
     ) -> Self {
@@ -41,7 +41,7 @@ impl<'a> Context<'a> {
     }
 
     fn reconstruct_bfs(&self, mate_position: &Position) -> Vec<Solution> {
-        let mut position_visit_count = IntMap::default();
+        let mut position_visit_count = FxHashMap::default();
         let mut queue = VecDeque::new();
         queue.push_back((mate_position.clone(), self.mate_in, vec![]));
         let mut res = vec![];
