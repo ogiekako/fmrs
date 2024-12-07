@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use rustc_hash::FxHashMap;
 
-use crate::piece::{Color, Kind};
+use crate::piece::{Color, EssentialKind, Kind};
 
 use crate::position::Digest;
 use crate::position::{
@@ -122,7 +122,7 @@ impl<'a> Context<'a> {
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self
-                .attack_squares(kind)
+                .attack_squares(kind.to_essential_kind())
                 .and_not(*self.position.color_bb().bitboard(Color::White));
             for pos in empty_attack_squares {
                 self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
@@ -153,7 +153,11 @@ impl<'a> Context<'a> {
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
-                bitboard::power(Color::Black, attacker_pos, attacker_source_kind)
+                *bitboard::essential_power(
+                    Color::Black,
+                    attacker_pos,
+                    attacker_source_kind.to_essential_kind(),
+                )
             };
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
@@ -164,7 +168,7 @@ impl<'a> Context<'a> {
                 } else {
                     attacker_source_kind
                 };
-                let attack_squares = self.attack_squares(attacker_dest_kind);
+                let attack_squares = self.attack_squares(attacker_dest_kind.to_essential_kind());
                 for dest in attacker_power & attack_squares {
                     self.maybe_add_move(
                         &Movement::Move {
@@ -207,7 +211,7 @@ impl<'a> Context<'a> {
                     attacker_source_kind
                 };
 
-                let attack_squares = self.attack_squares(attacker_dest_kind);
+                let attack_squares = self.attack_squares(attacker_dest_kind.to_essential_kind());
 
                 for attacker_pos in attackers {
                     let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
@@ -217,7 +221,7 @@ impl<'a> Context<'a> {
                             self.position.color_bb(),
                             Color::Black,
                             attacker_pos,
-                            attacker_source_kind,
+                            attacker_source_kind.to_essential_kind(),
                             false,
                         )
                     };
@@ -253,7 +257,7 @@ impl<'a> Context<'a> {
                 self.position.color_bb(),
                 Color::Black,
                 blocker_pos,
-                blocker_kind,
+                blocker_kind.to_essential_kind(),
                 false,
             )
             .and_not(blocker_pinned_area);
@@ -320,28 +324,28 @@ impl<'a> Context<'a> {
     }
 
     // Squares moving to which produces a check.
-    fn attack_squares(&self, kind: Kind) -> BitBoard {
+    fn attack_squares(&self, ek: EssentialKind) -> BitBoard {
         bitboard::reachable(
             self.position.color_bb(),
             Color::White,
             self.white_king_pos,
-            kind,
+            ek,
             true,
         )
     }
 }
 
 fn lion_king_power(pos: Square) -> BitBoard {
-    let mut res = bitboard::power(Color::Black, pos, Kind::King);
+    let mut res = *bitboard::essential_power(Color::Black, pos, EssentialKind::King);
     for i in [-1, 1] {
         for j in [-1, 1] {
             let col = pos.col() as isize + i;
             let row = pos.row() as isize + j;
             if (0..9).contains(&col) && (0..9).contains(&row) {
-                res |= bitboard::power(
+                res |= *bitboard::essential_power(
                     Color::Black,
                     Square::new(col as usize, row as usize),
-                    Kind::King,
+                    EssentialKind::King,
                 );
             }
         }

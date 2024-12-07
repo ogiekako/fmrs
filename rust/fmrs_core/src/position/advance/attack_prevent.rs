@@ -2,7 +2,7 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    piece::{Color, Kind},
+    piece::{Color, EssentialKind, Kind},
     position::{
         bitboard::{self, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
@@ -123,22 +123,22 @@ impl<'a> Context<'a> {
             self.position.color_bb(),
             self.turn,
             self.king_pos,
-            Kind::King,
+            EssentialKind::King,
             false,
         );
         let mut under_attack = BitBoard::default();
-        for attacker_kind in Kind::iter() {
+        for attacker_kind in EssentialKind::iter() {
             for attacker_pos in self
                 .position
-                .bitboard(self.turn.opposite().into(), attacker_kind.into())
+                .essential_bitboard(self.turn.opposite().into(), attacker_kind)
             {
                 let attacker_power =
-                    bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
-                if (attacker_power & king_reachable).is_empty() {
+                    bitboard::essential_power(self.turn.opposite(), attacker_pos, attacker_kind);
+                if (attacker_power & &king_reachable).is_empty() {
                     continue;
                 }
                 if !attacker_kind.is_line_piece() {
-                    under_attack |= attacker_power;
+                    under_attack |= *attacker_power;
                     continue;
                 }
                 let attacker_reachable = bitboard::reachable(
@@ -183,8 +183,8 @@ impl<'a> Context<'a> {
         }
 
         // Move
-        let around_dest = bitboard::power(self.turn, dest, Kind::King)
-            & self.position.bitboard(self.turn.into(), None);
+        let around_dest = bitboard::essential_power(self.turn, dest, EssentialKind::King)
+            & &self.position.bitboard(self.turn.into(), None);
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
             if source_kind == Kind::King {
@@ -193,7 +193,7 @@ impl<'a> Context<'a> {
             let source_power = if self.pinned.is_pinned(source_pos) {
                 self.pinned.pinned_area(source_pos)
             } else {
-                bitboard::power(self.turn, source_pos, source_kind)
+                *bitboard::essential_power(self.turn, source_pos, source_kind.to_essential_kind())
             };
             if source_power.get(dest) {
                 for promote in [false, true] {
@@ -232,7 +232,7 @@ impl<'a> Context<'a> {
                 self.position.color_bb(),
                 self.turn.opposite(),
                 dest,
-                leap_kind,
+                leap_kind.to_essential_kind(),
                 false,
             ) & on_board;
             for source_pos in sources {
@@ -301,20 +301,22 @@ impl<'a> Context<'a> {
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        if bitboard::power(self.turn, self.king_pos, Kind::King).get(attacker_pos) {
+        if bitboard::essential_power(self.turn, self.king_pos, EssentialKind::King)
+            .get(attacker_pos)
+        {
             return BitBoard::default();
         }
         bitboard::reachable(
             self.position.color_bb(),
             self.turn,
             self.king_pos,
-            attacker_kind.maybe_unpromote(),
+            attacker_kind.maybe_unpromote().to_essential_kind(),
             false,
         ) & bitboard::reachable(
             self.position.color_bb(),
             self.turn.opposite(),
             attacker_pos,
-            attacker_kind.maybe_unpromote(),
+            attacker_kind.maybe_unpromote().to_essential_kind(),
             true,
         )
     }
@@ -349,7 +351,7 @@ fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
             position.color_bb(),
             king_color,
             king_pos,
-            attacker_kind,
+            attacker_kind.to_essential_kind(),
             false,
         ) & existing;
         if attacking.is_empty() {

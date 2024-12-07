@@ -1,32 +1,37 @@
 use crate::{
-    piece::{Color, Kind},
+    piece::{Color, EssentialKind},
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{magic, power::power};
+use super::{essential_power, magic};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
     color: Color,
     pos: Square,
-    kind: Kind,
+    ek: EssentialKind,
     capture_same_color: bool,
 ) -> BitBoard {
-    let mask = reachable_sub(color_bb.both(), color, pos, kind);
+    let mask = reachable_sub(color_bb.both(), color, pos, ek);
     mask.and_not(*color_bb.bitboard(match capture_same_color {
         true => color.opposite(),
         false => color,
     }))
 }
 
-fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
-    match kind {
-        Kind::Lance => lance_reachable(occupied, color, pos),
-        Kind::Bishop => magic::bishop_reachable(occupied, pos),
-        Kind::Rook => rook_reachable(occupied, pos),
-        Kind::ProBishop => power(color, pos, Kind::King) | magic::bishop_reachable(occupied, pos),
-        Kind::ProRook => power(color, pos, Kind::King) | rook_reachable(occupied, pos),
-        _ => power(color, pos, kind),
+fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
+    match ek {
+        EssentialKind::Lance => lance_reachable(occupied, color, pos),
+        EssentialKind::Bishop => magic::bishop_reachable(occupied, pos),
+        EssentialKind::Rook => rook_reachable(occupied, pos),
+        EssentialKind::ProBishop => {
+            essential_power(color, pos, EssentialKind::King)
+                | &magic::bishop_reachable(occupied, pos)
+        }
+        EssentialKind::ProRook => {
+            essential_power(color, pos, EssentialKind::King) | &rook_reachable(occupied, pos)
+        }
+        _ => *essential_power(color, pos, ek),
     }
 }
 
@@ -38,14 +43,14 @@ fn rook_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
 
 #[inline(never)]
 fn lance_reachable(occupied: &BitBoard, color: Color, pos: Square) -> BitBoard {
-    let power = power(color, pos, Kind::Lance);
-    let block = (*occupied & power).u128();
+    let power = essential_power(color, pos, EssentialKind::Lance);
+    let block = (occupied & power).u128();
     if block == 0 {
-        return power;
+        return *power;
     }
     match color {
         Color::Black => power.and_not(BitBoard::from_u128(black_lance_unreachable(block))),
-        Color::White => BitBoard::from_u128((block - 1) ^ block) & power,
+        Color::White => &BitBoard::from_u128((block - 1) ^ block) & power,
     }
 }
 
@@ -59,7 +64,7 @@ fn black_lance_unreachable(mut block: u128) -> u128 {
 #[cfg(test)]
 mod tests {
     use crate::{
-        piece::{Color, Kind},
+        piece::{Color, EssentialKind},
         position::bitboard::{testing::bitboard, BitBoard, Square},
     };
 
@@ -88,7 +93,12 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(2, 3), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(2, 3),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -102,11 +112,21 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(2, 1), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(2, 1),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             BitBoard::default(),
-            super::reachable_sub(&occupied, Color::Black, Square::new(2, 0), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(2, 0),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -120,7 +140,12 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::White, Square::new(2, 0), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::White,
+                Square::new(2, 0),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -134,7 +159,12 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::White, Square::new(2, 1), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::White,
+                Square::new(2, 1),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -148,7 +178,12 @@ mod tests {
                 "......*..",
                 "......*..",
             ),
-            super::reachable_sub(&occupied, Color::White, Square::new(2, 4), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::White,
+                Square::new(2, 4),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -162,7 +197,12 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::reachable_sub(&occupied, Color::White, Square::new(0, 0), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::White,
+                Square::new(0, 0),
+                EssentialKind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -176,7 +216,12 @@ mod tests {
                 "........*",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(0, 8), Kind::Lance)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(0, 8),
+                EssentialKind::Lance
+            )
         );
     }
     #[test]
@@ -204,7 +249,12 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(0, 0), Kind::Bishop)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(0, 0),
+                EssentialKind::Bishop
+            )
         );
         assert_eq!(
             bitboard!(
@@ -218,7 +268,12 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(1, 1), Kind::Bishop)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(1, 1),
+                EssentialKind::Bishop
+            )
         );
         assert_eq!(
             bitboard!(
@@ -232,7 +287,12 @@ mod tests {
                 "..*......",
                 ".*.......",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(1, 2), Kind::Bishop)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(1, 2),
+                EssentialKind::Bishop
+            )
         );
     }
 
@@ -261,7 +321,12 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(&occupied, Color::Black, Square::new(5, 1), Kind::Rook)
+            super::reachable_sub(
+                &occupied,
+                Color::Black,
+                Square::new(5, 1),
+                EssentialKind::Rook
+            )
         );
     }
 }

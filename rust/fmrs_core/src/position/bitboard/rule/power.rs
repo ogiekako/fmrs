@@ -1,28 +1,28 @@
-use crate::piece::{Color, Kind};
+use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
-pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
-    POWERS[index(color, kind)][pos.index()]
+pub fn essential_power(color: Color, pos: Square, ek: EssentialKind) -> &'static BitBoard {
+    &POWERS[essential_index(color, ek)][pos.index()]
 }
 
-const fn index(color: Color, kind: Kind) -> usize {
-    match (kind, color) {
-        (Kind::Pawn, Color::Black) => 0,
-        (Kind::Pawn, Color::White) => 1,
-        (Kind::Lance, Color::Black) => 2,
-        (Kind::Lance, Color::White) => 3,
-        (Kind::Knight, Color::Black) => 4,
-        (Kind::Knight, Color::White) => 5,
-        (Kind::Silver, Color::Black) => 6,
-        (Kind::Silver, Color::White) => 7,
-        (Kind::Bishop, _) => 8,
-        (Kind::Rook, _) => 9,
-        (Kind::King, _) => 10,
-        (Kind::ProBishop, _) => 11,
-        (Kind::ProRook, _) => 12,
-        (_, Color::Black) => 13, // Gold
-        (_, Color::White) => 14,
+const fn essential_index(color: Color, ek: EssentialKind) -> usize {
+    match (ek, color) {
+        (EssentialKind::Pawn, Color::Black) => 0,
+        (EssentialKind::Pawn, Color::White) => 1,
+        (EssentialKind::Lance, Color::Black) => 2,
+        (EssentialKind::Lance, Color::White) => 3,
+        (EssentialKind::Knight, Color::Black) => 4,
+        (EssentialKind::Knight, Color::White) => 5,
+        (EssentialKind::Silver, Color::Black) => 6,
+        (EssentialKind::Silver, Color::White) => 7,
+        (EssentialKind::Bishop, _) => 8,
+        (EssentialKind::Rook, _) => 9,
+        (EssentialKind::King, _) => 10,
+        (EssentialKind::ProBishop, _) => 11,
+        (EssentialKind::ProRook, _) => 12,
+        (EssentialKind::Gold, Color::Black) => 13,
+        (EssentialKind::Gold, Color::White) => 14,
     }
 }
 
@@ -127,13 +127,12 @@ fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
 #[cfg(test)]
 mod tests {
     use crate::{
-        piece::{Color, Kind},
-        position::bitboard::testing::bitboard,
-        position::bitboard::Square,
+        piece::{Color, EssentialKind},
+        position::bitboard::{testing::bitboard, Square},
     };
 
     #[test]
-    fn power() {
+    fn essential_power() {
         assert_eq!(
             bitboard!(
                 ".........",
@@ -146,7 +145,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::Silver)
+            *super::essential_power(Color::Black, Square::new(1, 2), EssentialKind::Silver)
         );
         assert_eq!(
             bitboard!(
@@ -160,7 +159,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::White, Square::new(0, 0), Kind::Pawn)
+            *super::essential_power(Color::White, Square::new(0, 0), EssentialKind::Pawn)
         );
         assert_eq!(
             bitboard!(
@@ -174,7 +173,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::White, Square::new(0, 0), Kind::ProSilver)
+            *super::essential_power(Color::White, Square::new(0, 0), EssentialKind::Gold)
         );
         assert_eq!(
             bitboard!(
@@ -188,7 +187,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::King)
+            *super::essential_power(Color::Black, Square::new(1, 2), EssentialKind::King)
         );
         assert_eq!(
             bitboard!(
@@ -202,7 +201,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::ProRook)
+            *super::essential_power(Color::Black, Square::new(1, 2), EssentialKind::ProRook)
         );
         assert_eq!(
             bitboard!(
@@ -216,7 +215,7 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::power(Color::Black, Square::new(0, 0), Kind::Rook)
+            *super::essential_power(Color::Black, Square::new(0, 0), EssentialKind::Rook)
         );
         assert_eq!(
             bitboard!(
@@ -230,7 +229,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::White, Square::new(1, 2), Kind::Lance)
+            *super::essential_power(Color::White, Square::new(1, 2), EssentialKind::Lance)
         );
         assert_eq!(
             bitboard!(
@@ -244,7 +243,7 @@ mod tests {
                 "...*.....",
                 "..*......",
             ),
-            super::power(Color::White, Square::new(1, 3), Kind::Bishop)
+            *super::essential_power(Color::White, Square::new(1, 3), EssentialKind::Bishop)
         );
     }
 }

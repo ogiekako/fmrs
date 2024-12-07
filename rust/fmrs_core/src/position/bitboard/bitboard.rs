@@ -69,10 +69,18 @@ impl Iterator for BitBoard {
 macro_rules! def_op {
     ($ty: ident, $op: ident) => {
         impl std::ops::$ty for BitBoard {
-            type Output = Self;
+            type Output = BitBoard;
 
-            fn $op(self, rhs: Self) -> Self {
-                Self(self.0.$op(rhs.0))
+            fn $op(self, rhs: Self) -> Self::Output {
+                BitBoard(self.0.$op(rhs.0))
+            }
+        }
+
+        impl std::ops::$ty for &BitBoard {
+            type Output = BitBoard;
+
+            fn $op(self, rhs: Self) -> Self::Output {
+                BitBoard(self.0.$op(rhs.0))
             }
         }
     };

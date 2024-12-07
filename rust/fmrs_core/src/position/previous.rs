@@ -66,9 +66,14 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources =
-                bitboard::reachable(self.position.color_bb(), self.turn, dest, prev_kind, false)
-                    .and_not(self.black_pieces | self.white_pieces);
+            let sources = bitboard::reachable(
+                self.position.color_bb(),
+                self.turn,
+                dest,
+                prev_kind.to_essential_kind(),
+                false,
+            )
+            .and_not(self.black_pieces | self.white_pieces);
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,

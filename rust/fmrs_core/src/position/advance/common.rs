@@ -1,5 +1,5 @@
 use crate::{
-    piece::{Color, Kind},
+    piece::{Color, EssentialKind, Kind},
     position::{bitboard, rule, Movement, Position},
 };
 
@@ -12,27 +12,31 @@ pub fn checked(position: &Position, color: Color) -> bool {
         }
     };
     let opponent_pieces = position.bitboard(color.opposite().into(), None);
-    let around_king = bitboard::power(color, king_pos, Kind::King);
+    let around_king = bitboard::essential_power(color, king_pos, EssentialKind::King);
     // Non line or leap moves
-    for attacker_pos in around_king & opponent_pieces {
+    for attacker_pos in around_king & &opponent_pieces {
         let arracker_kind = position.get(attacker_pos).unwrap().1;
         if arracker_kind == Kind::Knight || arracker_kind.is_line_piece() {
             continue;
         }
-        let attacker_power = bitboard::power(color.opposite(), attacker_pos, arracker_kind);
+        let attacker_power = bitboard::essential_power(
+            color.opposite(),
+            attacker_pos,
+            arracker_kind.to_essential_kind(),
+        );
         if attacker_power.get(king_pos) {
             return true;
         }
     }
     for attacker_kind in [
-        Kind::Lance,
-        Kind::Knight,
-        Kind::Bishop,
-        Kind::Rook,
-        Kind::ProBishop,
-        Kind::ProRook,
+        EssentialKind::Lance,
+        EssentialKind::Knight,
+        EssentialKind::Bishop,
+        EssentialKind::Rook,
+        EssentialKind::ProBishop,
+        EssentialKind::ProRook,
     ] {
-        let attackers = position.bitboard(color.opposite().into(), attacker_kind.into());
+        let attackers = position.essential_bitboard(color.opposite().into(), attacker_kind);
         if attackers.is_empty() {
             continue;
         }

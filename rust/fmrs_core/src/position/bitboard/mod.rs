@@ -7,7 +7,7 @@ mod square;
 pub use bitboard::BitBoard;
 pub use color_bitboard::ColorBitBoard;
 pub use kind_bitboard::KindBitBoard;
-pub use rule::power;
+pub use rule::essential_power;
 pub use rule::reachable;
 pub use square::Square;
 
