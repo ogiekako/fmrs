@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733539662935,
+  "lastUpdate": 1733541034301,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -539,6 +539,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 31481,
             "range": "± 185",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "db96e57a5c42835274f3a0123a284565662d753d",
+          "message": "Make Color have both.",
+          "timestamp": "2024-12-07T12:07:00+09:00",
+          "tree_id": "1288e3066fedf332f700cbc7a5fc651a961a5936",
+          "url": "https://github.com/ogiekako/fmrs/commit/db96e57a5c42835274f3a0123a284565662d753d"
+        },
+        "date": 1733541033789,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4263,
+            "range": "± 112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7294,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 617,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4067,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33190,
+            "range": "± 515",
             "unit": "ns/iter"
           }
         ]
