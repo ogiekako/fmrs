@@ -1,22 +1,22 @@
 use crate::{
     piece::{Color, Kind},
-    position::bitboard::{BitBoard, Square},
+    position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
 use super::{magic, power::power};
 
 pub fn reachable(
-    black_pieces: BitBoard,
-    white_pieces: BitBoard,
+    color_bb: &ColorBitBoard,
     color: Color,
     pos: Square,
     kind: Kind,
+    capture_same_color: bool,
 ) -> BitBoard {
-    let mask = reachable_sub(black_pieces | white_pieces, color, pos, kind);
-    match color {
-        Color::Black => mask.and_not(black_pieces),
-        Color::White => mask.and_not(white_pieces),
-    }
+    let mask = reachable_sub(color_bb.both(), color, pos, kind);
+    mask.and_not(color_bb.bitboard(match capture_same_color {
+        true => color.opposite(),
+        false => color,
+    }))
 }
 
 pub fn reachable2(
@@ -31,16 +31,13 @@ pub fn reachable2(
 }
 
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
-    if !kind.is_line_piece() {
-        return power(color, pos, kind);
-    }
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
         Kind::ProBishop => power(color, pos, Kind::King) | magic::bishop_reachable(occupied, pos),
         Kind::ProRook => power(color, pos, Kind::King) | rook_reachable(occupied, pos),
-        _ => unreachable!(),
+        _ => power(color, pos, kind),
     }
 }
 

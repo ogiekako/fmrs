@@ -65,6 +65,11 @@ impl Position {
     pub(super) fn set_pawn_drop(&mut self, x: bool) {
         self.hands.set_pawn_drop(x)
     }
+
+    pub fn color_bb(&self) -> &ColorBitBoard {
+        &self.color_bb
+    }
+
     /// Returns a bitboard of pieces of the specified color and kind.
     pub fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
         let mask = if let Some(c) = color {

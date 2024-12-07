@@ -12,7 +12,6 @@ pub fn checked(position: &Position, color: Color) -> bool {
         }
     };
     let opponent_pieces = position.bitboard(color.opposite().into(), None);
-    let turn_pieces = position.bitboard(color.into(), None);
     let around_king = bitboard::power(color, king_pos, Kind::King);
     // Non line or leap moves
     for attacker_pos in around_king & opponent_pieces {
@@ -37,23 +36,8 @@ pub fn checked(position: &Position, color: Color) -> bool {
         if attackers.is_empty() {
             continue;
         }
-        let attack_squares = if color == Color::Black {
-            bitboard::reachable(
-                turn_pieces,
-                opponent_pieces,
-                Color::Black,
-                king_pos,
-                attacker_kind,
-            )
-        } else {
-            bitboard::reachable(
-                opponent_pieces,
-                turn_pieces,
-                Color::White,
-                king_pos,
-                attacker_kind,
-            )
-        };
+        let attack_squares =
+            bitboard::reachable(position.color_bb(), color, king_pos, attacker_kind, false);
         if !(attackers & attack_squares).is_empty() {
             return true;
         }

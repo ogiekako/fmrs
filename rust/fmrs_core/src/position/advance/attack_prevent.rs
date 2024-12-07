@@ -39,8 +39,6 @@ struct Context<'a> {
     position: &'a Position,
     turn: Color,
     king_pos: Square,
-    black_pieces: BitBoard,
-    white_pieces: BitBoard,
     pinned: Pinned,
     attacker: Attacker,
     pawn_mask: usize,
@@ -65,11 +63,8 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
     ) -> Self {
         let turn = position.turn();
-        let black_pieces = position.bitboard(Color::Black.into(), None);
-        let white_pieces = position.bitboard(Color::White.into(), None);
-        let attacker =
-            attacker(position, black_pieces, white_pieces, king_pos).expect("no attacker");
-        let pinned = pinned(position, black_pieces, white_pieces, turn, king_pos, turn);
+        let attacker = attacker(position, king_pos).expect("no attacker");
+        let pinned = pinned(position, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
             for pos in position.bitboard(turn.into(), Kind::Pawn.into()) {
@@ -81,8 +76,6 @@ impl<'a> Context<'a> {
             position,
             turn,
             king_pos,
-            black_pieces,
-            white_pieces,
             pinned,
             attacker,
             pawn_mask,
@@ -127,11 +120,11 @@ impl<'a> Context<'a> {
     #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
         let king_reachable = bitboard::reachable(
-            self.black_pieces,
-            self.white_pieces,
+            self.position.color_bb(),
             self.turn,
             self.king_pos,
             Kind::King,
+            false,
         );
         let mut under_attack = BitBoard::empty();
         for attacker_kind in Kind::iter() {
@@ -149,11 +142,11 @@ impl<'a> Context<'a> {
                     continue;
                 }
                 let attacker_reachable = bitboard::reachable(
-                    self.white_pieces,
-                    self.black_pieces,
+                    self.position.color_bb(),
                     self.turn.opposite(),
                     attacker_pos,
                     attacker_kind,
+                    true,
                 );
                 under_attack |= attacker_reachable;
 
@@ -236,11 +229,11 @@ impl<'a> Context<'a> {
                 continue;
             }
             let sources = bitboard::reachable(
-                self.black_pieces,
-                self.white_pieces,
+                self.position.color_bb(),
                 self.turn.opposite(),
                 dest,
                 leap_kind,
+                false,
             ) & on_board;
             for source_pos in sources {
                 if self.pinned.is_unpin_move(source_pos, dest) {
@@ -312,17 +305,17 @@ impl<'a> Context<'a> {
             return BitBoard::empty();
         }
         bitboard::reachable(
-            self.black_pieces,
-            self.white_pieces,
+            self.position.color_bb(),
             self.turn,
             self.king_pos,
             attacker_kind.maybe_unpromote(),
+            false,
         ) & bitboard::reachable(
-            self.black_pieces,
-            self.white_pieces,
+            self.position.color_bb(),
             self.turn.opposite(),
             attacker_pos,
             attacker_kind.maybe_unpromote(),
+            true,
         )
     }
 }
@@ -343,12 +336,7 @@ impl Attacker {
     }
 }
 
-fn attacker(
-    position: &Position,
-    black_pieces: BitBoard,
-    white_pieces: BitBoard,
-    king_pos: Square,
-) -> Option<Attacker> {
+fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
     let king_color = position.turn();
     let mut attacker: Option<Attacker> = None;
     for attacker_kind in Kind::iter() {
@@ -358,11 +346,11 @@ fn attacker(
         }
         // TODO: consider checking power first.
         let attacking = bitboard::reachable(
-            black_pieces,
-            white_pieces,
+            position.color_bb(),
             king_color,
             king_pos,
             attacker_kind,
+            false,
         ) & existing;
         if attacking.is_empty() {
             continue;

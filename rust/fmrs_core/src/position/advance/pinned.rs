@@ -50,8 +50,6 @@ impl Pinned {
 
 pub(super) fn pinned(
     position: &Position,
-    black_pieces: BitBoard,
-    white_pieces: BitBoard,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
@@ -59,11 +57,10 @@ pub(super) fn pinned(
     let mut res = vec![];
 
     let attacker_color = king_color.opposite();
-    let (blocker_color_pieces, non_blocker_color_pieces) = if blocker_color == Color::Black {
-        (black_pieces, white_pieces)
-    } else {
-        (white_pieces, black_pieces)
-    };
+    let (blocker_color_pieces, non_blocker_color_pieces) = (
+        position.color_bb().bitboard(blocker_color),
+        position.color_bb().bitboard(blocker_color.opposite()),
+    );
 
     for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
@@ -103,11 +100,11 @@ pub(super) fn pinned(
             };
             let pinned_kind = position.get(pinned_pos).unwrap().1;
             let pinned_reachable = bitboard::reachable(
-                black_pieces,
-                white_pieces,
+                position.color_bb(),
                 blocker_color,
                 pinned_pos,
                 pinned_kind,
+                false,
             );
             let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)
                 & bitboard::power(attacker_color, attacker_pos, attacker_kind);
