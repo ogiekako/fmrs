@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733604435842,
+  "lastUpdate": 1733605011686,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1079,6 +1079,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 29234,
             "range": "± 82",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "8349c0aac45b8c6fd0771e1a4085508ac548ff58",
+          "message": "Swap data position ordering in power",
+          "timestamp": "2024-12-08T05:55:07+09:00",
+          "tree_id": "8ce9e20f3d396e19b35c554038fa99e1591cae84",
+          "url": "https://github.com/ogiekako/fmrs/commit/8349c0aac45b8c6fd0771e1a4085508ac548ff58"
+        },
+        "date": 1733605011208,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4813,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 8270,
+            "range": "± 181",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 567,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4893,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29684,
+            "range": "± 144",
             "unit": "ns/iter"
           }
         ]
