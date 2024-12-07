@@ -168,19 +168,17 @@ impl EssentialKind {
         ESSENTIAL_KINDS.iter().copied()
     }
 
+    fn index(&self) -> usize {
+        *self as usize
+    }
+
     pub fn unique_kind(&self) -> Option<Kind> {
-        Some(match self {
-            EssentialKind::Pawn => Pawn,
-            EssentialKind::Lance => Lance,
-            EssentialKind::Knight => Knight,
-            EssentialKind::Silver => Silver,
-            EssentialKind::Bishop => Bishop,
-            EssentialKind::Rook => Rook,
-            EssentialKind::King => King,
-            EssentialKind::ProBishop => ProBishop,
-            EssentialKind::ProRook => ProRook,
+        match self {
             EssentialKind::Gold => return None,
-        })
+            EssentialKind::ProBishop => return Some(ProBishop),
+            EssentialKind::ProRook => return Some(ProRook),
+            _ => return Some(Kind::from_index(self.index())),
+        }
     }
 
     pub(crate) fn is_line_piece(&self) -> bool {

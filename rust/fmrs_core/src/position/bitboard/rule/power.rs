@@ -2,10 +2,17 @@ use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
+#[inline(always)]
 pub fn essential_power(color: Color, pos: Square, ek: EssentialKind) -> &'static BitBoard {
     &POWERS[essential_index(color, ek)][pos.index()]
 }
 
+#[inline(always)]
+pub fn king_power(pos: Square) -> &'static BitBoard {
+    &KING_POWER[pos.index()]
+}
+
+#[inline(always)]
 const fn essential_index(color: Color, ek: EssentialKind) -> usize {
     match (ek, color) {
         (EssentialKind::Pawn, Color::Black) => 0,
