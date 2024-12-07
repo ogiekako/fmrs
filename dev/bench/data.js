@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733544679444,
+  "lastUpdate": 1733554272060,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -647,6 +647,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 33197,
             "range": "± 125",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "9f3f6098ace779a09391b38552872bc50c783ecc",
+          "message": "Use bit operation in lance_reachable",
+          "timestamp": "2024-12-07T15:46:10+09:00",
+          "tree_id": "42e23420abbc72661386819117040f2535b1e2f3",
+          "url": "https://github.com/ogiekako/fmrs/commit/9f3f6098ace779a09391b38552872bc50c783ecc"
+        },
+        "date": 1733554271463,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4774,
+            "range": "± 235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7939,
+            "range": "± 171",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 604,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4894,
+            "range": "± 117",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33140,
+            "range": "± 628",
             "unit": "ns/iter"
           }
         ]
