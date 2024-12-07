@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733560584233,
+  "lastUpdate": 1733604114501,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -971,6 +971,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 30041,
             "range": "± 93",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "06d57d0b1070a5b7c2fd83b68b883107a133ff4c",
+          "message": "Update power impl",
+          "timestamp": "2024-12-08T05:40:13+09:00",
+          "tree_id": "011390ba78c462f13dac670c851847cf2f88288f",
+          "url": "https://github.com/ogiekako/fmrs/commit/06d57d0b1070a5b7c2fd83b68b883107a133ff4c"
+        },
+        "date": 1733604113455,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 5189,
+            "range": "± 156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7937,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 556,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4818,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29122,
+            "range": "± 109",
             "unit": "ns/iter"
           }
         ]
