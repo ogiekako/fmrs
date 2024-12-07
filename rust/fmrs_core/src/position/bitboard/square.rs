@@ -19,11 +19,11 @@ impl Square {
     pub fn iter() -> impl Iterator<Item = Self> {
         (0..9).flat_map(|col| (0..9).map(move |row| Self::new(col, row)))
     }
-    #[inline(always)]
+
     pub(crate) fn index(self) -> usize {
         self.x
     }
-    #[inline(always)]
+
     pub(crate) fn from_index(x: usize) -> Self {
         debug_assert!(x < 81);
         Self { x }
