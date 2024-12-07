@@ -153,7 +153,7 @@ impl<'a> Context<'a> {
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
-                *bitboard::power(
+                bitboard::power(
                     Color::Black,
                     attacker_pos,
                     attacker_source_kind.to_essential_kind(),

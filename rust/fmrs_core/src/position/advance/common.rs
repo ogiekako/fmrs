@@ -14,7 +14,7 @@ pub fn checked(position: &Position, color: Color) -> bool {
     let opponent_pieces = position.bitboard(color.opposite().into(), None);
     let around_king = bitboard::king_power(king_pos);
     // Non line or leap moves
-    for attacker_pos in around_king & &opponent_pieces {
+    for attacker_pos in around_king & opponent_pieces {
         let arracker_kind = position.get(attacker_pos).unwrap().1;
         if arracker_kind == Kind::Knight || arracker_kind.is_line_piece() {
             continue;

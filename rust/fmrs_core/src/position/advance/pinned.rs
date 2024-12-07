@@ -64,7 +64,7 @@ pub(super) fn pinned(
         EssentialKind::Rook,
     ] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
-        let attackers = &if attacker_kind == EssentialKind::Lance {
+        let attackers = if attacker_kind == EssentialKind::Lance {
             position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
         } else {
             position.bitboard_essential_kind(attacker_color.into(), attacker_kind)

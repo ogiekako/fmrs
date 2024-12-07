@@ -135,7 +135,7 @@ impl<'a> Context<'a> {
             {
                 let attacker_power =
                     bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
-                under_attack |= *attacker_power;
+                under_attack |= attacker_power;
             }
         }
 
@@ -153,11 +153,11 @@ impl<'a> Context<'a> {
             {
                 let attacker_power =
                     bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
-                if (attacker_power & &king_reachable).is_empty() {
+                if (attacker_power & king_reachable).is_empty() {
                     continue;
                 }
                 if attacker_kind == EssentialKind::Knight {
-                    under_attack |= *attacker_power;
+                    under_attack |= attacker_power;
                     continue;
                 }
                 let attacker_reachable = bitboard::reachable(
@@ -203,7 +203,7 @@ impl<'a> Context<'a> {
 
         // Move
         let around_dest =
-            bitboard::king_power(dest) & &self.position.bitboard(self.turn.into(), None);
+            bitboard::king_power(dest) & self.position.bitboard(self.turn.into(), None);
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
             if source_kind == Kind::King {
@@ -212,7 +212,7 @@ impl<'a> Context<'a> {
             let source_power = if self.pinned.is_pinned(source_pos) {
                 self.pinned.pinned_area(source_pos)
             } else {
-                *bitboard::power(self.turn, source_pos, source_kind.to_essential_kind())
+                bitboard::power(self.turn, source_pos, source_kind.to_essential_kind())
             };
             if source_power.get(dest) {
                 for promote in [false, true] {

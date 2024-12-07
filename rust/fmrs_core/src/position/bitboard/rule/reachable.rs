@@ -25,9 +25,9 @@ fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, ek: EssentialKi
         EssentialKind::Lance => lance_reachable(occupied, color, pos),
         EssentialKind::Bishop => magic::bishop_reachable(occupied, pos),
         EssentialKind::Rook => rook_reachable(occupied, pos),
-        EssentialKind::ProBishop => king_power(pos) | &magic::bishop_reachable(occupied, pos),
-        EssentialKind::ProRook => king_power(pos) | &rook_reachable(occupied, pos),
-        _ => *power(color, pos, ek),
+        EssentialKind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
+        EssentialKind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
+        _ => power(color, pos, ek),
     }
 }
 
