@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733534944540,
+  "lastUpdate": 1733539194988,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -431,6 +431,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 30497,
             "range": "± 123",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "0305c1830a5192c1d06017dc372fd5b4b6b2bdd0",
+          "message": "Remove the need to have white bb and black bb in context",
+          "timestamp": "2024-12-07T11:35:35+09:00",
+          "tree_id": "de9bf3cb195e19871f7cdf1289eebc30b02b66ae",
+          "url": "https://github.com/ogiekako/fmrs/commit/0305c1830a5192c1d06017dc372fd5b4b6b2bdd0"
+        },
+        "date": 1733539194528,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4126,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7050,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 563,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4040,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29954,
+            "range": "± 87",
             "unit": "ns/iter"
           }
         ]
