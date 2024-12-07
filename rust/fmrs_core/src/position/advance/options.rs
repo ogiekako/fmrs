@@ -1,7 +1,5 @@
 use anyhow::{bail, Result};
 
-use crate::position::Position;
-
 #[derive(Debug, Clone, Default)]
 pub struct AdvanceOptions {
     // Set 1 for one-way mate.
@@ -9,9 +7,9 @@ pub struct AdvanceOptions {
 }
 
 impl AdvanceOptions {
-    pub(crate) fn check_allowed_branches(&self, branches: &[Position]) -> Result<()> {
+    pub(crate) fn check_allowed_branches(&self, branches: usize) -> Result<()> {
         if let Some(max_allowed_branches) = self.max_allowed_branches {
-            if branches.len() > max_allowed_branches {
+            if branches > max_allowed_branches {
                 bail!("Too many branches");
             }
         }

@@ -298,11 +298,11 @@ impl<'a> Context<'a> {
         if self.memo.contains_key(&digest) {
             return Ok(());
         }
+
+        self.options.check_allowed_branches(self.result.len() + 1)?;
+
         self.memo.insert(digest, self.next_step);
-
         self.result.push(next_position);
-
-        self.options.check_allowed_branches(&self.result)?;
 
         Ok(())
     }
