@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733530682070,
+  "lastUpdate": 1733534613826,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -323,6 +323,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 38088,
             "range": "± 129",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "7ea384d6fa0d39d95239ae5338a467e12ffe2e00",
+          "message": "Add option to limit number of branches",
+          "timestamp": "2024-12-07T10:19:45+09:00",
+          "tree_id": "c0b70b758b296d129b17a8f3025da7ced1c559ac",
+          "url": "https://github.com/ogiekako/fmrs/commit/7ea384d6fa0d39d95239ae5338a467e12ffe2e00"
+        },
+        "date": 1733534613244,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4129,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7004,
+            "range": "± 449",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 552,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4057,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 31039,
+            "range": "± 112",
             "unit": "ns/iter"
           }
         ]
