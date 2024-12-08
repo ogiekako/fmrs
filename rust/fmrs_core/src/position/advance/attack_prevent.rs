@@ -183,8 +183,8 @@ impl<'a> Context<'a> {
         }
 
         // Move
-        let around_dest =
-            bitboard::king_power(dest) & &self.position.bitboard(self.turn.into(), None);
+        let around_dest = bitboard::essential_power(self.turn, dest, EssentialKind::King)
+            & &self.position.bitboard(self.turn.into(), None);
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
             if source_kind == Kind::King {
@@ -301,7 +301,9 @@ impl<'a> Context<'a> {
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        if bitboard::king_power(self.king_pos).get(attacker_pos) {
+        if bitboard::essential_power(self.turn, self.king_pos, EssentialKind::King)
+            .get(attacker_pos)
+        {
             return BitBoard::default();
         }
         bitboard::reachable(
