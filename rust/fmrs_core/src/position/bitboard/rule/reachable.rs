@@ -10,27 +10,38 @@ pub fn reachable(
     color_bb: &ColorBitBoard,
     color: Color,
     pos: Square,
-    ek: EssentialKind,
+    kind: EssentialKind,
     capture_same_color: bool,
 ) -> BitBoard {
-    let mask = reachable_sub(color_bb.both(), color, pos, ek);
+    let mask = reachable_sub(color_bb.both(), color, pos, kind);
     mask.and_not(*color_bb.bitboard(match capture_same_color {
         true => color.opposite(),
         false => color,
     }))
 }
 
-fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
-    match ek {
+const LINE_PIECE_MASK: usize = 1 << EssentialKind::Lance.index()
+    | 1 << EssentialKind::Bishop.index()
+    | 1 << EssentialKind::Rook.index()
+    | 1 << EssentialKind::ProBishop.index()
+    | 1 << EssentialKind::ProRook.index();
+
+#[inline(never)]
+fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, kind: EssentialKind) -> BitBoard {
+    if LINE_PIECE_MASK & (1 << kind.index()) == 0 {
+        return power(color, pos, kind);
+    }
+    match kind {
         EssentialKind::Lance => lance_reachable(occupied, color, pos),
         EssentialKind::Bishop => magic::bishop_reachable(occupied, pos),
         EssentialKind::Rook => rook_reachable(occupied, pos),
         EssentialKind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
         EssentialKind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
-        _ => power(color, pos, ek),
+        _ => unreachable!(),
     }
 }
 
+#[inline(never)]
 fn rook_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
     magic::rook_reachable_row(occupied, pos)
         | lance_reachable(occupied, Color::Black, pos)
@@ -44,6 +55,7 @@ const LOWER: BitBoard = BitBoard::from_u128(
     0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
 );
 
+#[inline(never)]
 fn lance_reachable(occupied: &BitBoard, color: Color, pos: Square) -> BitBoard {
     match color {
         Color::Black => {

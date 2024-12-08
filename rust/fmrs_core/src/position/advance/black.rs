@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 
 use crate::piece::{Color, EssentialKind, Kind};
 
-use crate::position::bitboard::lion_king_power;
+use crate::position::bitboard::{chekable_non_linear_piece, lion_king_power, power_in_two};
 use crate::position::Digest;
 use crate::position::{
     bitboard::{self, BitBoard},
@@ -51,6 +51,7 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    #[inline(never)]
     fn new(
         position: &'a Position,
         memo: &'a mut FxHashMap<Digest, u32>,
@@ -94,6 +95,7 @@ impl<'a> Context<'a> {
         })
     }
 
+    #[inline(never)]
     fn advance(&mut self) -> Result<()> {
         if self.black_king_checked {
             let black_king_pos = self
@@ -120,10 +122,11 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self
-                .attack_squares(kind.to_essential_kind())
+                .attack_squares(kind)
                 .and_not(*self.position.color_bb().bitboard(Color::White));
             for pos in empty_attack_squares {
                 self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
@@ -133,23 +136,23 @@ impl<'a> Context<'a> {
     }
 
     fn direct_attack_moves(&mut self) -> Result<()> {
-        self.non_leap_piece_direct_attack()?;
-        self.leap_piece_direct_attack()?;
+        self.non_line_piece_direct_attack()?;
+        self.line_piece_direct_attack()?;
 
         Ok(())
     }
 
-    fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
-        let lion_king_range = lion_king_power(self.white_king_pos);
-        // Non line or leap pieces
-        for attacker_pos in lion_king_range & *self.position.color_bb().bitboard(Color::Black) {
+    #[inline(never)]
+    fn non_line_piece_direct_attack(&mut self) -> Result<()> {
+        let attacker_cands = chekable_non_linear_piece(self.white_king_pos);
+
+        for attacker_pos in attacker_cands & *self.position.color_bb().bitboard(Color::Black) {
             let attacker_source_kind = self.position.get(attacker_pos).unwrap().1;
-            if attacker_source_kind == Kind::King
-                || attacker_source_kind == Kind::Knight
-                || attacker_source_kind.is_line_piece()
-            {
+
+            if attacker_source_kind == Kind::King || attacker_source_kind.is_line_piece() {
                 continue;
             }
+
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
@@ -176,7 +179,7 @@ impl<'a> Context<'a> {
                             dest,
                             promote,
                         },
-                        attacker_source_kind,
+                        attacker_source_kind.to_essential_kind(),
                     )?;
                 }
             }
@@ -184,18 +187,18 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    fn leap_piece_direct_attack(&mut self) -> Result<()> {
+    #[inline(never)]
+    fn line_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
-            Kind::Lance,
-            Kind::Knight,
-            Kind::Bishop,
-            Kind::Rook,
-            Kind::ProBishop,
-            Kind::ProRook,
+            EssentialKind::Lance,
+            EssentialKind::Bishop,
+            EssentialKind::Rook,
+            EssentialKind::ProBishop,
+            EssentialKind::ProRook,
         ] {
             let attackers = self
                 .position
-                .bitboard(Color::Black.into(), attacker_source_kind.into());
+                .bitboard_essential_kind(Color::Black.into(), attacker_source_kind);
             if attackers.is_empty() {
                 continue;
             }
@@ -210,20 +213,46 @@ impl<'a> Context<'a> {
                     attacker_source_kind
                 };
 
-                let attack_squares = self.attack_squares(attacker_dest_kind.to_essential_kind());
+                let attackers = attackers
+                    & power_in_two(
+                        Color::White,
+                        self.white_king_pos,
+                        attacker_dest_kind,
+                        attacker_source_kind,
+                    );
+                if attackers.is_empty() {
+                    continue;
+                }
 
-                for attacker_pos in attackers {
-                    let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
-                        self.pinned.pinned_area(attacker_pos)
-                    } else {
-                        bitboard::reachable(
-                            self.position.color_bb(),
-                            Color::Black,
-                            attacker_pos,
-                            attacker_source_kind.to_essential_kind(),
-                            false,
-                        )
-                    };
+                let attack_squares = self.attack_squares(attacker_dest_kind);
+
+                let pinned_attackers = attackers & self.pinned.pinned_mask();
+
+                for attacker_pos in pinned_attackers {
+                    let attacker_reachable = self.pinned.pinned_area(attacker_pos);
+
+                    for dest in attacker_reachable & attack_squares {
+                        self.maybe_add_move(
+                            &Movement::Move {
+                                source: attacker_pos,
+                                dest,
+                                promote,
+                            },
+                            attacker_source_kind,
+                        )?;
+                    }
+                }
+
+                let free_attackers = attackers.and_not(pinned_attackers);
+
+                for attacker_pos in free_attackers {
+                    let attacker_reachable = bitboard::reachable(
+                        self.position.color_bb(),
+                        Color::Black,
+                        attacker_pos,
+                        attacker_source_kind,
+                        false,
+                    );
 
                     for dest in attacker_reachable & attack_squares {
                         self.maybe_add_move(
@@ -241,6 +270,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
@@ -270,7 +300,7 @@ impl<'a> Context<'a> {
                         dest: blocker_dest,
                         promote: false,
                     },
-                    blocker_kind,
+                    blocker_kind.to_essential_kind(),
                 )?;
                 if maybe_promotable {
                     self.maybe_add_move(
@@ -279,7 +309,7 @@ impl<'a> Context<'a> {
                             dest: blocker_dest,
                             promote: true,
                         },
-                        blocker_kind,
+                        blocker_kind.to_essential_kind(),
                     )?
                 }
             }
@@ -290,7 +320,8 @@ impl<'a> Context<'a> {
 
 // Helper
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
+    #[inline(never)]
+    fn maybe_add_move(&mut self, movement: &Movement, kind: EssentialKind) -> Result<()> {
         if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
             return Ok(());
         }
@@ -298,7 +329,7 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if kind == Kind::King && common::checked(&next_position, Color::Black) {
+        if kind == EssentialKind::King && common::checked(&next_position, Color::Black) {
             return Ok(());
         }
 
@@ -322,12 +353,12 @@ impl<'a> Context<'a> {
     }
 
     // Squares moving to which produces a check.
-    fn attack_squares(&self, ek: EssentialKind) -> BitBoard {
+    fn attack_squares(&self, kind: EssentialKind) -> BitBoard {
         bitboard::reachable(
             self.position.color_bb(),
             Color::White,
             self.white_king_pos,
-            ek,
+            kind,
             true,
         )
     }

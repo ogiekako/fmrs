@@ -28,6 +28,9 @@ impl Pinned {
             pinned_area: pinned_areaa,
         }
     }
+    pub fn pinned_mask(&self) -> BitBoard {
+        self.mask
+    }
     pub fn is_pinned(&self, pos: Square) -> bool {
         self.mask.get(pos)
     }
@@ -38,6 +41,7 @@ impl Pinned {
         self.is_pinned(source) && !self.pinned_area(source).get(dest)
     }
     // Reachable pinned area including capturing move
+    #[inline(never)]
     pub fn pinned_area(&self, source: Square) -> BitBoard {
         for (pinned_pos, movable) in self.pinned_area.iter() {
             if source == *pinned_pos {
@@ -48,6 +52,7 @@ impl Pinned {
     }
 }
 
+#[inline(never)]
 pub(super) fn pinned(
     position: &Position,
     king_color: Color,
@@ -68,7 +73,7 @@ pub(super) fn pinned(
             position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
         } else {
             position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
-                | position.bitboard(attacker_color.into(), attacker_kind.promote())
+                | position.bitboard(attacker_color.into(), attacker_kind.promote_to_kind())
         } & power_mask;
         if attackers.is_empty() {
             continue;

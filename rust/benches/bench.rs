@@ -50,13 +50,14 @@ fn bench_oneway(c: &mut Criterion) {
         (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+p+B+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/2n+p+p1k1g/7s1/1K1gs2+p1 b GSgsnlp 1").unwrap(), None),
         (decode_position(include_str!("../problems/diamond.sfen")).unwrap(), Some(55)),
     ];
-    c.bench_function("oneway", |b| {
-        b.iter(|| {
-            positions.iter().for_each(|(position, steps)| {
-                assert_eq!(one_way_mate_steps(black_box(position)), *steps)
-            })
+    let f = || {
+        positions.iter().for_each(|(position, steps)| {
+            assert_eq!(one_way_mate_steps(black_box(position)), *steps)
         })
-    });
+    };
+    f();
+
+    c.bench_function("oneway", |b| b.iter(f));
 }
 
 criterion_group!(

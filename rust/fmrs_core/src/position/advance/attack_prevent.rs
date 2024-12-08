@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     piece::{Color, EssentialKind, Kind},
     position::{
-        bitboard::{self, king_power, lion_king_power, BitBoard},
+        bitboard::{self, king_power, power_in_two, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
     },
 };
@@ -15,6 +15,7 @@ use super::{
     AdvanceOptions,
 };
 
+#[inline(never)]
 pub(super) fn attack_preventing_movements(
     position: &Position,
     memo: &mut FxHashMap<Digest, u32>,
@@ -53,6 +54,7 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    #[inline(never)]
     fn new(
         position: &'a Position,
         memo: &'a mut FxHashMap<Digest, u32>,
@@ -97,6 +99,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> Result<()> {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
@@ -107,23 +110,24 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn capture(&mut self, attacker_pos: Square) -> Result<()> {
         self.add_movements_to(attacker_pos, false)?;
 
         Ok(())
     }
 
+    #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
         let king_power = king_power(self.king_pos);
         let king_reachable = king_power.and_not(*self.position.color_bb().bitboard(self.turn));
 
-        let lion_king_power = lion_king_power(self.king_pos);
-
         let mut under_attack = BitBoard::default();
 
-        // Non leap pieces
+        // Non line pieces
         for attacker_kind in [
             EssentialKind::Pawn,
+            EssentialKind::Knight,
             EssentialKind::Silver,
             EssentialKind::Gold,
             EssentialKind::King,
@@ -131,17 +135,15 @@ impl<'a> Context<'a> {
             for attacker_pos in self
                 .position
                 .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
-                & lion_king_power
+                & power_in_two(self.turn, self.king_pos, EssentialKind::King, attacker_kind)
             {
-                let attacker_power =
-                    bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
-                under_attack |= attacker_power;
+                under_attack |= bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
             }
         }
 
+        // Line pieces
         for attacker_kind in [
             EssentialKind::Lance,
-            EssentialKind::Knight,
             EssentialKind::Bishop,
             EssentialKind::Rook,
             EssentialKind::ProBishop,
@@ -150,16 +152,10 @@ impl<'a> Context<'a> {
             for attacker_pos in self
                 .position
                 .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
+                & power_in_two(self.turn, self.king_pos, EssentialKind::King, attacker_kind)
             {
                 let attacker_power =
                     bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
-                if (attacker_power & king_reachable).is_empty() {
-                    continue;
-                }
-                if attacker_kind == EssentialKind::Knight {
-                    under_attack |= attacker_power;
-                    continue;
-                }
                 let attacker_reachable = bitboard::reachable(
                     self.position.color_bb(),
                     self.turn.opposite(),
@@ -187,12 +183,13 @@ impl<'a> Context<'a> {
                     dest,
                     promote: false,
                 },
-                Kind::King,
+                EssentialKind::King,
             )?;
         }
         Ok(())
     }
 
+    #[inline(never)]
     fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> Result<()> {
         // Drop
         if include_drop {
@@ -205,14 +202,14 @@ impl<'a> Context<'a> {
         let around_dest =
             bitboard::king_power(dest) & self.position.bitboard(self.turn.into(), None);
         for source_pos in around_dest {
-            let source_kind = self.position.get(source_pos).unwrap().1;
-            if source_kind == Kind::King {
+            let source_kind = self.position.get(source_pos).unwrap().1.to_essential_kind();
+            if source_kind == EssentialKind::King {
                 continue;
             }
             let source_power = if self.pinned.is_pinned(source_pos) {
                 self.pinned.pinned_area(source_pos)
             } else {
-                bitboard::power(self.turn, source_pos, source_kind.to_essential_kind())
+                bitboard::power(self.turn, source_pos, source_kind)
             };
             if source_power.get(dest) {
                 for promote in [false, true] {
@@ -269,7 +266,7 @@ impl<'a> Context<'a> {
                             dest,
                             promote,
                         },
-                        source_kind,
+                        source_kind.to_essential_kind(),
                     )?;
                 }
             }
@@ -280,7 +277,8 @@ impl<'a> Context<'a> {
 
 // Helper methods
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
+    #[inline(never)]
+    fn maybe_add_move(&mut self, movement: &Movement, kind: EssentialKind) -> Result<()> {
         if !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask) {
             return Ok(());
         }
@@ -355,6 +353,7 @@ impl Attacker {
     }
 }
 
+#[inline(never)]
 fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
     let king_color = position.turn();
     let mut attacker: Option<Attacker> = None;
@@ -386,6 +385,7 @@ fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
 }
 
 // Potentially attacked position which is currently hidden by the king.
+#[inline(never)]
 fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
     let (kc, kr) = (king_pos.col() as isize, king_pos.row() as isize);
     let (ac, ar) = (attacker_pos.col() as isize, attacker_pos.row() as isize);

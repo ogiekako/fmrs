@@ -2,14 +2,19 @@ use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
-pub fn power(color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
-    let i = if ek.index() < EssentialKind::Bishop.index() {
-        ek.index() << 1 | color.index()
-    } else {
-        ek.index() + EssentialKind::Bishop.index()
-    } | pos.index() << 4;
+#[inline(never)]
+pub fn power(color: Color, pos: Square, kind: EssentialKind) -> BitBoard {
+    let i = index(color, kind) | pos.index() << 4;
     debug_assert!(i < POWERS2.len());
     unsafe { *POWERS2.get_unchecked(i) }
+}
+
+fn index(color: Color, kind: EssentialKind) -> usize {
+    if kind.index() < EssentialKind::Bishop.index() {
+        kind.index() << 1 | color.index()
+    } else {
+        kind.index() + EssentialKind::Bishop.index()
+    }
 }
 
 pub fn king_power(pos: Square) -> BitBoard {
@@ -20,6 +25,23 @@ pub fn king_power(pos: Square) -> BitBoard {
 pub fn lion_king_power(pos: Square) -> BitBoard {
     debug_assert!(pos.index() < LION_KING_POWER.len());
     unsafe { *LION_KING_POWER.get_unchecked(pos.index()) }
+}
+
+pub fn power_in_two(
+    color: Color,
+    pos: Square,
+    step1: EssentialKind,
+    step2: EssentialKind,
+) -> BitBoard {
+    debug_assert!(
+        step1.index() << 12 | step2.index() << 8 | pos.index() << 1 | color.index()
+            < FLAT_POWER_IN_TWO.len()
+    );
+    unsafe {
+        *FLAT_POWER_IN_TWO.get_unchecked(
+            step1.index() << 12 | step2.index() << 8 | pos.index() << 1 | color.index(),
+        )
+    }
 }
 
 type KindPower = [BitBoard; 128];
@@ -104,6 +126,34 @@ lazy_static! {
             .filter_map(move |dr| (dc != 0 || dr != 0).then(|| (dc, dr)))
             .into_iter()
     }));
+
+    // step1 << 12 | step2 << 8 | pos << 1 | color
+    static ref FLAT_POWER_IN_TWO:Vec<BitBoard> = {
+        let mut res: Vec<BitBoard> = vec![BitBoard::default(); 16 * 16 * 128 * 2];
+        for step1 in EssentialKind::iter() {
+            for step2 in EssentialKind::iter() {
+                for pos in Square::iter() {
+                    for color in Color::iter() {
+                        let i = step1.index() << 12 | step2.index() << 8 | pos.index() << 1 | color.index();
+                        res[i] = power_in_two_slow(color, pos, step1, step2);
+                    }
+                }
+            }
+        }
+        res
+    };
+
+    // step1 -> step2 -> KindPowerPair
+    static ref POWER_IN_TWO: Vec<Vec<KindPowerPair>> = {
+        let mut res:Vec<Vec<KindPowerPair>> = vec![];
+        for step1 in EssentialKind::iter() {
+            res.push(vec![]);
+            for step2 in EssentialKind::iter() {
+                res[step1.index()].push(powers_pair_in_two_slow(step1, step2));
+            }
+        }
+        res
+    };
 }
 
 fn run(dir: (isize, isize)) -> impl Iterator<Item = (isize, isize)> {
@@ -131,6 +181,34 @@ fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {
                 }
             }
         }
+    }
+    res
+}
+
+fn powers_pair_in_two_slow(step1: EssentialKind, step2: EssentialKind) -> KindPowerPair {
+    [
+        powers_in_two_slow(Color::Black, step1, step2),
+        powers_in_two_slow(Color::White, step1, step2),
+    ]
+}
+
+fn powers_in_two_slow(color: Color, step1: EssentialKind, step2: EssentialKind) -> KindPower {
+    let mut res = [BitBoard::default(); 128];
+    for pos in Square::iter() {
+        res[pos.index()] = power_in_two_slow(color, pos, step1, step2);
+    }
+    res
+}
+
+fn power_in_two_slow(
+    color: Color,
+    pos: Square,
+    step1: EssentialKind,
+    step2: EssentialKind,
+) -> BitBoard {
+    let mut res = BitBoard::default();
+    for x in power(color, pos, step1) {
+        res |= power(color, x, step2);
     }
     res
 }

@@ -1,10 +1,10 @@
-use crate::{piece::Kind, sfen};
+use crate::{piece::EssentialKind, sfen};
 
 use super::Square;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Movement {
-    Drop(Square, Kind),
+    Drop(Square, EssentialKind),
     Move {
         source: Square,
         dest: Square,

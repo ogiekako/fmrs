@@ -58,7 +58,7 @@ impl Action {
                     bail!("to is not empty");
                 }
                 let hands = position.hands_mut();
-                let hand_kind = kind.maybe_unpromote();
+                let hand_kind = kind.maybe_unpromote().to_essential_kind();
                 if hands.count(hand_color, hand_kind) == 0 {
                     bail!("no piece in hand");
                 }
@@ -71,7 +71,7 @@ impl Action {
                     if kind == Kind::King {
                         bail!("cannot take king");
                     }
-                    let hand_kind = kind.maybe_unpromote();
+                    let hand_kind = kind.maybe_unpromote().to_essential_kind();
                     position.hands_mut().add(hand_color, hand_kind);
                     position.unset(pos, color, kind);
                     Ok(Action::FromHand(hand_color, pos, color, kind))

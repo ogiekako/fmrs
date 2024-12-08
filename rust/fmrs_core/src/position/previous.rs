@@ -87,10 +87,10 @@ impl Context {
                         source,
                         dest,
                         promote,
-                        capture: capture.into(),
+                        capture: capture.hand_to_kind().into(),
                         pawn_drop: was_pawn_drop,
                     });
-                    if let Some(promoted) = capture.promote() {
+                    if let Some(promoted) = capture.hand_to_kind().promote() {
                         self.maybe_add_undo_move(UndoMove::UnMove {
                             source,
                             dest,
@@ -120,7 +120,13 @@ impl Context {
             if *promote {
                 kind = kind.unpromote().unwrap();
             }
-            if !rule::is_allowed_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
+            if !rule::is_allowed_move(
+                self.position.turn().opposite(),
+                *from,
+                *to,
+                kind.to_essential_kind(),
+                *promote,
+            ) {
                 return;
             }
         }

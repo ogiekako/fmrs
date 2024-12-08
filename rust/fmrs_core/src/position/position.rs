@@ -68,6 +68,7 @@ impl Position {
     }
 
     /// Returns a bitboard of pieces of the specified color and kind.
+    #[inline(never)]
     pub fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
         let mask = if let Some(c) = color {
             self.color_bb.bitboard(c)
@@ -79,22 +80,19 @@ impl Position {
         self.kind_bb.bitboard(k) & mask
     }
 
-    pub fn bitboard_essential_kind(&self, color: Option<Color>, ek: EssentialKind) -> BitBoard {
-        if let Some(k) = ek.unique_kind() {
-            self.bitboard(color, Some(k))
-        } else {
-            let mask = self.kind_bb.golds();
-            match color {
-                Some(c) => mask & self.color_bb.bitboard(c),
-                None => *mask,
-            }
+    pub fn bitboard_essential_kind(&self, color: Option<Color>, kind: EssentialKind) -> BitBoard {
+        match (color, kind.unique_kind()) {
+            (Some(c), Some(k)) => self.color_bb.bitboard(c) & self.kind_bb.bitboard(k),
+            (Some(c), None) => self.color_bb.bitboard(c) & self.kind_bb.golds(),
+            (None, Some(k)) => *self.kind_bb.bitboard(k),
+            (None, None) => *self.kind_bb.golds(),
         }
     }
 
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
-        let color = if self.bitboard(Some(Color::Black), None).get(pos) {
+        let color = if self.color_bb.bitboard(Color::Black).get(pos) {
             Color::Black
-        } else if self.bitboard(Some(Color::White), None).get(pos) {
+        } else if self.color_bb.bitboard(Color::White).get(pos) {
             Color::White
         } else {
             return None;
@@ -139,6 +137,10 @@ impl Position {
                 self.board_digest ^= zobrist(pos).wrapping_shl(i as u32);
             }
         }
+    }
+
+    pub fn to_sfen(&self) -> String {
+        sfen::encode_position(self)
     }
 }
 
