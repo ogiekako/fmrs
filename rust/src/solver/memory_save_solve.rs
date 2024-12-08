@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::BTreeMap};
 
 use fmrs_core::{
     piece::Color,
-    position::{advance_old, checked_slow, previous, Digest, Movement, Position, PositionExt},
+    position::{advance_old, previous, Digest, Movement, Position, PositionExt},
     solve::Solution,
 };
 
@@ -147,7 +147,7 @@ impl<'a> Context<'a> {
             let black_movement = position.undo_move(&black_undo);
             self.solution.borrow_mut().push(black_movement);
 
-            if checked_slow(&position, Color::White) {
+            if position.checked_slow(Color::White) {
                 // Do nothing
             } else if half_step == 0 {
                 if position.digest() == self.initial_position_digest {
