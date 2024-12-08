@@ -1,10 +1,9 @@
 use crate::{
-    bits::highest_one_bit,
     piece::{Color, EssentialKind},
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{essential_power, king_power, magic};
+use super::{essential_power, magic};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -20,50 +19,46 @@ pub fn reachable(
     }))
 }
 
-#[inline(never)]
 fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
     match ek {
         EssentialKind::Lance => lance_reachable(occupied, color, pos),
         EssentialKind::Bishop => magic::bishop_reachable(occupied, pos),
         EssentialKind::Rook => rook_reachable(occupied, pos),
-        EssentialKind::ProBishop => king_power(pos) | &magic::bishop_reachable(occupied, pos),
-        EssentialKind::ProRook => king_power(pos) | &rook_reachable(occupied, pos),
+        EssentialKind::ProBishop => {
+            essential_power(color, pos, EssentialKind::King)
+                | &magic::bishop_reachable(occupied, pos)
+        }
+        EssentialKind::ProRook => {
+            essential_power(color, pos, EssentialKind::King) | &rook_reachable(occupied, pos)
+        }
         _ => *essential_power(color, pos, ek),
     }
 }
 
-#[inline(never)]
 fn rook_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
     magic::rook_reachable_row(occupied, pos)
         | lance_reachable(occupied, Color::Black, pos)
         | lance_reachable(occupied, Color::White, pos)
 }
 
-const UPPER: BitBoard = BitBoard::from_u128(
-    0b1000000001000000001000000001000000001000000001000000001000000001000000001u128,
-);
-const LOWER: BitBoard = BitBoard::from_u128(
-    0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
-);
-
 #[inline(never)]
 fn lance_reachable(occupied: &BitBoard, color: Color, pos: Square) -> BitBoard {
-    match color {
-        Color::Black => {
-            if UPPER.get(pos) {
-                return BitBoard::default();
-            }
-            let occ = (occupied | &UPPER).u128() & ((1 << pos.index()) - 1);
-            BitBoard::from_u128((1 << pos.index()) - highest_one_bit(occ))
-        }
-        Color::White => {
-            if LOWER.get(pos) {
-                return BitBoard::default();
-            }
-            let occ = (occupied | &LOWER).u128();
-            BitBoard::from_u128(occ ^ occ - (1 << pos.index() + 1))
-        }
+    let power = essential_power(color, pos, EssentialKind::Lance);
+    let block = (occupied & power).u128();
+    if block == 0 {
+        return *power;
     }
+    match color {
+        Color::Black => power.and_not(BitBoard::from_u128(black_lance_unreachable(block))),
+        Color::White => &BitBoard::from_u128((block - 1) ^ block) & power,
+    }
+}
+
+fn black_lance_unreachable(mut block: u128) -> u128 {
+    block |= block >> 1;
+    block |= block >> 2;
+    block |= block >> 4;
+    block >> 1
 }
 
 #[cfg(test)]

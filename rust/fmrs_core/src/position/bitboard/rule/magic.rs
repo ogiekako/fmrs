@@ -18,7 +18,6 @@ impl Magic {
     }
 }
 
-#[inline(never)]
 pub(super) fn bishop_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
     let (m1, m2) = &BISHOP_MAGIC[pos.index()];
     m1.reachable(occupied) | m2.reachable(occupied)

@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate lazy_static;
 
-pub mod bits;
 pub mod converter;
 pub mod direction;
 pub mod jkf;
