@@ -2,7 +2,7 @@ use crate::piece::Kind;
 
 use super::{BitBoard, Square};
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct KindBitBoard {
     promote: BitBoard,
     kind0: BitBoard,
@@ -16,6 +16,15 @@ fn test_kind_bitboard_size() {
 }
 
 impl KindBitBoard {
+    pub fn empty() -> Self {
+        Self {
+            promote: BitBoard::empty(),
+            kind0: BitBoard::empty(),
+            kind1: BitBoard::empty(),
+            kind2: BitBoard::empty(),
+        }
+    }
+
     #[inline(always)]
     pub fn bitboard(&self, kind: Kind, occupied: BitBoard) -> BitBoard {
         let mut mask = occupied;

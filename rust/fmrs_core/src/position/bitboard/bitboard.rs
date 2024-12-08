@@ -2,10 +2,13 @@ use crate::direction::Direction;
 
 use super::square::Square;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BitBoard(u128);
 
 impl BitBoard {
+    pub fn empty() -> Self {
+        Self(0)
+    }
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
@@ -160,7 +163,7 @@ mod tests {
     #[test]
     fn test_bitboard_next() {
         let x = Square::new(1, 2);
-        let mut tmpl = BitBoard::default();
+        let mut tmpl = BitBoard::empty();
         tmpl.set(x);
         let tmpl = tmpl;
 
@@ -188,7 +191,7 @@ mod tests {
 
     #[test]
     fn shift_lr() {
-        let mut bb = BitBoard::default();
+        let mut bb = BitBoard::empty();
         bb.set(Square::new(0, 0));
         bb.set(Square::new(7, 0));
         bb.set(Square::new(7, 1));

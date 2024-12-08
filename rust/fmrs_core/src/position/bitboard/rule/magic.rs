@@ -12,24 +12,24 @@ pub(super) struct Magic {
 }
 
 impl Magic {
-    fn reachable(&self, occupied: &BitBoard) -> BitBoard {
-        let block = self.block_mask & *occupied;
+    fn reachable(&self, occupied: BitBoard) -> BitBoard {
+        let block = self.block_mask & occupied;
         self.table[self.magic.index(block.digest()) as usize]
     }
 }
 
-pub(super) fn bishop_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
+pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     let (m1, m2) = &BISHOP_MAGIC[pos.index()];
     m1.reachable(occupied) | m2.reachable(occupied)
 }
 
-pub(super) fn rook_reachable_row(occupied: &BitBoard, pos: Square) -> BitBoard {
+pub(super) fn rook_reachable_row(occupied: BitBoard, pos: Square) -> BitBoard {
     ROOK_MAGIC_ROW[pos.index()].reachable(occupied)
 }
 
 lazy_static! {
     static ref INNER: BitBoard = {
-        let mut res = BitBoard::default();
+        let mut res = BitBoard::empty();
         for col in 1..8 {
             for row in 1..8 {
                 res.set(Square::new(col, row))
@@ -62,7 +62,7 @@ struct Pattern {
 }
 
 fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
-    let mut block_mask = BitBoard::default();
+    let mut block_mask = BitBoard::empty();
     for (dc, dr) in dirs {
         for i in 1..9 {
             if add(pos, dc * (i + 1), dr * (i + 1)).is_some() {
@@ -76,7 +76,7 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let patterns: Vec<Pattern> = block_mask
         .subsets()
         .map(|block| {
-            let mut reachable = BitBoard::default();
+            let mut reachable = BitBoard::empty();
             for (dc, dr) in dirs {
                 for i in 1..9 {
                     match add(pos, dc * i, dr * i) {
@@ -110,7 +110,7 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
         targets[*i].push(pattern.block.digest());
     }
     let magic = MagicCore::new(&targets)?;
-    let mut table = vec![BitBoard::default(); magic.table_len()];
+    let mut table = vec![BitBoard::empty(); magic.table_len()];
     for pattern in patterns.iter() {
         table[magic.index(pattern.block.digest()) as usize] = pattern.reachable;
     }
@@ -160,7 +160,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::bishop_reachable(&occupied, Square::new(0, 0))
+            super::bishop_reachable(occupied, Square::new(0, 0))
         );
         assert_eq!(
             bitboard!(
@@ -174,7 +174,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::bishop_reachable(&occupied, Square::new(1, 1))
+            super::bishop_reachable(occupied, Square::new(1, 1))
         );
         assert_eq!(
             bitboard!(
@@ -188,7 +188,7 @@ mod tests {
                 "..*......",
                 ".*.......",
             ),
-            super::bishop_reachable(&occupied, Square::new(1, 2))
+            super::bishop_reachable(occupied, Square::new(1, 2))
         );
     }
 }
