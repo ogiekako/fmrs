@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733605040843,
+  "lastUpdate": 1733623946945,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1187,6 +1187,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 29162,
             "range": "± 202",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "4602dcf866b4e430c8771a9cb4e244abc4825d48",
+          "message": "Improve black::line_piece_direct_attack",
+          "timestamp": "2024-12-08T11:08:43+09:00",
+          "tree_id": "403fe284691e360e2b454f49d45b25374c15e03b",
+          "url": "https://github.com/ogiekako/fmrs/commit/4602dcf866b4e430c8771a9cb4e244abc4825d48"
+        },
+        "date": 1733623946417,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 5188,
+            "range": "± 321",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 8991,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 623,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 5123,
+            "range": "± 81",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 31241,
+            "range": "± 505",
             "unit": "ns/iter"
           }
         ]
