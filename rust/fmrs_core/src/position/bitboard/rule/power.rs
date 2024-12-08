@@ -7,20 +7,16 @@ pub fn power(color: Color, pos: Square, ek: EssentialKind) -> BitBoard {
         ek.index() << 1 | color.index()
     } else {
         ek.index() + EssentialKind::Bishop.index()
-    } << 7
-        | pos.index();
-    debug_assert!(i < POWERS.len());
-    unsafe { *POWERS.get_unchecked(i) }
+    };
+    POWERS[i << 7 | pos.index()]
 }
 
 pub fn king_power(pos: Square) -> BitBoard {
-    debug_assert!(pos.index() < KING_POWER.len());
-    unsafe { *KING_POWER.get_unchecked(pos.index()) }
+    KING_POWER[pos.index()]
 }
 
 pub fn lion_king_power(pos: Square) -> BitBoard {
-    debug_assert!(pos.index() < LION_KING_POWER.len());
-    unsafe { *LION_KING_POWER.get_unchecked(pos.index()) }
+    LION_KING_POWER[pos.index()]
 }
 
 type KindPower = [BitBoard; 128];
