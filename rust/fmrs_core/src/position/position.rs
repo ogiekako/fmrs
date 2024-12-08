@@ -142,6 +142,10 @@ impl Position {
     pub fn to_sfen(&self) -> String {
         sfen::encode_position(self)
     }
+
+    pub(crate) fn kind_bb(&self) -> &KindBitBoard {
+        &self.kind_bb
+    }
 }
 
 #[cfg(test)]

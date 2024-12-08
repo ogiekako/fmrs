@@ -1,10 +1,12 @@
 use crate::{
-    piece::{Color, EssentialKind},
+    piece::{Color, EssentialKind, Kind},
     position::{
         bitboard::{self, BitBoard},
         Position, Square,
     },
 };
+
+use super::state_info::StateInfo;
 
 // pinned piece and its movable positions (capturing included) pairs.
 #[derive(Debug)]
@@ -54,7 +56,7 @@ impl Pinned {
 
 // #[inline(never)]
 pub(super) fn pinned(
-    position: &Position,
+    state: &StateInfo,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
@@ -63,34 +65,43 @@ pub(super) fn pinned(
 
     let attacker_color = king_color.opposite();
 
-    for attacker_kind in [
-        EssentialKind::Lance,
-        EssentialKind::Bishop,
-        EssentialKind::Rook,
-    ] {
-        let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
-        let attackers = if attacker_kind == EssentialKind::Lance {
-            position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
+    let color_bb = state.position.color_bb();
+    let kind_bb = state.position.kind_bb();
+    let attacker_color_bb = *color_bb.bitboard(attacker_color);
+
+    for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
+        let mask = bitboard::power(king_color, king_pos, attacker_kind.to_essential_kind())
+            & attacker_color_bb;
+        if mask.is_empty() {
+            continue;
+        }
+
+        let attackers = if attacker_kind == Kind::Lance {
+            *kind_bb.bitboard(attacker_kind)
         } else {
-            position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
-                | position.bitboard(attacker_color.into(), attacker_kind.promote_to_kind())
-        } & power_mask;
+            kind_bb.bitboard(attacker_kind) | kind_bb.bitboard(attacker_kind.promote().unwrap())
+        } & mask;
+
         if attackers.is_empty() {
             continue;
         }
         let king_seeing = bitboard::reachable(
-            position.color_bb(),
+            color_bb,
             king_color,
             king_pos,
-            attacker_kind,
+            attacker_kind.to_essential_kind(),
             king_color == blocker_color,
         );
+        if king_seeing.is_empty() {
+            continue;
+        }
+
         for attacker_pos in attackers {
             let attacker_within_reach = bitboard::reachable(
-                position.color_bb(),
+                color_bb,
                 attacker_color,
                 attacker_pos,
-                attacker_kind,
+                attacker_kind.to_essential_kind(),
                 king_color != blocker_color,
             );
             if attacker_within_reach.get(king_pos) {
@@ -103,16 +114,21 @@ pub(super) fn pinned(
                 }
                 pinned.next().unwrap()
             };
-            let pinned_kind = position.get(pinned_pos).unwrap().1;
+            let pinned_kind = state.get(pinned_pos).unwrap().1;
             let pinned_reachable = bitboard::reachable(
-                position.color_bb(),
+                color_bb,
                 blocker_color,
                 pinned_pos,
                 pinned_kind.to_essential_kind(),
                 false,
             );
-            let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)
-                & bitboard::power(attacker_color, attacker_pos, attacker_kind);
+            let mut same_line =
+                bitboard::power(king_color, king_pos, attacker_kind.to_essential_kind())
+                    & bitboard::power(
+                        attacker_color,
+                        attacker_pos,
+                        attacker_kind.to_essential_kind(),
+                    );
             same_line.set(attacker_pos);
             res.push((pinned_pos, pinned_reachable & same_line))
         }

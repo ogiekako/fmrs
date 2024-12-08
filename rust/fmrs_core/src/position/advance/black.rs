@@ -1,17 +1,18 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rustc_hash::FxHashMap;
 
-use crate::piece::{Color, EssentialKind, Kind, NUM_HAND_KIND};
+use crate::piece::{Color, EssentialKind, Kind};
 
-use crate::position::bitboard::{chekable_non_linear_piece, lion_king_power, power_in_two};
+use crate::position::bitboard::{chekable_non_linear_piece, power_in_two};
 use crate::position::Digest;
 use crate::position::{
-    bitboard::{self, BitBoard},
+    bitboard::{self},
     Movement, Position, PositionExt, Square,
 };
 
 use super::attack_prevent::attack_preventing_movements;
 use super::pinned::{pinned, Pinned};
+use super::state_info::StateInfo;
 use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
@@ -39,14 +40,13 @@ struct Context<'a> {
     // Immutable fields
     position: &'a Position,
     next_step: u32,
-    white_king_pos: Square,
     black_king_checked: bool,
     pinned: Pinned,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
-    attack_squares: [Option<BitBoard>; NUM_HAND_KIND + 3],
 
     // Mutable fields
+    state: StateInfo<'a>,
     memo: &'a mut FxHashMap<Digest, u32>,
     result: Vec<Position>,
 }
@@ -59,20 +59,14 @@ impl<'a> Context<'a> {
         next_step: u32,
         options: &'a AdvanceOptions,
     ) -> anyhow::Result<Self> {
-        let white_king_pos = if let Some(p) = position
-            .bitboard(Color::White.into(), Kind::King.into())
-            .next()
-        {
-            p
-        } else {
-            bail!("No white king");
-        };
-        let black_king_checked = common::checked(position, Color::Black);
+        let mut state = StateInfo::new(position)?;
+
+        let black_king_checked = common::checked(&mut state, Color::Black);
 
         let pinned = position
             .bitboard(Color::Black.into(), Kind::King.into())
             .next()
-            .map(|king_pos| pinned(position, Color::Black, king_pos, Color::Black))
+            .map(|king_pos| pinned(&mut state, Color::Black, king_pos, Color::Black))
             .unwrap_or_else(Pinned::empty);
 
         let pawn_mask = {
@@ -86,13 +80,12 @@ impl<'a> Context<'a> {
         Ok(Self {
             position,
             next_step,
-            white_king_pos,
             black_king_checked,
             pinned,
             pawn_mask,
-            attack_squares: Default::default(),
             options,
 
+            state: StateInfo::new(position)?,
             memo,
             result: vec![],
         })
@@ -101,16 +94,11 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn advance(&mut self) -> Result<()> {
         if self.black_king_checked {
-            let black_king_pos = self
-                .position
-                .bitboard(Color::Black.into(), Kind::King.into())
-                .next()
-                .unwrap();
             self.result = attack_preventing_movements(
                 self.position,
                 self.memo,
                 self.next_step,
-                black_king_pos,
+                self.state.black_king_pos.unwrap(),
                 true,
                 self.options,
             )?
@@ -129,6 +117,7 @@ impl<'a> Context<'a> {
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self
+                .state
                 .attack_squares(kind)
                 .and_not(*self.position.color_bb().bitboard(Color::White));
             for pos in empty_attack_squares {
@@ -147,7 +136,7 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn non_line_piece_direct_attack(&mut self) -> Result<()> {
-        let attacker_cands = chekable_non_linear_piece(self.white_king_pos);
+        let attacker_cands = chekable_non_linear_piece(self.white_king_pos());
 
         for attacker_pos in attacker_cands & *self.position.color_bb().bitboard(Color::Black) {
             let attacker_source_kind = self.position.get(attacker_pos).unwrap().1;
@@ -174,7 +163,9 @@ impl<'a> Context<'a> {
                 } else {
                     attacker_source_kind
                 };
-                let attack_squares = self.attack_squares(attacker_dest_kind.to_essential_kind());
+                let attack_squares = self
+                    .state
+                    .attack_squares(attacker_dest_kind.to_essential_kind());
                 for dest in attacker_power & attack_squares {
                     self.maybe_add_move(
                         &Movement::Move {
@@ -219,7 +210,7 @@ impl<'a> Context<'a> {
                 let attackers = attackers
                     & power_in_two(
                         Color::White,
-                        self.white_king_pos,
+                        self.white_king_pos(),
                         attacker_dest_kind,
                         attacker_source_kind,
                     );
@@ -227,7 +218,7 @@ impl<'a> Context<'a> {
                     continue;
                 }
 
-                let attack_squares = self.attack_squares(attacker_dest_kind);
+                let attack_squares = self.state.attack_squares(attacker_dest_kind);
 
                 let pinned_attackers = attackers & self.pinned.pinned_mask();
 
@@ -276,9 +267,9 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
-            self.position,
+            &self.state,
             Color::White,
-            self.white_king_pos,
+            self.state.white_king_pos,
             Color::Black,
         );
         for (blocker_pos, blocker_pinned_area) in blockers.iter() {
@@ -319,6 +310,10 @@ impl<'a> Context<'a> {
         }
         Ok(())
     }
+
+    fn white_king_pos(&self) -> Square {
+        self.state.white_king_pos
+    }
 }
 
 // Helper
@@ -332,12 +327,12 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if kind == EssentialKind::King && common::checked(&next_position, Color::Black) {
+        if kind == EssentialKind::King && common::checked_slow(&next_position, Color::Black) {
             return Ok(());
         }
 
         debug_assert!(
-            !common::checked(&next_position, Color::Black),
+            !common::checked_slow(&next_position, Color::Black),
             "Black king checked: {:?}",
             next_position
         );
@@ -353,21 +348,5 @@ impl<'a> Context<'a> {
         self.result.push(next_position);
 
         Ok(())
-    }
-
-    // Squares moving to which produces a check.
-    fn attack_squares(&mut self, kind: EssentialKind) -> BitBoard {
-        if let Some(bb) = self.attack_squares[kind.index()] {
-            return bb;
-        }
-        let bb = bitboard::reachable(
-            self.position.color_bb(),
-            Color::White,
-            self.white_king_pos,
-            kind,
-            true,
-        );
-        self.attack_squares[kind as usize] = Some(bb);
-        bb
     }
 }
