@@ -1,31 +1,19 @@
-use crate::piece::{Color, Kind};
+use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
 // #[inline(never)]
-pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
-    let i = index_color_kind(color, kind) | pos.index() << 4;
+pub fn power(color: Color, pos: Square, kind: EssentialKind) -> BitBoard {
+    let i = index(color, kind) | pos.index() << 4;
     debug_assert!(i < POWERS2.len());
     unsafe { *POWERS2.get_unchecked(i) }
 }
 
-fn index_color_kind(color: Color, kind: Kind) -> usize {
-    match (color, kind) {
-        (Color::Black, Kind::Pawn) => 0,
-        (Color::White, Kind::Pawn) => 1,
-        (Color::Black, Kind::Lance) => 2,
-        (Color::White, Kind::Lance) => 3,
-        (Color::Black, Kind::Knight) => 4,
-        (Color::White, Kind::Knight) => 5,
-        (Color::Black, Kind::Silver) => 6,
-        (Color::White, Kind::Silver) => 7,
-        (_, Kind::Bishop) => 10,
-        (_, Kind::Rook) => 11,
-        (_, Kind::King) => 12,
-        (_, Kind::ProBishop) => 13,
-        (_, Kind::ProRook) => 14,
-        (Color::Black, _) => 8,
-        (Color::White, _) => 9,
+fn index(color: Color, kind: EssentialKind) -> usize {
+    if kind.index() < EssentialKind::Bishop.index() {
+        kind.index() << 1 | color.index()
+    } else {
+        kind.index() + EssentialKind::Bishop.index()
     }
 }
 
@@ -34,7 +22,17 @@ pub fn king_power(pos: Square) -> BitBoard {
     unsafe { *KING_POWER.get_unchecked(pos.index()) }
 }
 
-pub fn power_in_two(color: Color, pos: Square, step1: Kind, step2: Kind) -> BitBoard {
+pub fn lion_king_power(pos: Square) -> BitBoard {
+    debug_assert!(pos.index() < LION_KING_POWER.len());
+    unsafe { *LION_KING_POWER.get_unchecked(pos.index()) }
+}
+
+pub fn power_in_two(
+    color: Color,
+    pos: Square,
+    step1: EssentialKind,
+    step2: EssentialKind,
+) -> BitBoard {
     debug_assert!(
         step1.index() << 12 | step2.index() << 8 | pos.index() << 1 | color.index()
             < FLAT_POWER_IN_TWO.len()
@@ -132,14 +130,26 @@ lazy_static! {
     // step1 << 12 | step2 << 8 | pos << 1 | color
     static ref FLAT_POWER_IN_TWO:Vec<BitBoard> = {
         let mut res: Vec<BitBoard> = vec![BitBoard::default(); 16 * 16 * 128 * 2];
-        for step1 in Kind::iter() {
-            for step2 in Kind::iter() {
+        for step1 in EssentialKind::iter() {
+            for step2 in EssentialKind::iter() {
                 for pos in Square::iter() {
                     for color in Color::iter() {
                         let i = step1.index() << 12 | step2.index() << 8 | pos.index() << 1 | color.index();
                         res[i] = power_in_two_slow(color, pos, step1, step2);
                     }
                 }
+            }
+        }
+        res
+    };
+
+    // step1 -> step2 -> KindPowerPair
+    static ref POWER_IN_TWO: Vec<Vec<KindPowerPair>> = {
+        let mut res:Vec<Vec<KindPowerPair>> = vec![];
+        for step1 in EssentialKind::iter() {
+            res.push(vec![]);
+            for step2 in EssentialKind::iter() {
+                res[step1.index()].push(powers_pair_in_two_slow(step1, step2));
             }
         }
         res
@@ -175,7 +185,27 @@ fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {
     res
 }
 
-fn power_in_two_slow(color: Color, pos: Square, step1: Kind, step2: Kind) -> BitBoard {
+fn powers_pair_in_two_slow(step1: EssentialKind, step2: EssentialKind) -> KindPowerPair {
+    [
+        powers_in_two_slow(Color::Black, step1, step2),
+        powers_in_two_slow(Color::White, step1, step2),
+    ]
+}
+
+fn powers_in_two_slow(color: Color, step1: EssentialKind, step2: EssentialKind) -> KindPower {
+    let mut res = [BitBoard::default(); 128];
+    for pos in Square::iter() {
+        res[pos.index()] = power_in_two_slow(color, pos, step1, step2);
+    }
+    res
+}
+
+fn power_in_two_slow(
+    color: Color,
+    pos: Square,
+    step1: EssentialKind,
+    step2: EssentialKind,
+) -> BitBoard {
     let mut res = BitBoard::default();
     for x in power(color, pos, step1) {
         res |= power(color, x, step2);
@@ -186,12 +216,12 @@ fn power_in_two_slow(color: Color, pos: Square, step1: Kind, step2: Kind) -> Bit
 #[cfg(test)]
 mod tests {
     use crate::{
-        piece::{Color, Kind},
+        piece::{Color, EssentialKind},
         position::bitboard::{testing::bitboard, Square},
     };
 
     #[test]
-    fn power() {
+    fn essential_power() {
         assert_eq!(
             bitboard!(
                 ".........",
@@ -204,7 +234,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::Silver)
+            super::power(Color::Black, Square::new(1, 2), EssentialKind::Silver)
         );
         assert_eq!(
             bitboard!(
@@ -218,7 +248,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::White, Square::new(0, 0), Kind::Pawn)
+            super::power(Color::White, Square::new(0, 0), EssentialKind::Pawn)
         );
         assert_eq!(
             bitboard!(
@@ -232,7 +262,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::White, Square::new(0, 0), Kind::Gold)
+            super::power(Color::White, Square::new(0, 0), EssentialKind::Gold)
         );
         assert_eq!(
             bitboard!(
@@ -246,7 +276,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::King)
+            super::power(Color::Black, Square::new(1, 2), EssentialKind::King)
         );
         assert_eq!(
             bitboard!(
@@ -260,7 +290,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::ProRook)
+            super::power(Color::Black, Square::new(1, 2), EssentialKind::ProRook)
         );
         assert_eq!(
             bitboard!(
@@ -274,7 +304,7 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::power(Color::Black, Square::new(0, 0), Kind::Rook)
+            super::power(Color::Black, Square::new(0, 0), EssentialKind::Rook)
         );
         assert_eq!(
             bitboard!(
@@ -288,7 +318,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::White, Square::new(1, 2), Kind::Lance)
+            super::power(Color::White, Square::new(1, 2), EssentialKind::Lance)
         );
         assert_eq!(
             bitboard!(
@@ -302,7 +332,7 @@ mod tests {
                 "...*.....",
                 "..*......",
             ),
-            super::power(Color::White, Square::new(1, 3), Kind::Bishop)
+            super::power(Color::White, Square::new(1, 3), EssentialKind::Bishop)
         );
     }
 }

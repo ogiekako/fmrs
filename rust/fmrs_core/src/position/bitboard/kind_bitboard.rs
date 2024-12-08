@@ -5,6 +5,7 @@ use super::{BitBoard, Square};
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct KindBitBoard {
     bbs: [BitBoard; NUM_KIND],
+    golds: BitBoard,
     kinds: [Option<Kind>; 81],
 }
 
@@ -12,6 +13,7 @@ impl Default for KindBitBoard {
     fn default() -> Self {
         Self {
             bbs: Default::default(),
+            golds: Default::default(),
             kinds: [None; 81],
         }
     }
@@ -22,6 +24,10 @@ impl KindBitBoard {
         &self.bbs[kind.index()]
     }
 
+    pub fn golds(&self) -> &BitBoard {
+        &self.golds
+    }
+
     pub fn get(&self, pos: Square) -> Kind {
         self.kinds[pos.index()].unwrap()
     }
@@ -29,14 +35,23 @@ impl KindBitBoard {
     pub fn set(&mut self, pos: Square, kind: Kind) {
         self.kinds[pos.index()] = Some(kind);
         self.bbs[kind.index()].set(pos);
+
+        if kind.is_essentially_gold() {
+            self.golds.set(pos);
+        }
     }
     pub fn unset(&mut self, pos: Square, kind: Kind) {
         self.kinds[pos.index()] = None;
         self.bbs[kind.index()].unset(pos);
+
+        if kind.is_essentially_gold() {
+            self.golds.unset(pos);
+        }
     }
 
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
         self.bbs.iter_mut().for_each(|bb| bb.shift(dir));
+        self.golds.shift(dir);
 
         let mut new_kinds = [None; 81];
         for pos in Square::iter() {

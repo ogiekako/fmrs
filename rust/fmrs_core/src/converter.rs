@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
 use crate::jkf::{self, JsonKifFormat};
-use crate::piece::Kind;
+use crate::piece::EssentialKind;
 use crate::solve::Solution;
 use crate::{
-    piece::Color,
+    piece::{Color, Kind},
     position::{Hands, Movement, Position, PositionExt, Square},
 };
 
@@ -34,6 +34,21 @@ fn kind(kind: Kind) -> jkf::Kind {
     }
 }
 
+fn kind2(kind: EssentialKind) -> jkf::Kind {
+    match kind {
+        EssentialKind::Pawn => jkf::Kind::FU,
+        EssentialKind::Lance => jkf::Kind::KY,
+        EssentialKind::Knight => jkf::Kind::KE,
+        EssentialKind::Silver => jkf::Kind::GI,
+        EssentialKind::Gold => jkf::Kind::KI,
+        EssentialKind::Bishop => jkf::Kind::KA,
+        EssentialKind::Rook => jkf::Kind::HI,
+        EssentialKind::King => panic!("BUG"),
+        EssentialKind::ProBishop => panic!("BUG"),
+        EssentialKind::ProRook => panic!("BUG"),
+    }
+}
+
 fn piece(c: Color, k: Kind) -> jkf::Piece {
     jkf::Piece {
         color: Some(color(c)),
@@ -41,15 +56,15 @@ fn piece(c: Color, k: Kind) -> jkf::Piece {
     }
 }
 
-fn raw_kind(kind: Kind) -> Option<jkf::RawKind> {
+fn raw_kind(kind: EssentialKind) -> Option<jkf::RawKind> {
     Some(match kind {
-        Kind::Pawn => jkf::RawKind::FU,
-        Kind::Lance => jkf::RawKind::KY,
-        Kind::Knight => jkf::RawKind::KE,
-        Kind::Silver => jkf::RawKind::GI,
-        Kind::Gold => jkf::RawKind::KI,
-        Kind::Bishop => jkf::RawKind::KA,
-        Kind::Rook => jkf::RawKind::HI,
+        EssentialKind::Pawn => jkf::RawKind::FU,
+        EssentialKind::Lance => jkf::RawKind::KY,
+        EssentialKind::Knight => jkf::RawKind::KE,
+        EssentialKind::Silver => jkf::RawKind::GI,
+        EssentialKind::Gold => jkf::RawKind::KI,
+        EssentialKind::Bishop => jkf::RawKind::KA,
+        EssentialKind::Rook => jkf::RawKind::HI,
         _ => panic!("BUG"),
     })
 }
@@ -115,7 +130,7 @@ fn update_move_format(
     for movement in solution {
         let color = color(position.turn());
         let (from, to, piece, same, promote, capture) = match movement {
-            Movement::Drop(to, k) => (None, place_format(*to), kind(*k), None, None, None),
+            Movement::Drop(to, k) => (None, place_format(*to), kind2(*k), None, None, None),
             Movement::Move {
                 source: from,
                 dest: to,

@@ -2,6 +2,8 @@ use rand::{distributions::Standard, prelude::Distribution};
 
 use crate::direction::Direction;
 
+use super::BitBoard;
+
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Square {
     x: usize,
