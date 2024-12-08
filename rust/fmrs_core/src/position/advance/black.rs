@@ -3,7 +3,6 @@ use rustc_hash::FxHashMap;
 
 use crate::piece::{Color, EssentialKind, Kind};
 
-use crate::position::bitboard::lion_king_power;
 use crate::position::Digest;
 use crate::position::{
     bitboard::{self, BitBoard},
@@ -139,6 +138,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
@@ -153,7 +153,7 @@ impl<'a> Context<'a> {
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
-                *bitboard::power(
+                *bitboard::essential_power(
                     Color::Black,
                     attacker_pos,
                     attacker_source_kind.to_essential_kind(),
@@ -184,6 +184,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
             Kind::Lance,
@@ -241,6 +242,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
@@ -331,4 +333,18 @@ impl<'a> Context<'a> {
             true,
         )
     }
+}
+
+fn lion_king_power(pos: Square) -> BitBoard {
+    let mut res = *bitboard::king_power(pos);
+    for i in [-1, 1] {
+        for j in [-1, 1] {
+            let col = pos.col() as isize + i;
+            let row = pos.row() as isize + j;
+            if (0..9).contains(&col) && (0..9).contains(&row) {
+                res |= *bitboard::king_power(Square::new(col as usize, row as usize));
+            }
+        }
+    }
+    res
 }

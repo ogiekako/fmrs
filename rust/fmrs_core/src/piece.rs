@@ -190,6 +190,17 @@ impl EssentialKind {
         }
     }
 
+    pub(crate) fn is_line_piece(&self) -> bool {
+        matches!(
+            self,
+            EssentialKind::Lance
+                | EssentialKind::Bishop
+                | EssentialKind::Rook
+                | EssentialKind::ProBishop
+                | EssentialKind::ProRook
+        )
+    }
+
     pub(crate) fn promote(&self) -> Option<Kind> {
         match self {
             EssentialKind::Pawn => Some(ProPawn),

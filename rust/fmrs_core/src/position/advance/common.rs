@@ -19,7 +19,7 @@ pub fn checked(position: &Position, color: Color) -> bool {
         if arracker_kind == Kind::Knight || arracker_kind.is_line_piece() {
             continue;
         }
-        let attacker_power = bitboard::power(
+        let attacker_power = bitboard::essential_power(
             color.opposite(),
             attacker_pos,
             arracker_kind.to_essential_kind(),

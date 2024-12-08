@@ -1,7 +1,5 @@
 use rand::{distributions::Standard, prelude::Distribution};
 
-use crate::direction::Direction;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Square {
     x: usize,
@@ -29,15 +27,6 @@ impl Square {
     pub(crate) fn from_index(x: usize) -> Self {
         debug_assert!(x < 81);
         Self { x }
-    }
-
-    pub(crate) fn shift(&self, dir: Direction) -> Square {
-        match dir {
-            Direction::Up => Square::new(self.col(), (self.row() + 8) % 9),
-            Direction::Down => Square::new(self.col(), (self.row() + 1) % 9),
-            Direction::Left => Square::new((self.col() + 1) % 9, self.row()),
-            Direction::Right => Square::new((self.col() + 8) % 9, self.row()),
-        }
     }
 }
 

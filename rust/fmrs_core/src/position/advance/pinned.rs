@@ -63,7 +63,7 @@ pub(super) fn pinned(
         EssentialKind::Bishop,
         EssentialKind::Rook,
     ] {
-        let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
+        let power_mask = bitboard::essential_power(king_color, king_pos, attacker_kind);
         let attackers = &if attacker_kind == EssentialKind::Lance {
             position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
         } else {
@@ -106,8 +106,8 @@ pub(super) fn pinned(
                 pinned_kind.to_essential_kind(),
                 false,
             );
-            let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)
-                & bitboard::power(attacker_color, attacker_pos, attacker_kind);
+            let mut same_line = bitboard::essential_power(king_color, king_pos, attacker_kind)
+                & bitboard::essential_power(attacker_color, attacker_pos, attacker_kind);
             same_line.set(attacker_pos);
             res.push((pinned_pos, pinned_reachable & same_line))
         }
