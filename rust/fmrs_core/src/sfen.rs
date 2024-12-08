@@ -382,7 +382,6 @@ pub fn encode_move(m: &Movement) -> String {
 #[cfg(test)]
 pub mod tests {
     use crate::{
-        piece::Kind,
         position::{Movement, Position, Square},
         sfen::EssentialKind,
     };

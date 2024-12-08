@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use rustc_hash::FxHashMap;
 
-use crate::piece::{Color, EssentialKind, Kind};
+use crate::piece::{Color, EssentialKind, Kind, NUM_HAND_KIND};
 
 use crate::position::bitboard::{chekable_non_linear_piece, lion_king_power, power_in_two};
 use crate::position::Digest;
@@ -44,6 +44,7 @@ struct Context<'a> {
     pinned: Pinned,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
+    attack_squares: [Option<BitBoard>; NUM_HAND_KIND + 3],
 
     // Mutable fields
     memo: &'a mut FxHashMap<Digest, u32>,
@@ -84,14 +85,16 @@ impl<'a> Context<'a> {
 
         Ok(Self {
             position,
-            memo,
             next_step,
             white_king_pos,
             black_king_checked,
             pinned,
             pawn_mask,
-            result: vec![],
+            attack_squares: Default::default(),
             options,
+
+            memo,
+            result: vec![],
         })
     }
 
@@ -192,8 +195,8 @@ impl<'a> Context<'a> {
         for attacker_source_kind in [
             EssentialKind::Lance,
             EssentialKind::Bishop,
-            EssentialKind::Rook,
             EssentialKind::ProBishop,
+            EssentialKind::Rook,
             EssentialKind::ProRook,
         ] {
             let attackers = self
@@ -353,13 +356,18 @@ impl<'a> Context<'a> {
     }
 
     // Squares moving to which produces a check.
-    fn attack_squares(&self, kind: EssentialKind) -> BitBoard {
-        bitboard::reachable(
+    fn attack_squares(&mut self, kind: EssentialKind) -> BitBoard {
+        if let Some(bb) = self.attack_squares[kind.index()] {
+            return bb;
+        }
+        let bb = bitboard::reachable(
             self.position.color_bb(),
             Color::White,
             self.white_king_pos,
             kind,
             true,
-        )
+        );
+        self.attack_squares[kind as usize] = Some(bb);
+        bb
     }
 }
