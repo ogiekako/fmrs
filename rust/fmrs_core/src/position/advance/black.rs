@@ -1,9 +1,9 @@
 use anyhow::{bail, Result};
 use rustc_hash::FxHashMap;
 
-use crate::piece::{Color, EssentialKind, Kind, NUM_HAND_KIND};
+use crate::piece::{Color, Kind, NUM_KIND};
 
-use crate::position::bitboard::{chekable_non_linear_piece, lion_king_power, power_in_two};
+use crate::position::bitboard::{chekable_non_linear_piece, power_in_two};
 use crate::position::Digest;
 use crate::position::{
     bitboard::{self, BitBoard},
@@ -44,7 +44,7 @@ struct Context<'a> {
     pinned: Pinned,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
-    attack_squares: [Option<BitBoard>; NUM_HAND_KIND + 3],
+    attack_squares: [Option<BitBoard>; NUM_KIND],
 
     // Mutable fields
     memo: &'a mut FxHashMap<Digest, u32>,
@@ -159,11 +159,7 @@ impl<'a> Context<'a> {
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
-                bitboard::power(
-                    Color::Black,
-                    attacker_pos,
-                    attacker_source_kind.to_essential_kind(),
-                )
+                bitboard::power(Color::Black, attacker_pos, attacker_source_kind)
             };
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
@@ -174,7 +170,7 @@ impl<'a> Context<'a> {
                 } else {
                     attacker_source_kind
                 };
-                let attack_squares = self.attack_squares(attacker_dest_kind.to_essential_kind());
+                let attack_squares = self.attack_squares(attacker_dest_kind);
                 for dest in attacker_power & attack_squares {
                     self.maybe_add_move(
                         &Movement::Move {
@@ -182,7 +178,7 @@ impl<'a> Context<'a> {
                             dest,
                             promote,
                         },
-                        attacker_source_kind.to_essential_kind(),
+                        attacker_source_kind,
                     )?;
                 }
             }
@@ -193,15 +189,15 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn line_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
-            EssentialKind::Lance,
-            EssentialKind::Bishop,
-            EssentialKind::ProBishop,
-            EssentialKind::Rook,
-            EssentialKind::ProRook,
+            Kind::Lance,
+            Kind::Bishop,
+            Kind::ProBishop,
+            Kind::Rook,
+            Kind::ProRook,
         ] {
             let attackers = self
                 .position
-                .bitboard_essential_kind(Color::Black.into(), attacker_source_kind);
+                .bitboard(Color::Black.into(), attacker_source_kind.into());
             if attackers.is_empty() {
                 continue;
             }
@@ -288,7 +284,7 @@ impl<'a> Context<'a> {
                 self.position.color_bb(),
                 Color::Black,
                 blocker_pos,
-                blocker_kind.to_essential_kind(),
+                blocker_kind,
                 false,
             )
             .and_not(blocker_pinned_area);
@@ -303,7 +299,7 @@ impl<'a> Context<'a> {
                         dest: blocker_dest,
                         promote: false,
                     },
-                    blocker_kind.to_essential_kind(),
+                    blocker_kind,
                 )?;
                 if maybe_promotable {
                     self.maybe_add_move(
@@ -312,7 +308,7 @@ impl<'a> Context<'a> {
                             dest: blocker_dest,
                             promote: true,
                         },
-                        blocker_kind.to_essential_kind(),
+                        blocker_kind,
                     )?
                 }
             }
@@ -324,7 +320,7 @@ impl<'a> Context<'a> {
 // Helper
 impl<'a> Context<'a> {
     // #[inline(never)]
-    fn maybe_add_move(&mut self, movement: &Movement, kind: EssentialKind) -> Result<()> {
+    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
             return Ok(());
         }
@@ -332,7 +328,7 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if kind == EssentialKind::King && common::checked(&next_position, Color::Black) {
+        if kind == Kind::King && common::checked(&next_position, Color::Black) {
             return Ok(());
         }
 
@@ -356,7 +352,7 @@ impl<'a> Context<'a> {
     }
 
     // Squares moving to which produces a check.
-    fn attack_squares(&mut self, kind: EssentialKind) -> BitBoard {
+    fn attack_squares(&mut self, kind: Kind) -> BitBoard {
         if let Some(bb) = self.attack_squares[kind.index()] {
             return bb;
         }

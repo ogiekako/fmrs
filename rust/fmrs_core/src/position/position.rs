@@ -80,15 +80,6 @@ impl Position {
         self.kind_bb.bitboard(k) & mask
     }
 
-    pub fn bitboard_essential_kind(&self, color: Option<Color>, kind: EssentialKind) -> BitBoard {
-        match (color, kind.unique_kind()) {
-            (Some(c), Some(k)) => self.color_bb.bitboard(c) & self.kind_bb.bitboard(k),
-            (Some(c), None) => self.color_bb.bitboard(c) & self.kind_bb.golds(),
-            (None, Some(k)) => *self.kind_bb.bitboard(k),
-            (None, None) => *self.kind_bb.golds(),
-        }
-    }
-
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let color = if self.color_bb.bitboard(Color::Black).get(pos) {
             Color::Black

@@ -1,5 +1,5 @@
 use crate::{
-    piece::{Color, EssentialKind},
+    piece::{Color, Kind},
     position::{
         bitboard::{self, BitBoard},
         Position, Square,
@@ -63,17 +63,13 @@ pub(super) fn pinned(
 
     let attacker_color = king_color.opposite();
 
-    for attacker_kind in [
-        EssentialKind::Lance,
-        EssentialKind::Bishop,
-        EssentialKind::Rook,
-    ] {
+    for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
-        let attackers = if attacker_kind == EssentialKind::Lance {
-            position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
+        let attackers = if attacker_kind == Kind::Lance {
+            position.bitboard(attacker_color.into(), attacker_kind.into())
         } else {
-            position.bitboard_essential_kind(attacker_color.into(), attacker_kind)
-                | position.bitboard(attacker_color.into(), attacker_kind.promote_to_kind())
+            position.bitboard(attacker_color.into(), attacker_kind.into())
+                | position.bitboard(attacker_color.into(), attacker_kind.promote())
         } & power_mask;
         if attackers.is_empty() {
             continue;
@@ -108,7 +104,7 @@ pub(super) fn pinned(
                 position.color_bb(),
                 blocker_color,
                 pinned_pos,
-                pinned_kind.to_essential_kind(),
+                pinned_kind,
                 false,
             );
             let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)

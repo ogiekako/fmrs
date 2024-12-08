@@ -1,5 +1,5 @@
 use crate::{
-    piece::{Color, EssentialKind},
+    piece::{Color, Kind},
     position::{
         advance::maybe_legal_movement,
         bitboard::{rule::power, BitBoard},
@@ -25,7 +25,7 @@ lazy_static! {
 
 fn chekable_non_linear_piece_slow(white_king_pos: Square) -> BitBoard {
     let mut res = BitBoard::default();
-    for (source_kind, dest_kind) in EssentialKind::iter_transitions() {
+    for (source_kind, dest_kind) in Kind::iter_transitions() {
         if source_kind.is_line_piece() {
             continue;
         }
