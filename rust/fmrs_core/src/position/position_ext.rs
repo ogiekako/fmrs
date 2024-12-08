@@ -1,6 +1,6 @@
-use crate::piece::{Color, EssentialKind, Kind};
+use crate::piece::{EssentialKind, Kind};
 
-use super::{checked, Movement, Position, Square};
+use super::{Movement, Position, Square};
 
 pub enum UndoMove {
     UnDrop((Square, bool /* pawn drop */)),
@@ -16,7 +16,6 @@ pub enum UndoMove {
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoMove;
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
-    fn checked_slow(&self, c: Color) -> bool;
 }
 
 impl PositionExt for Position {
@@ -117,10 +116,6 @@ impl PositionExt for Position {
                 }
             }
         }
-    }
-
-    fn checked_slow(&self, c: Color) -> bool {
-        checked(self, c)
     }
 }
 

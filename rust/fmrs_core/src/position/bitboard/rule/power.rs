@@ -22,11 +22,6 @@ pub fn king_power(pos: Square) -> BitBoard {
     unsafe { *KING_POWER.get_unchecked(pos.index()) }
 }
 
-pub fn lion_king_power(pos: Square) -> BitBoard {
-    debug_assert!(pos.index() < LION_KING_POWER.len());
-    unsafe { *LION_KING_POWER.get_unchecked(pos.index()) }
-}
-
 pub fn power_in_two(
     color: Color,
     pos: Square,

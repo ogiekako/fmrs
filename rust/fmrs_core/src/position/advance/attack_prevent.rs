@@ -10,8 +10,10 @@ use crate::{
 };
 
 use super::{
+    attacker::Attacker,
     common,
     pinned::{pinned, Pinned},
+    state_info::StateInfo,
     AdvanceOptions,
 };
 
@@ -37,7 +39,7 @@ pub(super) fn attack_preventing_movements(
 }
 
 struct Context<'a> {
-    position: &'a Position,
+    state: StateInfo<'a>,
     turn: Color,
     king_pos: Square,
     pinned: Pinned,
@@ -63,18 +65,19 @@ impl<'a> Context<'a> {
         should_return_check: bool,
         options: &'a AdvanceOptions,
     ) -> Self {
-        let turn = position.turn();
-        let attacker = attacker(position, king_pos).expect("no attacker");
-        let pinned = pinned(position, turn, king_pos, turn);
+        let mut state = StateInfo::new(position).expect("no state");
+        let turn = state.position.turn();
+        let attacker = state.attacker(turn, true).expect("no attacker");
+        let pinned = pinned(&mut state, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard(turn.into(), Kind::Pawn.into()) {
+            for pos in state.position.bitboard(turn.into(), Kind::Pawn.into()) {
                 mask |= 1 << pos.col()
             }
             mask
         };
         Self {
-            position,
+            state,
             turn,
             king_pos,
             pinned,
@@ -90,7 +93,7 @@ impl<'a> Context<'a> {
     }
 
     fn advance(&mut self) -> Result<()> {
-        if !self.attacker.double_check {
+        if self.attacker.double_check.is_none() {
             self.block(self.attacker.pos, self.attacker.kind)?;
             self.capture(self.attacker.pos)?;
         }
@@ -120,7 +123,8 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
         let king_power = king_power(self.king_pos);
-        let king_reachable = king_power.and_not(*self.position.color_bb().bitboard(self.turn));
+        let king_reachable =
+            king_power.and_not(*self.state.position.color_bb().bitboard(self.turn));
 
         let mut under_attack = BitBoard::default();
 
@@ -133,6 +137,7 @@ impl<'a> Context<'a> {
             EssentialKind::King,
         ] {
             for attacker_pos in self
+                .state
                 .position
                 .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
                 & power_in_two(self.turn, self.king_pos, EssentialKind::King, attacker_kind)
@@ -150,6 +155,7 @@ impl<'a> Context<'a> {
             EssentialKind::ProRook,
         ] {
             for attacker_pos in self
+                .state
                 .position
                 .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
                 & power_in_two(self.turn, self.king_pos, EssentialKind::King, attacker_kind)
@@ -157,7 +163,7 @@ impl<'a> Context<'a> {
                 let attacker_power =
                     bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
                 let attacker_reachable = bitboard::reachable(
-                    self.position.color_bb(),
+                    self.state.position.color_bb(),
                     self.turn.opposite(),
                     attacker_pos,
                     attacker_kind,
@@ -193,16 +199,22 @@ impl<'a> Context<'a> {
     fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> Result<()> {
         // Drop
         if include_drop {
-            for kind in self.position.hands().kinds(self.turn) {
+            for kind in self.state.position.hands().kinds(self.turn) {
                 self.maybe_add_move(&Movement::Drop(dest, kind), kind)?;
             }
         }
 
         // Move
         let around_dest =
-            bitboard::king_power(dest) & self.position.bitboard(self.turn.into(), None);
+            bitboard::king_power(dest) & self.state.position.bitboard(self.turn.into(), None);
         for source_pos in around_dest {
-            let source_kind = self.position.get(source_pos).unwrap().1.to_essential_kind();
+            let source_kind = self
+                .state
+                .position
+                .get(source_pos)
+                .unwrap()
+                .1
+                .to_essential_kind();
             if source_kind == EssentialKind::King {
                 continue;
             }
@@ -230,11 +242,15 @@ impl<'a> Context<'a> {
 
         for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
             let on_board = {
-                let raw_pieces = self.position.bitboard(self.turn.into(), leap_kind.into());
+                let raw_pieces = self
+                    .state
+                    .position
+                    .bitboard(self.turn.into(), leap_kind.into());
                 let promoted_kind = leap_kind.promote().unwrap();
                 if promoted_kind.is_line_piece() {
                     raw_pieces
                         | self
+                            .state
                             .position
                             .bitboard(self.turn.into(), promoted_kind.into())
                 } else {
@@ -245,7 +261,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             let sources = bitboard::reachable(
-                self.position.color_bb(),
+                self.state.position.color_bb(),
                 self.turn.opposite(),
                 dest,
                 leap_kind.to_essential_kind(),
@@ -255,7 +271,7 @@ impl<'a> Context<'a> {
                 if self.pinned.is_unpin_move(source_pos, dest) {
                     continue;
                 }
-                let source_kind = self.position.get(source_pos).unwrap().1;
+                let source_kind = self.state.position.get(source_pos).unwrap().1;
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
                         continue;
@@ -283,22 +299,22 @@ impl<'a> Context<'a> {
             return Ok(());
         }
 
-        let mut next_position = self.position.clone();
+        let mut next_position = self.state.position.clone();
         next_position.do_move(movement);
 
-        if self.attacker.double_check && common::checked(&next_position, self.turn) {
+        if self.attacker.double_check.is_some() && common::checked_slow(&next_position, self.turn) {
             return Ok(());
         }
 
-        if self.should_return_check && !common::checked(&next_position, self.turn.opposite()) {
+        if self.should_return_check && !common::checked_slow(&next_position, self.turn.opposite()) {
             return Ok(());
         }
 
         debug_assert!(
-            !common::checked(&next_position, self.turn),
+            !common::checked_slow(&next_position, self.turn),
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.turn,
-            self.position,
+            self.state.position,
             movement,
             next_position
         );
@@ -322,66 +338,19 @@ impl<'a> Context<'a> {
             return BitBoard::default();
         }
         bitboard::reachable(
-            self.position.color_bb(),
+            self.state.position.color_bb(),
             self.turn,
             self.king_pos,
             attacker_kind.maybe_unpromote().to_essential_kind(),
             false,
         ) & bitboard::reachable(
-            self.position.color_bb(),
+            self.state.position.color_bb(),
             self.turn.opposite(),
             attacker_pos,
             attacker_kind.maybe_unpromote().to_essential_kind(),
             true,
         )
     }
-}
-
-struct Attacker {
-    pos: Square,
-    kind: Kind,
-    double_check: bool,
-}
-
-impl Attacker {
-    fn new(pos: Square, kind: Kind, double_check: bool) -> Self {
-        Self {
-            pos,
-            kind,
-            double_check,
-        }
-    }
-}
-
-// #[inline(never)]
-fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
-    let king_color = position.turn();
-    let mut attacker: Option<Attacker> = None;
-    for attacker_kind in Kind::iter() {
-        let existing = position.bitboard(king_color.opposite().into(), attacker_kind.into());
-        if existing.is_empty() {
-            continue;
-        }
-        // TODO: consider checking power first.
-        let attacking = bitboard::reachable(
-            position.color_bb(),
-            king_color,
-            king_pos,
-            attacker_kind.to_essential_kind(),
-            false,
-        ) & existing;
-        if attacking.is_empty() {
-            continue;
-        }
-        for attacker_pos in attacking {
-            if let Some(mut attacker) = attacker.take() {
-                attacker.double_check = true;
-                return Some(attacker);
-            }
-            attacker = Some(Attacker::new(attacker_pos, attacker_kind, false));
-        }
-    }
-    attacker
 }
 
 // Potentially attacked position which is currently hidden by the king.

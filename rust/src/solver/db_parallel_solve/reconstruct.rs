@@ -2,7 +2,7 @@ use std::cell::RefCell;
 
 use fmrs_core::{
     piece::Color,
-    position::{previous, Digest, Movement, Position, PositionExt},
+    position::{checked_slow, previous, Digest, Movement, Position, PositionExt},
 };
 
 use super::db::{Database, DatabaseGet};
@@ -61,7 +61,7 @@ impl<'a> Context<'a> {
             let black_movement = position.undo_move(&black_undo);
             self.solution.borrow_mut().push(black_movement);
 
-            if position.checked_slow(Color::White) {
+            if checked_slow(position, Color::White) {
                 // Do nothing
             } else if half_step == 0 {
                 if position.digest() == self.initial_position_digest {

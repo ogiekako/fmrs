@@ -11,6 +11,7 @@ mod zobrist;
 pub use advance::advance;
 pub use advance::advance_old;
 pub use advance::checked;
+pub use advance::checked_slow;
 pub use advance::AdvanceOptions;
 pub use bitboard::Square;
 pub use hands::Hands;
