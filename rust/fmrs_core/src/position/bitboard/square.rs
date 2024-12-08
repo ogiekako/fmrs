@@ -41,12 +41,6 @@ impl Square {
             Direction::Right => Square::new((self.col() + 8) % 9, self.row()),
         }
     }
-
-    pub(crate) fn to_bitboard(&self) -> BitBoard {
-        let mut bb = super::BitBoard::default();
-        bb.set(*self);
-        bb
-    }
 }
 
 impl std::fmt::Debug for Square {
