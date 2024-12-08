@@ -3,7 +3,7 @@ use crate::{
     position::{bitboard, rule, Movement, Position},
 };
 
-// #[inline(never)]
+#[inline(never)]
 pub fn checked(position: &Position, color: Color) -> bool {
     let king_pos = {
         if let Some(king_pos) = position.bitboard(color.into(), Kind::King.into()).next() {
@@ -51,7 +51,7 @@ pub fn checked(position: &Position, color: Color) -> bool {
 }
 
 // Checks double pawn, unmovable pieces.
-// #[inline(never)]
+#[inline(never)]
 pub fn maybe_legal_movement(
     turn: Color,
     movement: &Movement,

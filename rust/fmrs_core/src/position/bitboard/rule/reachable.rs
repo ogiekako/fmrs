@@ -26,7 +26,7 @@ const LINE_PIECE_MASK: usize = 1 << EssentialKind::Lance.index()
     | 1 << EssentialKind::ProBishop.index()
     | 1 << EssentialKind::ProRook.index();
 
-// #[inline(never)]
+#[inline(never)]
 fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, kind: EssentialKind) -> BitBoard {
     if LINE_PIECE_MASK & (1 << kind.index()) == 0 {
         return power(color, pos, kind);
@@ -41,7 +41,7 @@ fn reachable_sub(occupied: &BitBoard, color: Color, pos: Square, kind: Essential
     }
 }
 
-// #[inline(never)]
+#[inline(never)]
 fn rook_reachable(occupied: &BitBoard, pos: Square) -> BitBoard {
     magic::rook_reachable_row(occupied, pos)
         | lance_reachable(occupied, Color::Black, pos)
@@ -55,7 +55,7 @@ const LOWER: BitBoard = BitBoard::from_u128(
     0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
 );
 
-// #[inline(never)]
+#[inline(never)]
 fn lance_reachable(occupied: &BitBoard, color: Color, pos: Square) -> BitBoard {
     match color {
         Color::Black => {

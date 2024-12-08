@@ -68,7 +68,7 @@ impl Position {
     }
 
     /// Returns a bitboard of pieces of the specified color and kind.
-    // #[inline(never)]
+    #[inline(never)]
     pub fn bitboard(&self, color: Option<Color>, kind: Option<Kind>) -> BitBoard {
         let mask = if let Some(c) = color {
             self.color_bb.bitboard(c)

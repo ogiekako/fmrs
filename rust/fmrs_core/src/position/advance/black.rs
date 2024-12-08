@@ -52,7 +52,7 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    // #[inline(never)]
+    #[inline(never)]
     fn new(
         position: &'a Position,
         memo: &'a mut FxHashMap<Digest, u32>,
@@ -98,7 +98,7 @@ impl<'a> Context<'a> {
         })
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn advance(&mut self) -> Result<()> {
         if self.black_king_checked {
             let black_king_pos = self
@@ -125,7 +125,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::Black) {
             let empty_attack_squares = self
@@ -145,7 +145,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn non_line_piece_direct_attack(&mut self) -> Result<()> {
         let attacker_cands = chekable_non_linear_piece(self.white_king_pos);
 
@@ -190,7 +190,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn line_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
             EssentialKind::Lance,
@@ -273,7 +273,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
@@ -323,7 +323,7 @@ impl<'a> Context<'a> {
 
 // Helper
 impl<'a> Context<'a> {
-    // #[inline(never)]
+    #[inline(never)]
     fn maybe_add_move(&mut self, movement: &Movement, kind: EssentialKind) -> Result<()> {
         if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
             return Ok(());

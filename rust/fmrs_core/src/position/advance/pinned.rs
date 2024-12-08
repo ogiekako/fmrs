@@ -41,7 +41,7 @@ impl Pinned {
         self.is_pinned(source) && !self.pinned_area(source).get(dest)
     }
     // Reachable pinned area including capturing move
-    // #[inline(never)]
+    #[inline(never)]
     pub fn pinned_area(&self, source: Square) -> BitBoard {
         for (pinned_pos, movable) in self.pinned_area.iter() {
             if source == *pinned_pos {
@@ -52,7 +52,7 @@ impl Pinned {
     }
 }
 
-// #[inline(never)]
+#[inline(never)]
 pub(super) fn pinned(
     position: &Position,
     king_color: Color,

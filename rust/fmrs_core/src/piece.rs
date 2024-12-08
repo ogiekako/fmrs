@@ -207,7 +207,7 @@ impl EssentialKind {
         *self as usize
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     pub fn unique_kind(&self) -> Option<Kind> {
         match self {
             EssentialKind::Gold => return None,
@@ -229,7 +229,7 @@ impl EssentialKind {
         }
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     pub(crate) fn promote_to_kind(&self) -> Option<Kind> {
         match self {
             EssentialKind::Pawn => Some(ProPawn),
