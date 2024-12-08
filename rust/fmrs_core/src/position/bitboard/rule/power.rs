@@ -2,7 +2,7 @@ use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
-#[inline(never)]
+// #[inline(never)]
 pub fn power(color: Color, pos: Square, kind: EssentialKind) -> BitBoard {
     let i = index(color, kind) | pos.index() << 4;
     debug_assert!(i < POWERS2.len());
