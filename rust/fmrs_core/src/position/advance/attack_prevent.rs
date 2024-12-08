@@ -2,7 +2,7 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    piece::{Color, EssentialKind, Kind},
+    piece::{Color, Kind},
     position::{
         bitboard::{self, king_power, power_in_two, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
@@ -126,16 +126,20 @@ impl<'a> Context<'a> {
 
         // Non line pieces
         for attacker_kind in [
-            EssentialKind::Pawn,
-            EssentialKind::Knight,
-            EssentialKind::Silver,
-            EssentialKind::Gold,
-            EssentialKind::King,
+            Kind::Pawn,
+            Kind::Knight,
+            Kind::Silver,
+            Kind::Gold,
+            Kind::King,
+            Kind::ProPawn,
+            Kind::ProLance,
+            Kind::ProKnight,
+            Kind::ProSilver,
         ] {
             for attacker_pos in self
                 .position
-                .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
-                & power_in_two(self.turn, self.king_pos, EssentialKind::King, attacker_kind)
+                .bitboard(self.turn.opposite().into(), attacker_kind.into())
+                & power_in_two(self.turn, self.king_pos, Kind::King, attacker_kind)
             {
                 under_attack |= bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
             }
@@ -143,16 +147,16 @@ impl<'a> Context<'a> {
 
         // Line pieces
         for attacker_kind in [
-            EssentialKind::Lance,
-            EssentialKind::Bishop,
-            EssentialKind::Rook,
-            EssentialKind::ProBishop,
-            EssentialKind::ProRook,
+            Kind::Lance,
+            Kind::Bishop,
+            Kind::Rook,
+            Kind::ProBishop,
+            Kind::ProRook,
         ] {
             for attacker_pos in self
                 .position
-                .bitboard_essential_kind(self.turn.opposite().into(), attacker_kind)
-                & power_in_two(self.turn, self.king_pos, EssentialKind::King, attacker_kind)
+                .bitboard(self.turn.opposite().into(), attacker_kind.into())
+                & power_in_two(self.turn, self.king_pos, Kind::King, attacker_kind)
             {
                 let attacker_power =
                     bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
@@ -183,7 +187,7 @@ impl<'a> Context<'a> {
                     dest,
                     promote: false,
                 },
-                EssentialKind::King,
+                Kind::King,
             )?;
         }
         Ok(())
@@ -202,8 +206,8 @@ impl<'a> Context<'a> {
         let around_dest =
             bitboard::king_power(dest) & self.position.bitboard(self.turn.into(), None);
         for source_pos in around_dest {
-            let source_kind = self.position.get(source_pos).unwrap().1.to_essential_kind();
-            if source_kind == EssentialKind::King {
+            let source_kind = self.position.get(source_pos).unwrap().1;
+            if source_kind == Kind::King {
                 continue;
             }
             let source_power = if self.pinned.is_pinned(source_pos) {
@@ -248,7 +252,7 @@ impl<'a> Context<'a> {
                 self.position.color_bb(),
                 self.turn.opposite(),
                 dest,
-                leap_kind.to_essential_kind(),
+                leap_kind,
                 false,
             ) & on_board;
             for source_pos in sources {
@@ -266,7 +270,7 @@ impl<'a> Context<'a> {
                             dest,
                             promote,
                         },
-                        source_kind.to_essential_kind(),
+                        source_kind,
                     )?;
                 }
             }
@@ -278,7 +282,7 @@ impl<'a> Context<'a> {
 // Helper methods
 impl<'a> Context<'a> {
     // #[inline(never)]
-    fn maybe_add_move(&mut self, movement: &Movement, kind: EssentialKind) -> Result<()> {
+    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         if !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask) {
             return Ok(());
         }
@@ -325,13 +329,13 @@ impl<'a> Context<'a> {
             self.position.color_bb(),
             self.turn,
             self.king_pos,
-            attacker_kind.maybe_unpromote().to_essential_kind(),
+            attacker_kind.maybe_unpromote(),
             false,
         ) & bitboard::reachable(
             self.position.color_bb(),
             self.turn.opposite(),
             attacker_pos,
-            attacker_kind.maybe_unpromote().to_essential_kind(),
+            attacker_kind.maybe_unpromote(),
             true,
         )
     }
@@ -367,7 +371,7 @@ fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
             position.color_bb(),
             king_color,
             king_pos,
-            attacker_kind.to_essential_kind(),
+            attacker_kind,
             false,
         ) & existing;
         if attacking.is_empty() {
