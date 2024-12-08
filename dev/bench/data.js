@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733640116918,
+  "lastUpdate": 1733641024440,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1457,6 +1457,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 31268,
             "range": "± 140",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "fbecfc97263df0871375a43d07a9eb3d30556439",
+          "message": "Revert \"Introduce StateInfo\"\n\nThis reverts commit 34f4e75cc627cf5da55cfb54eaa2fb953f078f2e.",
+          "timestamp": "2024-12-08T15:55:26+09:00",
+          "tree_id": "e42397212d94e3f0a56b42ea6e38df5ad8ba1fcc",
+          "url": "https://github.com/ogiekako/fmrs/commit/fbecfc97263df0871375a43d07a9eb3d30556439"
+        },
+        "date": 1733641023765,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 5006,
+            "range": "± 184",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 8443,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 517,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 5175,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26898,
+            "range": "± 628",
             "unit": "ns/iter"
           }
         ]
