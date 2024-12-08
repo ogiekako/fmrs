@@ -229,6 +229,19 @@ impl EssentialKind {
         }
     }
 
+    // #[inline(never)]
+    pub(crate) fn promote_to_kind(&self) -> Option<Kind> {
+        match self {
+            EssentialKind::Pawn => Some(ProPawn),
+            EssentialKind::Lance => Some(ProLance),
+            EssentialKind::Knight => Some(ProKnight),
+            EssentialKind::Silver => Some(ProSilver),
+            EssentialKind::Bishop => Some(ProBishop),
+            EssentialKind::Rook => Some(ProRook),
+            _ => None,
+        }
+    }
+
     fn from_index(i: usize) -> EssentialKind {
         ESSENTIAL_KINDS[i]
     }

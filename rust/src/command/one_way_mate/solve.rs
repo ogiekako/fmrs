@@ -1,12 +1,12 @@
 use fmrs_core::{
     piece::Color,
-    position::{advance, checked_slow, AdvanceOptions, Position},
+    position::{advance, checked, AdvanceOptions, Position},
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
 pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let mut position = position.clone();
-    if checked_slow(&position, Color::White) {
+    if checked(&position, Color::White) {
         return None;
     }
 

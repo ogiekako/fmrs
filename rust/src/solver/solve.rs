@@ -3,11 +3,11 @@ use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
 use crate::solver::standard_solve;
 use fmrs_core::piece::*;
-use fmrs_core::position::checked_slow;
 use fmrs_core::position::Position;
+use fmrs_core::position::PositionExt;
 use fmrs_core::solve::Solution;
 
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[derive(Debug, Clone, clap::ValueEnum)]
 pub enum Algorithm {
     MemorySave,
     Parallel,
@@ -46,10 +46,10 @@ pub fn solve_with_progress(
     if position.turn() != Black {
         anyhow::bail!("The turn should be from black");
     }
-    if checked_slow(&position, White) {
+    if position.checked_slow(White) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
-    debug_assert_ne!(position.turn() == Black, checked_slow(&position, White));
+    debug_assert_ne!(position.turn() == Black, position.checked_slow(White));
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
@@ -182,7 +182,7 @@ mod tests {
                 eprintln!("solving {}", sfen);
                 let got = solve(board.clone(), None, algorithm).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
-                assert_eq!(got, want, "{:?}", algorithm);
+                assert_eq!(got, want);
             }
         }
     }
