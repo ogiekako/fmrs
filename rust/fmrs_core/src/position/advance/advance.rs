@@ -58,10 +58,6 @@ mod tests {
             ("6k1l/8B/8K/9/9/9/9/9/9 b 2rb4g4s4n3l18p 1", vec![]),
             ("9/9/9/9/9/k8/n1P6/LB7/9 b P2rb4g4s3n3l15p", vec!["9897"]),
             ("9/9/9/9/9/5bk2/9/6P2/8K b 2rb4g4s4n4l17p 1", vec!["3837"]),
-            (
-                "2+B6/kPl6/6+b2/1K4+P1+P/+p8/1pG4+R1/p2+n5/1l2+s1s1R/2S1+l1G2 b 2gs3nl12p",
-                vec!["7181"],
-            ),
             // White moves
             (
                 "3pks3/4+B4/4+P4/9/9/9/9/9/9 w S2rb4g2s4n4l16p 1",

@@ -2,8 +2,6 @@ use rand::{distributions::Standard, prelude::Distribution};
 
 use crate::direction::Direction;
 
-use super::BitBoard;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Square {
     x: usize,
@@ -40,12 +38,6 @@ impl Square {
             Direction::Left => Square::new((self.col() + 1) % 9, self.row()),
             Direction::Right => Square::new((self.col() + 8) % 9, self.row()),
         }
-    }
-
-    pub(crate) fn to_bitboard(&self) -> BitBoard {
-        let mut bb = super::BitBoard::default();
-        bb.set(*self);
-        bb
     }
 }
 

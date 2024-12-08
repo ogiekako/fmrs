@@ -89,7 +89,7 @@ pub fn encode_position(board: &Position) -> String {
             if !k.is_hand_piece() {
                 continue;
             }
-            let n = board.hands().count(c, k.to_essential_kind());
+            let n = board.hands().count(c, k);
             if n > 1 {
                 res.push_str(&n.to_string());
             }
@@ -190,7 +190,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
         }
         let (c, k) = decode_hand_kind(ch)?;
         for _ in 0..hand_count {
-            board.hands_mut().add(c, k.to_essential_kind());
+            board.hands_mut().add(c, k);
         }
         hand_count = 0;
     }
@@ -254,13 +254,13 @@ fn test_encode() {
     board.set(Square::new(4, 8), White, ProPawn);
     board.set(Square::new(7, 8), Black, Knight);
     board.set(Square::new(8, 8), Black, Lance);
-    board.hands_mut().add(Black, EssentialKind::Silver);
-    board.hands_mut().add(White, EssentialKind::Bishop);
-    board.hands_mut().add(White, EssentialKind::Gold);
-    board.hands_mut().add(White, EssentialKind::Knight);
-    board.hands_mut().add(White, EssentialKind::Pawn);
-    board.hands_mut().add(White, EssentialKind::Pawn);
-    board.hands_mut().add(White, EssentialKind::Pawn);
+    board.hands_mut().add(Black, Silver);
+    board.hands_mut().add(White, Bishop);
+    board.hands_mut().add(White, Gold);
+    board.hands_mut().add(White, Knight);
+    board.hands_mut().add(White, Pawn);
+    board.hands_mut().add(White, Pawn);
+    board.hands_mut().add(White, Pawn);
 
     board.set_turn(White);
 
@@ -327,10 +327,7 @@ pub fn decode_move(s: &str) -> anyhow::Result<Movement> {
         bail!("Move too short");
     }
     Ok(if cs[1] == '*' {
-        Movement::Drop(
-            decode_square(&s[2..])?,
-            decode_hand_kind(cs[0])?.1.to_essential_kind(),
-        )
+        Movement::Drop(decode_square(&s[2..])?, decode_hand_kind(cs[0])?.1)
     } else {
         let mut promote = false;
         if cs.len() > 4 {
@@ -360,11 +357,7 @@ pub fn decode_moves(sfen: &str) -> anyhow::Result<Vec<Movement>> {
 pub fn encode_move(m: &Movement) -> String {
     match m {
         Movement::Drop(pos, k) => {
-            format!(
-                "{}*{}",
-                encode_piece(Color::Black, k.hand_to_kind()),
-                encode_square(*pos)
-            )
+            format!("{}*{}", encode_piece(Color::Black, *k), encode_square(*pos))
         }
         Movement::Move {
             source: from,
@@ -383,8 +376,8 @@ pub fn encode_move(m: &Movement) -> String {
 pub mod tests {
     use crate::{
         piece::Kind,
-        position::{Movement, Position, Square},
-        sfen::EssentialKind,
+        position::Square,
+        position::{Movement, Position},
     };
 
     use super::{decode_moves, decode_position, encode_position};
@@ -402,7 +395,7 @@ pub mod tests {
                     dest: Square::new(4, 1),
                     promote: false,
                 },
-                Movement::Drop(Square::new(3, 1), EssentialKind::Silver),
+                Movement::Drop(Square::new(3, 1), Kind::Silver),
             ],
             decode_moves("1f5b+ 4a5b S*4b").unwrap()
         );

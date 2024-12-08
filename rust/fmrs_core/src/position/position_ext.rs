@@ -1,4 +1,4 @@
-use crate::piece::{Color, EssentialKind, Kind};
+use crate::piece::{Color, Kind};
 
 use super::{checked, Movement, Position, Square};
 
@@ -20,7 +20,6 @@ pub trait PositionExt {
 }
 
 impl PositionExt for Position {
-    #[inline(never)]
     fn do_move(&mut self, m: &Movement) -> UndoMove {
         let color = self.turn();
         let token;
@@ -28,9 +27,9 @@ impl PositionExt for Position {
             Movement::Drop(pos, k) => {
                 let (pos, k) = (*pos, *k);
                 self.hands_mut().remove(color, k);
-                self.set(pos, color, k.hand_to_kind());
+                self.set(pos, color, k);
                 token = UndoMove::UnDrop((pos, self.pawn_drop()));
-                self.set_pawn_drop(k == EssentialKind::Pawn);
+                self.set_pawn_drop(k == Kind::Pawn);
             }
             Movement::Move {
                 source,
@@ -41,8 +40,7 @@ impl PositionExt for Position {
                 self.unset(*source, color, kind);
                 let capture = if let Some(capture) = self.get(*dest).map(|(_c, k)| k) {
                     self.unset(*dest, color.opposite(), capture);
-                    self.hands_mut()
-                        .add(color, capture.maybe_unpromote().to_essential_kind());
+                    self.hands_mut().add(color, capture.maybe_unpromote());
                     Some(capture)
                 } else {
                     None
@@ -79,10 +77,9 @@ impl PositionExt for Position {
                     .unwrap_or_else(|| panic!("{:?} doesn't contain any piece", pos));
                 debug_assert_eq!(prev_turn, c);
                 self.unset(*pos, c, k);
-                self.hands_mut()
-                    .add(c, k.maybe_unpromote().to_essential_kind());
+                self.hands_mut().add(c, k.maybe_unpromote());
                 self.set_pawn_drop(*pawn_drop);
-                Movement::Drop(*pos, k.maybe_unpromote().to_essential_kind())
+                Movement::Drop(*pos, k.maybe_unpromote())
             }
             UnMove {
                 source: from,
@@ -106,8 +103,7 @@ impl PositionExt for Position {
                 self.set(*from, c, prev_k);
                 if let Some(captured_k) = capture {
                     self.set(*to, c.opposite(), *captured_k);
-                    self.hands_mut()
-                        .remove(c, captured_k.maybe_unpromote().to_essential_kind());
+                    self.hands_mut().remove(c, captured_k.maybe_unpromote());
                 }
                 self.set_pawn_drop(*pawn_drop);
                 Movement::Move {
@@ -127,7 +123,7 @@ impl PositionExt for Position {
 #[cfg(test)]
 mod tests {
     use crate::{
-        piece::EssentialKind,
+        piece::Kind,
         position::{Movement, PositionExt, Square},
     };
 
@@ -146,7 +142,7 @@ mod tests {
             ),
             (
                 sfen::tests::RYUO,
-                Movement::Drop(Square::new(2, 0), EssentialKind::Pawn),
+                Movement::Drop(Square::new(2, 0), Kind::Pawn),
                 "6p1l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L b Sbgn2p",
             ),
             (

@@ -3,7 +3,6 @@ use crate::{
     position::{bitboard, rule, Movement, Position},
 };
 
-#[inline(never)]
 pub fn checked(position: &Position, color: Color) -> bool {
     let king_pos = {
         if let Some(king_pos) = position.bitboard(color.into(), Kind::King.into()).next() {
@@ -51,16 +50,15 @@ pub fn checked(position: &Position, color: Color) -> bool {
 }
 
 // Checks double pawn, unmovable pieces.
-#[inline(never)]
-pub fn maybe_legal_movement(
+pub(super) fn maybe_legal_movement(
     turn: Color,
     movement: &Movement,
-    kind: EssentialKind,
+    kind: Kind,
     pawn_mask: usize,
 ) -> bool {
     match movement {
         Movement::Drop(pos, kind) => {
-            if kind == &EssentialKind::Pawn && pawn_mask >> pos.col() & 1 > 0 {
+            if kind == &Kind::Pawn && pawn_mask >> pos.col() & 1 > 0 {
                 return false;
             }
             rule::is_movable(turn, *pos, *kind)

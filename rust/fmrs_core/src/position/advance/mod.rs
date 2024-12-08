@@ -9,5 +9,4 @@ mod white;
 pub use advance::advance;
 pub use advance::advance_old;
 pub use common::checked;
-pub(crate) use common::maybe_legal_movement;
 pub use options::AdvanceOptions;
