@@ -12,15 +12,15 @@ pub fn king_power(pos: Square) -> &'static BitBoard {
 
 const ESSENTIAL_KIND_INDEX: [usize; 20] = [
     0, 1, // Pawn
-    9, 10, // Lance
-    2, 3, // Knight
-    4, 5, // Silver
-    6, 7, // Gold
-    11, 11, // Bishop
-    12, 12, // Rook
-    8, 8, // King
-    13, 13, // ProBishop
-    14, 14, // ProRook
+    2, 3, // Lance
+    4, 5, // Knight
+    6, 7, // Silver
+    13, 14, // Gold
+    8, 8, // Bishop
+    9, 9, // Rook
+    10, 10, // King
+    11, 11, // ProBishop
+    12, 12, // ProRook
 ];
 
 const fn essential_kind_index(color: Color, ek: EssentialKind) -> usize {
@@ -31,23 +31,26 @@ const fn essential_kind_index(color: Color, ek: EssentialKind) -> usize {
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
-    static ref POWERS: [[BitBoard; 81]; 15] = [
-        PAWN_POWER[0],
-        PAWN_POWER[1],
-        KNIGHT_POWER[0],
-        KNIGHT_POWER[1],
-        SILVER_POWER[0],
-        SILVER_POWER[1],
-        GOLD_POWER[0],
-        GOLD_POWER[1],
-        KING_POWER.clone(),
-        LANCE_POWER[0],
-        LANCE_POWER[1],
-        BISHOP_POWER[0],
-        ROOK_POWER[0],
-        PRO_BISHOP_POWER[0],
-        PRO_ROOK_POWER[0],
-    ];
+    static ref POWERS: Vec<[BitBoard; 81]> = {
+        let res = vec![
+            PAWN_POWER[0],
+            PAWN_POWER[1],
+            LANCE_POWER[0],
+            LANCE_POWER[1],
+            KNIGHT_POWER[0],
+            KNIGHT_POWER[1],
+            SILVER_POWER[0],
+            SILVER_POWER[1],
+            BISHOP_POWER[0],
+            ROOK_POWER[0],
+            KING_POWER.clone(),
+            PRO_BISHOP_POWER[0],
+            PRO_ROOK_POWER[0],
+            GOLD_POWER[0],
+            GOLD_POWER[1],
+        ];
+        res
+    };
     static ref PAWN_POWER: KindPower = powers([(0, -1)].into_iter());
     static ref KNIGHT_POWER: KindPower = powers([(-1, -2), (1, -2)].into_iter());
     static ref SILVER_POWER: KindPower =
