@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub enum Color {
     Black, // Moves first. e.g. Tsume kata.
     White, // Uke kata.
@@ -62,6 +62,7 @@ impl Distribution<Kind> for rand::distributions::Standard {
     }
 }
 
+use serde::Serialize;
 pub use Kind::*;
 
 pub const KINDS: [Kind; NUM_KIND] = [
@@ -115,94 +116,5 @@ impl Kind {
     }
     pub fn is_hand_piece(&self) -> bool {
         matches!(self, Pawn | Lance | Knight | Silver | Gold | Bishop | Rook)
-    }
-    pub fn to_essential_kind(&self) -> EssentialKind {
-        match self {
-            Pawn => EssentialKind::Pawn,
-            Lance => EssentialKind::Lance,
-            Knight => EssentialKind::Knight,
-            Silver => EssentialKind::Silver,
-            Gold | ProPawn | ProLance | ProKnight | ProSilver => EssentialKind::Gold,
-            Bishop => EssentialKind::Bishop,
-            Rook => EssentialKind::Rook,
-            King => EssentialKind::King,
-            ProBishop => EssentialKind::ProBishop,
-            ProRook => EssentialKind::ProRook,
-        }
-    }
-
-    pub fn is_essentially_gold(&self) -> bool {
-        matches!(self, Gold | ProPawn | ProLance | ProKnight | ProSilver)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum EssentialKind {
-    Pawn,
-    Lance,
-    Knight,
-    Silver,
-    Gold,
-    Bishop,
-    Rook,
-    King,
-    ProBishop,
-    ProRook,
-}
-
-const ESSENTIAL_KINDS: [EssentialKind; 10] = [
-    EssentialKind::Pawn,
-    EssentialKind::Lance,
-    EssentialKind::Knight,
-    EssentialKind::Silver,
-    EssentialKind::Gold,
-    EssentialKind::Bishop,
-    EssentialKind::Rook,
-    EssentialKind::King,
-    EssentialKind::ProBishop,
-    EssentialKind::ProRook,
-];
-
-impl EssentialKind {
-    pub fn iter() -> impl Iterator<Item = EssentialKind> {
-        ESSENTIAL_KINDS.iter().copied()
-    }
-
-    pub fn unique_kind(&self) -> Option<Kind> {
-        Some(match self {
-            EssentialKind::Pawn => Pawn,
-            EssentialKind::Lance => Lance,
-            EssentialKind::Knight => Knight,
-            EssentialKind::Silver => Silver,
-            EssentialKind::Bishop => Bishop,
-            EssentialKind::Rook => Rook,
-            EssentialKind::King => King,
-            EssentialKind::ProBishop => ProBishop,
-            EssentialKind::ProRook => ProRook,
-            EssentialKind::Gold => return None,
-        })
-    }
-
-    pub(crate) fn is_line_piece(&self) -> bool {
-        matches!(
-            self,
-            EssentialKind::Lance
-                | EssentialKind::Bishop
-                | EssentialKind::Rook
-                | EssentialKind::ProBishop
-                | EssentialKind::ProRook
-        )
-    }
-
-    pub(crate) fn promote(&self) -> Option<Kind> {
-        match self {
-            EssentialKind::Pawn => Some(ProPawn),
-            EssentialKind::Lance => Some(ProLance),
-            EssentialKind::Knight => Some(ProKnight),
-            EssentialKind::Silver => Some(ProSilver),
-            EssentialKind::Bishop => Some(ProBishop),
-            EssentialKind::Rook => Some(ProRook),
-            _ => None,
-        }
     }
 }

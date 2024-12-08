@@ -8,7 +8,11 @@ pub struct KindBitBoard {
     kind0: BitBoard,
     kind1: BitBoard,
     kind2: BitBoard,
-    golds: BitBoard,
+}
+
+#[test]
+fn test_kind_bitboard_size() {
+    assert_eq!(64, std::mem::size_of::<KindBitBoard>());
 }
 
 impl KindBitBoard {
@@ -40,11 +44,6 @@ impl KindBitBoard {
         }
         mask
     }
-
-    pub fn golds(&self) -> &BitBoard {
-        &self.golds
-    }
-
     pub fn get(&self, pos: Square) -> Kind {
         let mut i = 0;
         if self.kind0.get(pos) {
@@ -80,10 +79,6 @@ impl KindBitBoard {
         if (i >> 2 & 1) > 0 {
             self.kind2.set(pos);
         }
-
-        if kind.is_essentially_gold() {
-            self.golds.set(pos);
-        }
     }
     pub fn unset(&mut self, pos: Square, kind: Kind) {
         let i = if let Some(raw) = kind.unpromote() {
@@ -101,10 +96,6 @@ impl KindBitBoard {
         if (i >> 2 & 1) > 0 {
             self.kind2.unset(pos);
         }
-
-        if kind.is_essentially_gold() {
-            self.golds.unset(pos);
-        }
     }
 
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
@@ -112,6 +103,5 @@ impl KindBitBoard {
         self.kind0.shift(dir);
         self.kind1.shift(dir);
         self.kind2.shift(dir);
-        self.golds.shift(dir);
     }
 }
