@@ -6,25 +6,26 @@ use super::square::Square;
 pub struct BitBoard(u128);
 
 impl BitBoard {
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
-
+    #[inline(always)]
     pub fn set(&mut self, pos: Square) {
         let i = pos.index();
         self.0 |= 1 << i;
     }
-
+    #[inline(always)]
     pub fn unset(&mut self, pos: Square) {
         let i = pos.index();
         self.0 &= !(1 << i);
     }
-
+    #[inline(always)]
     pub fn get(&self, pos: Square) -> bool {
         let i = pos.index();
         self.0 >> i & 1 != 0
     }
-
+    #[inline(always)]
     pub fn and_not(mut self, mask: BitBoard) -> BitBoard {
         self.0 &= !mask.0;
         self
@@ -75,6 +76,7 @@ macro_rules! def_op {
         impl std::ops::$ty for BitBoard {
             type Output = BitBoard;
 
+            #[inline(always)]
             fn $op(self, rhs: Self) -> Self::Output {
                 BitBoard(self.0.$op(rhs.0))
             }
@@ -83,6 +85,7 @@ macro_rules! def_op {
         impl std::ops::$ty for &BitBoard {
             type Output = BitBoard;
 
+            #[inline(always)]
             fn $op(self, rhs: Self) -> Self::Output {
                 BitBoard(self.0.$op(rhs.0))
             }
@@ -97,6 +100,7 @@ def_op!(BitXor, bitxor);
 macro_rules! def_op_assign {
     ($ty: ident, $op: ident) => {
         impl std::ops::$ty for BitBoard {
+            #[inline(always)]
             fn $op(&mut self, rhs: Self) {
                 self.0.$op(rhs.0);
             }
@@ -134,6 +138,7 @@ impl std::fmt::Debug for BitBoard {
 }
 
 impl BitBoard {
+    #[inline(always)]
     pub(super) fn u128(&self) -> u128 {
         self.0
     }
@@ -152,7 +157,7 @@ impl BitBoard {
             BitBoard::from_u128(x)
         })
     }
-
+    #[inline(always)]
     pub(super) const fn from_u128(x: u128) -> Self {
         debug_assert!(x < 1 << 81);
         Self(x)

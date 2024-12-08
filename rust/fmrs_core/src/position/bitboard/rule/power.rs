@@ -2,10 +2,12 @@ use crate::piece::{Color, EssentialKind};
 
 use super::super::{BitBoard, Square};
 
+#[inline(always)]
 pub fn essential_power(color: Color, pos: Square, ek: EssentialKind) -> &'static BitBoard {
     &POWERS[essential_kind_index(color, ek)][pos.index()]
 }
 
+#[inline(always)]
 pub fn king_power(pos: Square) -> &'static BitBoard {
     &KING_POWER[pos.index()]
 }
@@ -23,6 +25,7 @@ const ESSENTIAL_KIND_INDEX: [usize; 20] = [
     12, 12, // ProRook
 ];
 
+#[inline(always)]
 const fn essential_kind_index(color: Color, ek: EssentialKind) -> usize {
     let i = ek.index() << 1 | color.index();
     ESSENTIAL_KIND_INDEX[i]

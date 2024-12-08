@@ -7,13 +7,14 @@ use rand::prelude::Distribution;
 pub use Color::*;
 
 impl Color {
+    #[inline(always)]
     pub const fn index(&self) -> usize {
         *self as usize
     }
     pub fn iter() -> impl Iterator<Item = Color> {
         [Black, White].iter().copied()
     }
-
+    #[inline(always)]
     pub fn opposite(&self) -> Color {
         match self {
             Black => White,
@@ -77,7 +78,6 @@ impl Kind {
     pub fn index(&self) -> usize {
         *self as usize
     }
-
     pub fn from_index(x: usize) -> Self {
         KINDS[x]
     }

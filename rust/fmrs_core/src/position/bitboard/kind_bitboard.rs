@@ -12,6 +12,7 @@ pub struct KindBitBoard {
 }
 
 impl KindBitBoard {
+    #[inline(always)]
     pub fn bitboard(&self, kind: Kind, occupied: BitBoard) -> BitBoard {
         let mut mask = occupied;
         let i = if let Some(raw) = kind.unpromote() {
