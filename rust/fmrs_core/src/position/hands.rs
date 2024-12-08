@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::piece::{Color, Kind, KINDS, NUM_HAND_KIND};
+use crate::piece::{Color, EssentialKind, ESSENTIAL_KINDS, NUM_HAND_KIND};
 
 // Hands represents hands of both side.
 // The number of pawns should be less than 256. (8 bits)
@@ -30,36 +30,36 @@ impl Hands {
         Hands { x: 0 }
     }
 
-    fn max_count(k: Kind) -> usize {
+    fn max_count(k: EssentialKind) -> usize {
         debug_assert!(k.is_hand_piece(), "{k:?}");
-        if k == Kind::Pawn {
+        if k == EssentialKind::Pawn {
             127
         } else {
             15
         }
     }
-    pub fn count(&self, c: Color, k: Kind) -> usize {
-        if k == Kind::King {
+    pub fn count(&self, c: Color, k: EssentialKind) -> usize {
+        if k == EssentialKind::King {
             return 0;
         }
         debug_assert!(k.is_hand_piece());
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
-    pub fn add(&mut self, c: Color, k: Kind) {
+    pub fn add(&mut self, c: Color, k: EssentialKind) {
         debug_assert!(self.count(c, k) <= Hands::max_count(k));
         self.x += Hands::bit_of(c, k);
     }
-    pub fn remove(&mut self, c: Color, k: Kind) {
+    pub fn remove(&mut self, c: Color, k: EssentialKind) {
         debug_assert!(self.count(c, k) > 0);
         self.x -= Hands::bit_of(c, k);
     }
-    pub fn kinds(self, c: Color) -> impl Iterator<Item = Kind> {
-        KINDS[0..NUM_HAND_KIND]
+    pub fn kinds(self, c: Color) -> impl Iterator<Item = EssentialKind> {
+        ESSENTIAL_KINDS[0..NUM_HAND_KIND]
             .iter()
             .filter_map(move |&k| if self.count(c, k) > 0 { Some(k) } else { None })
     }
-    fn shift_of(c: Color, k: Kind) -> usize {
-        let i = if k == Kind::Pawn {
+    fn shift_of(c: Color, k: EssentialKind) -> usize {
+        let i = if k == EssentialKind::Pawn {
             0
         } else {
             k.index() * 4 + 3
@@ -70,7 +70,7 @@ impl Hands {
             i
         }
     }
-    fn bit_of(c: Color, k: Kind) -> u64 {
+    fn bit_of(c: Color, k: EssentialKind) -> u64 {
         1 << (Hands::shift_of(c, k) as u64)
     }
     pub fn set_turn(&mut self, c: Color) {
@@ -101,7 +101,7 @@ impl Hands {
 
     pub fn is_empty(&self, c: Color) -> bool {
         // TODO: can be optimized
-        KINDS[0..NUM_HAND_KIND]
+        ESSENTIAL_KINDS[0..NUM_HAND_KIND]
             .iter()
             .all(|&k| self.count(c, k) == 0)
     }

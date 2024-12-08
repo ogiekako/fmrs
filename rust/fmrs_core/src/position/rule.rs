@@ -1,4 +1,4 @@
-use crate::piece::{Color, Kind};
+use crate::piece::{Color, EssentialKind};
 
 use super::Square;
 
@@ -13,7 +13,7 @@ pub(super) fn is_allowed_move(
     color: Color,
     source: Square,
     dest: Square,
-    kind: Kind,
+    kind: EssentialKind,
     promote: bool,
 ) -> bool {
     if promote {
@@ -26,10 +26,10 @@ pub(super) fn is_allowed_move(
     is_movable(color, dest, kind)
 }
 
-pub(super) fn is_movable(color: Color, dest: Square, kind: Kind) -> bool {
+pub(super) fn is_movable(color: Color, dest: Square, kind: EssentialKind) -> bool {
     let d = match kind {
-        Kind::Pawn | Kind::Lance => 1,
-        Kind::Knight => 2,
+        EssentialKind::Pawn | EssentialKind::Lance => 1,
+        EssentialKind::Knight => 2,
         _ => return true,
     };
     match color {

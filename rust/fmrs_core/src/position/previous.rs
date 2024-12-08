@@ -66,9 +66,14 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources =
-                bitboard::reachable(self.position.color_bb(), self.turn, dest, prev_kind, false)
-                    .and_not(self.black_pieces | self.white_pieces);
+            let sources = bitboard::reachable(
+                self.position.color_bb(),
+                self.turn,
+                dest,
+                prev_kind.to_essential_kind(),
+                false,
+            )
+            .and_not(self.black_pieces | self.white_pieces);
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,
@@ -82,10 +87,10 @@ impl Context {
                         source,
                         dest,
                         promote,
-                        capture: capture.into(),
+                        capture: capture.hand_to_kind().into(),
                         pawn_drop: was_pawn_drop,
                     });
-                    if let Some(promoted) = capture.promote() {
+                    if let Some(promoted) = capture.hand_to_kind().promote() {
                         self.maybe_add_undo_move(UndoMove::UnMove {
                             source,
                             dest,
@@ -115,7 +120,13 @@ impl Context {
             if *promote {
                 kind = kind.unpromote().unwrap();
             }
-            if !rule::is_allowed_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
+            if !rule::is_allowed_move(
+                self.position.turn().opposite(),
+                *from,
+                *to,
+                kind.to_essential_kind(),
+                *promote,
+            ) {
                 return;
             }
         }
