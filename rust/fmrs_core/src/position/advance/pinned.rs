@@ -57,6 +57,10 @@ pub(super) fn pinned(
     let mut res = vec![];
 
     let attacker_color = king_color.opposite();
+    let (blocker_color_pieces, non_blocker_color_pieces) = (
+        position.color_bb().bitboard(blocker_color),
+        position.color_bb().bitboard(blocker_color.opposite()),
+    );
 
     for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
@@ -69,20 +73,20 @@ pub(super) fn pinned(
         if attackers.is_empty() {
             continue;
         }
-        let king_seeing = bitboard::reachable(
-            position.color_bb(),
+        let king_seeing = bitboard::reachable2(
+            blocker_color_pieces,
+            non_blocker_color_pieces,
             king_color,
             king_pos,
             attacker_kind,
-            king_color == blocker_color,
         );
         for attacker_pos in attackers {
-            let attacker_within_reach = bitboard::reachable(
-                position.color_bb(),
+            let attacker_within_reach = bitboard::reachable2(
+                blocker_color_pieces,
+                non_blocker_color_pieces,
                 attacker_color,
                 attacker_pos,
                 attacker_kind,
-                king_color != blocker_color,
             );
             if attacker_within_reach.get(king_pos) {
                 continue;

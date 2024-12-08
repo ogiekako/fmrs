@@ -19,6 +19,17 @@ pub fn reachable(
     }))
 }
 
+pub fn reachable2(
+    capturable: BitBoard,
+    uncapturable: BitBoard,
+    color: Color,
+    pos: Square,
+    kind: Kind,
+) -> BitBoard {
+    let mask = reachable_sub(capturable | uncapturable, color, pos, kind);
+    mask.and_not(uncapturable)
+}
+
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
