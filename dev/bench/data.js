@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733641611173,
+  "lastUpdate": 1733827433966,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1565,6 +1565,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 30058,
             "range": "± 214",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "0ba7e2d9462dbcb4e41e3186dbfcfbd66bde0db4",
+          "message": "Improve magic using u64 instead of u128",
+          "timestamp": "2024-12-10T19:40:07+09:00",
+          "tree_id": "d2d2f9758705173e5c126b9946f2070607fbea1e",
+          "url": "https://github.com/ogiekako/fmrs/commit/0ba7e2d9462dbcb4e41e3186dbfcfbd66bde0db4"
+        },
+        "date": 1733827433320,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4165,
+            "range": "± 282",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7063,
+            "range": "± 792",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 578,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 3997,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30015,
+            "range": "± 104",
             "unit": "ns/iter"
           }
         ]
