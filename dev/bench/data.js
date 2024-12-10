@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733828498825,
+  "lastUpdate": 1733828823580,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1673,6 +1673,60 @@ window.BENCHMARK_DATA = {
             "name": "oneway",
             "value": 30338,
             "range": "± 118",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "bf9efe26cb5d6edaf9344237b97bb2047c7330dd",
+          "message": "Revert \"Simplify magic generation logic\"\n\nThis reverts commit 5564f21344bf51c3e89212b215740990f57e7521.",
+          "timestamp": "2024-12-10T20:03:32+09:00",
+          "tree_id": "d2d2f9758705173e5c126b9946f2070607fbea1e",
+          "url": "https://github.com/ogiekako/fmrs/commit/bf9efe26cb5d6edaf9344237b97bb2047c7330dd"
+        },
+        "date": 1733828822931,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4138,
+            "range": "± 156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7207,
+            "range": "± 159",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 573,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4070,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30734,
+            "range": "± 756",
             "unit": "ns/iter"
           }
         ]
