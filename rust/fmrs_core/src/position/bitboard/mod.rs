@@ -1,7 +1,7 @@
 mod bitboard;
 mod color_bitboard;
 mod kind_bitboard;
-mod rule;
+pub mod rule;
 mod square;
 
 pub use bitboard::BitBoard;

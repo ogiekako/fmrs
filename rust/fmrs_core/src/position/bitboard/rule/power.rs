@@ -6,6 +6,14 @@ pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
     POWERS[kind.index()][color.index()][pos.index()]
 }
 
+pub fn king_power(pos: Square) -> BitBoard {
+    KING_POWER[pos.index()]
+}
+
+pub fn lance_power(color: Color, pos: Square) -> BitBoard {
+    LANCE_POWER[color.index()][pos.index()]
+}
+
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {

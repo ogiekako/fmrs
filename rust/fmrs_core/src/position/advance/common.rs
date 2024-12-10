@@ -1,6 +1,9 @@
 use crate::{
     piece::{Color, Kind},
-    position::{bitboard, rule, Movement, Position},
+    position::{
+        bitboard::{self, rule::king_power},
+        rule, Movement, Position,
+    },
 };
 
 pub fn checked(position: &Position, color: Color) -> bool {
@@ -12,7 +15,7 @@ pub fn checked(position: &Position, color: Color) -> bool {
         }
     };
     let opponent_pieces = position.bitboard(color.opposite().into(), None);
-    let around_king = bitboard::power(color, king_pos, Kind::King);
+    let around_king = king_power(king_pos);
     // Non line or leap moves
     for attacker_pos in around_king & opponent_pieces {
         let arracker_kind = position.get(attacker_pos).unwrap().1;

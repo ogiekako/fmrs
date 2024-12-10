@@ -3,7 +3,10 @@ use crate::{
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{magic, power::power};
+use super::{
+    king_power, magic,
+    power::{lance_power, power},
+};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -35,8 +38,8 @@ fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> B
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
-        Kind::ProBishop => power(color, pos, Kind::King) | magic::bishop_reachable(occupied, pos),
-        Kind::ProRook => power(color, pos, Kind::King) | rook_reachable(occupied, pos),
+        Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
+        Kind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
         _ => power(color, pos, kind),
     }
 }
@@ -49,7 +52,7 @@ fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
 
 #[inline(never)]
 fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
-    let power = power(color, pos, Kind::Lance);
+    let power = lance_power(color, pos);
     let block = (occupied & power).u128();
     if block == 0 {
         return power;

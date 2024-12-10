@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{self, BitBoard},
+        bitboard::{self, rule::king_power, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
     },
 };
@@ -119,13 +119,9 @@ impl<'a> Context<'a> {
 
     #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
-        let king_reachable = bitboard::reachable(
-            self.position.color_bb(),
-            self.turn,
-            self.king_pos,
-            Kind::King,
-            false,
-        );
+        let king_reachable =
+            king_power(self.king_pos).and_not(self.position.color_bb().bitboard(self.turn));
+
         let mut under_attack = BitBoard::empty();
         for attacker_kind in Kind::iter() {
             for attacker_pos in self
@@ -183,8 +179,7 @@ impl<'a> Context<'a> {
         }
 
         // Move
-        let around_dest = bitboard::power(self.turn, dest, Kind::King)
-            & self.position.bitboard(self.turn.into(), None);
+        let around_dest = king_power(dest) & self.position.color_bb().bitboard(self.turn);
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
             if source_kind == Kind::King {
@@ -301,7 +296,7 @@ impl<'a> Context<'a> {
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        if bitboard::power(self.turn, self.king_pos, Kind::King).get(attacker_pos) {
+        if king_power(self.king_pos).get(attacker_pos) {
             return BitBoard::empty();
         }
         bitboard::reachable(

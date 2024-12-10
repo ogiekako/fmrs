@@ -2,7 +2,7 @@ use crate::direction::Direction;
 
 use super::square::Square;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct BitBoard(u128);
 
 impl BitBoard {
@@ -143,7 +143,7 @@ impl BitBoard {
             BitBoard::from_u128(x)
         })
     }
-    pub(super) fn from_u128(x: u128) -> Self {
+    pub(super) const fn from_u128(x: u128) -> Self {
         debug_assert!(x < 1 << 81);
         Self(x)
     }
