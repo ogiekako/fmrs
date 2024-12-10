@@ -1,5 +1,5 @@
 use anyhow::bail;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng};
 
 #[derive(Clone)]
 pub(super) struct MagicCore {
@@ -16,12 +16,16 @@ impl MagicCore {
         }
         let shift = (n as u64).leading_zeros() as u64;
 
-        let mut rng = SmallRng::seed_from_u64(0);
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0);
         for _ in 0..GIVE_UP {
-            let cand = Self {
-                magic: rng.gen(),
-                shift,
-            };
+            let mut magic = 0;
+            for i in 0..u64::BITS {
+                let one_probability = 15;
+                if rng.gen_range(0u8..100) < one_probability {
+                    magic |= 1u64 << i;
+                }
+            }
+            let cand = Self { magic, shift };
             if is_valid_magic(&cand, targets) {
                 return Ok(cand);
             }
