@@ -147,9 +147,6 @@ impl BitBoard {
         debug_assert!(x < 1 << 81);
         Self(x)
     }
-    pub(super) fn digest(&self) -> u64 {
-        (self.0 & 0xffff_ffff_ffff_ffff) as u64 + (self.0 >> 64) as u64
-    }
 }
 
 #[cfg(test)]

@@ -6,15 +6,15 @@ use super::magic_core::MagicCore;
 
 #[derive(Clone)]
 pub(super) struct Magic {
-    block_mask: BitBoard,
+    block_mask_63: u64,
     magic: MagicCore,
     table: Vec<BitBoard>,
 }
 
 impl Magic {
     fn reachable(&self, occupied: BitBoard) -> BitBoard {
-        let block = self.block_mask & occupied;
-        self.table[self.magic.index(block.digest()) as usize]
+        let block = self.block_mask_63 & one_to_eight(occupied);
+        self.table[self.magic.index(block) as usize]
     }
 }
 
@@ -27,16 +27,11 @@ pub(super) fn rook_reachable_row(occupied: BitBoard, pos: Square) -> BitBoard {
     ROOK_MAGIC_ROW[pos.index()].reachable(occupied)
 }
 
+fn one_to_eight(bb: BitBoard) -> u64 {
+    (bb.u128() >> 9) as u64
+}
+
 lazy_static! {
-    static ref INNER: BitBoard = {
-        let mut res = BitBoard::empty();
-        for col in 1..8 {
-            for row in 1..8 {
-                res.set(Square::new(col, row))
-            }
-        }
-        res
-    };
     static ref BISHOP_MAGIC: Vec<(Magic, Magic)> = {
         let mut res = vec![];
         for pos in Square::iter() {
@@ -57,7 +52,7 @@ lazy_static! {
 }
 
 struct Pattern {
-    block: BitBoard,
+    block: u64,
     reachable: BitBoard,
 }
 
@@ -72,6 +67,7 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
             }
         }
     }
+    let block_mask_63 = one_to_eight(block_mask);
 
     let patterns: Vec<Pattern> = block_mask
         .subsets()
@@ -90,7 +86,10 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
                     }
                 }
             }
-            Pattern { block, reachable }
+            Pattern {
+                block: one_to_eight(block),
+                reachable,
+            }
         })
         .collect();
 
@@ -107,15 +106,15 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let mut targets = vec![vec![]; reachable_index.len()];
     for pattern in patterns.iter() {
         let i = reachable_index.get(&pattern.reachable.u128()).unwrap();
-        targets[*i].push(pattern.block.digest());
+        targets[*i].push(pattern.block);
     }
     let magic = MagicCore::new(&targets)?;
     let mut table = vec![BitBoard::empty(); magic.table_len()];
     for pattern in patterns.iter() {
-        table[magic.index(pattern.block.digest()) as usize] = pattern.reachable;
+        table[magic.index(pattern.block) as usize] = pattern.reachable;
     }
     Ok(Magic {
-        block_mask,
+        block_mask_63,
         magic,
         table,
     })
