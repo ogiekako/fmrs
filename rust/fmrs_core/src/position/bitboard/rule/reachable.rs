@@ -42,24 +42,51 @@ fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> B
 }
 
 fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    magic::rook_reachable_row(occupied, pos)
-        | lance_reachable(occupied, Color::Black, pos)
-        | lance_reachable(occupied, Color::White, pos)
+    magic::rook_reachable_row(occupied, pos) | rook_reachable_col(occupied, pos)
+}
+
+fn rook_reachable_col(occupied: BitBoard, pos: Square) -> BitBoard {
+    let (occ, p, shift) = if pos.index() >= 63 {
+        (
+            (occupied.u128() >> 63) as u64,
+            pos.index() as u64 - 63,
+            true,
+        )
+    } else {
+        (occupied.u128() as u64, pos.index() as u64, false)
+    };
+    let upper = if UPPER & 1 << p != 0 {
+        0
+    } else {
+        let occ = (occ | UPPER) & ((1 << p) - 1);
+        (1 << p) - (1 << u64::BITS - 1 - occ.leading_zeros())
+    };
+    let lower = if LOWER & 1 << p != 0 {
+        0
+    } else {
+        let occ = occ | LOWER;
+        occ ^ occ - (1 << p + 1)
+    };
+    let b = upper | lower;
+    if shift {
+        BitBoard::from_u128((b as u128) << 63)
+    } else {
+        BitBoard::from_u128(b as u128)
+    }
 }
 
 const UPPER: u64 = 0b1000000001000000001000000001000000001000000001000000001000000001;
 const LOWER: u64 = 0b100000000100000000100000000100000000100000000100000000100000000;
 
-#[inline(never)]
 fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
-    let (occ, p, shift) = if pos.index() >= 54 {
-        ((occupied.u128() >> 54) as u64, pos.index() - 54, true)
+    let (occ, p, shift) = if pos.index() >= 63 {
+        ((occupied.u128() >> 63) as u64, pos.index() - 63, true)
     } else {
         (occupied.u128() as u64, pos.index(), false)
     };
     let b = match color {
         Color::Black => {
-            if UPPER >> p & 1 != 0 {
+            if UPPER & 1 << p != 0 {
                 return BitBoard::default();
             }
             let occ = (occ | UPPER) & ((1 << p) - 1);
@@ -74,7 +101,7 @@ fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
         }
     };
     if shift {
-        BitBoard::from_u128((b as u128) << 54)
+        BitBoard::from_u128((b as u128) << 63)
     } else {
         BitBoard::from_u128(b as u128)
     }
