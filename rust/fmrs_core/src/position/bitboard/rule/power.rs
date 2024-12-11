@@ -6,6 +6,22 @@ pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
     POWERS[kind.index()][color.index()][pos.index()]
 }
 
+pub fn pawn_power(color: Color, pos: Square) -> BitBoard {
+    PAWN_POWER[color.index()][pos.index()]
+}
+
+pub fn knight_power(color: Color, pos: Square) -> BitBoard {
+    KNIGHT_POWER[color.index()][pos.index()]
+}
+
+pub fn silver_power(color: Color, pos: Square) -> BitBoard {
+    SILVER_POWER[color.index()][pos.index()]
+}
+
+pub fn gold_power(color: Color, pos: Square) -> BitBoard {
+    GOLD_POWER[color.index()][pos.index()]
+}
+
 pub fn king_power(pos: Square) -> BitBoard {
     KING_POWER[pos.index()]
 }

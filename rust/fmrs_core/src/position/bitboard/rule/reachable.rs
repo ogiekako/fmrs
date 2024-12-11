@@ -3,7 +3,7 @@ use crate::{
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{king_power, magic, power::power};
+use super::{gold_power, king_power, knight_power, magic, pawn_power, silver_power};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -32,12 +32,16 @@ pub fn reachable2(
 
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
     match kind {
+        Kind::Pawn => pawn_power(color, pos),
         Kind::Lance => lance_reachable(occupied, color, pos),
+        Kind::Knight => knight_power(color, pos),
+        Kind::Silver => silver_power(color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
+        Kind::King => king_power(pos),
         Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
         Kind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
-        _ => power(color, pos, kind),
+        _ => gold_power(color, pos),
     }
 }
 

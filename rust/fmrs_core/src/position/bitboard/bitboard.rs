@@ -6,6 +6,13 @@ use super::square::Square;
 pub struct BitBoard(u128);
 
 impl BitBoard {
+    pub const UPPER: BitBoard = BitBoard::from_u128(
+        0b1000000001000000001000000001000000001000000001000000001000000001000000001u128,
+    );
+    pub const LOWER: BitBoard = BitBoard::from_u128(
+        0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
+    );
+
     pub fn empty() -> Self {
         Self(0)
     }
