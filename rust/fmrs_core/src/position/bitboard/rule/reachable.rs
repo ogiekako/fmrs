@@ -3,10 +3,7 @@ use crate::{
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{
-    king_power, magic,
-    power::{lance_power, power},
-};
+use super::{king_power, magic, power::power};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -50,24 +47,37 @@ fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
         | lance_reachable(occupied, Color::White, pos)
 }
 
+const UPPER: u64 = 0b1000000001000000001000000001000000001000000001000000001000000001;
+const LOWER: u64 = 0b100000000100000000100000000100000000100000000100000000100000000;
+
 #[inline(never)]
 fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
-    let power = lance_power(color, pos);
-    let block = (occupied & power).u128();
-    if block == 0 {
-        return power;
+    let (occ, p, shift) = if pos.index() >= 54 {
+        ((occupied.u128() >> 54) as u64, pos.index() - 54, true)
+    } else {
+        (occupied.u128() as u64, pos.index(), false)
+    };
+    let b = match color {
+        Color::Black => {
+            if UPPER >> p & 1 != 0 {
+                return BitBoard::default();
+            }
+            let occ = (occ | UPPER) & ((1 << p) - 1);
+            (1 << p) - (1 << u64::BITS - 1 - occ.leading_zeros())
+        }
+        Color::White => {
+            if LOWER >> p & 1 != 0 {
+                return BitBoard::default();
+            }
+            let occ = occ | LOWER;
+            occ ^ occ - (1 << p + 1)
+        }
+    };
+    if shift {
+        BitBoard::from_u128((b as u128) << 54)
+    } else {
+        BitBoard::from_u128(b as u128)
     }
-    match color {
-        Color::Black => power.and_not(BitBoard::from_u128(black_lance_unreachable(block))),
-        Color::White => BitBoard::from_u128((block - 1) ^ block) & power,
-    }
-}
-
-fn black_lance_unreachable(mut block: u128) -> u128 {
-    block |= block >> 1;
-    block |= block >> 2;
-    block |= block >> 4;
-    block >> 1
 }
 
 #[cfg(test)]
