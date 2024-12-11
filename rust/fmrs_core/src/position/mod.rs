@@ -1,5 +1,5 @@
 mod advance;
-mod bitboard;
+pub mod bitboard;
 mod hands;
 mod movement;
 mod position;
@@ -12,6 +12,7 @@ pub use advance::advance;
 pub use advance::advance_old;
 pub use advance::checked;
 pub use advance::AdvanceOptions;
+pub use bitboard::BitBoard;
 pub use bitboard::Square;
 pub use hands::Hands;
 pub use movement::Movement;
