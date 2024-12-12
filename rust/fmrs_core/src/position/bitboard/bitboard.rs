@@ -64,7 +64,7 @@ impl BitBoard {
     }
 
     pub(crate) fn digest(&self) -> u64 {
-        (self.0 >> 64) as u64 + self.0 as u64
+        (self.0 >> 64) as u64 ^ self.0 as u64
     }
 }
 
