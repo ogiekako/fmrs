@@ -31,9 +31,8 @@ impl BitBoard {
         let i = pos.index();
         self.0 >> i & 1 != 0
     }
-    pub fn and_not(mut self, mask: BitBoard) -> BitBoard {
-        self.0 &= !mask.0;
-        self
+    pub fn and_not(&self, mask: BitBoard) -> BitBoard {
+        BitBoard::from_u128(self.0 & !mask.0)
     }
 
     pub(crate) fn shift(&mut self, dir: Direction) {
