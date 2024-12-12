@@ -40,6 +40,14 @@ impl ColorBitBoard {
             }
         };
     }
+    pub(crate) fn black(&self) -> BitBoard {
+        self.0
+    }
+
+    pub(crate) fn white(&self) -> BitBoard {
+        self.1
+    }
+
     pub fn both(&self) -> BitBoard {
         self.0 | self.1
     }

@@ -12,8 +12,21 @@ pub fn reachable(
     kind: Kind,
     capture_same_color: bool,
 ) -> BitBoard {
-    let exclude_color = Color::from_bool(color.bool() != capture_same_color);
-    let exclude = color_bb.bitboard(exclude_color);
+    let exclude = if color.is_white() == capture_same_color {
+        color_bb.black()
+    } else {
+        color_bb.white()
+    };
+    match kind {
+        Kind::Pawn => return pawn_power(color, pos).and_not(exclude),
+        Kind::Knight => return knight_power(color, pos).and_not(exclude),
+        Kind::Silver => return silver_power(color, pos).and_not(exclude),
+        Kind::Gold | Kind::ProPawn | Kind::ProLance | Kind::ProKnight | Kind::ProSilver => {
+            return gold_power(color, pos).and_not(exclude)
+        }
+        Kind::King => return king_power(pos).and_not(exclude),
+        _ => (),
+    }
     reachable_sub(color_bb.both(), color, pos, kind).and_not(exclude)
 }
 
@@ -30,15 +43,15 @@ pub fn reachable2(
 
 fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
     match kind {
-        Kind::Pawn => pawn_power(color, pos),
         Kind::Lance => lance_reachable(occupied, color, pos),
-        Kind::Knight => knight_power(color, pos),
-        Kind::Silver => silver_power(color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
-        Kind::King => king_power(pos),
         Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
         Kind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
+        Kind::Pawn => pawn_power(color, pos),
+        Kind::Knight => knight_power(color, pos),
+        Kind::Silver => silver_power(color, pos),
+        Kind::King => king_power(pos),
         _ => gold_power(color, pos),
     }
 }

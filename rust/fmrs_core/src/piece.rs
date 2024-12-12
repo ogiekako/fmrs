@@ -18,10 +18,10 @@ impl Color {
     pub fn opposite(self) -> Color {
         Color(!self.0)
     }
-    pub fn bool(self) -> bool {
+    pub fn is_white(self) -> bool {
         self.0
     }
-    pub fn from_bool(b: bool) -> Color {
+    pub fn from_is_white(b: bool) -> Color {
         Color(b)
     }
 }
