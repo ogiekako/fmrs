@@ -12,7 +12,8 @@ pub fn reachable(
     kind: Kind,
     capture_same_color: bool,
 ) -> BitBoard {
-    let exclude = color_bb.bitboard(Color::from_bool(color.bool() ^ capture_same_color));
+    let exclude_color = Color::from_bool(color.bool() != capture_same_color);
+    let exclude = color_bb.bitboard(exclude_color);
     reachable_sub(color_bb.both(), color, pos, kind).and_not(exclude)
 }
 
