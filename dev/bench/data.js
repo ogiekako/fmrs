@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734003796100,
+  "lastUpdate": 1734003977032,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -2567,6 +2567,66 @@ window.BENCHMARK_DATA = {
             "name": "reachable",
             "value": 493,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "73e8e5f1048729e8971b494cba4e242fff4ac8bd",
+          "message": ".",
+          "timestamp": "2024-12-12T20:42:32+09:00",
+          "tree_id": "150652288865d73a1b9179ccf517793e9d6081c3",
+          "url": "https://github.com/ogiekako/fmrs/commit/73e8e5f1048729e8971b494cba4e242fff4ac8bd"
+        },
+        "date": 1734003975810,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4057,
+            "range": "± 70",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 6997,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 545,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 3933,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29019,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 487,
+            "range": "± 11",
             "unit": "ns/iter"
           }
         ]
