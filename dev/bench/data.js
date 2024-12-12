@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733998608692,
+  "lastUpdate": 1733999270028,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -2387,6 +2387,66 @@ window.BENCHMARK_DATA = {
             "name": "reachable",
             "value": 493,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "ccb844cbfeab2262257c057c4518d240b5c53e5f",
+          "message": ".",
+          "timestamp": "2024-12-12T19:24:11+09:00",
+          "tree_id": "66c3b5b550f4ca91d2bef5ab2764e9ff4a3b0ee7",
+          "url": "https://github.com/ogiekako/fmrs/commit/ccb844cbfeab2262257c057c4518d240b5c53e5f"
+        },
+        "date": 1733999269472,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4087,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7041,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 540,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4006,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29781,
+            "range": "± 223",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 473,
+            "range": "± 1",
             "unit": "ns/iter"
           }
         ]
