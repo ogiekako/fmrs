@@ -31,6 +31,7 @@ pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     BISHOP_MAGIC[pos.index()].reachable63(occupied)
 }
 
+#[inline(always)]
 pub(super) fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     ROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
         | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
