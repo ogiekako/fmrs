@@ -53,7 +53,7 @@ struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    #[inline(never)]
+    // #[inline(never)]
     fn new(
         position: &'a Position,
         memo: &'a mut FxHashMap<Digest, u32>,
@@ -88,7 +88,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn advance(&mut self) -> Result<()> {
         if !self.attacker.double_check {
             self.block(self.attacker.pos, self.attacker.kind)?;
@@ -99,7 +99,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> Result<()> {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
@@ -110,14 +110,14 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn capture(&mut self, attacker_pos: Square) -> Result<()> {
         self.add_movements_to(attacker_pos, false)?;
 
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
         let king_reachable =
             king_power(self.king_pos).and_not(self.position.color_bb().bitboard(self.turn));
