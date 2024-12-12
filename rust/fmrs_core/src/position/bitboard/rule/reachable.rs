@@ -3,7 +3,7 @@ use crate::{
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{gold_power, king_power, knight_power, magic, pawn_power, silver_power};
+use super::{gold_power, king_power, knight_power, magic, pawn_power, power, silver_power};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -17,19 +17,17 @@ pub fn reachable(
     } else {
         color_bb.white()
     };
+    if !kind.is_line_piece() {
+        return power(color, pos, kind).and_not(exclude);
+    }
+    let occupied = color_bb.both();
     match kind {
-        Kind::Lance => lance_reachable(color_bb.both(), color, pos),
-        Kind::Bishop => magic::bishop_reachable(color_bb.both(), pos),
-        Kind::Rook => rook_reachable(color_bb.both(), pos),
-        Kind::ProBishop => king_power(pos) | magic::bishop_reachable(color_bb.both(), pos),
-        Kind::ProRook => king_power(pos) | rook_reachable(color_bb.both(), pos),
-        Kind::Gold | Kind::ProPawn | Kind::ProLance | Kind::ProKnight | Kind::ProSilver => {
-            gold_power(color, pos)
-        }
-        Kind::Pawn => pawn_power(color, pos),
-        Kind::Knight => knight_power(color, pos),
-        Kind::Silver => silver_power(color, pos),
-        Kind::King => king_power(pos),
+        Kind::Lance => lance_reachable(occupied, color, pos),
+        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Rook => rook_reachable(occupied, pos),
+        Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
+        Kind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
+        _ => unreachable!(),
     }
     .and_not(exclude)
 }
