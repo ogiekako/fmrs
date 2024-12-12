@@ -12,11 +12,11 @@ pub fn reachable(
     kind: Kind,
     capture_same_color: bool,
 ) -> BitBoard {
-    let mask = reachable_sub(color_bb.both(), color, pos, kind);
-    mask.and_not(color_bb.bitboard(match capture_same_color {
+    let exclude = color_bb.bitboard(match capture_same_color {
         true => color.opposite(),
         false => color,
-    }))
+    });
+    reachable_sub(color_bb.both(), color, pos, kind).and_not(exclude)
 }
 
 pub fn reachable2(
