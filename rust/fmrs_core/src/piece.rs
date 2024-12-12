@@ -18,6 +18,12 @@ impl Color {
     pub fn opposite(self) -> Color {
         Color(!self.0)
     }
+    pub fn bool(self) -> bool {
+        self.0
+    }
+    pub fn from_bool(b: bool) -> Color {
+        Color(b)
+    }
 }
 
 impl Distribution<Color> for rand::distributions::Standard {
