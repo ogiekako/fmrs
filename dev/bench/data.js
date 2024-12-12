@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734003977032,
+  "lastUpdate": 1734004412180,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -2627,6 +2627,66 @@ window.BENCHMARK_DATA = {
             "name": "reachable",
             "value": 487,
             "range": "± 11",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "80641b539fbb8bbde4375c1be3b3285b9cbc690f",
+          "message": "Inline rook_reachable",
+          "timestamp": "2024-12-12T20:49:46+09:00",
+          "tree_id": "881c60b76157a5fdcc0bae6cf1af41dd09ba4b53",
+          "url": "https://github.com/ogiekako/fmrs/commit/80641b539fbb8bbde4375c1be3b3285b9cbc690f"
+        },
+        "date": 1734004411535,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4062,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 6968,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 509,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4015,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29105,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 424,
+            "range": "± 1",
             "unit": "ns/iter"
           }
         ]
