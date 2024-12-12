@@ -123,7 +123,7 @@ impl Kind {
         })
     }
     pub fn is_line_piece(&self) -> bool {
-        LINE_PIECE_MASK >> self.index() & 1 != 0
+        LINE_PIECE_MASK & 1 << self.index() != 0
     }
     pub fn is_hand_piece(&self) -> bool {
         matches!(self, Pawn | Lance | Knight | Silver | Gold | Bishop | Rook)
