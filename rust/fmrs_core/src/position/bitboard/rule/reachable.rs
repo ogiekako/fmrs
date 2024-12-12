@@ -24,9 +24,9 @@ pub fn reachable(
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
-        Kind::Rook => rook_reachable(occupied, pos),
+        Kind::Rook => magic::rook_reachable(occupied, pos),
         Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
-        Kind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
+        Kind::ProRook => king_power(pos) | magic::rook_reachable(occupied, pos),
         _ => unreachable!(),
     }
     .and_not(exclude)
@@ -47,19 +47,15 @@ fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> B
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
-        Kind::Rook => rook_reachable(occupied, pos),
+        Kind::Rook => magic::rook_reachable(occupied, pos),
         Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
-        Kind::ProRook => king_power(pos) | rook_reachable(occupied, pos),
+        Kind::ProRook => king_power(pos) | magic::rook_reachable(occupied, pos),
         Kind::Pawn => pawn_power(color, pos),
         Kind::Knight => knight_power(color, pos),
         Kind::Silver => silver_power(color, pos),
         Kind::King => king_power(pos),
         _ => gold_power(color, pos),
     }
-}
-
-fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    magic::rook_reachable(occupied, pos)
 }
 
 const UPPER: u64 = 0b1000000001000000001000000001000000001000000001000000001000000001;
