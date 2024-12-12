@@ -18,16 +18,20 @@ pub fn reachable(
         color_bb.white()
     };
     match kind {
-        Kind::Pawn => return pawn_power(color, pos).and_not(exclude),
-        Kind::Knight => return knight_power(color, pos).and_not(exclude),
-        Kind::Silver => return silver_power(color, pos).and_not(exclude),
+        Kind::Lance => lance_reachable(color_bb.both(), color, pos),
+        Kind::Bishop => magic::bishop_reachable(color_bb.both(), pos),
+        Kind::Rook => rook_reachable(color_bb.both(), pos),
+        Kind::ProBishop => king_power(pos) | magic::bishop_reachable(color_bb.both(), pos),
+        Kind::ProRook => king_power(pos) | rook_reachable(color_bb.both(), pos),
         Kind::Gold | Kind::ProPawn | Kind::ProLance | Kind::ProKnight | Kind::ProSilver => {
-            return gold_power(color, pos).and_not(exclude)
+            gold_power(color, pos)
         }
-        Kind::King => return king_power(pos).and_not(exclude),
-        _ => (),
+        Kind::Pawn => pawn_power(color, pos),
+        Kind::Knight => knight_power(color, pos),
+        Kind::Silver => silver_power(color, pos),
+        Kind::King => king_power(pos),
     }
-    reachable_sub(color_bb.both(), color, pos, kind).and_not(exclude)
+    .and_not(exclude)
 }
 
 pub fn reachable2(
