@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1733999270028,
+  "lastUpdate": 1734001401519,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -2447,6 +2447,66 @@ window.BENCHMARK_DATA = {
             "name": "reachable",
             "value": 473,
             "range": "± 1",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "c7083effedf71b2130cf3d501e8ce9bd7825bec5",
+          "message": "Use single magic to compute bishop reachability",
+          "timestamp": "2024-12-12T19:59:24+09:00",
+          "tree_id": "4ba71e62ec92b67ed34ca807990820605862f9f0",
+          "url": "https://github.com/ogiekako/fmrs/commit/c7083effedf71b2130cf3d501e8ce9bd7825bec5"
+        },
+        "date": 1734001400189,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4182,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 6935,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 535,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 3990,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29085,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 474,
+            "range": "± 0",
             "unit": "ns/iter"
           }
         ]
