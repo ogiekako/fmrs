@@ -6,24 +6,34 @@ use super::magic_core::MagicCore;
 
 #[derive(Clone)]
 pub(super) struct Magic {
+    use_63: bool,
     block_mask_63: u64,
+    block_mask: BitBoard,
     magic: MagicCore,
     table: Vec<BitBoard>,
 }
 
 impl Magic {
-    fn reachable(&self, occupied: BitBoard) -> BitBoard {
+    fn reachable63(&self, occupied: BitBoard) -> BitBoard {
+        debug_assert!(self.use_63);
         let block = self.block_mask_63 & one_to_eight(occupied);
+        self.table[self.magic.index(block) as usize]
+    }
+
+    fn reachable(&self, occupied: BitBoard) -> BitBoard {
+        debug_assert!(!self.use_63);
+        let block = (self.block_mask & occupied).digest();
         self.table[self.magic.index(block) as usize]
     }
 }
 
 pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    BISHOP_MAGIC[pos.index()].reachable(occupied)
+    BISHOP_MAGIC[pos.index()].reachable63(occupied)
 }
 
-pub(super) fn rook_reachable_row(occupied: BitBoard, pos: Square) -> BitBoard {
-    ROOK_MAGIC_ROW[pos.index()].reachable(occupied)
+pub(super) fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    ROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
+        | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
 }
 
 fn one_to_eight(bb: BitBoard) -> u64 {
@@ -34,25 +44,32 @@ lazy_static! {
     static ref BISHOP_MAGIC: Vec<Magic> = {
         let mut res = vec![];
         for pos in Square::iter() {
-            res.push(new_magic(pos, &[(-1, -1), (1, 1), (-1, 1), (1, -1)]).unwrap());
+            res.push(new_magic(pos, &[(-1, -1), (1, 1), (-1, 1), (1, -1)], true).unwrap());
         }
         res
     };
     static ref ROOK_MAGIC_ROW: Vec<Magic> = {
         let mut res = vec![];
         for pos in Square::iter() {
-            res.push(new_magic(pos, &[(-1, 0), (1, 0)]).unwrap());
+            res.push(new_magic(pos, &[(-1, 0), (1, 0)], true).unwrap());
+        }
+        res
+    };
+    static ref ROOK_MAGIC_COL: Vec<Magic> = {
+        let mut res = vec![];
+        for pos in Square::iter() {
+            res.push(new_magic(pos, &[(0, -1), (0, 1)], false).unwrap());
         }
         res
     };
 }
 
 struct Pattern {
-    block: u64,
+    block_digest: u64,
     reachable: BitBoard,
 }
 
-fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
+fn new_magic(pos: Square, dirs: &[(isize, isize)], use_63: bool) -> anyhow::Result<Magic> {
     let mut block_mask = BitBoard::empty();
     for (dc, dr) in dirs {
         for i in 1..9 {
@@ -82,8 +99,13 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
                     }
                 }
             }
+            let block_digest = if use_63 {
+                one_to_eight(block)
+            } else {
+                block.digest()
+            };
             Pattern {
-                block: one_to_eight(block),
+                block_digest,
                 reachable,
             }
         })
@@ -102,14 +124,16 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)]) -> anyhow::Result<Magic> {
     let mut targets = vec![vec![]; reachable_index.len()];
     for pattern in patterns.iter() {
         let i = reachable_index.get(&pattern.reachable.u128()).unwrap();
-        targets[*i].push(pattern.block);
+        targets[*i].push(pattern.block_digest);
     }
     let magic = MagicCore::new(&targets)?;
     let mut table = vec![BitBoard::empty(); magic.table_len()];
     for pattern in patterns.iter() {
-        table[magic.index(pattern.block) as usize] = pattern.reachable;
+        table[magic.index(pattern.block_digest) as usize] = pattern.reachable;
     }
     Ok(Magic {
+        use_63,
+        block_mask,
         block_mask_63,
         magic,
         table,
