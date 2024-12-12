@@ -51,7 +51,7 @@ impl<'a> Context<'a> {
     }
 
     fn reconstruct_white(&self, position: &mut Position, half_step: i32) -> anyhow::Result<()> {
-        debug_assert_eq!(position.turn(), Color::White);
+        debug_assert_eq!(position.turn(), Color::WHITE);
 
         if self.result.borrow().len() >= self.solutions_upto {
             return Ok(());
@@ -61,7 +61,7 @@ impl<'a> Context<'a> {
             let black_movement = position.undo_move(&black_undo);
             self.solution.borrow_mut().push(black_movement);
 
-            if position.checked_slow(Color::White) {
+            if position.checked_slow(Color::WHITE) {
                 // Do nothing
             } else if half_step == 0 {
                 if position.digest() == self.initial_position_digest {

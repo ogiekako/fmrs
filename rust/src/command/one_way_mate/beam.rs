@@ -156,7 +156,7 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
                     if allow_black_capture {
                         rng.gen()
                     } else {
-                        Color::White
+                        Color::WHITE
                     },
                 )
             }

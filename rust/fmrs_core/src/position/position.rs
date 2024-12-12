@@ -82,10 +82,10 @@ impl Position {
         self.kind_bb.bitboard(k, mask)
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
-        let color = if self.bitboard(Some(Color::Black), None).get(pos) {
-            Color::Black
-        } else if self.bitboard(Some(Color::White), None).get(pos) {
-            Color::White
+        let color = if self.bitboard(Some(Color::BLACK), None).get(pos) {
+            Color::BLACK
+        } else if self.bitboard(Some(Color::WHITE), None).get(pos) {
+            Color::WHITE
         } else {
             return None;
         };
@@ -141,12 +141,12 @@ mod tests {
     #[test]
     fn test_shift() {
         let mut position = Position::new();
-        position.set(Square::new(0, 0), Color::Black, Kind::Pawn);
+        position.set(Square::new(0, 0), Color::BLACK, Kind::Pawn);
         position.shift(Direction::Down);
 
         assert_eq!(position.digest(), {
             let mut position = Position::new();
-            position.set(Square::new(0, 1), Color::Black, Kind::Pawn);
+            position.set(Square::new(0, 1), Color::BLACK, Kind::Pawn);
             position.digest()
         });
     }

@@ -9,8 +9,8 @@ use crate::{
 
 fn color(color: Color) -> jkf::Color {
     match color {
-        Color::Black => jkf::Color::Black,
-        Color::White => jkf::Color::White,
+        Color::BLACK => jkf::Color::Black,
+        Color::WHITE => jkf::Color::White,
     }
 }
 
@@ -61,7 +61,7 @@ fn raw_kind(kind: Kind) -> Option<jkf::RawKind> {
 
 fn hands(hands: &Hands) -> Vec<BTreeMap<jkf::RawKind, usize>> {
     let mut res = vec![];
-    for color in [Color::Black, Color::White] {
+    for color in [Color::BLACK, Color::WHITE] {
         let mut map = BTreeMap::default();
         for k in hands.kinds(color) {
             map.insert(raw_kind(k).unwrap(), hands.count(color, k));

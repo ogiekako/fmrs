@@ -16,26 +16,26 @@ impl ColorBitBoard {
     }
     pub fn bitboard(&self, color: Color) -> BitBoard {
         match color {
-            Color::Black => self.0,
-            Color::White => self.1,
+            Color::BLACK => self.0,
+            Color::WHITE => self.1,
         }
     }
     pub fn set(&mut self, color: Color, pos: Square) {
         match color {
-            Color::Black => {
+            Color::BLACK => {
                 self.0.set(pos);
             }
-            Color::White => {
+            Color::WHITE => {
                 self.1.set(pos);
             }
         };
     }
     pub fn unset(&mut self, color: Color, pos: Square) {
         match color {
-            Color::Black => {
+            Color::BLACK => {
                 self.0.unset(pos);
             }
-            Color::White => {
+            Color::WHITE => {
                 self.1.unset(pos);
             }
         };

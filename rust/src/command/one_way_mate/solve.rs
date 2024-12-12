@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let mut position = position.clone();
-    if checked(&position, Color::White) {
+    if checked(&position, Color::WHITE) {
         return None;
     }
 
@@ -34,7 +34,7 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
             advance(&white_positions[0], &mut hashmap, step + 1, &options).ok()?;
 
         if is_mate && !white_positions[0].pawn_drop() {
-            if !white_positions[0].hands().is_empty(Color::Black) {
+            if !white_positions[0].hands().is_empty(Color::BLACK) {
                 return None;
             }
             return (step as usize).into();
@@ -94,7 +94,7 @@ mod tests {
                 0..=9 => return Action::Move(rng.gen(), rng.gen()),
                 10..=19 => return Action::Swap(rng.gen(), rng.gen()),
                 20..=29 => return Action::FromHand(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
-                30..=39 => return Action::ToHand(rng.gen(), Color::White),
+                30..=39 => return Action::ToHand(rng.gen(), Color::WHITE),
                 40..=49 => return Action::Shift(rng.gen()),
                 _ => (),
             }

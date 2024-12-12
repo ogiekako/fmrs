@@ -19,7 +19,7 @@ pub(super) fn advance(
     next_step: u32,
     options: &AdvanceOptions,
 ) -> anyhow::Result<Vec<Position>> {
-    debug_assert_eq!(position.turn(), Color::Black);
+    debug_assert_eq!(position.turn(), Color::BLACK);
     let mut ctx = Context::new(position, memo, next_step, options)?;
     ctx.advance()?;
     Ok(ctx.result)
@@ -57,24 +57,24 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
     ) -> anyhow::Result<Self> {
         let white_king_pos = if let Some(p) = position
-            .bitboard(Color::White.into(), Kind::King.into())
+            .bitboard(Color::WHITE.into(), Kind::King.into())
             .next()
         {
             p
         } else {
             bail!("No white king");
         };
-        let black_king_checked = common::checked(position, Color::Black);
+        let black_king_checked = common::checked(position, Color::BLACK);
 
         let pinned = position
-            .bitboard(Color::Black.into(), Kind::King.into())
+            .bitboard(Color::BLACK.into(), Kind::King.into())
             .next()
-            .map(|king_pos| pinned(position, Color::Black, king_pos, Color::Black))
+            .map(|king_pos| pinned(position, Color::BLACK, king_pos, Color::BLACK))
             .unwrap_or_else(Pinned::empty);
 
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard(Color::Black.into(), Kind::Pawn.into()) {
+            for pos in position.bitboard(Color::BLACK.into(), Kind::Pawn.into()) {
                 mask |= 1 << pos.col()
             }
             mask
@@ -97,7 +97,7 @@ impl<'a> Context<'a> {
         if self.black_king_checked {
             let black_king_pos = self
                 .position
-                .bitboard(Color::Black.into(), Kind::King.into())
+                .bitboard(Color::BLACK.into(), Kind::King.into())
                 .next()
                 .unwrap();
             self.result = attack_preventing_movements(
@@ -120,10 +120,10 @@ impl<'a> Context<'a> {
     }
 
     fn drops(&mut self) -> Result<()> {
-        for kind in self.position.hands().kinds(Color::Black) {
+        for kind in self.position.hands().kinds(Color::BLACK) {
             let empty_attack_squares = self
                 .attack_squares(kind)
-                .and_not(self.position.color_bb().bitboard(Color::White));
+                .and_not(self.position.color_bb().bitboard(Color::WHITE));
             for pos in empty_attack_squares {
                 self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
             }
@@ -142,7 +142,7 @@ impl<'a> Context<'a> {
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
-        for attacker_pos in lion_king_range & self.position.color_bb().bitboard(Color::Black) {
+        for attacker_pos in lion_king_range & self.position.color_bb().bitboard(Color::BLACK) {
             let attacker_source_kind = self.position.get(attacker_pos).unwrap().1;
             if attacker_source_kind == Kind::King
                 || attacker_source_kind == Kind::Knight
@@ -153,7 +153,7 @@ impl<'a> Context<'a> {
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
-                bitboard::power(Color::Black, attacker_pos, attacker_source_kind)
+                bitboard::power(Color::BLACK, attacker_pos, attacker_source_kind)
             };
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
@@ -192,7 +192,7 @@ impl<'a> Context<'a> {
         ] {
             let attackers = self
                 .position
-                .bitboard(Color::Black.into(), attacker_source_kind.into());
+                .bitboard(Color::BLACK.into(), attacker_source_kind.into());
             if attackers.is_empty() {
                 continue;
             }
@@ -215,7 +215,7 @@ impl<'a> Context<'a> {
                     } else {
                         bitboard::reachable(
                             self.position.color_bb(),
-                            Color::Black,
+                            Color::BLACK,
                             attacker_pos,
                             attacker_source_kind,
                             false,
@@ -242,16 +242,16 @@ impl<'a> Context<'a> {
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
-            Color::White,
+            Color::WHITE,
             self.white_king_pos,
-            Color::Black,
+            Color::BLACK,
         );
         for (blocker_pos, blocker_pinned_area) in blockers.iter() {
             let (blocker_pos, blocker_pinned_area) = (*blocker_pos, *blocker_pinned_area);
             let blocker_kind = self.position.get(blocker_pos).unwrap().1;
             let mut blocker_dest_cands = bitboard::reachable(
                 self.position.color_bb(),
-                Color::Black,
+                Color::BLACK,
                 blocker_pos,
                 blocker_kind,
                 false,
@@ -289,19 +289,19 @@ impl<'a> Context<'a> {
 // Helper
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
-        if !common::maybe_legal_movement(Color::Black, movement, kind, self.pawn_mask) {
+        if !common::maybe_legal_movement(Color::BLACK, movement, kind, self.pawn_mask) {
             return Ok(());
         }
 
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if kind == Kind::King && common::checked(&next_position, Color::Black) {
+        if kind == Kind::King && common::checked(&next_position, Color::BLACK) {
             return Ok(());
         }
 
         debug_assert!(
-            !common::checked(&next_position, Color::Black),
+            !common::checked(&next_position, Color::BLACK),
             "Black king checked: {:?}",
             next_position
         );
@@ -323,7 +323,7 @@ impl<'a> Context<'a> {
     fn attack_squares(&self, kind: Kind) -> BitBoard {
         bitboard::reachable(
             self.position.color_bb(),
-            Color::White,
+            Color::WHITE,
             self.white_king_pos,
             kind,
             true,
@@ -332,14 +332,14 @@ impl<'a> Context<'a> {
 }
 
 fn lion_king_power(pos: Square) -> BitBoard {
-    let mut res = bitboard::power(Color::Black, pos, Kind::King);
+    let mut res = bitboard::power(Color::BLACK, pos, Kind::King);
     for i in [-1, 1] {
         for j in [-1, 1] {
             let col = pos.col() as isize + i;
             let row = pos.row() as isize + j;
             if (0..9).contains(&col) && (0..9).contains(&row) {
                 res |= bitboard::power(
-                    Color::Black,
+                    Color::BLACK,
                     Square::new(col as usize, row as usize),
                     Kind::King,
                 );

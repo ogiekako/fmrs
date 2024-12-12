@@ -43,13 +43,16 @@ pub fn solve_with_progress(
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
 ) -> anyhow::Result<Vec<Solution>> {
-    if position.turn() != Black {
+    if position.turn() != Color::BLACK {
         anyhow::bail!("The turn should be from black");
     }
-    if position.checked_slow(White) {
+    if position.checked_slow(Color::WHITE) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
-    debug_assert_ne!(position.turn() == Black, position.checked_slow(White));
+    debug_assert_ne!(
+        position.turn() == Color::BLACK,
+        position.checked_slow(Color::WHITE)
+    );
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {

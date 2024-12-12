@@ -13,15 +13,15 @@ pub fn advance(
     options: &AdvanceOptions,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     match position.turn() {
-        Color::Black => black::advance(position, memo, next_step, options).map(|x| (x, false)),
-        Color::White => white::advance(position, memo, next_step, options),
+        Color::BLACK => black::advance(position, memo, next_step, options).map(|x| (x, false)),
+        Color::WHITE => white::advance(position, memo, next_step, options),
     }
 }
 
 pub fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
     match position.turn() {
-        Color::Black => black::advance_old(position),
-        Color::White => white::advance_old(position),
+        Color::BLACK => black::advance_old(position),
+        Color::WHITE => white::advance_old(position),
     }
 }
 

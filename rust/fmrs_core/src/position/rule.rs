@@ -4,8 +4,8 @@ use super::Square;
 
 pub(super) fn promotable(pos: Square, c: Color) -> bool {
     match c {
-        Color::Black => pos.row() < 3,
-        Color::White => pos.row() >= 6,
+        Color::BLACK => pos.row() < 3,
+        Color::WHITE => pos.row() >= 6,
     }
 }
 
@@ -33,7 +33,7 @@ pub(super) fn is_movable(color: Color, dest: Square, kind: Kind) -> bool {
         _ => return true,
     };
     match color {
-        Color::Black => dest.row() >= d,
-        Color::White => dest.row() < 9 - d,
+        Color::BLACK => dest.row() >= d,
+        Color::WHITE => dest.row() < 9 - d,
     }
 }

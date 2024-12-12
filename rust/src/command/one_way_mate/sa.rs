@@ -129,8 +129,8 @@ impl Generator {
                         self.rng.gen(),
                     )
                 }
-                20..=24 => return Action::ToHand(self.rng.gen(), Color::White),
-                30..=30 => return Action::ToHand(self.rng.gen(), Color::Black),
+                20..=24 => return Action::ToHand(self.rng.gen(), Color::WHITE),
+                30..=30 => return Action::ToHand(self.rng.gen(), Color::BLACK),
                 40..=49 => {
                     return Action::TwoActions(
                         Box::new(self.random_action()),

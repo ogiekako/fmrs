@@ -27,7 +27,7 @@ fn encode_piece(c: Color, mut k: Kind) -> String {
         King => 'K',
         _ => panic!("Unexpected piece {:?}", k),
     };
-    if c == White {
+    if c == Color::WHITE {
         ch = ch.to_lowercase().next().unwrap();
     }
     res.push(ch);
@@ -74,15 +74,15 @@ pub fn encode_position(board: &Position) -> String {
     res.push(' ');
 
     res.push(match board.turn() {
-        Black => 'b',
-        White => 'w',
+        Color::BLACK => 'b',
+        Color::WHITE => 'w',
     });
     res.push(' ');
 
     let mut has_hand = false;
     // The pieces are always listed in the order rook, bishop, gold, silver, knight, lance, pawn;
     // and with all black pieces before all white pieces.
-    for c in [Black, White].iter() {
+    for c in [Color::BLACK, Color::WHITE].iter() {
         let c = *c;
         for k in [Rook, Bishop, Gold, Silver, Knight, Lance, Pawn].iter() {
             let k = *k;
@@ -167,8 +167,8 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
     }
 
     match v[1] {
-        "b" => board.set_turn(Black),
-        "w" => board.set_turn(White),
+        "b" => board.set_turn(Color::BLACK),
+        "w" => board.set_turn(Color::WHITE),
         _ => bail!("Illegal turn string {}", v[1]),
     }
 
@@ -221,48 +221,48 @@ pub fn from_image_url(url: &str) -> anyhow::Result<String> {
 fn test_encode() {
     let mut board = Position::new();
 
-    board.set(Square::new(0, 0), White, Lance);
-    board.set(Square::new(3, 1), Black, Pawn);
-    board.set(Square::new(6, 1), Black, ProRook);
-    board.set(Square::new(7, 1), White, Lance);
-    board.set(Square::new(0, 2), White, Pawn);
-    board.set(Square::new(1, 2), White, Pawn);
-    board.set(Square::new(3, 2), Black, Gold);
-    board.set(Square::new(4, 2), Black, Bishop);
-    board.set(Square::new(5, 2), White, Pawn);
-    board.set(Square::new(8, 2), White, Pawn);
-    board.set(Square::new(4, 3), White, Pawn);
-    board.set(Square::new(6, 3), White, Silver);
-    board.set(Square::new(7, 3), White, Pawn);
-    board.set(Square::new(8, 3), White, King);
-    board.set(Square::new(2, 4), Black, Gold);
-    board.set(Square::new(5, 4), Black, Pawn);
-    board.set(Square::new(7, 4), White, Knight);
-    board.set(Square::new(8, 4), Black, Knight);
-    board.set(Square::new(0, 5), Black, Pawn);
-    board.set(Square::new(1, 5), Black, Pawn);
-    board.set(Square::new(4, 5), Black, Pawn);
-    board.set(Square::new(6, 5), Black, Pawn);
-    board.set(Square::new(8, 5), Black, Pawn);
-    board.set(Square::new(6, 6), Black, Silver);
-    board.set(Square::new(7, 6), Black, Pawn);
-    board.set(Square::new(1, 7), White, ProRook);
-    board.set(Square::new(5, 7), Black, Gold);
-    board.set(Square::new(6, 7), Black, Silver);
-    board.set(Square::new(7, 7), Black, King);
-    board.set(Square::new(0, 8), Black, Lance);
-    board.set(Square::new(4, 8), White, ProPawn);
-    board.set(Square::new(7, 8), Black, Knight);
-    board.set(Square::new(8, 8), Black, Lance);
-    board.hands_mut().add(Black, Silver);
-    board.hands_mut().add(White, Bishop);
-    board.hands_mut().add(White, Gold);
-    board.hands_mut().add(White, Knight);
-    board.hands_mut().add(White, Pawn);
-    board.hands_mut().add(White, Pawn);
-    board.hands_mut().add(White, Pawn);
+    board.set(Square::new(0, 0), Color::WHITE, Lance);
+    board.set(Square::new(3, 1), Color::BLACK, Pawn);
+    board.set(Square::new(6, 1), Color::BLACK, ProRook);
+    board.set(Square::new(7, 1), Color::WHITE, Lance);
+    board.set(Square::new(0, 2), Color::WHITE, Pawn);
+    board.set(Square::new(1, 2), Color::WHITE, Pawn);
+    board.set(Square::new(3, 2), Color::BLACK, Gold);
+    board.set(Square::new(4, 2), Color::BLACK, Bishop);
+    board.set(Square::new(5, 2), Color::WHITE, Pawn);
+    board.set(Square::new(8, 2), Color::WHITE, Pawn);
+    board.set(Square::new(4, 3), Color::WHITE, Pawn);
+    board.set(Square::new(6, 3), Color::WHITE, Silver);
+    board.set(Square::new(7, 3), Color::WHITE, Pawn);
+    board.set(Square::new(8, 3), Color::WHITE, King);
+    board.set(Square::new(2, 4), Color::BLACK, Gold);
+    board.set(Square::new(5, 4), Color::BLACK, Pawn);
+    board.set(Square::new(7, 4), Color::WHITE, Knight);
+    board.set(Square::new(8, 4), Color::BLACK, Knight);
+    board.set(Square::new(0, 5), Color::BLACK, Pawn);
+    board.set(Square::new(1, 5), Color::BLACK, Pawn);
+    board.set(Square::new(4, 5), Color::BLACK, Pawn);
+    board.set(Square::new(6, 5), Color::BLACK, Pawn);
+    board.set(Square::new(8, 5), Color::BLACK, Pawn);
+    board.set(Square::new(6, 6), Color::BLACK, Silver);
+    board.set(Square::new(7, 6), Color::BLACK, Pawn);
+    board.set(Square::new(1, 7), Color::WHITE, ProRook);
+    board.set(Square::new(5, 7), Color::BLACK, Gold);
+    board.set(Square::new(6, 7), Color::BLACK, Silver);
+    board.set(Square::new(7, 7), Color::BLACK, King);
+    board.set(Square::new(0, 8), Color::BLACK, Lance);
+    board.set(Square::new(4, 8), Color::WHITE, ProPawn);
+    board.set(Square::new(7, 8), Color::BLACK, Knight);
+    board.set(Square::new(8, 8), Color::BLACK, Lance);
+    board.hands_mut().add(Color::BLACK, Silver);
+    board.hands_mut().add(Color::WHITE, Bishop);
+    board.hands_mut().add(Color::WHITE, Gold);
+    board.hands_mut().add(Color::WHITE, Knight);
+    board.hands_mut().add(Color::WHITE, Pawn);
+    board.hands_mut().add(Color::WHITE, Pawn);
+    board.hands_mut().add(Color::WHITE, Pawn);
 
-    board.set_turn(White);
+    board.set_turn(Color::WHITE);
 
     assert_eq!(
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
@@ -357,7 +357,7 @@ pub fn decode_moves(sfen: &str) -> anyhow::Result<Vec<Movement>> {
 pub fn encode_move(m: &Movement) -> String {
     match m {
         Movement::Drop(pos, k) => {
-            format!("{}*{}", encode_piece(Color::Black, *k), encode_square(*pos))
+            format!("{}*{}", encode_piece(Color::BLACK, *k), encode_square(*pos))
         }
         Movement::Move {
             source: from,

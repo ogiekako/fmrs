@@ -152,7 +152,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::Silver)
+            super::power(Color::BLACK, Square::new(1, 2), Kind::Silver)
         );
         assert_eq!(
             bitboard!(
@@ -166,7 +166,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::White, Square::new(0, 0), Kind::Pawn)
+            super::power(Color::WHITE, Square::new(0, 0), Kind::Pawn)
         );
         assert_eq!(
             bitboard!(
@@ -180,7 +180,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::White, Square::new(0, 0), Kind::ProSilver)
+            super::power(Color::WHITE, Square::new(0, 0), Kind::ProSilver)
         );
         assert_eq!(
             bitboard!(
@@ -194,7 +194,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::King)
+            super::power(Color::BLACK, Square::new(1, 2), Kind::King)
         );
         assert_eq!(
             bitboard!(
@@ -208,7 +208,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::Black, Square::new(1, 2), Kind::ProRook)
+            super::power(Color::BLACK, Square::new(1, 2), Kind::ProRook)
         );
         assert_eq!(
             bitboard!(
@@ -222,7 +222,7 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::power(Color::Black, Square::new(0, 0), Kind::Rook)
+            super::power(Color::BLACK, Square::new(0, 0), Kind::Rook)
         );
         assert_eq!(
             bitboard!(
@@ -236,7 +236,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::White, Square::new(1, 2), Kind::Lance)
+            super::power(Color::WHITE, Square::new(1, 2), Kind::Lance)
         );
         assert_eq!(
             bitboard!(
@@ -250,7 +250,7 @@ mod tests {
                 "...*.....",
                 "..*......",
             ),
-            super::power(Color::White, Square::new(1, 3), Kind::Bishop)
+            super::power(Color::WHITE, Square::new(1, 3), Kind::Bishop)
         );
     }
 }

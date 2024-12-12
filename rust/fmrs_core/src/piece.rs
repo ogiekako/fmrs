@@ -1,40 +1,39 @@
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
-pub enum Color {
-    Black, // Moves first. e.g. Tsume kata.
-    White, // Uke kata.
+pub struct Color(bool);
+
+impl Color {
+    pub const BLACK: Color = Color(false);
+    pub const WHITE: Color = Color(true);
 }
+
 use rand::prelude::Distribution;
-pub use Color::*;
 
 impl Color {
     pub fn index(&self) -> usize {
-        *self as usize
+        self.0 as usize
     }
     pub fn iter() -> impl Iterator<Item = Color> {
-        [Black, White].iter().copied()
+        [Color::BLACK, Color::WHITE].iter().copied()
     }
-    pub fn opposite(&self) -> Color {
-        match self {
-            Black => White,
-            White => Black,
-        }
+    pub fn opposite(self) -> Color {
+        Color(!self.0)
     }
 }
 
 impl Distribution<Color> for rand::distributions::Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Color {
         if rng.gen() {
-            Black
+            Color::BLACK
         } else {
-            White
+            Color::WHITE
         }
     }
 }
 
 #[test]
 fn test_color_index() {
-    assert_eq!(Black.index(), 0);
-    assert_eq!(White.index(), 1);
+    assert_eq!(Color::BLACK.index(), 0);
+    assert_eq!(Color::WHITE.index(), 1);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

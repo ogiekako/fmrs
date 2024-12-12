@@ -25,8 +25,8 @@ struct Context {
 impl Context {
     fn new(position: Position, allow_drop_pawn: bool) -> Self {
         let turn = position.turn();
-        let black_pieces = position.bitboard(Color::Black.into(), None);
-        let white_pieces = position.bitboard(Color::White.into(), None);
+        let black_pieces = position.bitboard(Color::BLACK.into(), None);
+        let white_pieces = position.bitboard(Color::WHITE.into(), None);
         Self {
             position,
             allow_drop_pawn,

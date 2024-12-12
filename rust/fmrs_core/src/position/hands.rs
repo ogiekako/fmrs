@@ -64,7 +64,7 @@ impl Hands {
         } else {
             k.index() * 4 + 3
         };
-        if c == Color::White {
+        if c == Color::WHITE {
             i + 32
         } else {
             i
@@ -74,7 +74,7 @@ impl Hands {
         1 << (Hands::shift_of(c, k) as u64)
     }
     pub fn set_turn(&mut self, c: Color) {
-        if c == Color::Black {
+        if c == Color::BLACK {
             self.x &= !(1 << 31);
         } else {
             self.x |= 1 << 31;
@@ -82,9 +82,9 @@ impl Hands {
     }
     pub fn turn(&self) -> Color {
         if self.x >> 31 & 1 > 0 {
-            Color::White
+            Color::WHITE
         } else {
-            Color::Black
+            Color::BLACK
         }
     }
 
