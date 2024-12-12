@@ -128,4 +128,7 @@ impl Kind {
     pub fn is_hand_piece(&self) -> bool {
         matches!(self, Pawn | Lance | Knight | Silver | Gold | Bishop | Rook)
     }
+    pub fn is_promotable(&self) -> bool {
+        matches!(self, Pawn | Lance | Knight | Silver | Bishop | Rook)
+    }
 }

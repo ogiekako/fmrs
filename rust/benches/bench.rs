@@ -66,7 +66,7 @@ fn bench_oneway(c: &mut Criterion) {
 fn bench_reachable(c: &mut Criterion) {
     let mut test_cases = vec![];
     let mut rng = SmallRng::seed_from_u64(20241211182711);
-    for _ in 0..100 {
+    for _ in 0..300 {
         let mut position = Position::new();
 
         let hand_prob = rng.gen_range(0.0..0.7);
@@ -81,7 +81,7 @@ fn bench_reachable(c: &mut Criterion) {
             let c: Color = rng.gen();
             let k = Kind::from_index(i);
 
-            if rng.gen_bool(hand_prob) {
+            if rng.gen_bool(hand_prob) && k.is_hand_piece() {
                 position.hands_mut().add(c, k);
                 pieces[i] -= 1;
                 remaining -= 1;
@@ -91,7 +91,11 @@ fn bench_reachable(c: &mut Criterion) {
             if position.get(pos).is_some() {
                 continue;
             }
-            position.set(pos, c, k);
+            if rng.gen() && k.is_promotable() {
+                position.set(pos, c, k.promote().unwrap());
+            } else {
+                position.set(pos, c, k);
+            }
             pieces[i] -= 1;
             remaining -= 1;
             pos_list.push(pos);
@@ -123,7 +127,7 @@ criterion_group!(
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
-    config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
+    config = Criterion::default().with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable
 );
 criterion_main!(benches);

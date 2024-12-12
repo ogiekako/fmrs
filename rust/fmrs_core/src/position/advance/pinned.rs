@@ -8,7 +8,7 @@ use crate::{
 
 // pinned piece and its movable positions (capturing included) pairs.
 #[derive(Debug)]
-pub(super) struct Pinned {
+pub struct Pinned {
     mask: BitBoard,
     pinned_area: Vec<(Square, BitBoard)>,
 }
@@ -48,7 +48,7 @@ impl Pinned {
     }
 }
 
-pub(super) fn pinned(
+pub fn pinned(
     position: &Position,
     king_color: Color,
     king_pos: Square,
