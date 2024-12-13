@@ -3,7 +3,7 @@ use crate::{
     position::bitboard::{BitBoard, ColorBitBoard, Square},
 };
 
-use super::{gold_power, king_power, knight_power, magic, pawn_power, power, silver_power};
+use super::{magic, power};
 
 pub fn reachable(
     color_bb: &ColorBitBoard,
@@ -39,23 +39,19 @@ pub fn reachable2(
     pos: Square,
     kind: Kind,
 ) -> BitBoard {
-    let mask = reachable_sub(capturable | uncapturable, color, pos, kind);
-    mask.and_not(uncapturable)
-}
-
-fn reachable_sub(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
+    if !kind.is_line_piece() {
+        return power(color, pos, kind).and_not(uncapturable);
+    }
+    let occupied = capturable | uncapturable;
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => magic::rook_reachable(occupied, pos),
         Kind::ProBishop => magic::probishop_reachable(occupied, pos),
         Kind::ProRook => magic::prorook_reachable(occupied, pos),
-        Kind::Pawn => pawn_power(color, pos),
-        Kind::Knight => knight_power(color, pos),
-        Kind::Silver => silver_power(color, pos),
-        Kind::King => king_power(pos),
-        _ => gold_power(color, pos),
+        _ => unreachable!(),
     }
+    .and_not(uncapturable)
 }
 
 const UPPER: u64 = 0b1000000001000000001000000001000000001000000001000000001000000001;
