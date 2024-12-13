@@ -108,7 +108,15 @@ impl Kind {
     }
 
     pub fn maybe_unpromote(self) -> Kind {
-        self.unpromote().unwrap_or(self)
+        match self {
+            ProPawn => Pawn,
+            ProLance => Lance,
+            ProKnight => Knight,
+            ProSilver => Silver,
+            ProBishop => Bishop,
+            ProRook => Rook,
+            _ => self,
+        }
     }
 
     pub fn unpromote(self) -> Option<Kind> {
