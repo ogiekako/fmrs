@@ -138,6 +138,10 @@ impl BitBoard {
     pub(super) fn u128(&self) -> u128 {
         self.0
     }
+    pub fn singleton(&self) -> Square {
+        debug_assert!(self.0.count_ones() == 1);
+        Square::from_index(self.0.trailing_zeros() as usize)
+    }
     // Assumes self is not empty.
     fn pop(&mut self) -> Square {
         debug_assert!(!self.is_empty());

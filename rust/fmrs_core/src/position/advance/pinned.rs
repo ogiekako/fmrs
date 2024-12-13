@@ -1,7 +1,7 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{self, lance_reachable, reachable, reachable_sub, BitBoard, ColorBitBoard},
+        bitboard::{self, lance_power, lance_reachable, reachable, BitBoard, ColorBitBoard},
         Position, Square,
     },
 };
@@ -52,8 +52,6 @@ pub fn pinned(
     blocker_color: Color,
 ) -> Pinned {
     debug_assert!(position.get(king_pos).unwrap() == (king_color, Kind::King));
-
-    let capture_same_color_from_king = king_color == blocker_color;
 
     let attacker_color = king_color.opposite();
     let capture_same_color_from_attacker = attacker_color == blocker_color;
@@ -148,27 +146,37 @@ fn lance_pinned(
     let attacker_color = king_color.opposite();
     let color_bb = position.color_bb();
 
-    let lances = position.bitboard(attacker_color.into(), Kind::Lance.into());
+    let lances = position.bitboard2(attacker_color, Kind::Lance);
+    if lances.is_empty() {
+        return None;
+    }
+
+    let power = lance_power(king_color, king_pos);
+    let lances = lances & power;
     if lances.is_empty() {
         return None;
     }
 
     let occupied = color_bb.both();
 
-    let king_seeing = lance_reachable(occupied, king_color, king_pos);
+    let king_seeing =
+        lance_reachable(occupied, king_color, king_pos) & color_bb.bitboard(blocker_color);
 
-    if let Some(blocker_pos) = (king_seeing & color_bb.bitboard(blocker_color)).next() {
-        let blocker_seeing = lance_reachable(occupied, king_color, blocker_pos);
-        if let Some(lance_pos) = (blocker_seeing & color_bb.bitboard(king_color.opposite())).next()
-        {
-            // TODO: check kind only
-            if position.get(lance_pos) == Some((king_color.opposite(), Kind::Lance)) {
-                let blocker_kind = position.get(blocker_pos).unwrap().1;
-                let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
-                    & (king_seeing | blocker_seeing);
-                return Some((blocker_pos, reach));
-            }
-        }
+    if king_seeing.is_empty() {
+        return None;
     }
-    None
+
+    let blocker_pos = king_seeing.singleton();
+    let blocker_seeing_lance = lance_reachable(occupied, king_color, blocker_pos)
+        & color_bb.bitboard(attacker_color)
+        & lances;
+
+    if blocker_seeing_lance.is_empty() {
+        return None;
+    }
+
+    let blocker_kind = position.get(blocker_pos).unwrap().1;
+    let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power;
+
+    Some((blocker_pos, reach))
 }

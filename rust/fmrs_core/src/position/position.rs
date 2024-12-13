@@ -81,6 +81,13 @@ impl Position {
         let k = if let Some(k) = kind { k } else { return mask };
         self.kind_bb.bitboard(k, mask)
     }
+    pub fn bitboard2(&self, color: Color, kind: Kind) -> BitBoard {
+        let mask = self.color_bb.bitboard(color);
+        self.kind_bb.bitboard(kind, mask)
+    }
+    pub fn kind_bb(&self) -> &KindBitBoard {
+        &self.kind_bb
+    }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let color = if self.color_bb().bitboard(Color::BLACK).get(pos) {
             Color::BLACK
