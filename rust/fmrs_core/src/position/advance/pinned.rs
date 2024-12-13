@@ -2,8 +2,7 @@ use crate::{
     piece::{Color, Kind},
     position::{
         bitboard::{
-            self, bishop_power, lance_power, lance_reachable, magic, reachable, BitBoard,
-            ColorBitBoard,
+            bishop_power, lance_power, lance_reachable, magic, reachable, rook_power, BitBoard,
         },
         Position, Square,
     },
@@ -56,123 +55,96 @@ pub fn pinned(
 ) -> Pinned {
     debug_assert!(position.get(king_pos).unwrap() == (king_color, Kind::King));
 
-    let attacker_color = king_color.opposite();
-    let capture_same_color_from_attacker = attacker_color == blocker_color;
-
     let mut res = vec![];
 
+    lance_pinned(position, king_color, king_pos, blocker_color, &mut res);
+    bishop_pinned(position, king_color, king_pos, blocker_color, &mut res);
+    rook_pinned(position, king_color, king_pos, blocker_color, &mut res);
+    Pinned::new(res)
+}
+
+fn bishop_pinned(
+    position: &Position,
+    king_color: Color,
+    king_pos: Square,
+    blocker_color: Color,
+    res: &mut Vec<(Square, BitBoard)>,
+) {
     let color_bb = position.color_bb();
+    let attacker_color = king_color.opposite();
+
+    let power_from_king = bishop_power(king_pos);
+    let mut potential_attackers =
+        position.kind_bb().bishopish() & color_bb.bitboard(attacker_color) & power_from_king;
+    if potential_attackers.is_empty() {
+        return;
+    }
+
     let both = color_bb.both();
 
-    // Lance
-    if let Some(e) = lance_pinned(position, king_color, king_pos, blocker_color) {
-        res.push(e);
+    let reachable_from_king = magic::bishop_reachable(both, king_pos);
+
+    potential_attackers = potential_attackers.and_not(reachable_from_king);
+
+    for attacker_pos in potential_attackers {
+        let power_from_attacker = bishop_power(attacker_pos);
+
+        let block = reachable_from_king
+            & magic::bishop_reachable(both, attacker_pos)
+            & color_bb.bitboard(blocker_color);
+        if block.is_empty() {
+            continue;
+        }
+        let blocker_pos = block.singleton();
+
+        let blocker_kind = position.get(blocker_pos).unwrap().1;
+        let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
+            & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
+
+        res.push((blocker_pos, reach));
+    }
+}
+
+fn rook_pinned(
+    position: &Position,
+    king_color: Color,
+    king_pos: Square,
+    blocker_color: Color,
+    res: &mut Vec<(Square, BitBoard)>,
+) {
+    let color_bb = position.color_bb();
+    let attacker_color = king_color.opposite();
+
+    let power_from_king = rook_power(king_pos);
+    let mut potential_attackers =
+        position.kind_bb().rookish() & color_bb.bitboard(attacker_color) & power_from_king;
+    if potential_attackers.is_empty() {
+        return;
     }
 
-    // Bishop
-    loop {
-        let power_from_king = bishop_power(king_pos);
-        let mut potential_attackers =
-            position.kind_bb().bishopish() & color_bb.bitboard(attacker_color) & power_from_king;
-        if potential_attackers.is_empty() {
-            break;
+    let both = color_bb.both();
+
+    let reachable_from_king = magic::rook_reachable(both, king_pos);
+
+    potential_attackers = potential_attackers.and_not(reachable_from_king);
+
+    for attacker_pos in potential_attackers {
+        let power_from_attacker = rook_power(attacker_pos);
+
+        let block = reachable_from_king
+            & magic::rook_reachable(both, attacker_pos)
+            & color_bb.bitboard(blocker_color);
+        if block.is_empty() {
+            continue;
         }
-        let reachable_from_king = magic::bishop_reachable(both, king_pos);
+        let blocker_pos = block.singleton();
 
-        potential_attackers = potential_attackers.and_not(reachable_from_king);
+        let blocker_kind = position.get(blocker_pos).unwrap().1;
+        let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
+            & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
 
-        for attacker_pos in potential_attackers {
-            let power_from_attacker = bishop_power(attacker_pos);
-
-            let block = reachable_from_king
-                & magic::bishop_reachable(both, attacker_pos)
-                & color_bb.bitboard(blocker_color);
-            if block.is_empty() {
-                continue;
-            }
-            let blocker_pos = block.singleton();
-
-            let blocker_kind = position.get(blocker_pos).unwrap().1;
-            let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
-                & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
-
-            res.push((blocker_pos, reach));
-        }
-
-        break;
+        res.push((blocker_pos, reach));
     }
-
-    for attacker_kind in [Kind::Rook] {
-        let power_from_king = bitboard::power(king_color, king_pos, attacker_kind);
-
-        let potential_attackers = if attacker_kind == Kind::Bishop {
-            position.kind_bb().bishopish()
-        } else {
-            position.kind_bb().rookish()
-        } & color_bb.bitboard(attacker_color)
-            & power_from_king;
-
-        if potential_attackers.is_empty() {
-            continue;
-        }
-        let king_seeing =
-            bitboard::reachable_sub(&color_bb, king_color, king_pos, attacker_kind) & both;
-        if king_seeing.is_empty() {
-            continue;
-        }
-        let king_seeing_blockers = king_seeing & color_bb.bitboard(blocker_color);
-        if king_seeing_blockers.is_empty() {
-            continue;
-        }
-
-        let updated_color_bb = match blocker_color {
-            Color::BLACK => {
-                ColorBitBoard::new(color_bb.black().and_not(king_seeing), color_bb.white())
-            }
-            Color::WHITE => {
-                ColorBitBoard::new(color_bb.black(), color_bb.white().and_not(king_seeing))
-            }
-        };
-
-        let attackers = (reachable(
-            &updated_color_bb,
-            king_color,
-            king_pos,
-            attacker_kind,
-            false,
-        ) & potential_attackers)
-            .and_not(king_seeing);
-        if attackers.is_empty() {
-            continue;
-        }
-
-        for attacker_pos in attackers {
-            let attacker_within_reach = bitboard::reachable(
-                color_bb,
-                attacker_color,
-                attacker_pos,
-                attacker_kind,
-                capture_same_color_from_attacker,
-            );
-            let pinned_pos = {
-                let mut pinned = king_seeing & attacker_within_reach;
-                pinned.next().unwrap()
-            };
-            let pinned_kind = position.get(pinned_pos).unwrap().1;
-            let pinned_reachable = bitboard::reachable(
-                position.color_bb(),
-                blocker_color,
-                pinned_pos,
-                pinned_kind,
-                false,
-            );
-            let mut same_line = bitboard::power(king_color, king_pos, attacker_kind)
-                & bitboard::power(attacker_color, attacker_pos, attacker_kind);
-            same_line.set(attacker_pos);
-            res.push((pinned_pos, pinned_reachable & same_line))
-        }
-    }
-    Pinned::new(res)
 }
 
 // #[inline(never)]
@@ -181,19 +153,20 @@ fn lance_pinned(
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
-) -> Option<(Square, BitBoard)> {
+    res: &mut Vec<(Square, BitBoard)>,
+) {
     let attacker_color = king_color.opposite();
     let color_bb = position.color_bb();
 
     let lances = position.bitboard(attacker_color, Kind::Lance);
     if lances.is_empty() {
-        return None;
+        return;
     }
 
     let power = lance_power(king_color, king_pos);
     let lances = lances & power;
     if lances.is_empty() {
-        return None;
+        return;
     }
 
     let occupied = color_bb.both();
@@ -202,7 +175,7 @@ fn lance_pinned(
         lance_reachable(occupied, king_color, king_pos) & color_bb.bitboard(blocker_color);
 
     if king_seeing.is_empty() {
-        return None;
+        return;
     }
 
     let blocker_pos = king_seeing.singleton();
@@ -211,11 +184,11 @@ fn lance_pinned(
         & lances;
 
     if blocker_seeing_lance.is_empty() {
-        return None;
+        return;
     }
 
     let blocker_kind = position.get(blocker_pos).unwrap().1;
     let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power;
 
-    Some((blocker_pos, reach))
+    res.push((blocker_pos, reach));
 }
