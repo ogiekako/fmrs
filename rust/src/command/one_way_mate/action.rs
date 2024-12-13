@@ -54,6 +54,9 @@ impl Action {
                 Ok(Action::Swap(a, b))
             }
             Action::FromHand(hand_color, pos, color, kind) => {
+                if kind == Kind::King {
+                    bail!("cannot drop king");
+                }
                 if position.get(pos).is_some() {
                     bail!("to is not empty");
                 }

@@ -25,6 +25,15 @@ impl Default for Hands {
     }
 }
 
+const BLACK_MASK: u64 = 0x7FFF_FFFF;
+const WHITE_MASK: u64 = 0x7FFF_FFFF << 32;
+const TURN_FLAG: u64 = 1 << 31;
+const PAWN_DROP_FLAG: u64 = 1 << 63;
+
+const SHIFTS: [u64; 2 * 8] = [
+    0, 7, 11, 15, 19, 23, 27, /* dummy */ 0, 32, 39, 43, 47, 51, 55, 59, /* dummy */ 0,
+];
+
 impl Hands {
     pub fn new() -> Hands {
         Hands { x: 0 }
@@ -39,9 +48,6 @@ impl Hands {
         }
     }
     pub fn count(&self, c: Color, k: Kind) -> usize {
-        if k == Kind::King {
-            return 0;
-        }
         debug_assert!(k.is_hand_piece());
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
@@ -58,30 +64,24 @@ impl Hands {
             .iter()
             .filter_map(move |&k| if self.count(c, k) > 0 { Some(k) } else { None })
     }
-    fn shift_of(c: Color, k: Kind) -> usize {
-        let i = if k == Kind::Pawn {
-            0
-        } else {
-            k.index() * 4 + 3
-        };
-        if c == Color::WHITE {
-            i + 32
-        } else {
-            i
-        }
+
+    fn shift_of(c: Color, k: Kind) -> u64 {
+        SHIFTS[c.index() << 3 | k.index()]
     }
+
     fn bit_of(c: Color, k: Kind) -> u64 {
-        1 << (Hands::shift_of(c, k) as u64)
+        1 << Hands::shift_of(c, k)
     }
+
     pub fn set_turn(&mut self, c: Color) {
         if c == Color::BLACK {
-            self.x &= !(1 << 31);
+            self.x &= !TURN_FLAG;
         } else {
-            self.x |= 1 << 31;
+            self.x |= TURN_FLAG;
         }
     }
     pub fn turn(&self) -> Color {
-        if self.x >> 31 & 1 > 0 {
+        if self.x & TURN_FLAG != 0 {
             Color::WHITE
         } else {
             Color::BLACK
@@ -90,18 +90,21 @@ impl Hands {
 
     pub fn set_pawn_drop(&mut self, x: bool) {
         if x {
-            self.x |= 1 << 63;
+            self.x |= PAWN_DROP_FLAG;
         } else {
-            self.x &= !(1 << 63);
+            self.x &= !PAWN_DROP_FLAG;
         }
     }
+
     pub fn pawn_drop(&self) -> bool {
-        self.x >> 63 & 1 > 0
+        self.x & PAWN_DROP_FLAG != 0
     }
 
     pub fn is_empty(&self, c: Color) -> bool {
-        KINDS[0..NUM_HAND_KIND]
-            .iter()
-            .all(|&k| self.count(c, k) == 0)
+        if c.is_white() {
+            self.x & WHITE_MASK == 0
+        } else {
+            self.x & BLACK_MASK == 0
+        }
     }
 }
