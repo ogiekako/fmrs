@@ -3,7 +3,7 @@ mod attack_prevent;
 mod black;
 mod common;
 mod options;
-mod pinned;
+pub mod pinned;
 mod white;
 
 pub use advance::advance;

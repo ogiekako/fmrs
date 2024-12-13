@@ -1,4 +1,4 @@
-mod advance;
+pub mod advance;
 pub mod bitboard;
 mod hands;
 mod movement;

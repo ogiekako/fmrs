@@ -20,13 +20,10 @@ impl Pinned {
             pinned_area: vec![],
         }
     }
-    fn new(pinned_areaa: Vec<(Square, BitBoard)>) -> Self {
+    fn new(pinned_area: Vec<(Square, BitBoard)>) -> Self {
         let mut mask = BitBoard::empty();
-        pinned_areaa.iter().for_each(|(x, _)| mask.set(*x));
-        Self {
-            mask,
-            pinned_area: pinned_areaa,
-        }
+        pinned_area.iter().for_each(|(x, _)| mask.set(*x));
+        Self { mask, pinned_area }
     }
     pub fn is_pinned(&self, pos: Square) -> bool {
         self.mask.get(pos)
@@ -54,13 +51,15 @@ pub fn pinned(
     king_pos: Square,
     blocker_color: Color,
 ) -> Pinned {
+    let capture_same_color_from_king = king_color == blocker_color;
+    let attacker_color = king_color.opposite();
+    let capture_same_color_from_attacker = attacker_color == blocker_color;
+
     let mut res = vec![];
 
     let attacker_color = king_color.opposite();
-    let (blocker_color_pieces, non_blocker_color_pieces) = (
-        position.color_bb().bitboard(blocker_color),
-        position.color_bb().bitboard(blocker_color.opposite()),
-    );
+
+    let color_bb = position.color_bb();
 
     for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
@@ -73,20 +72,20 @@ pub fn pinned(
         if attackers.is_empty() {
             continue;
         }
-        let king_seeing = bitboard::reachable2(
-            blocker_color_pieces,
-            non_blocker_color_pieces,
+        let king_seeing = bitboard::reachable(
+            color_bb,
             king_color,
             king_pos,
             attacker_kind,
+            capture_same_color_from_king,
         );
         for attacker_pos in attackers {
-            let attacker_within_reach = bitboard::reachable2(
-                blocker_color_pieces,
-                non_blocker_color_pieces,
+            let attacker_within_reach = bitboard::reachable(
+                color_bb,
                 attacker_color,
                 attacker_pos,
                 attacker_kind,
+                capture_same_color_from_attacker,
             );
             if attacker_within_reach.get(king_pos) {
                 continue;

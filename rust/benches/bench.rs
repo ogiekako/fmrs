@@ -1,8 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fmrs::one_way_mate_steps;
 use fmrs_core::piece::{Color, Kind};
+use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
-use fmrs_core::position::{advance_old, Position, Square};
+use fmrs_core::position::{advance_old, checked, Position, Square};
 use fmrs_core::sfen::decode_position;
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
@@ -63,16 +64,15 @@ fn bench_oneway(c: &mut Criterion) {
     });
 }
 
-fn bench_reachable(c: &mut Criterion) {
-    let mut test_cases = vec![];
-    let mut rng = SmallRng::seed_from_u64(20241211182711);
-    for _ in 0..300 {
+fn random_positions(rng: &mut SmallRng, len: usize) -> Vec<Position> {
+    let mut positions = vec![];
+    for _ in 0..len {
         let mut position = Position::new();
 
         let hand_prob = rng.gen_range(0.0..0.7);
         let mut pieces = vec![18, 4, 4, 4, 4, 2, 2, 2];
         let mut remaining = 40;
-        let mut pos_list = vec![];
+        let mut put_king_color = None;
         while remaining > 0 {
             let i = rng.gen_range(0..pieces.len());
             if pieces[i] == 0 {
@@ -91,6 +91,14 @@ fn bench_reachable(c: &mut Criterion) {
             if position.get(pos).is_some() {
                 continue;
             }
+            if k == Kind::King {
+                if put_king_color == Some(c) {
+                    continue;
+                } else if put_king_color.is_none() {
+                    put_king_color = Some(c);
+                }
+            }
+
             if rng.gen() && k.is_promotable() {
                 position.set(pos, c, k.promote().unwrap());
             } else {
@@ -98,13 +106,27 @@ fn bench_reachable(c: &mut Criterion) {
             }
             pieces[i] -= 1;
             remaining -= 1;
-            pos_list.push(pos);
         }
-        let pos = pos_list[rng.gen_range(0..pos_list.len())];
-        let (color, kind) = position.get(pos).unwrap();
+        positions.push(position);
+    }
+    positions
+}
+
+fn bench_reachable(c: &mut Criterion) {
+    let mut rng = SmallRng::seed_from_u64(20241211182711);
+    let positions = random_positions(&mut rng, 300);
+    let mut test_cases = vec![];
+    for position in positions {
+        let (color, pos, kind) = loop {
+            let pos: Square = rng.gen();
+            if let Some((color, kind)) = position.get(pos) {
+                break (color, pos, kind);
+            }
+        };
         let capture_same_color: bool = rng.gen();
         test_cases.push((position, color, pos, kind, capture_same_color));
     }
+
     c.bench_function("reachable", |b| {
         b.iter(|| {
             test_cases
@@ -123,12 +145,48 @@ fn bench_reachable(c: &mut Criterion) {
     });
 }
 
+fn bench_pinned300(c: &mut Criterion) {
+    let mut rng = SmallRng::seed_from_u64(202412131444);
+    let positions = random_positions(&mut rng, 700);
+
+    let mut test_cases = vec![];
+    for position in positions {
+        let king_color: Color = rng.gen();
+
+        if checked(&position, king_color) {
+            continue;
+        }
+
+        let king_pos = position
+            .bitboard(king_color.into(), Kind::King.into())
+            .next()
+            .unwrap();
+        let blocker_color: Color = rng.gen();
+        test_cases.push((position, king_color, king_pos, blocker_color));
+        if test_cases.len() >= 300 {
+            break;
+        }
+    }
+    assert_eq!(300, test_cases.len());
+
+    c.bench_function("pinned300", |b| {
+        b.iter(|| {
+            test_cases
+                .iter()
+                .for_each(|(position, king_color, king_pos, blocker_color)| {
+                    let pinned = pinned(position, *king_color, *king_pos, *blocker_color);
+                    black_box(pinned);
+                })
+        })
+    });
+}
+
 criterion_group!(
     name = benches;
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300
 );
 criterion_main!(benches);
