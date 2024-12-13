@@ -139,7 +139,7 @@ pub fn pinned(
     Pinned::new(res)
 }
 
-#[inline(never)]
+// #[inline(never)]
 fn lance_pinned(
     position: &Position,
     king_color: Color,
