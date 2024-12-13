@@ -31,8 +31,17 @@ pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     BISHOP_MAGIC[pos.index()].reachable63(occupied)
 }
 
+pub(super) fn probishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    PROBISHOP_MAGIC[pos.index()].reachable63(occupied)
+}
+
 pub(super) fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     ROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
+        | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
+}
+
+pub(super) fn prorook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    PROROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
         | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
 }
 
@@ -44,21 +53,35 @@ lazy_static! {
     static ref BISHOP_MAGIC: Vec<Magic> = {
         let mut res = vec![];
         for pos in Square::iter() {
-            res.push(new_magic(pos, &[(-1, -1), (1, 1), (-1, 1), (1, -1)], true).unwrap());
+            res.push(new_magic(pos, &[(-1, -1), (1, 1), (-1, 1), (1, -1)], true, false).unwrap());
+        }
+        res
+    };
+    static ref PROBISHOP_MAGIC: Vec<Magic> = {
+        let mut res = vec![];
+        for pos in Square::iter() {
+            res.push(new_magic(pos, &[(-1, -1), (1, 1), (-1, 1), (1, -1)], true, true).unwrap());
         }
         res
     };
     static ref ROOK_MAGIC_ROW: Vec<Magic> = {
         let mut res = vec![];
         for pos in Square::iter() {
-            res.push(new_magic(pos, &[(-1, 0), (1, 0)], true).unwrap());
+            res.push(new_magic(pos, &[(-1, 0), (1, 0)], true, false).unwrap());
+        }
+        res
+    };
+    static ref PROROOK_MAGIC_ROW: Vec<Magic> = {
+        let mut res = vec![];
+        for pos in Square::iter() {
+            res.push(new_magic(pos, &[(-1, 0), (1, 0)], true, true).unwrap());
         }
         res
     };
     static ref ROOK_MAGIC_COL: Vec<Magic> = {
         let mut res = vec![];
         for pos in Square::iter() {
-            res.push(new_magic(pos, &[(0, -1), (0, 1)], false).unwrap());
+            res.push(new_magic(pos, &[(0, -1), (0, 1)], false, false).unwrap());
         }
         res
     };
@@ -69,7 +92,12 @@ struct Pattern {
     reachable: BitBoard,
 }
 
-fn new_magic(pos: Square, dirs: &[(isize, isize)], use_63: bool) -> anyhow::Result<Magic> {
+fn new_magic(
+    pos: Square,
+    dirs: &[(isize, isize)],
+    use_63: bool,
+    with_king: bool,
+) -> anyhow::Result<Magic> {
     let mut block_mask = BitBoard::empty();
     for (dc, dr) in dirs {
         for i in 1..9 {
@@ -104,6 +132,9 @@ fn new_magic(pos: Square, dirs: &[(isize, isize)], use_63: bool) -> anyhow::Resu
             } else {
                 block.digest()
             };
+            if with_king {
+                reachable |= super::king_power(pos);
+            }
             Pattern {
                 block_digest,
                 reachable,
