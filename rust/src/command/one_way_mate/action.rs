@@ -68,7 +68,7 @@ impl Action {
             }
             Action::ToHand(pos, hand_color) => {
                 if let Some((color, kind)) = position.get(pos) {
-                    if kind == Kind::KING {
+                    if kind == Kind::King {
                         bail!("cannot take king");
                     }
                     let hand_kind = kind.maybe_unpromote();

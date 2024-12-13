@@ -141,12 +141,12 @@ mod tests {
     #[test]
     fn test_shift() {
         let mut position = Position::new();
-        position.set(Square::new(0, 0), Color::BLACK, Kind::PAWN);
+        position.set(Square::new(0, 0), Color::BLACK, Kind::Pawn);
         position.shift(Direction::Down);
 
         assert_eq!(position.digest(), {
             let mut position = Position::new();
-            position.set(Square::new(0, 1), Color::BLACK, Kind::PAWN);
+            position.set(Square::new(0, 1), Color::BLACK, Kind::Pawn);
             position.digest()
         });
     }

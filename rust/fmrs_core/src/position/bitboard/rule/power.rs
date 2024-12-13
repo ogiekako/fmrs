@@ -36,22 +36,21 @@ lazy_static! {
     static ref POWERS: Vec<KindPower> = {
         let mut res = vec![];
         for kind in Kind::iter() {
-            res.push(match kind.index() {
-                Kind::PAWN_ID => *PAWN_POWER,
-                Kind::LANCE_ID => *LANCE_POWER,
-                Kind::KNIGHT_ID => *KNIGHT_POWER,
-                Kind::SILVER_ID => *SILVER_POWER,
-                Kind::GOLD_ID => *GOLD_POWER,
-                Kind::BISHOP_ID => *BISHOP_POWER,
-                Kind::ROOK_ID => *ROOK_POWER,
-                Kind::KING_ID => [*KING_POWER, *KING_POWER],
-                Kind::PRO_PAWN_ID => *GOLD_POWER,
-                Kind::PRO_LANCE_ID => *GOLD_POWER,
-                Kind::PRO_KNIGHT_ID => *GOLD_POWER,
-                Kind::PRO_SILVER_ID => *GOLD_POWER,
-                Kind::PRO_BISHOP_ID => *PRO_BISHOP_POWER,
-                Kind::PRO_ROOK_ID => *PRO_ROOK_POWER,
-                _ => unreachable!(),
+            res.push(match kind {
+                Kind::Pawn => *PAWN_POWER,
+                Kind::Lance => *LANCE_POWER,
+                Kind::Knight => *KNIGHT_POWER,
+                Kind::Silver => *SILVER_POWER,
+                Kind::Gold => *GOLD_POWER,
+                Kind::Bishop => *BISHOP_POWER,
+                Kind::Rook => *ROOK_POWER,
+                Kind::King => [*KING_POWER, *KING_POWER],
+                Kind::ProPawn => *GOLD_POWER,
+                Kind::ProLance => *GOLD_POWER,
+                Kind::ProKnight => *GOLD_POWER,
+                Kind::ProSilver => *GOLD_POWER,
+                Kind::ProBishop => *PRO_BISHOP_POWER,
+                Kind::ProRook => *PRO_ROOK_POWER,
             });
         }
         res
@@ -153,7 +152,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::BLACK, Square::new(1, 2), Kind::SILVER)
+            super::power(Color::BLACK, Square::new(1, 2), Kind::Silver)
         );
         assert_eq!(
             bitboard!(
@@ -167,7 +166,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::WHITE, Square::new(0, 0), Kind::PAWN)
+            super::power(Color::WHITE, Square::new(0, 0), Kind::Pawn)
         );
         assert_eq!(
             bitboard!(
@@ -181,7 +180,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::WHITE, Square::new(0, 0), Kind::PRO_SILVER)
+            super::power(Color::WHITE, Square::new(0, 0), Kind::ProSilver)
         );
         assert_eq!(
             bitboard!(
@@ -195,7 +194,7 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::power(Color::BLACK, Square::new(1, 2), Kind::KING)
+            super::power(Color::BLACK, Square::new(1, 2), Kind::King)
         );
         assert_eq!(
             bitboard!(
@@ -209,7 +208,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::BLACK, Square::new(1, 2), Kind::PRO_ROOK)
+            super::power(Color::BLACK, Square::new(1, 2), Kind::ProRook)
         );
         assert_eq!(
             bitboard!(
@@ -223,7 +222,7 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::power(Color::BLACK, Square::new(0, 0), Kind::ROOK)
+            super::power(Color::BLACK, Square::new(0, 0), Kind::Rook)
         );
         assert_eq!(
             bitboard!(
@@ -237,7 +236,7 @@ mod tests {
                 ".......*.",
                 ".......*.",
             ),
-            super::power(Color::WHITE, Square::new(1, 2), Kind::LANCE)
+            super::power(Color::WHITE, Square::new(1, 2), Kind::Lance)
         );
         assert_eq!(
             bitboard!(
@@ -251,7 +250,7 @@ mod tests {
                 "...*.....",
                 "..*......",
             ),
-            super::power(Color::WHITE, Square::new(1, 3), Kind::BISHOP)
+            super::power(Color::WHITE, Square::new(1, 3), Kind::Bishop)
         );
     }
 }

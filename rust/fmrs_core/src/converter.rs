@@ -15,22 +15,21 @@ fn color(color: Color) -> jkf::Color {
 }
 
 fn kind(kind: Kind) -> jkf::Kind {
-    match kind.index() {
-        Kind::PAWN_ID => jkf::Kind::FU,
-        Kind::LANCE_ID => jkf::Kind::KY,
-        Kind::KNIGHT_ID => jkf::Kind::KE,
-        Kind::SILVER_ID => jkf::Kind::GI,
-        Kind::GOLD_ID => jkf::Kind::KI,
-        Kind::BISHOP_ID => jkf::Kind::KA,
-        Kind::ROOK_ID => jkf::Kind::HI,
-        Kind::KING_ID => jkf::Kind::OU,
-        Kind::PRO_PAWN_ID => jkf::Kind::TO,
-        Kind::PRO_LANCE_ID => jkf::Kind::NY,
-        Kind::PRO_KNIGHT_ID => jkf::Kind::NK,
-        Kind::PRO_SILVER_ID => jkf::Kind::NG,
-        Kind::PRO_BISHOP_ID => jkf::Kind::UM,
-        Kind::PRO_ROOK_ID => jkf::Kind::RY,
-        _ => unreachable!(),
+    match kind {
+        Kind::Pawn => jkf::Kind::FU,
+        Kind::Lance => jkf::Kind::KY,
+        Kind::Knight => jkf::Kind::KE,
+        Kind::Silver => jkf::Kind::GI,
+        Kind::Gold => jkf::Kind::KI,
+        Kind::Bishop => jkf::Kind::KA,
+        Kind::Rook => jkf::Kind::HI,
+        Kind::King => jkf::Kind::OU,
+        Kind::ProPawn => jkf::Kind::TO,
+        Kind::ProLance => jkf::Kind::NY,
+        Kind::ProKnight => jkf::Kind::NK,
+        Kind::ProSilver => jkf::Kind::NG,
+        Kind::ProBishop => jkf::Kind::UM,
+        Kind::ProRook => jkf::Kind::RY,
     }
 }
 
@@ -42,22 +41,21 @@ fn piece(c: Color, k: Kind) -> jkf::Piece {
 }
 
 fn raw_kind(kind: Kind) -> Option<jkf::RawKind> {
-    Some(match kind.index() {
-        Kind::PAWN_ID => jkf::RawKind::FU,
-        Kind::LANCE_ID => jkf::RawKind::KY,
-        Kind::KNIGHT_ID => jkf::RawKind::KE,
-        Kind::SILVER_ID => jkf::RawKind::GI,
-        Kind::GOLD_ID => jkf::RawKind::KI,
-        Kind::BISHOP_ID => jkf::RawKind::KA,
-        Kind::ROOK_ID => jkf::RawKind::HI,
-        Kind::KING_ID => panic!("BUG"),
-        Kind::PRO_PAWN_ID => panic!("BUG"),
-        Kind::PRO_LANCE_ID => panic!("BUG"),
-        Kind::PRO_KNIGHT_ID => panic!("BUG"),
-        Kind::PRO_SILVER_ID => panic!("BUG"),
-        Kind::PRO_BISHOP_ID => panic!("BUG"),
-        Kind::PRO_ROOK_ID => panic!("BUG"),
-        _ => unreachable!(),
+    Some(match kind {
+        Kind::Pawn => jkf::RawKind::FU,
+        Kind::Lance => jkf::RawKind::KY,
+        Kind::Knight => jkf::RawKind::KE,
+        Kind::Silver => jkf::RawKind::GI,
+        Kind::Gold => jkf::RawKind::KI,
+        Kind::Bishop => jkf::RawKind::KA,
+        Kind::Rook => jkf::RawKind::HI,
+        Kind::King => panic!("BUG"),
+        Kind::ProPawn => panic!("BUG"),
+        Kind::ProLance => panic!("BUG"),
+        Kind::ProKnight => panic!("BUG"),
+        Kind::ProSilver => panic!("BUG"),
+        Kind::ProBishop => panic!("BUG"),
+        Kind::ProRook => panic!("BUG"),
     })
 }
 

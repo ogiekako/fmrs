@@ -21,12 +21,12 @@ pub fn reachable(
         return power(color, pos, kind).and_not(exclude);
     }
     let occupied = color_bb.both();
-    match kind.index() {
-        Kind::LANCE_ID => lance_reachable(occupied, color, pos),
-        Kind::BISHOP_ID => magic::bishop_reachable(occupied, pos),
-        Kind::ROOK_ID => magic::rook_reachable(occupied, pos),
-        Kind::PRO_BISHOP_ID => magic::probishop_reachable(occupied, pos),
-        Kind::PRO_ROOK_ID => magic::prorook_reachable(occupied, pos),
+    match kind {
+        Kind::Lance => lance_reachable(occupied, color, pos),
+        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Rook => magic::rook_reachable(occupied, pos),
+        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
+        Kind::ProRook => magic::prorook_reachable(occupied, pos),
         _ => unreachable!(),
     }
     .and_not(exclude)
@@ -43,12 +43,12 @@ pub fn reachable2(
         return power(color, pos, kind).and_not(uncapturable);
     }
     let occupied = capturable | uncapturable;
-    match kind.index() {
-        Kind::LANCE_ID => lance_reachable(occupied, color, pos),
-        Kind::BISHOP_ID => magic::bishop_reachable(occupied, pos),
-        Kind::ROOK_ID => magic::rook_reachable(occupied, pos),
-        Kind::PRO_BISHOP_ID => magic::probishop_reachable(occupied, pos),
-        Kind::PRO_ROOK_ID => magic::prorook_reachable(occupied, pos),
+    match kind {
+        Kind::Lance => lance_reachable(occupied, color, pos),
+        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Rook => magic::rook_reachable(occupied, pos),
+        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
+        Kind::ProRook => magic::prorook_reachable(occupied, pos),
         _ => unreachable!(),
     }
     .and_not(uncapturable)
@@ -123,7 +123,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(2, 3),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -143,7 +143,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(2, 1),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -153,7 +153,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(2, 0),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -173,7 +173,7 @@ mod tests {
                 BitBoard::default(),
                 Color::WHITE,
                 Square::new(2, 0),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -193,7 +193,7 @@ mod tests {
                 BitBoard::default(),
                 Color::WHITE,
                 Square::new(2, 1),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -213,7 +213,7 @@ mod tests {
                 BitBoard::default(),
                 Color::WHITE,
                 Square::new(2, 4),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -233,7 +233,7 @@ mod tests {
                 BitBoard::default(),
                 Color::WHITE,
                 Square::new(0, 0),
-                Kind::LANCE
+                Kind::Lance
             )
         );
         assert_eq!(
@@ -253,7 +253,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(0, 8),
-                Kind::LANCE
+                Kind::Lance
             )
         );
     }
@@ -287,7 +287,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(0, 0),
-                Kind::BISHOP
+                Kind::Bishop
             )
         );
         assert_eq!(
@@ -307,7 +307,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(1, 1),
-                Kind::BISHOP
+                Kind::Bishop
             )
         );
         assert_eq!(
@@ -327,7 +327,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(1, 2),
-                Kind::BISHOP
+                Kind::Bishop
             )
         );
     }
@@ -362,7 +362,7 @@ mod tests {
                 BitBoard::default(),
                 Color::BLACK,
                 Square::new(5, 1),
-                Kind::ROOK
+                Kind::Rook
             )
         );
     }

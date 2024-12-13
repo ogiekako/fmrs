@@ -32,14 +32,14 @@ impl Hands {
 
     fn max_count(k: Kind) -> usize {
         debug_assert!(k.is_hand_piece(), "{k:?}");
-        if k == Kind::PAWN {
+        if k == Kind::Pawn {
             127
         } else {
             15
         }
     }
     pub fn count(&self, c: Color, k: Kind) -> usize {
-        if k == Kind::KING {
+        if k == Kind::King {
             return 0;
         }
         debug_assert!(k.is_hand_piece());
@@ -59,7 +59,7 @@ impl Hands {
             .filter_map(move |&k| if self.count(c, k) > 0 { Some(k) } else { None })
     }
     fn shift_of(c: Color, k: Kind) -> usize {
-        let i = if k == Kind::PAWN {
+        let i = if k == Kind::Pawn {
             0
         } else {
             k.index() * 4 + 3
