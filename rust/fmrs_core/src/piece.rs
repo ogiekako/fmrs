@@ -98,6 +98,57 @@ pub const KINDS: [Kind; NUM_KIND] = [
     Kind::PRO_ROOK,
 ];
 
+pub const PROMOTED: [Option<Kind>; NUM_KIND] = [
+    Some(Kind::PRO_PAWN),
+    Some(Kind::PRO_LANCE),
+    Some(Kind::PRO_KNIGHT),
+    Some(Kind::PRO_SILVER),
+    None,
+    Some(Kind::PRO_BISHOP),
+    Some(Kind::PRO_ROOK),
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+];
+
+pub const UNPROMOTED: [Option<Kind>; NUM_KIND] = [
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    None,
+    Some(Kind::PAWN),
+    Some(Kind::LANCE),
+    Some(Kind::KNIGHT),
+    Some(Kind::SILVER),
+    Some(Kind::BISHOP),
+    Some(Kind::ROOK),
+];
+
+pub const MAYBE_UNPROMOTED: [Kind; NUM_KIND] = [
+    Kind::PAWN,
+    Kind::LANCE,
+    Kind::KNIGHT,
+    Kind::SILVER,
+    Kind::GOLD,
+    Kind::BISHOP,
+    Kind::ROOK,
+    Kind::KING,
+    Kind::PAWN,
+    Kind::LANCE,
+    Kind::KNIGHT,
+    Kind::SILVER,
+    Kind::BISHOP,
+    Kind::ROOK,
+];
+
 impl PartialEq for KindImpl {
     fn eq(&self, other: &Self) -> bool {
         self.index == other.index
@@ -203,31 +254,15 @@ impl Kind {
     }
 
     pub fn promote(&self) -> Option<Kind> {
-        Some(match self.index() {
-            Kind::PAWN_ID => Kind::PRO_PAWN,
-            Kind::LANCE_ID => Kind::PRO_LANCE,
-            Kind::KNIGHT_ID => Kind::PRO_KNIGHT,
-            Kind::SILVER_ID => Kind::PRO_SILVER,
-            Kind::BISHOP_ID => Kind::PRO_BISHOP,
-            Kind::ROOK_ID => Kind::PRO_ROOK,
-            _ => return None,
-        })
+        PROMOTED[self.index()]
     }
 
     pub fn maybe_unpromote(&self) -> Kind {
-        self.unpromote().unwrap_or(*self)
+        MAYBE_UNPROMOTED[self.index()]
     }
 
     pub fn unpromote(&self) -> Option<Kind> {
-        Some(match self.index() {
-            Kind::PRO_PAWN_ID => Kind::PAWN,
-            Kind::PRO_LANCE_ID => Kind::LANCE,
-            Kind::PRO_KNIGHT_ID => Kind::KNIGHT,
-            Kind::PRO_SILVER_ID => Kind::SILVER,
-            Kind::PRO_BISHOP_ID => Kind::BISHOP,
-            Kind::PRO_ROOK_ID => Kind::ROOK,
-            _ => return None,
-        })
+        UNPROMOTED[self.index()]
     }
 }
 
