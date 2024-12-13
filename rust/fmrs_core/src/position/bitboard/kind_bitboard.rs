@@ -10,6 +10,60 @@ pub struct KindBitBoard {
     kind2: BitBoard,
 }
 
+// promote = 0:
+// 1: Pawn
+// 2: Lance
+// 3: Knight
+// 4: Silver
+// 5: Gold
+// 6: Bishop
+// 7: Rook
+
+// promote = 1:
+// 1: ProPawn
+// 2: ProLance
+// 3: ProKnight
+// 4: ProSilver
+// 5: King
+// 6: ProBishop
+// 7: ProRook
+
+const IDS: [(bool, usize); 14] = [
+    (false, 1),
+    (false, 2),
+    (false, 3),
+    (false, 4),
+    (false, 5),
+    (false, 6),
+    (false, 7),
+    (true, 5),
+    (true, 1),
+    (true, 2),
+    (true, 3),
+    (true, 4),
+    (true, 6),
+    (true, 7),
+];
+
+const KINDS: [Kind; 16] = [
+    Kind::King, // dummy
+    Kind::Pawn,
+    Kind::Lance,
+    Kind::Knight,
+    Kind::Silver,
+    Kind::Gold,
+    Kind::Bishop,
+    Kind::Rook,
+    Kind::King, // dummy
+    Kind::ProPawn,
+    Kind::ProLance,
+    Kind::ProKnight,
+    Kind::ProSilver,
+    Kind::King,
+    Kind::ProBishop,
+    Kind::ProRook,
+];
+
 #[test]
 fn test_kind_bitboard_size() {
     assert_eq!(64, std::mem::size_of::<KindBitBoard>());
@@ -27,93 +81,80 @@ impl KindBitBoard {
 
     // rook and prorook
     pub fn rookish(&self) -> BitBoard {
-        debug_assert_eq!(Kind::Rook.index(), 0b110);
-        (self.kind1 & self.kind2).and_not(self.kind0)
+        debug_assert_eq!(IDS[Kind::Rook.index()].1, 0b111);
+        self.kind0 & self.kind1 & self.kind2
     }
 
     // bishop and probishop
     pub fn bishopish(&self) -> BitBoard {
-        debug_assert_eq!(Kind::Bishop.index(), 0b101);
-        (self.kind0 & self.kind2).and_not(self.kind1)
+        debug_assert_eq!(IDS[Kind::Bishop.index()].1, 0b110);
+        (self.kind1 & self.kind2).and_not(self.kind0)
     }
 
-    pub fn bitboard(&self, kind: Kind, occupied: BitBoard) -> BitBoard {
-        let mut mask = occupied;
-        let i = if let Some(raw) = kind.unpromote() {
-            mask &= self.promote;
-            raw.index()
-        } else {
-            mask = mask.and_not(self.promote);
-            kind.index()
-        };
+    pub fn bitboard(&self, kind: Kind) -> BitBoard {
+        let (promote, i) = IDS[kind.index()];
 
-        if (i & 1) != 0 {
-            mask &= self.kind0;
+        let b = match i {
+            1 => self.kind0.and_not(self.kind1).and_not(self.kind2),
+            2 => self.kind1.and_not(self.kind0).and_not(self.kind2),
+            3 => (self.kind0 & self.kind1).and_not(self.kind2),
+            4 => self.kind2.and_not(self.kind0).and_not(self.kind1),
+            5 => (self.kind0 & self.kind2).and_not(self.kind1),
+            6 => (self.kind1 & self.kind2).and_not(self.kind0),
+            7 => self.kind0 & self.kind1 & self.kind2,
+            _ => unreachable!(),
+        };
+        if promote {
+            b & self.promote
         } else {
-            mask = mask.and_not(self.kind0);
+            b.and_not(self.promote)
         }
-        if (i & 2) != 0 {
-            mask &= self.kind1;
-        } else {
-            mask = mask.and_not(self.kind1);
-        }
-        if (i & 4) != 0 {
-            mask &= self.kind2;
-        } else {
-            mask = mask.and_not(self.kind2);
-        }
-        mask
     }
     pub fn get(&self, pos: Square) -> Kind {
         let mut i = 0;
         if self.kind0.get(pos) {
-            i |= 1
-        };
-        if self.kind1.get(pos) {
-            i |= 2
-        };
-        if self.kind2.get(pos) {
-            i |= 4
-        };
-        let kind = Kind::from_index(i);
-
-        if self.promote.get(pos) {
-            kind.promote().unwrap()
-        } else {
-            kind
+            i |= 1;
         }
+        if self.kind1.get(pos) {
+            i |= 2;
+        }
+        if self.kind2.get(pos) {
+            i |= 4;
+        }
+        if self.promote.get(pos) {
+            i |= 8;
+        }
+        KINDS[i]
     }
     pub fn set(&mut self, pos: Square, kind: Kind) {
-        let i = if let Some(raw) = kind.unpromote() {
+        let (promote, i) = IDS[kind.index()];
+
+        if promote {
             self.promote.set(pos);
-            raw.index()
-        } else {
-            kind.index()
-        };
-        if (i & 1) > 0 {
+        }
+        if (i & 1) != 0 {
             self.kind0.set(pos);
         }
-        if (i >> 1 & 1) > 0 {
+        if (i & 2) != 0 {
             self.kind1.set(pos);
         }
-        if (i >> 2 & 1) > 0 {
+        if (i & 4) != 0 {
             self.kind2.set(pos);
         }
     }
     pub fn unset(&mut self, pos: Square, kind: Kind) {
-        let i = if let Some(raw) = kind.unpromote() {
+        let (promote, i) = IDS[kind.index()];
+
+        if promote {
             self.promote.unset(pos);
-            raw.index()
-        } else {
-            kind.index()
-        };
-        if (i & 1) > 0 {
+        }
+        if (i & 1) != 0 {
             self.kind0.unset(pos);
         }
-        if (i >> 1 & 1) > 0 {
+        if (i & 2) != 0 {
             self.kind1.unset(pos);
         }
-        if (i >> 2 & 1) > 0 {
+        if (i & 4) != 0 {
             self.kind2.unset(pos);
         }
     }
