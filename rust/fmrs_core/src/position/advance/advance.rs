@@ -1,6 +1,5 @@
-use rustc_hash::FxHashMap;
-
-use crate::{piece::Color, position::Digest};
+use crate::nohash::NoHashMap;
+use crate::piece::Color;
 
 use crate::position::Position;
 
@@ -8,7 +7,7 @@ use super::{black, white, AdvanceOptions};
 
 pub fn advance(
     position: &Position,
-    memo: &mut FxHashMap<Digest, u32>,
+    memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {

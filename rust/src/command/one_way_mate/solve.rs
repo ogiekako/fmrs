@@ -1,8 +1,8 @@
 use fmrs_core::{
+    nohash::{NoHashMap, NoHashSet},
     piece::Color,
     position::{advance, checked, AdvanceOptions, Position},
 };
-use rustc_hash::{FxHashMap, FxHashSet};
 
 pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let mut position = position.clone();
@@ -10,7 +10,7 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         return None;
     }
 
-    let mut visited = FxHashSet::default();
+    let mut visited = NoHashSet::default();
 
     let options = {
         let mut options = AdvanceOptions::default();
@@ -18,7 +18,7 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         options
     };
 
-    let mut hashmap = FxHashMap::default();
+    let mut hashmap = NoHashMap::default();
 
     // TODO: `advance` without cache.
     for step in (1..).step_by(2) {

@@ -1,11 +1,11 @@
+use crate::nohash::NoHashMap;
 use anyhow::Result;
-use rustc_hash::FxHashMap;
 
 use crate::{
     piece::{Color, Kind},
     position::{
         bitboard::{self, power, reachable, rule::king_power, BitBoard},
-        Digest, Movement, Position, PositionExt, Square,
+        Movement, Position, PositionExt, Square,
     },
 };
 
@@ -17,7 +17,7 @@ use super::{
 
 pub(super) fn attack_preventing_movements(
     position: &Position,
-    memo: &mut FxHashMap<Digest, u32>,
+    memo: &mut NoHashMap<u32>,
     next_step: u32,
     king_pos: Square,
     should_return_check: bool,
@@ -45,7 +45,7 @@ struct Context<'a> {
     next_step: u32,
     should_return_check: bool,
     // Mutable fields
-    memo: &'a mut FxHashMap<Digest, u32>,
+    memo: &'a mut NoHashMap<u32>,
     result: Vec<Position>,
     is_mate: bool,
 
@@ -56,7 +56,7 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn new(
         position: &'a Position,
-        memo: &'a mut FxHashMap<Digest, u32>,
+        memo: &'a mut NoHashMap<u32>,
         next_step: u32,
         king_pos: Square,
         should_return_check: bool,

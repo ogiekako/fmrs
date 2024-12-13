@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use rustc_hash::FxHashMap;
+use fmrs_core::nohash::NoHashMap;
 use sysinfo::SystemExt;
 
 use fmrs_core::position::{advance, Digest, Position};
@@ -13,9 +13,9 @@ pub(super) fn solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
-    let mut memo = FxHashMap::default();
+    let mut memo = NoHashMap::default();
     memo.insert(position.digest(), step);
-    let memo_next = FxHashMap::default();
+    let memo_next = NoHashMap::default();
     let all_positions = vec![position];
 
     let task = Task::new(
@@ -41,8 +41,8 @@ const NTHREAD: usize = 16;
 
 struct Task {
     all_positions: Vec<Position>,
-    memo: FxHashMap<Digest, u32>,
-    memo_next: FxHashMap<Digest, u32>,
+    memo: NoHashMap<u32>,
+    memo_next: NoHashMap<u32>,
     mate_in: Arc<Mutex<Option<u32>>>,
     solutions_upto: usize,
     active_thread_count: Arc<Mutex<usize>>,
@@ -52,8 +52,8 @@ struct Task {
 impl Task {
     fn new(
         all_positions: Vec<Position>,
-        memo: FxHashMap<Digest, u32>,
-        memo_next: FxHashMap<Digest, u32>,
+        memo: NoHashMap<u32>,
+        memo_next: NoHashMap<u32>,
         mate_in: Arc<Mutex<Option<u32>>>,
         solutions_upto: usize,
         active_thread_count: Arc<Mutex<usize>>,

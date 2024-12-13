@@ -1,9 +1,8 @@
+use crate::nohash::NoHashMap;
 use anyhow::{bail, Result};
-use rustc_hash::FxHashMap;
 
 use crate::piece::{Color, Kind};
 
-use crate::position::Digest;
 use crate::position::{
     bitboard::{self, BitBoard},
     Movement, Position, PositionExt, Square,
@@ -15,7 +14,7 @@ use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut FxHashMap<Digest, u32>,
+    memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
 ) -> anyhow::Result<Vec<Position>> {
@@ -28,7 +27,7 @@ pub(super) fn advance(
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
     advance(
         position,
-        &mut FxHashMap::default(),
+        &mut NoHashMap::default(),
         0,
         &AdvanceOptions::default(),
     )
@@ -45,14 +44,14 @@ struct Context<'a> {
     options: &'a AdvanceOptions,
 
     // Mutable fields
-    memo: &'a mut FxHashMap<Digest, u32>,
+    memo: &'a mut NoHashMap<u32>,
     result: Vec<Position>,
 }
 
 impl<'a> Context<'a> {
     fn new(
         position: &'a Position,
-        memo: &'a mut FxHashMap<Digest, u32>,
+        memo: &'a mut NoHashMap<u32>,
         next_step: u32,
         options: &'a AdvanceOptions,
     ) -> anyhow::Result<Self> {

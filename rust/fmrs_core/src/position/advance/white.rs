@@ -1,9 +1,8 @@
-use rustc_hash::FxHashMap;
+use crate::nohash::NoHashMap;
 
 use crate::piece::{Color, Kind};
 
 use crate::position::advance::attack_prevent::attack_preventing_movements;
-use crate::position::Digest;
 use crate::position::Position;
 
 use super::AdvanceOptions;
@@ -11,7 +10,7 @@ use super::AdvanceOptions;
 pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
     advance(
         position,
-        &mut FxHashMap::default(),
+        &mut NoHashMap::default(),
         0,
         &AdvanceOptions::default(),
     )
@@ -20,7 +19,7 @@ pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> 
 
 pub(super) fn advance(
     position: &Position,
-    memo: &mut FxHashMap<Digest, u32>,
+    memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {

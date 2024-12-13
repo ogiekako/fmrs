@@ -4,6 +4,7 @@ extern crate lazy_static;
 pub mod converter;
 pub mod direction;
 pub mod jkf;
+pub mod nohash;
 pub mod piece;
 pub mod position;
 pub mod sfen;

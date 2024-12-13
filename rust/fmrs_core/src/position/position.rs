@@ -93,8 +93,7 @@ impl Position {
         self.color_bb.set(c, pos);
         self.kind_bb.set(pos, k);
 
-        let i = c.index() | k.index() << 1;
-        self.board_digest ^= zobrist(pos).wrapping_shl(i as u32);
+        self.board_digest ^= zobrist(c, pos, k);
     }
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(self.color_bb.bitboard(c).get(pos));
@@ -102,8 +101,7 @@ impl Position {
         self.color_bb.unset(c, pos);
         self.kind_bb.unset(pos, k);
 
-        let i = c.index() | k.index() << 1;
-        self.board_digest ^= zobrist(pos).wrapping_shl(i as u32);
+        self.board_digest ^= zobrist(c, pos, k);
     }
 
     pub fn digest(&self) -> Digest {
@@ -121,8 +119,7 @@ impl Position {
         self.board_digest = 0;
         for pos in Square::iter() {
             if let Some((c, k)) = self.get(pos) {
-                let i = c.index() | k.index() << 1;
-                self.board_digest ^= zobrist(pos).wrapping_shl(i as u32);
+                self.board_digest ^= zobrist(c, pos, k);
             }
         }
     }
