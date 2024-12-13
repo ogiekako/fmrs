@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734058427998,
+  "lastUpdate": 1734060275684,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -3167,6 +3167,66 @@ window.BENCHMARK_DATA = {
             "name": "reachable",
             "value": 1511,
             "range": "± 19",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "950e2f78481bda216d669c2f1818009c2f9d2aaf",
+          "message": ".",
+          "timestamp": "2024-12-13T12:15:17+09:00",
+          "tree_id": "6abae10273ae8e18a6f8cff93d15c1ffbf3fb61f",
+          "url": "https://github.com/ogiekako/fmrs/commit/950e2f78481bda216d669c2f1818009c2f9d2aaf"
+        },
+        "date": 1734060275097,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4174,
+            "range": "± 76",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7272,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 510,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4051,
+            "range": "± 238",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28740,
+            "range": "± 140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1528,
+            "range": "± 5",
             "unit": "ns/iter"
           }
         ]
