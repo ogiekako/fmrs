@@ -28,7 +28,7 @@ pub struct KindBitBoard {
 // 6: ProBishop
 // 7: ProRook
 
-const IDS: [(bool, usize); 14] = [
+const IDS: [(bool, u8); 14] = [
     (false, 1),
     (false, 2),
     (false, 3),
@@ -95,10 +95,10 @@ impl KindBitBoard {
         let (promote, i) = IDS[kind.index()];
 
         let b = match i {
-            1 => self.kind0.and_not(self.kind1).and_not(self.kind2),
-            2 => self.kind1.and_not(self.kind0).and_not(self.kind2),
+            1 => self.kind0.and_not(self.kind1 | self.kind2),
+            2 => self.kind1.and_not(self.kind0 | self.kind2),
             3 => (self.kind0 & self.kind1).and_not(self.kind2),
-            4 => self.kind2.and_not(self.kind0).and_not(self.kind1),
+            4 => self.kind2.and_not(self.kind0 | self.kind1),
             5 => (self.kind0 & self.kind2).and_not(self.kind1),
             6 => (self.kind1 & self.kind2).and_not(self.kind0),
             7 => self.kind0 & self.kind1 & self.kind2,
