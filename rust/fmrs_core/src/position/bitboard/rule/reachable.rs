@@ -118,7 +118,13 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(2, 3), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(2, 3),
+                Kind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -132,11 +138,23 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(2, 1), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(2, 1),
+                Kind::Lance
+            )
         );
         assert_eq!(
             BitBoard::empty(),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(2, 0), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(2, 0),
+                Kind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -150,7 +168,13 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::WHITE, Square::new(2, 0), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::WHITE,
+                Square::new(2, 0),
+                Kind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -164,7 +188,13 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::WHITE, Square::new(2, 1), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::WHITE,
+                Square::new(2, 1),
+                Kind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -178,7 +208,13 @@ mod tests {
                 "......*..",
                 "......*..",
             ),
-            super::reachable_sub(occupied, Color::WHITE, Square::new(2, 4), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::WHITE,
+                Square::new(2, 4),
+                Kind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -192,7 +228,13 @@ mod tests {
                 "........*",
                 "........*",
             ),
-            super::reachable_sub(occupied, Color::WHITE, Square::new(0, 0), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::WHITE,
+                Square::new(0, 0),
+                Kind::Lance
+            )
         );
         assert_eq!(
             bitboard!(
@@ -206,7 +248,13 @@ mod tests {
                 "........*",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(0, 8), Kind::Lance)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(0, 8),
+                Kind::Lance
+            )
         );
     }
     #[test]
@@ -234,7 +282,13 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(0, 0), Kind::Bishop)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(0, 0),
+                Kind::Bishop
+            )
         );
         assert_eq!(
             bitboard!(
@@ -248,7 +302,13 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(1, 1), Kind::Bishop)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(1, 1),
+                Kind::Bishop
+            )
         );
         assert_eq!(
             bitboard!(
@@ -262,7 +322,13 @@ mod tests {
                 "..*......",
                 ".*.......",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(1, 2), Kind::Bishop)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(1, 2),
+                Kind::Bishop
+            )
         );
     }
 
@@ -291,7 +357,13 @@ mod tests {
                 ".........",
                 ".........",
             ),
-            super::reachable_sub(occupied, Color::BLACK, Square::new(5, 1), Kind::Rook)
+            super::reachable2(
+                occupied,
+                BitBoard::default(),
+                Color::BLACK,
+                Square::new(5, 1),
+                Kind::Rook
+            )
         );
     }
 }
