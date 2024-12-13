@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734058087118,
+  "lastUpdate": 1734058427998,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -3107,6 +3107,66 @@ window.BENCHMARK_DATA = {
             "name": "reachable",
             "value": 1469,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "53609a44ccb302c241f88f72549d8c22ddfdd4b1",
+          "message": "Add blackbox for accurate benchmarking for reachable",
+          "timestamp": "2024-12-13T11:50:10+09:00",
+          "tree_id": "cd0d3f71ef25fc3ae296e33b933ca0147f7bd9d4",
+          "url": "https://github.com/ogiekako/fmrs/commit/53609a44ccb302c241f88f72549d8c22ddfdd4b1"
+        },
+        "date": 1734058427326,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4521,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 7135,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 506,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4163,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29008,
+            "range": "± 116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1511,
+            "range": "± 19",
             "unit": "ns/iter"
           }
         ]
