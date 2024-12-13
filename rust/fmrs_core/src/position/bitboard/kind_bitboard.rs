@@ -25,7 +25,18 @@ impl KindBitBoard {
         }
     }
 
-    #[inline(always)]
+    // rook and prorook
+    pub fn rookish(&self) -> BitBoard {
+        debug_assert_eq!(Kind::Rook.index(), 0b110);
+        (self.kind1 & self.kind2).and_not(self.kind0)
+    }
+
+    // bishop and probishop
+    pub fn bishopish(&self) -> BitBoard {
+        debug_assert_eq!(Kind::Bishop.index(), 0b101);
+        (self.kind0 & self.kind2).and_not(self.kind1)
+    }
+
     pub fn bitboard(&self, kind: Kind, occupied: BitBoard) -> BitBoard {
         let mut mask = occupied;
         let i = if let Some(raw) = kind.unpromote() {
@@ -36,17 +47,17 @@ impl KindBitBoard {
             kind.index()
         };
 
-        if (i & 1) > 0 {
+        if (i & 1) != 0 {
             mask &= self.kind0;
         } else {
             mask = mask.and_not(self.kind0);
         }
-        if (i >> 1 & 1) > 0 {
+        if (i & 2) != 0 {
             mask &= self.kind1;
         } else {
             mask = mask.and_not(self.kind1);
         }
-        if (i >> 2 & 1) > 0 {
+        if (i & 4) != 0 {
             mask &= self.kind2;
         } else {
             mask = mask.and_not(self.kind2);

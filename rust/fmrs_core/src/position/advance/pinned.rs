@@ -68,12 +68,14 @@ pub fn pinned(
 
     for attacker_kind in [Kind::Bishop, Kind::Rook] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
-        let potential_attackers = if attacker_kind == Kind::Lance {
-            position.bitboard(attacker_color.into(), attacker_kind.into())
+
+        let potential_attackers = if attacker_kind == Kind::Bishop {
+            position.kind_bb().bishopish()
         } else {
-            position.bitboard(attacker_color.into(), attacker_kind.into())
-                | position.bitboard(attacker_color.into(), attacker_kind.promote())
-        } & power_mask;
+            position.kind_bb().rookish()
+        } & color_bb.bitboard(attacker_color)
+            & power_mask;
+
         if potential_attackers.is_empty() {
             continue;
         }
@@ -137,6 +139,7 @@ pub fn pinned(
     Pinned::new(res)
 }
 
+#[inline(never)]
 fn lance_pinned(
     position: &Position,
     king_color: Color,
