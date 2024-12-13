@@ -62,9 +62,9 @@ pub fn pinned(
         position.color_bb().bitboard(blocker_color.opposite()),
     );
 
-    for attacker_kind in [Kind::Lance, Kind::Bishop, Kind::Rook] {
+    for attacker_kind in [Kind::LANCE, Kind::BISHOP, Kind::ROOK] {
         let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
-        let attackers = if attacker_kind == Kind::Lance {
+        let attackers = if attacker_kind == Kind::LANCE {
             position.bitboard(attacker_color.into(), attacker_kind.into())
         } else {
             position.bitboard(attacker_color.into(), attacker_kind.into())

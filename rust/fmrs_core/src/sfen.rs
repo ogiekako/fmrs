@@ -16,15 +16,15 @@ fn encode_piece(c: Color, mut k: Kind) -> String {
         res.push('+');
         k = x;
     }
-    let mut ch = match k {
-        Pawn => 'P',
-        Lance => 'L',
-        Knight => 'N',
-        Silver => 'S',
-        Gold => 'G',
-        Bishop => 'B',
-        Rook => 'R',
-        King => 'K',
+    let mut ch = match k.index() {
+        Kind::PAWN_ID => 'P',
+        Kind::LANCE_ID => 'L',
+        Kind::KNIGHT_ID => 'N',
+        Kind::SILVER_ID => 'S',
+        Kind::GOLD_ID => 'G',
+        Kind::BISHOP_ID => 'B',
+        Kind::ROOK_ID => 'R',
+        Kind::KING_ID => 'K',
         _ => panic!("Unexpected piece {:?}", k),
     };
     if c == Color::WHITE {
@@ -84,7 +84,17 @@ pub fn encode_position(board: &Position) -> String {
     // and with all black pieces before all white pieces.
     for c in [Color::BLACK, Color::WHITE].iter() {
         let c = *c;
-        for k in [Rook, Bishop, Gold, Silver, Knight, Lance, Pawn].iter() {
+        for k in [
+            Kind::ROOK,
+            Kind::BISHOP,
+            Kind::GOLD,
+            Kind::SILVER,
+            Kind::KNIGHT,
+            Kind::LANCE,
+            Kind::PAWN,
+        ]
+        .iter()
+        {
             let k = *k;
             if !k.is_hand_piece() {
                 continue;
@@ -221,46 +231,46 @@ pub fn from_image_url(url: &str) -> anyhow::Result<String> {
 fn test_encode() {
     let mut board = Position::new();
 
-    board.set(Square::new(0, 0), Color::WHITE, Lance);
-    board.set(Square::new(3, 1), Color::BLACK, Pawn);
-    board.set(Square::new(6, 1), Color::BLACK, ProRook);
-    board.set(Square::new(7, 1), Color::WHITE, Lance);
-    board.set(Square::new(0, 2), Color::WHITE, Pawn);
-    board.set(Square::new(1, 2), Color::WHITE, Pawn);
-    board.set(Square::new(3, 2), Color::BLACK, Gold);
-    board.set(Square::new(4, 2), Color::BLACK, Bishop);
-    board.set(Square::new(5, 2), Color::WHITE, Pawn);
-    board.set(Square::new(8, 2), Color::WHITE, Pawn);
-    board.set(Square::new(4, 3), Color::WHITE, Pawn);
-    board.set(Square::new(6, 3), Color::WHITE, Silver);
-    board.set(Square::new(7, 3), Color::WHITE, Pawn);
-    board.set(Square::new(8, 3), Color::WHITE, King);
-    board.set(Square::new(2, 4), Color::BLACK, Gold);
-    board.set(Square::new(5, 4), Color::BLACK, Pawn);
-    board.set(Square::new(7, 4), Color::WHITE, Knight);
-    board.set(Square::new(8, 4), Color::BLACK, Knight);
-    board.set(Square::new(0, 5), Color::BLACK, Pawn);
-    board.set(Square::new(1, 5), Color::BLACK, Pawn);
-    board.set(Square::new(4, 5), Color::BLACK, Pawn);
-    board.set(Square::new(6, 5), Color::BLACK, Pawn);
-    board.set(Square::new(8, 5), Color::BLACK, Pawn);
-    board.set(Square::new(6, 6), Color::BLACK, Silver);
-    board.set(Square::new(7, 6), Color::BLACK, Pawn);
-    board.set(Square::new(1, 7), Color::WHITE, ProRook);
-    board.set(Square::new(5, 7), Color::BLACK, Gold);
-    board.set(Square::new(6, 7), Color::BLACK, Silver);
-    board.set(Square::new(7, 7), Color::BLACK, King);
-    board.set(Square::new(0, 8), Color::BLACK, Lance);
-    board.set(Square::new(4, 8), Color::WHITE, ProPawn);
-    board.set(Square::new(7, 8), Color::BLACK, Knight);
-    board.set(Square::new(8, 8), Color::BLACK, Lance);
-    board.hands_mut().add(Color::BLACK, Silver);
-    board.hands_mut().add(Color::WHITE, Bishop);
-    board.hands_mut().add(Color::WHITE, Gold);
-    board.hands_mut().add(Color::WHITE, Knight);
-    board.hands_mut().add(Color::WHITE, Pawn);
-    board.hands_mut().add(Color::WHITE, Pawn);
-    board.hands_mut().add(Color::WHITE, Pawn);
+    board.set(Square::new(0, 0), Color::WHITE, Kind::LANCE);
+    board.set(Square::new(3, 1), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(6, 1), Color::BLACK, Kind::PRO_ROOK);
+    board.set(Square::new(7, 1), Color::WHITE, Kind::LANCE);
+    board.set(Square::new(0, 2), Color::WHITE, Kind::PAWN);
+    board.set(Square::new(1, 2), Color::WHITE, Kind::PAWN);
+    board.set(Square::new(3, 2), Color::BLACK, Kind::GOLD);
+    board.set(Square::new(4, 2), Color::BLACK, Kind::BISHOP);
+    board.set(Square::new(5, 2), Color::WHITE, Kind::PAWN);
+    board.set(Square::new(8, 2), Color::WHITE, Kind::PAWN);
+    board.set(Square::new(4, 3), Color::WHITE, Kind::PAWN);
+    board.set(Square::new(6, 3), Color::WHITE, Kind::SILVER);
+    board.set(Square::new(7, 3), Color::WHITE, Kind::PAWN);
+    board.set(Square::new(8, 3), Color::WHITE, Kind::KING);
+    board.set(Square::new(2, 4), Color::BLACK, Kind::GOLD);
+    board.set(Square::new(5, 4), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(7, 4), Color::WHITE, Kind::KNIGHT);
+    board.set(Square::new(8, 4), Color::BLACK, Kind::KNIGHT);
+    board.set(Square::new(0, 5), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(1, 5), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(4, 5), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(6, 5), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(8, 5), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(6, 6), Color::BLACK, Kind::SILVER);
+    board.set(Square::new(7, 6), Color::BLACK, Kind::PAWN);
+    board.set(Square::new(1, 7), Color::WHITE, Kind::PRO_ROOK);
+    board.set(Square::new(5, 7), Color::BLACK, Kind::GOLD);
+    board.set(Square::new(6, 7), Color::BLACK, Kind::SILVER);
+    board.set(Square::new(7, 7), Color::BLACK, Kind::KING);
+    board.set(Square::new(0, 8), Color::BLACK, Kind::LANCE);
+    board.set(Square::new(4, 8), Color::WHITE, Kind::PRO_PAWN);
+    board.set(Square::new(7, 8), Color::BLACK, Kind::KNIGHT);
+    board.set(Square::new(8, 8), Color::BLACK, Kind::LANCE);
+    board.hands_mut().add(Color::BLACK, Kind::SILVER);
+    board.hands_mut().add(Color::WHITE, Kind::BISHOP);
+    board.hands_mut().add(Color::WHITE, Kind::GOLD);
+    board.hands_mut().add(Color::WHITE, Kind::KNIGHT);
+    board.hands_mut().add(Color::WHITE, Kind::PAWN);
+    board.hands_mut().add(Color::WHITE, Kind::PAWN);
+    board.hands_mut().add(Color::WHITE, Kind::PAWN);
 
     board.set_turn(Color::WHITE);
 
@@ -395,7 +405,7 @@ pub mod tests {
                     dest: Square::new(4, 1),
                     promote: false,
                 },
-                Movement::Drop(Square::new(3, 1), Kind::Silver),
+                Movement::Drop(Square::new(3, 1), Kind::SILVER),
             ],
             decode_moves("1f5b+ 4a5b S*4b").unwrap()
         );

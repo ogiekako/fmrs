@@ -29,7 +29,7 @@ impl PositionExt for Position {
                 self.hands_mut().remove(color, k);
                 self.set(pos, color, k);
                 token = UndoMove::UnDrop((pos, self.pawn_drop()));
-                self.set_pawn_drop(k == Kind::Pawn);
+                self.set_pawn_drop(k == Kind::PAWN);
             }
             Movement::Move {
                 source,
@@ -142,7 +142,7 @@ mod tests {
             ),
             (
                 sfen::tests::RYUO,
-                Movement::Drop(Square::new(2, 0), Kind::Pawn),
+                Movement::Drop(Square::new(2, 0), Kind::PAWN),
                 "6p1l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L b Sbgn2p",
             ),
             (

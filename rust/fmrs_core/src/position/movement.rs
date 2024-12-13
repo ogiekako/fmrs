@@ -2,7 +2,7 @@ use crate::{piece::Kind, sfen};
 
 use super::Square;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Movement {
     Drop(Square, Kind),
     Move {

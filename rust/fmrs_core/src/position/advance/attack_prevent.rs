@@ -67,7 +67,7 @@ impl<'a> Context<'a> {
         let pinned = pinned(position, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard(turn.into(), Kind::Pawn.into()) {
+            for pos in position.bitboard(turn.into(), Kind::PAWN.into()) {
                 mask |= 1 << pos.col()
             }
             mask
@@ -164,7 +164,7 @@ impl<'a> Context<'a> {
                     dest,
                     promote: false,
                 },
-                Kind::King,
+                Kind::KING,
             )?;
         }
         Ok(())
@@ -182,7 +182,7 @@ impl<'a> Context<'a> {
         let around_dest = king_power(dest) & self.position.color_bb().bitboard(self.turn);
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
-            if source_kind == Kind::King {
+            if source_kind == Kind::KING {
                 continue;
             }
             let source_power = if self.pinned.is_pinned(source_pos) {
@@ -207,7 +207,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
+        for leap_kind in [Kind::LANCE, Kind::KNIGHT, Kind::BISHOP, Kind::ROOK] {
             let on_board = {
                 let raw_pieces = self.position.bitboard(self.turn.into(), leap_kind.into());
                 let promoted_kind = leap_kind.promote().unwrap();

@@ -51,14 +51,14 @@ impl Context {
 
     fn add_undo_moves_to(&self, dest: Square, kind: Kind, was_pawn_drop: bool) {
         if self.position.pawn_drop() {
-            if kind != Kind::Pawn || !self.allow_drop_pawn {
+            if kind != Kind::PAWN || !self.allow_drop_pawn {
                 return;
             }
             self.maybe_add_undo_move(UndoMove::UnDrop((dest, was_pawn_drop)));
             return;
         }
         // Drop
-        if kind.is_hand_piece() && kind != Kind::Pawn {
+        if kind.is_hand_piece() && kind != Kind::PAWN {
             self.maybe_add_undo_move(UndoMove::UnDrop((dest, was_pawn_drop)));
         }
         // Move

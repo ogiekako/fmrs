@@ -27,9 +27,9 @@ pub(super) fn is_allowed_move(
 }
 
 pub(super) fn is_movable(color: Color, dest: Square, kind: Kind) -> bool {
-    let d = match kind {
-        Kind::Pawn | Kind::Lance => 1,
-        Kind::Knight => 2,
+    let d = match kind.index() {
+        Kind::PAWN_ID | Kind::LANCE_ID => 1,
+        Kind::KNIGHT_ID => 2,
         _ => return true,
     };
     match color {
