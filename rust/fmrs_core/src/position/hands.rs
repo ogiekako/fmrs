@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::piece::{Color, Kind, KINDS, NUM_HAND_KIND};
+use crate::piece::{Color, Kind, Kinds, KINDS, NUM_HAND_KIND};
 
 // Hands represents hands of both side.
 // The number of pawns should be less than 256. (8 bits)
@@ -31,8 +31,18 @@ const TURN_FLAG: u64 = 1 << 31;
 const PAWN_DROP_FLAG: u64 = 1 << 63;
 
 const SHIFTS: [u64; 2 * 8] = [
-    0, 7, 11, 15, 19, 23, 27, /* dummy */ 0, 32, 39, 43, 47, 51, 55, 59, /* dummy */ 0,
+    0, 7, 11, 15, 19, 23, 27, /* dummy */ 31, 32, 39, 43, 47, 51, 55, 59, /* dummy */ 63,
 ];
+const AREA: [u64; 2 * 8] = {
+    let mut res = [0; 2 * 8];
+    let mut i = 0;
+    while i < 7 {
+        res[i] = (1 << SHIFTS[i + 1]) - (1 << SHIFTS[i]);
+        res[i + 8] = (1 << SHIFTS[i + 9] - 1) - (1 << SHIFTS[i + 8]);
+        i += 1;
+    }
+    res
+};
 
 impl Hands {
     pub fn new() -> Hands {
@@ -59,14 +69,25 @@ impl Hands {
         debug_assert!(self.count(c, k) > 0);
         self.x -= Hands::bit_of(c, k);
     }
-    pub fn kinds(self, c: Color) -> impl Iterator<Item = Kind> {
-        KINDS[0..NUM_HAND_KIND]
-            .iter()
-            .filter_map(move |&k| if self.count(c, k) > 0 { Some(k) } else { None })
+    pub fn kinds(self, c: Color) -> Kinds {
+        let mut mask = 0;
+        for i in 0..NUM_HAND_KIND {
+            if self.has(c, KINDS[i]) {
+                mask |= 1 << i;
+            }
+        }
+        Kinds::new(mask)
+    }
+    pub fn has(&self, c: Color, k: Kind) -> bool {
+        self.x & Self::area_of(c, k) != 0
     }
 
     fn shift_of(c: Color, k: Kind) -> u64 {
         SHIFTS[c.index() << 3 | k.index()]
+    }
+
+    fn area_of(c: Color, k: Kind) -> u64 {
+        AREA[c.index() << 3 | k.index()]
     }
 
     fn bit_of(c: Color, k: Kind) -> u64 {
@@ -74,18 +95,14 @@ impl Hands {
     }
 
     pub fn set_turn(&mut self, c: Color) {
-        if c == Color::BLACK {
-            self.x &= !TURN_FLAG;
-        } else {
+        if c.is_white() {
             self.x |= TURN_FLAG;
+        } else {
+            self.x &= !TURN_FLAG;
         }
     }
     pub fn turn(&self) -> Color {
-        if self.x & TURN_FLAG != 0 {
-            Color::WHITE
-        } else {
-            Color::BLACK
-        }
+        Color::from_is_white(self.x & TURN_FLAG != 0)
     }
 
     pub fn set_pawn_drop(&mut self, x: bool) {

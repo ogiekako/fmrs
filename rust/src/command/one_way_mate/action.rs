@@ -62,7 +62,7 @@ impl Action {
                 }
                 let hands = position.hands_mut();
                 let hand_kind = kind.maybe_unpromote();
-                if hands.count(hand_color, hand_kind) == 0 {
+                if !hands.has(hand_color, hand_kind) {
                     bail!("no piece in hand");
                 }
                 hands.remove(hand_color, hand_kind);

@@ -140,3 +140,26 @@ impl Kind {
         self.is_hand_piece() && self != Gold
     }
 }
+
+pub struct Kinds {
+    mask: usize,
+}
+
+impl Kinds {
+    pub fn new(mask: usize) -> Self {
+        Self { mask }
+    }
+}
+
+impl Iterator for Kinds {
+    type Item = Kind;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.mask == 0 {
+            return None;
+        }
+        let x = self.mask.trailing_zeros() as usize;
+        self.mask &= !(1 << x);
+        Some(Kind::from_index(x))
+    }
+}
