@@ -8,6 +8,8 @@ use crate::{
     },
 };
 
+use super::attack_prevent;
+
 // pinned piece and its movable positions (capturing included) pairs.
 #[derive(Debug)]
 pub struct Pinned {
@@ -158,40 +160,54 @@ fn lance_pinned(
     blocker_color: Color,
     res: &mut Vec<(Square, BitBoard)>,
 ) {
-    let attacker_color = king_color.opposite();
     let color_bb = position.color_bb();
+    let attacker_color = king_color.opposite();
 
     let lances = position.bitboard(attacker_color, Kind::Lance);
     if lances.is_empty() {
         return;
     }
 
-    let power = lance_power(king_color, king_pos);
-    let lances = lances & power;
-    if lances.is_empty() {
+    let power_from_king = lance_power(king_color, king_pos);
+    let potential_attackers = lances & power_from_king;
+    if potential_attackers.is_empty() {
         return;
     }
 
-    let occupied = color_bb.both();
+    let mut occupied = color_bb.both() & power_from_king;
 
-    let king_seeing =
-        lance_reachable(occupied, king_color, king_pos) & color_bb.bitboard(blocker_color);
-
-    if king_seeing.is_empty() {
-        return;
+    if king_color.is_white() {
+        let blocker_pos = occupied.next().unwrap();
+        if !color_bb.bitboard(blocker_color).get(blocker_pos) {
+            return;
+        }
+        let Some(attacker_pos) = occupied.next() else {
+            return;
+        };
+        if !lances.get(attacker_pos) {
+            return;
+        }
+        let blocker_kind = position.kind_bb().get(blocker_pos);
+        let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
+            & BitBoard::from_u128((1 << attacker_pos.index()) - (1 << king_pos.index()) << 1);
+        res.push((blocker_pos, reach));
+    } else {
+        let mut occupied = occupied.u128();
+        let blocker_pos = Square::from_index(127 - occupied.leading_zeros() as usize);
+        if !color_bb.bitboard(blocker_color).get(blocker_pos) {
+            return;
+        }
+        occupied &= !(1 << blocker_pos.index());
+        if occupied == 0 {
+            return;
+        }
+        let attacker_pos = Square::from_index(127 - occupied.leading_zeros() as usize);
+        if !lances.get(attacker_pos) {
+            return;
+        }
+        let blocker_kind = position.kind_bb().get(blocker_pos);
+        let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
+            & BitBoard::from_u128((1 << king_pos.index()) - (1 << attacker_pos.index()));
+        res.push((blocker_pos, reach));
     }
-
-    let blocker_pos = king_seeing.singleton();
-    let blocker_seeing_lance = lance_reachable(occupied, king_color, blocker_pos)
-        & color_bb.bitboard(attacker_color)
-        & lances;
-
-    if blocker_seeing_lance.is_empty() {
-        return;
-    }
-
-    let blocker_kind = position.kind_bb().get(blocker_pos);
-    let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power;
-
-    res.push((blocker_pos, reach));
 }

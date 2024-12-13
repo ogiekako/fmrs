@@ -139,7 +139,7 @@ impl std::fmt::Debug for BitBoard {
 }
 
 impl BitBoard {
-    pub(super) fn u128(&self) -> u128 {
+    pub fn u128(&self) -> u128 {
         self.0
     }
     pub fn singleton(&self) -> Square {
@@ -161,7 +161,7 @@ impl BitBoard {
             BitBoard::from_u128(x)
         })
     }
-    pub(super) const fn from_u128(x: u128) -> Self {
+    pub const fn from_u128(x: u128) -> Self {
         debug_assert!(x < 1 << 81);
         Self(x)
     }
