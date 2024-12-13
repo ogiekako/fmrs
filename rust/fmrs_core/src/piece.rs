@@ -85,8 +85,8 @@ pub const NUM_HAND_KIND: usize = 7;
 pub const NUM_KIND: usize = 14;
 
 impl Kind {
-    pub const fn index(&self) -> usize {
-        *self as usize
+    pub const fn index(self) -> usize {
+        self as usize
     }
     pub fn from_index(x: usize) -> Self {
         KINDS[x]
@@ -95,7 +95,7 @@ impl Kind {
         KINDS.iter().copied()
     }
 
-    pub fn promote(&self) -> Option<Kind> {
+    pub fn promote(self) -> Option<Kind> {
         Some(match self {
             Pawn => ProPawn,
             Lance => ProLance,
@@ -107,11 +107,11 @@ impl Kind {
         })
     }
 
-    pub fn maybe_unpromote(&self) -> Kind {
-        self.unpromote().unwrap_or(*self)
+    pub fn maybe_unpromote(self) -> Kind {
+        self.unpromote().unwrap_or(self)
     }
 
-    pub fn unpromote(&self) -> Option<Kind> {
+    pub fn unpromote(self) -> Option<Kind> {
         Some(match self {
             ProPawn => Pawn,
             ProLance => Lance,
@@ -122,13 +122,13 @@ impl Kind {
             _ => return None,
         })
     }
-    pub fn is_line_piece(&self) -> bool {
+    pub fn is_line_piece(self) -> bool {
         LINE_PIECE_MASK & 1 << self.index() != 0
     }
-    pub fn is_hand_piece(&self) -> bool {
-        matches!(self, Pawn | Lance | Knight | Silver | Gold | Bishop | Rook)
+    pub fn is_hand_piece(self) -> bool {
+        self.index() < NUM_HAND_KIND
     }
-    pub fn is_promotable(&self) -> bool {
-        matches!(self, Pawn | Lance | Knight | Silver | Bishop | Rook)
+    pub fn is_promotable(self) -> bool {
+        self.is_hand_piece() && self != Gold
     }
 }
