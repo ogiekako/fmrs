@@ -1,14 +1,10 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{
-            bishop_power, lance_power, lance_reachable, magic, reachable, rook_power, BitBoard,
-        },
+        bitboard::{bishop_power, lance_power, magic, reachable, rook_power, BitBoard},
         Position, Square,
     },
 };
-
-use super::attack_prevent;
 
 // pinned piece and its movable positions (capturing included) pairs.
 #[derive(Debug)]
@@ -188,8 +184,8 @@ fn lance_pinned(
             return;
         }
         let blocker_kind = position.kind_bb().get(blocker_pos);
-        let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
-            & BitBoard::from_u128((1 << attacker_pos.index()) - (1 << king_pos.index()) << 1);
+        let reach =
+            reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power_from_king;
         res.push((blocker_pos, reach));
     } else {
         let mut occupied = occupied.u128();
@@ -206,8 +202,8 @@ fn lance_pinned(
             return;
         }
         let blocker_kind = position.kind_bb().get(blocker_pos);
-        let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
-            & BitBoard::from_u128((1 << king_pos.index()) - (1 << attacker_pos.index()));
+        let reach =
+            reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power_from_king;
         res.push((blocker_pos, reach));
     }
 }
