@@ -110,13 +110,14 @@ fn bench_reachable(c: &mut Criterion) {
             test_cases
                 .iter()
                 .for_each(|(position, color, pos, kind, capture_same_color)| {
-                    reachable(
+                    let bb = reachable(
                         position.color_bb(),
                         *color,
                         *pos,
                         *kind,
                         *capture_same_color,
                     );
+                    black_box(bb);
                 })
         })
     });
