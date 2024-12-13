@@ -8,13 +8,13 @@ use crate::{
 
 pub fn checked(position: &Position, color: Color) -> bool {
     let king_pos = {
-        if let Some(king_pos) = position.bitboard(color.into(), Kind::King.into()).next() {
+        if let Some(king_pos) = position.bitboard(color, Kind::King).next() {
             king_pos
         } else {
             return false;
         }
     };
-    let opponent_pieces = position.bitboard(color.opposite().into(), None);
+    let opponent_pieces = position.color_bb().bitboard(color.opposite());
     let around_king = king_power(king_pos);
     // Non line or leap moves
     for attacker_pos in around_king & opponent_pieces {
@@ -35,7 +35,7 @@ pub fn checked(position: &Position, color: Color) -> bool {
         Kind::ProBishop,
         Kind::ProRook,
     ] {
-        let attackers = position.bitboard(color.opposite().into(), attacker_kind.into());
+        let attackers = position.bitboard(color.opposite(), attacker_kind);
         if attackers.is_empty() {
             continue;
         }

@@ -157,10 +157,7 @@ fn bench_pinned300(c: &mut Criterion) {
             continue;
         }
 
-        let king_pos = position
-            .bitboard(king_color.into(), Kind::King.into())
-            .next()
-            .unwrap();
+        let king_pos = position.bitboard(king_color, Kind::King).next().unwrap();
         let blocker_color: Color = rng.gen();
         test_cases.push((position, king_color, king_pos, blocker_color));
         if test_cases.len() >= 300 {

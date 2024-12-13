@@ -149,7 +149,7 @@ fn lance_pinned(
     let attacker_color = king_color.opposite();
     let color_bb = position.color_bb();
 
-    let lances = position.bitboard2(attacker_color, Kind::Lance);
+    let lances = position.bitboard(attacker_color, Kind::Lance);
     if lances.is_empty() {
         return None;
     }

@@ -56,10 +56,7 @@ impl<'a> Context<'a> {
         next_step: u32,
         options: &'a AdvanceOptions,
     ) -> anyhow::Result<Self> {
-        let white_king_pos = if let Some(p) = position
-            .bitboard(Color::WHITE.into(), Kind::King.into())
-            .next()
-        {
+        let white_king_pos = if let Some(p) = position.bitboard(Color::WHITE, Kind::King).next() {
             p
         } else {
             bail!("No white king");
@@ -67,14 +64,14 @@ impl<'a> Context<'a> {
         let black_king_checked = common::checked(position, Color::BLACK);
 
         let pinned = position
-            .bitboard(Color::BLACK.into(), Kind::King.into())
+            .bitboard(Color::BLACK, Kind::King)
             .next()
             .map(|king_pos| pinned(position, Color::BLACK, king_pos, Color::BLACK))
             .unwrap_or_else(Pinned::empty);
 
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard(Color::BLACK.into(), Kind::Pawn.into()) {
+            for pos in position.bitboard(Color::BLACK, Kind::Pawn) {
                 mask |= 1 << pos.col()
             }
             mask
@@ -97,7 +94,7 @@ impl<'a> Context<'a> {
         if self.black_king_checked {
             let black_king_pos = self
                 .position
-                .bitboard(Color::BLACK.into(), Kind::King.into())
+                .bitboard(Color::BLACK, Kind::King)
                 .next()
                 .unwrap();
             self.result = attack_preventing_movements(
@@ -190,9 +187,7 @@ impl<'a> Context<'a> {
             Kind::ProBishop,
             Kind::ProRook,
         ] {
-            let attackers = self
-                .position
-                .bitboard(Color::BLACK.into(), attacker_source_kind.into());
+            let attackers = self.position.bitboard(Color::BLACK, attacker_source_kind);
             if attackers.is_empty() {
                 continue;
             }

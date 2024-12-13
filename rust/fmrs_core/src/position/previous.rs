@@ -25,8 +25,8 @@ struct Context {
 impl Context {
     fn new(position: Position, allow_drop_pawn: bool) -> Self {
         let turn = position.turn();
-        let black_pieces = position.bitboard(Color::BLACK.into(), None);
-        let white_pieces = position.bitboard(Color::WHITE.into(), None);
+        let black_pieces = position.color_bb().bitboard(Color::BLACK);
+        let white_pieces = position.color_bb().bitboard(Color::WHITE);
         Self {
             position,
             allow_drop_pawn,
@@ -39,9 +39,7 @@ impl Context {
 
     fn previous(&self) {
         for kind in Kind::iter() {
-            let dests = self
-                .position
-                .bitboard(self.turn.opposite().into(), kind.into());
+            let dests = self.position.bitboard(self.turn.opposite(), kind);
             for dest in dests {
                 self.add_undo_moves_to(dest, kind, false);
                 self.add_undo_moves_to(dest, kind, true);

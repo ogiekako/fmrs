@@ -26,7 +26,7 @@ pub(super) fn advance(
 ) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::WHITE);
     let king_pos = position
-        .bitboard(Color::WHITE.into(), Kind::King.into())
+        .bitboard(Color::WHITE, Kind::King)
         .next()
         .ok_or_else(|| anyhow::anyhow!("white king not found"))?;
     attack_preventing_movements(position, memo, next_step, king_pos, false, options)

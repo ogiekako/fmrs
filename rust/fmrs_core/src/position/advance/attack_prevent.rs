@@ -67,7 +67,7 @@ impl<'a> Context<'a> {
         let pinned = pinned(position, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard(turn.into(), Kind::Pawn.into()) {
+            for pos in position.bitboard(turn, Kind::Pawn) {
                 mask |= 1 << pos.col()
             }
             mask
@@ -124,10 +124,7 @@ impl<'a> Context<'a> {
 
         let mut under_attack = BitBoard::empty();
         for attacker_kind in Kind::iter() {
-            for attacker_pos in self
-                .position
-                .bitboard(self.turn.opposite().into(), attacker_kind.into())
-            {
+            for attacker_pos in self.position.bitboard(self.turn.opposite(), attacker_kind) {
                 let attacker_power =
                     bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
                 if (attacker_power & king_reachable).is_empty() {
@@ -209,13 +206,10 @@ impl<'a> Context<'a> {
 
         for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
             let on_board = {
-                let raw_pieces = self.position.bitboard(self.turn.into(), leap_kind.into());
+                let raw_pieces = self.position.bitboard(self.turn, leap_kind);
                 let promoted_kind = leap_kind.promote().unwrap();
                 if promoted_kind.is_line_piece() {
-                    raw_pieces
-                        | self
-                            .position
-                            .bitboard(self.turn.into(), promoted_kind.into())
+                    raw_pieces | self.position.bitboard(self.turn, promoted_kind)
                 } else {
                     raw_pieces
                 }
@@ -335,7 +329,7 @@ fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
     let king_color = position.turn();
     let mut attacker: Option<Attacker> = None;
     for attacker_kind in Kind::iter() {
-        let existing = position.bitboard(king_color.opposite().into(), attacker_kind.into());
+        let existing = position.bitboard(king_color.opposite(), attacker_kind);
         if existing.is_empty() {
             continue;
         }
