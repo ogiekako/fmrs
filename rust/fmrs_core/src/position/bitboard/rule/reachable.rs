@@ -25,8 +25,8 @@ pub fn reachable(
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
         Kind::Rook => magic::rook_reachable(occupied, pos),
-        Kind::ProBishop => king_power(pos) | magic::bishop_reachable(occupied, pos),
-        Kind::ProRook => king_power(pos) | magic::rook_reachable(occupied, pos),
+        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
+        Kind::ProRook => magic::prorook_reachable(occupied, pos),
         _ => unreachable!(),
     }
     .and_not(exclude)
