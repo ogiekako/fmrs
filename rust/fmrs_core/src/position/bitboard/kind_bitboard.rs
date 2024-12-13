@@ -78,6 +78,15 @@ impl KindBitBoard {
             kind2: BitBoard::empty(),
         }
     }
+    pub fn goldish(&self) -> BitBoard {
+        // p a b c
+        // (false, 5), (true, 1), (true, 2), (true, 3), (true, 4)
+        // p & ~c | (p & ~a | ~p & a) & ~b & c
+        self.promote.and_not(self.kind2)
+            | (self.promote.and_not(self.kind0) | self.kind0.and_not(self.promote))
+                .and_not(self.kind1)
+                & (self.kind2)
+    }
 
     // rook and prorook
     pub fn rookish(&self) -> BitBoard {

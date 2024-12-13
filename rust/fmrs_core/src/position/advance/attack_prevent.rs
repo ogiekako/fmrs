@@ -4,7 +4,7 @@ use rustc_hash::FxHashMap;
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{self, rule::king_power, BitBoard},
+        bitboard::{self, power, reachable, rule::king_power, BitBoard},
         Digest, Movement, Position, PositionExt, Square,
     },
 };
@@ -90,7 +90,7 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn advance(&mut self) -> Result<()> {
-        if !self.attacker.double_check {
+        if self.attacker.double_check.is_none() {
             self.block(self.attacker.pos, self.attacker.kind)?;
             self.capture(self.attacker.pos)?;
         }
@@ -258,7 +258,8 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if self.attacker.double_check && common::checked(&next_position, self.turn) {
+        // TODO: check the second attacker
+        if self.attacker.double_check.is_some() && common::checked(&next_position, self.turn) {
             return Ok(());
         }
 
@@ -312,11 +313,11 @@ impl<'a> Context<'a> {
 struct Attacker {
     pos: Square,
     kind: Kind,
-    double_check: bool,
+    double_check: Option<(Square, Kind)>,
 }
 
 impl Attacker {
-    fn new(pos: Square, kind: Kind, double_check: bool) -> Self {
+    fn new(pos: Square, kind: Kind, double_check: Option<(Square, Kind)>) -> Self {
         Self {
             pos,
             kind,
@@ -327,29 +328,55 @@ impl Attacker {
 
 fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
     let king_color = position.turn();
+
+    let opponent_bb = position.color_bb().bitboard(king_color.opposite());
+    let kind_bb = position.kind_bb();
+
     let mut attacker: Option<Attacker> = None;
-    for attacker_kind in Kind::iter() {
-        let existing = position.bitboard(king_color.opposite(), attacker_kind);
-        if existing.is_empty() {
+
+    for attacker_kind in [
+        Kind::Pawn,
+        Kind::Lance,
+        Kind::Knight,
+        Kind::Silver,
+        Kind::Gold,
+        Kind::Bishop,
+        Kind::Rook,
+        Kind::King,
+        Kind::ProBishop,
+        Kind::ProRook,
+    ] {
+        let mut attacker_cands = if attacker_kind == Kind::Gold {
+            kind_bb.goldish()
+        } else {
+            kind_bb.bitboard(attacker_kind)
+        } & opponent_bb;
+
+        if attacker_cands.is_empty() {
             continue;
         }
-        // TODO: consider checking power first.
-        let attacking = bitboard::reachable(
-            position.color_bb(),
-            king_color,
-            king_pos,
-            attacker_kind,
-            false,
-        ) & existing;
-        if attacking.is_empty() {
+        attacker_cands &= power(king_color, king_pos, attacker_kind);
+        if attacker_cands.is_empty() {
             continue;
         }
-        for attacker_pos in attacking {
+        if attacker_kind.is_line_piece() {
+            attacker_cands &= reachable(
+                position.color_bb(),
+                king_color,
+                king_pos,
+                attacker_kind,
+                false,
+            );
+            if attacker_cands.is_empty() {
+                continue;
+            }
+        }
+        for attacker_pos in attacker_cands {
             if let Some(mut attacker) = attacker.take() {
-                attacker.double_check = true;
+                attacker.double_check = (attacker_pos, attacker_kind).into();
                 return Some(attacker);
             }
-            attacker = Some(Attacker::new(attacker_pos, attacker_kind, false));
+            attacker = Some(Attacker::new(attacker_pos, attacker_kind, None));
         }
     }
     attacker

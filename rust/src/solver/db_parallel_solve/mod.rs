@@ -1,5 +1,5 @@
 mod db;
-mod solve;
 mod reconstruct;
+mod solve;
 
 pub use solve::solve;
