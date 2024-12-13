@@ -1,7 +1,10 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{self, lance_power, lance_reachable, reachable, BitBoard, ColorBitBoard},
+        bitboard::{
+            self, bishop_power, lance_power, lance_reachable, magic, reachable, BitBoard,
+            ColorBitBoard,
+        },
         Position, Square,
     },
 };
@@ -66,15 +69,48 @@ pub fn pinned(
         res.push(e);
     }
 
-    for attacker_kind in [Kind::Bishop, Kind::Rook] {
-        let power_mask = bitboard::power(king_color, king_pos, attacker_kind);
+    // Bishop
+    loop {
+        let power_from_king = bishop_power(king_pos);
+        let mut potential_attackers =
+            position.kind_bb().bishopish() & color_bb.bitboard(attacker_color) & power_from_king;
+        if potential_attackers.is_empty() {
+            break;
+        }
+        let reachable_from_king = magic::bishop_reachable(both, king_pos);
+
+        potential_attackers = potential_attackers.and_not(reachable_from_king);
+
+        for attacker_pos in potential_attackers {
+            let power_from_attacker = bishop_power(attacker_pos);
+
+            let block = reachable_from_king
+                & magic::bishop_reachable(both, attacker_pos)
+                & color_bb.bitboard(blocker_color);
+            if block.is_empty() {
+                continue;
+            }
+            let blocker_pos = block.singleton();
+
+            let blocker_kind = position.get(blocker_pos).unwrap().1;
+            let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
+                & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
+
+            res.push((blocker_pos, reach));
+        }
+
+        break;
+    }
+
+    for attacker_kind in [Kind::Rook] {
+        let power_from_king = bitboard::power(king_color, king_pos, attacker_kind);
 
         let potential_attackers = if attacker_kind == Kind::Bishop {
             position.kind_bb().bishopish()
         } else {
             position.kind_bb().rookish()
         } & color_bb.bitboard(attacker_color)
-            & power_mask;
+            & power_from_king;
 
         if potential_attackers.is_empty() {
             continue;

@@ -66,6 +66,10 @@ impl BitBoard {
     pub(crate) fn digest(&self) -> u64 {
         (self.0 >> 64) as u64 ^ self.0 as u64
     }
+
+    pub(crate) fn from_square(pos: Square) -> BitBoard {
+        BitBoard::from_u128(1 << pos.index())
+    }
 }
 
 impl Iterator for BitBoard {

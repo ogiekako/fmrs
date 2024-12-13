@@ -27,20 +27,20 @@ impl Magic {
     }
 }
 
-pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+pub fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     BISHOP_MAGIC[pos.index()].reachable63(occupied)
 }
 
-pub(super) fn probishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+pub fn probishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     PROBISHOP_MAGIC[pos.index()].reachable63(occupied)
 }
 
-pub(super) fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+pub fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     ROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
         | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
 }
 
-pub(super) fn prorook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+pub fn prorook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     PROROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
         | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
 }

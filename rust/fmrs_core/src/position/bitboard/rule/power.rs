@@ -30,6 +30,14 @@ pub fn lance_power(color: Color, pos: Square) -> BitBoard {
     LANCE_POWER[color.index()][pos.index()]
 }
 
+pub fn bishop_power(pos: Square) -> BitBoard {
+    BISHOP_POWER[pos.index()]
+}
+
+pub fn rook_power(pos: Square) -> BitBoard {
+    ROOK_POWER[pos.index()]
+}
+
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
@@ -42,8 +50,8 @@ lazy_static! {
                 Kind::Knight => *KNIGHT_POWER,
                 Kind::Silver => *SILVER_POWER,
                 Kind::Gold => *GOLD_POWER,
-                Kind::Bishop => *BISHOP_POWER,
-                Kind::Rook => *ROOK_POWER,
+                Kind::Bishop => [*BISHOP_POWER, *BISHOP_POWER],
+                Kind::Rook => [*ROOK_POWER, *ROOK_POWER],
                 Kind::King => [*KING_POWER, *KING_POWER],
                 Kind::ProPawn => *GOLD_POWER,
                 Kind::ProLance => *GOLD_POWER,
@@ -75,13 +83,13 @@ lazy_static! {
         .into_iter()
     );
     static ref LANCE_POWER: KindPower = powers(run((0, -1)));
-    static ref BISHOP_POWER: KindPower = powers(
+    static ref BISHOP_POWER: [BitBoard; 81] = powers_sub(
         run((-1, -1))
             .chain(run((-1, 1)))
             .chain(run((1, -1)))
             .chain(run((1, 1)))
     );
-    static ref ROOK_POWER: KindPower = powers(
+    static ref ROOK_POWER: [BitBoard; 81] = powers_sub(
         run((-1, 0))
             .chain(run((0, -1)))
             .chain(run((0, 1)))

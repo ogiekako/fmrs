@@ -1,4 +1,4 @@
-mod magic;
+pub mod magic;
 mod magic_core;
 mod power;
 mod reachable;
