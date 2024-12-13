@@ -4,5 +4,4 @@ mod power;
 mod reachable;
 
 pub use power::*;
-pub use reachable::reachable;
-pub use reachable::reachable2;
+pub use reachable::*;

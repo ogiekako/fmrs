@@ -14,6 +14,9 @@ impl ColorBitBoard {
     pub fn empty() -> Self {
         Self(BitBoard::empty(), BitBoard::empty())
     }
+    pub fn new(black: BitBoard, white: BitBoard) -> Self {
+        Self(black, white)
+    }
     pub fn bitboard(&self, color: Color) -> BitBoard {
         match color {
             Color::BLACK => self.0,

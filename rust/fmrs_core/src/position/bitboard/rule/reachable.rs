@@ -17,8 +17,12 @@ pub fn reachable(
     } else {
         color_bb.white()
     };
+    reachable_sub(color_bb, color, pos, kind).and_not(exclude)
+}
+
+pub fn reachable_sub(color_bb: &ColorBitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
     if !kind.is_line_piece() {
-        return power(color, pos, kind).and_not(exclude);
+        return power(color, pos, kind);
     }
     let occupied = color_bb.both();
     match kind {
@@ -29,7 +33,6 @@ pub fn reachable(
         Kind::ProRook => magic::prorook_reachable(occupied, pos),
         _ => unreachable!(),
     }
-    .and_not(exclude)
 }
 
 pub fn reachable2(
@@ -57,7 +60,7 @@ pub fn reachable2(
 const UPPER: u64 = 0b1000000001000000001000000001000000001000000001000000001000000001;
 const LOWER: u64 = 0b100000000100000000100000000100000000100000000100000000100000000;
 
-fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
+pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
     let (occ, p, shift) = if pos.index() >= 63 {
         ((occupied.u128() >> 63) as u64, pos.index() - 63, true)
     } else {
