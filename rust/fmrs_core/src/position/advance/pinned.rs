@@ -60,9 +60,11 @@ pub fn pinned(
     lance_pinned(position, king_color, king_pos, blocker_color, &mut res);
     bishop_pinned(position, king_color, king_pos, blocker_color, &mut res);
     rook_pinned(position, king_color, king_pos, blocker_color, &mut res);
+
     Pinned::new(res)
 }
 
+// #[inline(never)]
 fn bishop_pinned(
     position: &Position,
     king_color: Color,
@@ -80,9 +82,9 @@ fn bishop_pinned(
         return;
     }
 
-    let both = color_bb.both();
+    let occupied = color_bb.both();
 
-    let reachable_from_king = magic::bishop_reachable(both, king_pos);
+    let reachable_from_king = magic::bishop_reachable(occupied, king_pos);
 
     potential_attackers = potential_attackers.and_not(reachable_from_king);
 
@@ -90,14 +92,14 @@ fn bishop_pinned(
         let power_from_attacker = bishop_power(attacker_pos);
 
         let block = reachable_from_king
-            & magic::bishop_reachable(both, attacker_pos)
+            & magic::bishop_reachable(occupied, attacker_pos)
             & color_bb.bitboard(blocker_color);
         if block.is_empty() {
             continue;
         }
         let blocker_pos = block.singleton();
 
-        let blocker_kind = position.get(blocker_pos).unwrap().1;
+        let blocker_kind = position.kind_bb().get(blocker_pos);
         let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
             & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
 
@@ -105,6 +107,7 @@ fn bishop_pinned(
     }
 }
 
+// #[inline(never)]
 fn rook_pinned(
     position: &Position,
     king_color: Color,
@@ -122,9 +125,9 @@ fn rook_pinned(
         return;
     }
 
-    let both = color_bb.both();
+    let occupied = color_bb.both();
 
-    let reachable_from_king = magic::rook_reachable(both, king_pos);
+    let reachable_from_king = magic::rook_reachable(occupied, king_pos);
 
     potential_attackers = potential_attackers.and_not(reachable_from_king);
 
@@ -132,14 +135,14 @@ fn rook_pinned(
         let power_from_attacker = rook_power(attacker_pos);
 
         let block = reachable_from_king
-            & magic::rook_reachable(both, attacker_pos)
+            & magic::rook_reachable(occupied, attacker_pos)
             & color_bb.bitboard(blocker_color);
         if block.is_empty() {
             continue;
         }
         let blocker_pos = block.singleton();
 
-        let blocker_kind = position.get(blocker_pos).unwrap().1;
+        let blocker_kind = position.kind_bb().get(blocker_pos);
         let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
             & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
 
@@ -187,7 +190,7 @@ fn lance_pinned(
         return;
     }
 
-    let blocker_kind = position.get(blocker_pos).unwrap().1;
+    let blocker_kind = position.kind_bb().get(blocker_pos);
     let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power;
 
     res.push((blocker_pos, reach));
