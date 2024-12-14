@@ -78,7 +78,7 @@ impl<'a> Context<'a> {
     ) -> Self {
         let turn = position.turn();
         let attacker = attacker_hint
-            .unwrap_or_else(|| attacker(position, turn, king_pos).expect("no attacker"));
+            .unwrap_or_else(|| attacker(position, turn, king_pos, false).expect("no attacker"));
         let pinned = pinned(position, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
@@ -385,7 +385,12 @@ impl Attacker {
     }
 }
 
-pub fn attacker(position: &Position, king_color: Color, king_pos: Square) -> Option<Attacker> {
+pub fn attacker(
+    position: &Position,
+    king_color: Color,
+    king_pos: Square,
+    early_return: bool,
+) -> Option<Attacker> {
     let opponent_bb = position.color_bb().bitboard(king_color.opposite());
     let kind_bb = position.kind_bb();
 
@@ -434,6 +439,9 @@ pub fn attacker(position: &Position, king_color: Color, king_pos: Square) -> Opt
                 return Some(attacker);
             }
             attacker = Some(Attacker::new(attacker_pos, attacker_kind, None));
+            if early_return {
+                return attacker;
+            }
         }
     }
     attacker

@@ -26,6 +26,9 @@ impl Pinned {
         Self { mask, pinned_area }
     }
     pub fn is_pinned(&self, pos: Square) -> bool {
+        if self.is_empty() {
+            return false;
+        }
         self.mask.get(pos)
     }
     pub fn iter(&self) -> impl Iterator<Item = &(Square, BitBoard)> {
@@ -36,12 +39,15 @@ impl Pinned {
     }
     // Reachable pinned area including capturing move
     pub fn pinned_area(&self, source: Square) -> BitBoard {
-        for (pinned_pos, movable) in self.pinned_area.iter() {
-            if source == *pinned_pos {
-                return *movable;
+        for &(pinned_pos, movable) in self.pinned_area.iter() {
+            if source == pinned_pos {
+                return movable;
             }
         }
         panic!("BUG: is_pinned(source) should be true");
+    }
+    pub fn is_empty(&self) -> bool {
+        self.pinned_area.is_empty()
     }
 }
 

@@ -65,13 +65,11 @@ impl<'a> Context<'a> {
             bail!("No white king");
         };
         let black_king_pos = (kings & position.color_bb().black()).next();
-        let attacker = black_king_pos.and_then(|pos| attacker(position, Color::BLACK, pos));
+        let attacker = black_king_pos.and_then(|pos| attacker(position, Color::BLACK, pos, false));
 
-        let pinned = position
-            .bitboard(Color::BLACK, Kind::King)
-            .next()
-            .map(|king_pos| pinned(position, Color::BLACK, king_pos, Color::BLACK))
-            .unwrap_or_else(Pinned::empty);
+        let pinned = black_king_pos
+            .map(|pos| pinned(position, Color::BLACK, pos, Color::BLACK))
+            .unwrap_or_else(|| Pinned::empty());
 
         let pawn_mask = {
             let mut mask = Default::default();
@@ -278,9 +276,9 @@ impl<'a> Context<'a> {
             self.white_king_pos,
             Color::BLACK,
         );
-        for (blocker_pos, blocker_pinned_area) in blockers.iter() {
-            let (blocker_pos, blocker_pinned_area) = (*blocker_pos, *blocker_pinned_area);
-            let blocker_kind = self.position.get(blocker_pos).unwrap().1;
+        for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
+            let blocker_kind = self.position.must_get_kind(blocker_pos);
+
             let mut blocker_dest_cands = bitboard::reachable(
                 self.position.color_bb(),
                 Color::BLACK,

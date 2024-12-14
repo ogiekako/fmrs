@@ -13,5 +13,5 @@ pub fn checked(position: &Position, color: Color, king_pos_hint: Option<Square>)
     } else {
         return false;
     };
-    attacker(position, color, king_pos).is_some()
+    attacker(position, color, king_pos, true).is_some()
 }
