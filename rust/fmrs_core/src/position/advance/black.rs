@@ -334,12 +334,6 @@ impl<'a> Context<'a> {
 // Helper
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
-        debug_assert_eq!(self.position.clone(), {
-            let undo = self.position.do_move(movement);
-            self.position.undo_move(&undo);
-            self.position.clone()
-        });
-
         let undo = self.position.do_move(movement);
 
         if kind == Kind::King

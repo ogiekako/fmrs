@@ -82,45 +82,35 @@ impl PositionExt for Position {
         let prev_turn = self.turn().opposite();
         self.set_turn(prev_turn);
         match token {
-            UnDrop(pos, pawn_drop) => {
-                let (c, k) = self
-                    .get(*pos)
-                    .unwrap_or_else(|| panic!("{:?} doesn't contain any piece", pos));
-                debug_assert_eq!(prev_turn, c);
-                self.unset(*pos, c, k);
-                self.hands_mut().add(c, k.maybe_unpromote());
-                self.set_pawn_drop(*pawn_drop);
-                Movement::Drop(*pos, k.maybe_unpromote())
+            &UnDrop(pos, pawn_drop) => {
+                let k = self.must_get_kind(pos);
+                self.unset(pos, prev_turn, k);
+                self.hands_mut().add(prev_turn, k.maybe_unpromote());
+                self.set_pawn_drop(pawn_drop);
+                Movement::Drop(pos, k.maybe_unpromote())
             }
-            UnMove {
+            &UnMove {
                 source: from,
                 dest: to,
                 promote,
                 capture,
                 pawn_drop,
             } => {
-                let (c, k) = self
-                    .get(*to)
-                    .unwrap_or_else(|| panic!("{:?} doesn't contain any piece", to));
-                debug_assert_eq!(prev_turn, c);
-                self.unset(*to, c, k);
-                debug_assert_eq!(None, self.get(*from));
-                let prev_k = if *promote {
-                    k.unpromote()
-                        .unwrap_or_else(|| panic!("can't unpromote {:?}", k))
-                } else {
-                    k
-                };
-                self.set(*from, c, prev_k);
+                let k = self.must_get_kind(to);
+                self.unset(to, prev_turn, k);
+                debug_assert_eq!(None, self.get(from));
+                let prev_k = if promote { k.unpromote().unwrap() } else { k };
+                self.set(from, prev_turn, prev_k);
                 if let Some(captured_k) = capture {
-                    self.set(*to, c.opposite(), *captured_k);
-                    self.hands_mut().remove(c, captured_k.maybe_unpromote());
+                    self.set(to, prev_turn.opposite(), captured_k);
+                    self.hands_mut()
+                        .remove(prev_turn, captured_k.maybe_unpromote());
                 }
-                self.set_pawn_drop(*pawn_drop);
+                self.set_pawn_drop(pawn_drop);
                 Movement::Move {
-                    source: *from,
-                    dest: *to,
-                    promote: *promote,
+                    source: from,
+                    dest: to,
+                    promote,
 
                     capture_kind_hint: None,
                     source_kind_hint: None,

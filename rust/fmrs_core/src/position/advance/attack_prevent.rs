@@ -304,12 +304,6 @@ impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
-        debug_assert_eq!(self.position.clone(), {
-            let undo = self.position.do_move(movement);
-            self.position.undo_move(&undo);
-            self.position.clone()
-        });
-
         let undo = self.position.do_move(movement);
 
         // TODO: check the second attacker
