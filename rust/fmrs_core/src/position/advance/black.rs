@@ -147,19 +147,19 @@ impl<'a> Context<'a> {
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
-        for attacker_pos in lion_king_range & self.position.color_bb().black() {
+
+        let attacker_cands = self.position.kind_bb().pawn_silver_goldish()
+            & lion_king_range
+            & self.position.color_bb().black();
+        for attacker_pos in attacker_cands {
             let attacker_source_kind = self.position.must_get_kind(attacker_pos);
-            if attacker_source_kind == Kind::King
-                || attacker_source_kind == Kind::Knight
-                || attacker_source_kind.is_line_piece()
-            {
-                continue;
-            }
+
             let attacker_power = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
             } else {
                 bitboard::power(Color::BLACK, attacker_pos, attacker_source_kind)
             };
+
             for promote in [false, true] {
                 if promote && attacker_source_kind.promote().is_none() {
                     continue;
