@@ -42,6 +42,13 @@ impl Movement {
     pub fn is_move(&self) -> bool {
         matches!(self, Movement::Move { .. })
     }
+
+    pub(crate) fn dest(&self) -> Square {
+        match self {
+            Movement::Drop(pos, _) => *pos,
+            Movement::Move { dest, .. } => *dest,
+        }
+    }
 }
 
 impl std::fmt::Debug for Movement {

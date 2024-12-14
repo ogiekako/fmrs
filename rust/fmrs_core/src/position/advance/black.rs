@@ -332,8 +332,9 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        // This is next position and self.black_king_pos can't be used.
-        if kind == Kind::King && common::checked(&next_position, Color::BLACK, None) {
+        if kind == Kind::King
+            && common::checked(&next_position, Color::BLACK, movement.dest().into())
+        {
             return Ok(());
         }
 
