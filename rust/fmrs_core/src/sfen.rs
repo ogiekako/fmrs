@@ -116,7 +116,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
     if rows.len() != 9 {
         bail!("There should be exactly 9 rows");
     }
-    let mut board = Position::new();
+    let mut board = Position::default();
     for row in 0..9 {
         let mut col = 9isize;
         let mut promote = false;
@@ -220,7 +220,7 @@ pub fn from_image_url(url: &str) -> anyhow::Result<String> {
 
 #[test]
 fn test_encode() {
-    let mut board = Position::new();
+    let mut board = Position::default();
 
     board.set(Square::new(0, 0), Color::WHITE, Lance);
     board.set(Square::new(3, 1), Color::BLACK, Pawn);

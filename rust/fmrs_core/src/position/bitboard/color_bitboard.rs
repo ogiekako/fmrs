@@ -2,8 +2,11 @@ use crate::{direction::Direction, piece::Color};
 
 use super::{BitBoard, Square};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ColorBitBoard(BitBoard, BitBoard);
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+pub struct ColorBitBoard {
+    black: BitBoard,
+    white: BitBoard,
+}
 
 #[test]
 fn test_color_bitboard_size() {
@@ -11,52 +14,44 @@ fn test_color_bitboard_size() {
 }
 
 impl ColorBitBoard {
-    pub fn empty() -> Self {
-        Self(BitBoard::empty(), BitBoard::empty())
-    }
     pub fn new(black: BitBoard, white: BitBoard) -> Self {
-        Self(black, white)
+        Self { black, white }
     }
     pub fn bitboard(&self, color: Color) -> BitBoard {
-        match color {
-            Color::BLACK => self.0,
-            Color::WHITE => self.1,
+        if color.is_black() {
+            self.black
+        } else {
+            self.white
         }
     }
     pub fn set(&mut self, color: Color, pos: Square) {
-        match color {
-            Color::BLACK => {
-                self.0.set(pos);
-            }
-            Color::WHITE => {
-                self.1.set(pos);
-            }
-        };
+        if color.is_black() {
+            self.black.set(pos);
+        } else {
+            self.white.set(pos);
+        }
     }
     pub fn unset(&mut self, color: Color, pos: Square) {
-        match color {
-            Color::BLACK => {
-                self.0.unset(pos);
-            }
-            Color::WHITE => {
-                self.1.unset(pos);
-            }
-        };
+        if color.is_black() {
+            self.black.unset(pos);
+        } else {
+            self.white.unset(pos);
+        }
     }
     pub(crate) fn black(&self) -> BitBoard {
-        self.0
+        self.black
     }
 
     pub(crate) fn white(&self) -> BitBoard {
-        self.1
+        self.white
     }
 
     pub fn both(&self) -> BitBoard {
-        self.0 | self.1
+        self.black | self.white
     }
 
     pub(crate) fn shift(&mut self, dir: Direction) {
-        self.0.shift(dir);
-        self.1.shift(dir);
+        self.black.shift(dir);
+        self.white.shift(dir);
     }
 }

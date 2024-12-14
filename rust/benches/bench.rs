@@ -77,7 +77,7 @@ fn bench_oneway(c: &mut Criterion) {
 fn random_positions(rng: &mut SmallRng, len: usize) -> Vec<Position> {
     let mut positions = vec![];
     for _ in 0..len {
-        let mut position = Position::new();
+        let mut position = Position::default();
 
         let hand_prob = rng.gen_range(0.0..0.7);
         let mut pieces = vec![18, 4, 4, 4, 4, 2, 2, 2];

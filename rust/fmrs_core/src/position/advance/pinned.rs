@@ -16,12 +16,12 @@ pub struct Pinned {
 impl Pinned {
     pub fn empty() -> Self {
         Self {
-            mask: BitBoard::empty(),
+            mask: BitBoard::default(),
             pinned_area: vec![],
         }
     }
     fn new(pinned_area: Vec<(Square, BitBoard)>) -> Self {
-        let mut mask = BitBoard::empty();
+        let mut mask = BitBoard::default();
         pinned_area.iter().for_each(|(x, _)| mask.set(*x));
         Self { mask, pinned_area }
     }

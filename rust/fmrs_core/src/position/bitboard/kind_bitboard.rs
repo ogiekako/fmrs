@@ -2,7 +2,7 @@ use crate::piece::Kind;
 
 use super::{BitBoard, Square};
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct KindBitBoard {
     promote: BitBoard,
     kind0: BitBoard,
@@ -70,14 +70,6 @@ fn test_kind_bitboard_size() {
 }
 
 impl KindBitBoard {
-    pub fn empty() -> Self {
-        Self {
-            promote: BitBoard::empty(),
-            kind0: BitBoard::empty(),
-            kind1: BitBoard::empty(),
-            kind2: BitBoard::empty(),
-        }
-    }
     // #[inline(never)]
     pub fn goldish(&self) -> BitBoard {
         // p a b c
@@ -223,7 +215,7 @@ mod tests {
 
     #[test]
     fn get_set() {
-        let mut b = KindBitBoard::empty();
+        let mut b = KindBitBoard::default();
         let pos = Square::from_index(0);
         assert_eq!(None, b.get(pos));
         b.set(pos, Kind::Pawn);

@@ -148,7 +148,7 @@ impl<'a> Context<'a> {
         if king_reachable.is_empty() {
             return Ok(());
         }
-        let mut seen_cands = BitBoard::empty();
+        let mut seen_cands = BitBoard::default();
         let non_line_cands = king_then_king_or_night_power(king_color, self.king_pos)
             & color_bb.bitboard(attacker_color);
         for attacker_pos in non_line_cands {
@@ -355,7 +355,7 @@ impl<'a> Context<'a> {
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
         if king_power(self.king_pos).get(attacker_pos) {
-            return BitBoard::empty();
+            return BitBoard::default();
         }
         bitboard::reachable(
             self.position.color_bb(),

@@ -98,7 +98,7 @@ fn new_magic(
     use_63: bool,
     with_king: bool,
 ) -> anyhow::Result<Magic> {
-    let mut block_mask = BitBoard::empty();
+    let mut block_mask = BitBoard::default();
     for (dc, dr) in dirs {
         for i in 1..9 {
             if add(pos, dc * (i + 1), dr * (i + 1)).is_some() {
@@ -113,7 +113,7 @@ fn new_magic(
     let patterns: Vec<Pattern> = block_mask
         .subsets()
         .map(|block| {
-            let mut reachable = BitBoard::empty();
+            let mut reachable = BitBoard::default();
             for (dc, dr) in dirs {
                 for i in 1..9 {
                     match add(pos, dc * i, dr * i) {
@@ -158,7 +158,7 @@ fn new_magic(
         targets[*i].push(pattern.block_digest);
     }
     let magic = MagicCore::new(&targets)?;
-    let mut table = vec![BitBoard::empty(); magic.table_len()];
+    let mut table = vec![BitBoard::default(); magic.table_len()];
     for pattern in patterns.iter() {
         table[magic.index(pattern.block_digest) as usize] = pattern.reachable;
     }

@@ -1,18 +1,12 @@
 use crate::direction::Direction;
 use crate::piece::*;
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct Position {
     color_bb: ColorBitBoard, // 32 bytes
     kind_bb: KindBitBoard,   // 64 bytes
     hands: Hands,            // 8 bytes
     board_digest: u64,       // 8 bytes
-}
-
-impl Default for Position {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 pub type Digest = u64;
@@ -39,14 +33,6 @@ use super::hands::Hands;
 use super::Square;
 
 impl Position {
-    pub fn new() -> Self {
-        Self {
-            color_bb: ColorBitBoard::empty(),
-            kind_bb: KindBitBoard::empty(),
-            hands: Hands::new(),
-            board_digest: 0,
-        }
-    }
     pub fn turn(&self) -> Color {
         self.hands.turn()
     }
@@ -150,12 +136,12 @@ mod tests {
 
     #[test]
     fn test_shift() {
-        let mut position = Position::new();
+        let mut position = Position::default();
         position.set(Square::new(0, 0), Color::BLACK, Kind::Pawn);
         position.shift(Direction::Down);
 
         assert_eq!(position.digest(), {
-            let mut position = Position::new();
+            let mut position = Position::default();
             position.set(Square::new(0, 1), Color::BLACK, Kind::Pawn);
             position.digest()
         });

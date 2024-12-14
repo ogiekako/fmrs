@@ -124,9 +124,9 @@ lazy_static! {
             .chain(run((1, 0)).chain([(-1, -1), (-1, 1), (1, -1), (1, 1)].into_iter()))
     );
     static ref QUEEN_POWER: [BitBoard; 81] = {
-        let mut res = [BitBoard::empty(); 81];
+        let mut res = [BitBoard::default(); 81];
         for pos in Square::iter() {
-            let mut p = BitBoard::empty();
+            let mut p = BitBoard::default();
             for k in [Kind::ProBishop, Kind::ProRook] {
                 p |= power(Color::BLACK, pos, k);
             }
@@ -135,10 +135,10 @@ lazy_static! {
         res
     };
     static ref KING_AND_ANY_POWER: KindPower = {
-        let mut res = [[BitBoard::empty(); 81]; 2];
+        let mut res = [[BitBoard::default(); 81]; 2];
         for color in Color::iter() {
             for pos in Square::iter() {
-                let mut p = BitBoard::empty();
+                let mut p = BitBoard::default();
                 for pos2 in power(color, pos, Kind::King) {
                     for k in [Kind::Knight, Kind::ProBishop, Kind::ProRook] {
                         p |= power(color, pos2, k);
@@ -150,10 +150,10 @@ lazy_static! {
         res
     };
     static ref KING_THEN_KING_OR_NIGHT_POWER: KindPower = {
-        let mut res = [[BitBoard::empty(); 81]; 2];
+        let mut res = [[BitBoard::default(); 81]; 2];
         for color in Color::iter() {
             for pos in Square::iter() {
-                let mut p = BitBoard::empty();
+                let mut p = BitBoard::default();
                 for pos2 in king_power(pos) {
                     p |= king_power(pos2);
                     p |= knight_power(color, pos2);
@@ -164,12 +164,12 @@ lazy_static! {
         res
     };
     static ref POWER2: [[[[BitBoard; 14]; 14]; 81]; 2] = {
-        let mut res = [[[[BitBoard::empty(); 14]; 14]; 81]; 2];
+        let mut res = [[[[BitBoard::default(); 14]; 14]; 81]; 2];
         for color in Color::iter() {
             for pos in Square::iter() {
                 for step1 in Kind::iter() {
                     for step2 in Kind::iter() {
-                        let mut p = BitBoard::empty();
+                        let mut p = BitBoard::default();
                         for pos2 in power(color, pos, step1) {
                             p |= power(color, pos2, step2);
                         }
@@ -195,7 +195,7 @@ fn powers(black_shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {
 
 fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
     let shifts = shifts.collect::<Vec<_>>();
-    let mut res = [BitBoard::empty(); 81];
+    let mut res = [BitBoard::default(); 81];
     for col in 0..9 {
         for row in 0..9 {
             let pos = Square::new(col, row);

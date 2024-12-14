@@ -150,7 +150,7 @@ mod tests {
             )
         );
         assert_eq!(
-            BitBoard::empty(),
+            BitBoard::default(),
             super::reachable2(
                 occupied,
                 BitBoard::default(),
