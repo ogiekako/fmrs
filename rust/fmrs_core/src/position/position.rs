@@ -7,7 +7,6 @@ pub struct Position {
     kind_bb: KindBitBoard,   // 64 bytes
     hands: Hands,            // 8 bytes
     board_digest: u64,       // 8 bytes
-    placed_kinds: PlacedKinds,
 }
 
 impl Default for Position {
@@ -17,6 +16,11 @@ impl Default for Position {
 }
 
 pub type Digest = u64;
+
+#[test]
+fn test_position_size() {
+    assert_eq!(112, std::mem::size_of::<Position>());
+}
 
 use crate::position::zobrist::zobrist;
 use crate::sfen;
@@ -32,7 +36,6 @@ use super::bitboard::BitBoard;
 use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
 use super::hands::Hands;
-use super::pieces::PlacedKinds;
 use super::Square;
 
 impl Position {
@@ -42,7 +45,6 @@ impl Position {
             kind_bb: KindBitBoard::empty(),
             hands: Hands::new(),
             board_digest: 0,
-            placed_kinds: PlacedKinds::default(),
         }
     }
     pub fn turn(&self) -> Color {
@@ -86,20 +88,19 @@ impl Position {
         Some((color, self.kind_bb.must_get(pos)))
     }
     pub fn get_kind(&self, pos: Square) -> Option<Kind> {
-        self.has(pos).then(|| self.placed_kinds.get(pos))
+        self.has(pos).then(|| self.must_get_kind(pos))
     }
     pub fn has(&self, pos: Square) -> bool {
         self.color_bb().black().get(pos) || self.color_bb().white().get(pos)
     }
     pub fn must_get_kind(&self, pos: Square) -> Kind {
-        self.placed_kinds.get(pos)
+        self.kind_bb().must_get(pos)
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(!self.color_bb.bitboard(c).get(pos));
 
         self.color_bb.set(c, pos);
         self.kind_bb.set(pos, k);
-        self.placed_kinds.set(pos, k);
 
         self.board_digest ^= zobrist(c, pos, k);
     }
@@ -108,7 +109,6 @@ impl Position {
 
         self.color_bb.unset(c, pos);
         self.kind_bb.unset(pos, k);
-        self.placed_kinds.unset(pos);
 
         self.board_digest ^= zobrist(c, pos, k);
     }
@@ -126,11 +126,9 @@ impl Position {
         self.kind_bb.shift(dir);
 
         self.board_digest = 0;
-        self.placed_kinds.clear();
         for pos in Square::iter() {
             if let Some((c, k)) = self.get(pos) {
                 self.board_digest ^= zobrist(c, pos, k);
-                self.placed_kinds.set(pos, k);
             }
         }
     }
