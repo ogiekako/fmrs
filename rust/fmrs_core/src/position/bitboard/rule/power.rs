@@ -38,6 +38,14 @@ pub fn rook_power(pos: Square) -> BitBoard {
     ROOK_POWER[pos.index()]
 }
 
+pub fn any_power(color: Color, pos: Square) -> BitBoard {
+    ANY_POWER[color.index()][pos.index()]
+}
+
+pub fn king_and_any_power(color: Color, pos: Square) -> BitBoard {
+    KING_AND_ANY_POWER[color.index()][pos.index()]
+}
+
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
@@ -107,6 +115,34 @@ lazy_static! {
             .chain(run((0, 1)))
             .chain(run((1, 0)).chain([(-1, -1), (-1, 1), (1, -1), (1, 1)].into_iter()))
     );
+    static ref ANY_POWER: KindPower = {
+        let mut res = [[BitBoard::empty(); 81]; 2];
+        for color in Color::iter() {
+            for pos in Square::iter() {
+                let mut p = BitBoard::empty();
+                for k in [Kind::Knight, Kind::ProBishop, Kind::ProRook] {
+                    p |= power(color, pos, k);
+                }
+                res[color.index()][pos.index()] = p;
+            }
+        }
+        res
+    };
+    static ref KING_AND_ANY_POWER: KindPower = {
+        let mut res = [[BitBoard::empty(); 81]; 2];
+        for color in Color::iter() {
+            for pos in Square::iter() {
+                let mut p = BitBoard::empty();
+                for pos2 in power(color, pos, Kind::King) {
+                    for k in [Kind::Knight, Kind::ProBishop, Kind::ProRook] {
+                        p |= power(color, pos2, k);
+                    }
+                }
+                res[color.index()][pos.index()] = p;
+            }
+        }
+        res
+    };
 }
 
 fn run(dir: (isize, isize)) -> impl Iterator<Item = (isize, isize)> {

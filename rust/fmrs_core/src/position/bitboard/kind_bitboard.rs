@@ -176,7 +176,7 @@ impl KindBitBoard {
         self.kind2.shift(dir);
     }
 
-    pub(crate) fn get(&self, pos: Square) -> Option<Kind> {
+    pub fn get(&self, pos: Square) -> Option<Kind> {
         let mut i = 0;
         if self.kind0.get(pos) {
             i |= 1;

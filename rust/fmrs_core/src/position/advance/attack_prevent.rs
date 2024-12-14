@@ -1,4 +1,7 @@
-use crate::nohash::NoHashMap;
+use crate::{
+    nohash::NoHashMap,
+    position::bitboard::{any_power, reachable_sub},
+};
 use anyhow::Result;
 
 use crate::{
@@ -37,6 +40,7 @@ pub(super) fn attack_preventing_movements(
 
 struct Context<'a> {
     position: &'a Position,
+    position_without_king: Position,
     turn: Color,
     king_pos: Square,
     pinned: Pinned,
@@ -72,8 +76,13 @@ impl<'a> Context<'a> {
             }
             mask
         };
+
+        let mut position_without_king = position.clone();
+        position_without_king.unset(king_pos, turn, Kind::King);
+
         Self {
             position,
+            position_without_king,
             turn,
             king_pos,
             pinned,
@@ -119,42 +128,36 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
-        let king_reachable =
-            king_power(self.king_pos).and_not(self.position.color_bb().bitboard(self.turn));
+        let color_bb = self.position.color_bb();
+        let king_color = self.turn;
+        let attacker_color = king_color.opposite();
 
-        let mut under_attack = BitBoard::empty();
-        for attacker_kind in Kind::iter() {
-            for attacker_pos in self.position.bitboard(self.turn.opposite(), attacker_kind) {
-                let attacker_power =
-                    bitboard::power(self.turn.opposite(), attacker_pos, attacker_kind);
-                if (attacker_power & king_reachable).is_empty() {
-                    continue;
-                }
-                if !attacker_kind.is_line_piece() {
-                    under_attack |= attacker_power;
-                    continue;
-                }
-                let attacker_reachable = bitboard::reachable(
-                    self.position.color_bb(),
-                    self.turn.opposite(),
-                    attacker_pos,
-                    attacker_kind,
-                    true,
-                );
-                under_attack |= attacker_reachable;
+        let mut attacker_cands = BitBoard::empty();
+        let mut king_reachable = king_power(self.king_pos).and_not(color_bb.bitboard(self.turn));
+        if king_reachable.is_empty() {
+            return Ok(());
+        }
 
-                // Hidden by king
-                if attacker_pos == self.attacker.pos {
-                    if let Some(hidden_pos) = hidden_square(attacker_pos, self.king_pos) {
-                        if attacker_power.get(hidden_pos) {
-                            under_attack.set(hidden_pos);
-                        }
-                    }
-                }
+        for dest in king_reachable {
+            attacker_cands |= any_power(attacker_color, dest);
+        }
+        attacker_cands &= color_bb.bitboard(attacker_color);
+
+        for attacker_pos in attacker_cands {
+            let attacker_kind = self.position.must_get_kind(attacker_pos);
+            let attacker_reach = reachable_sub(
+                self.position_without_king.color_bb(),
+                attacker_color,
+                attacker_pos,
+                attacker_kind,
+            );
+            king_reachable = king_reachable.and_not(attacker_reach);
+            if king_reachable.is_empty() {
+                return Ok(());
             }
         }
 
-        for dest in king_reachable.and_not(under_attack) {
+        for dest in king_reachable {
             let capture_kind = self.position.get_kind(dest);
             self.maybe_add_move(
                 &Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),
@@ -387,19 +390,4 @@ fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
         }
     }
     attacker
-}
-
-// Potentially attacked position which is currently hidden by the king.
-fn hidden_square(attacker_pos: Square, king_pos: Square) -> Option<Square> {
-    let (kc, kr) = (king_pos.col() as isize, king_pos.row() as isize);
-    let (ac, ar) = (attacker_pos.col() as isize, attacker_pos.row() as isize);
-
-    let (dc, dr) = (kc - ac, kr - ar);
-    let d = dc.abs().max(dr.abs());
-    let (rc, rr) = (kc + dc / d, kr + dr / d);
-    if (0..9).contains(&rc) && (0..9).contains(&rr) {
-        Some(Square::new(rc as usize, rr as usize))
-    } else {
-        None
-    }
 }

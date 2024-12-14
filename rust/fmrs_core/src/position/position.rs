@@ -88,7 +88,10 @@ impl Position {
         Some((color, self.kind_bb.must_get(pos)))
     }
     pub fn get_kind(&self, pos: Square) -> Option<Kind> {
-        self.kind_bb().get(pos)
+        self.has(pos).then(|| self.must_get_kind(pos))
+    }
+    pub fn has(&self, pos: Square) -> bool {
+        self.color_bb().black().get(pos) || self.color_bb().white().get(pos)
     }
     pub fn must_get_kind(&self, pos: Square) -> Kind {
         self.kind_bb().must_get(pos)
