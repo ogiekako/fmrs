@@ -56,10 +56,14 @@ pub fn solve_with_progress(
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
-        Algorithm::MemorySave => memory_save_solve::solve(position, progress, solutions_upto),
-        Algorithm::Parallel => parallel_solve::solve(position, progress, solutions_upto),
-        Algorithm::DbParallel => db_parallel_solve::solve(position, progress, solutions_upto),
-        Algorithm::Standard => standard_solve::solve(position, solutions_upto),
+        Algorithm::MemorySave => {
+            memory_save_solve::memory_save_solve(position, progress, solutions_upto)
+        }
+        Algorithm::Parallel => parallel_solve::parallel_solve(position, progress, solutions_upto),
+        Algorithm::DbParallel => {
+            db_parallel_solve::db_parallel_solve(position, progress, solutions_upto)
+        }
+        Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto),
     }
 }
 

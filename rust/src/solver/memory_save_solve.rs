@@ -6,7 +6,7 @@ use fmrs_core::{
     solve::Solution,
 };
 
-pub(super) fn solve(
+pub(super) fn memory_save_solve(
     initial_position: Position,
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,

@@ -7,7 +7,7 @@ use fmrs_core::position::{advance, Digest, Position};
 
 use fmrs_core::solve::{reconstruct_solutions, Solution};
 
-pub(super) fn solve(
+pub(super) fn parallel_solve(
     position: Position,
     _progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,

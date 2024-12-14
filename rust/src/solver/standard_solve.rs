@@ -3,7 +3,7 @@ use fmrs_core::{
     solve::{Solution, SolverStatus, StandardSolver},
 };
 
-pub fn solve(position: Position, solutions_upto: usize) -> anyhow::Result<Vec<Solution>> {
+pub fn standard_solve(position: Position, solutions_upto: usize) -> anyhow::Result<Vec<Solution>> {
     let mut solver = StandardSolver::new(position, solutions_upto);
     loop {
         let status = solver.advance()?;

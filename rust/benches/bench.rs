@@ -1,5 +1,8 @@
+use std::thread::sleep;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fmrs::one_way_mate_steps;
+use fmrs::solver::standard_solve::standard_solve;
 use fmrs_core::piece::{Color, Kind};
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
@@ -178,13 +181,34 @@ fn bench_pinned300(c: &mut Criterion) {
     });
 }
 
+fn bench_solve97(c: &mut Criterion) {
+    let position = decode_position(include_str!("../problems/forest-06-10_97.sfen")).unwrap();
+    let n_samples = 3;
+    let mut times = vec![];
+    for _ in 0..3 {
+        let start = std::time::Instant::now();
+        let solutions = standard_solve(position.clone(), 1).unwrap();
+        assert_eq!(1, solutions.len());
+        assert_eq!(97, solutions[0].len());
+
+        times.push(start.elapsed());
+    }
+    let mut i = 0;
+    c.bench_function("bench_solve97", |b| {
+        b.iter(|| {
+            sleep(times[i] / 1_000);
+            i = (i + 1) % n_samples;
+        })
+    });
+}
+
 criterion_group!(
     name = benches;
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300,
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97
 );
 
 criterion_main!(benches);

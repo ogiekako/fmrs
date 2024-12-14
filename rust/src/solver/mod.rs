@@ -1,8 +1,8 @@
-mod db_parallel_solve;
-mod memory_save_solve;
-mod parallel_solve;
-mod solve;
-mod standard_solve;
+pub mod db_parallel_solve;
+pub mod memory_save_solve;
+pub mod parallel_solve;
+pub mod solve;
+pub mod standard_solve;
 
 pub use solve::solve;
 pub use solve::solve_with_progress;

@@ -8,7 +8,7 @@ use fmrs_core::sfen;
 use solver::Algorithm;
 
 mod command;
-mod solver;
+pub mod solver;
 
 #[derive(Parser)]
 struct Args {

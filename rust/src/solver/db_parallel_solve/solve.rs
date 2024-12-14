@@ -5,7 +5,7 @@ use fmrs_core::{
 
 use super::{db::Database, reconstruct::reconstruct_solutions};
 
-pub fn solve(
+pub fn db_parallel_solve(
     initial_position: Position,
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
