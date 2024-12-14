@@ -149,8 +149,8 @@ impl<'a> Context<'a> {
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
-        for attacker_pos in lion_king_range & self.position.color_bb().bitboard(Color::BLACK) {
-            let attacker_source_kind = self.position.get(attacker_pos).unwrap().1;
+        for attacker_pos in lion_king_range & self.position.color_bb().black() {
+            let attacker_source_kind = self.position.must_get_kind(attacker_pos);
             if attacker_source_kind == Kind::King
                 || attacker_source_kind == Kind::Knight
                 || attacker_source_kind.is_line_piece()
