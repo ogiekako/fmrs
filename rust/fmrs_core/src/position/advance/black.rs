@@ -118,7 +118,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::BLACK) {
             let check_needed = matches!(kind, Kind::Pawn | Kind::Lance | Kind::Knight);
@@ -137,7 +137,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn direct_attack_moves(&mut self) -> Result<()> {
         self.non_leap_piece_direct_attack()?;
         self.leap_piece_direct_attack()?;
@@ -145,7 +145,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
@@ -201,7 +201,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
             Kind::Lance,
@@ -270,7 +270,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    #[inline(never)]
+    // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
