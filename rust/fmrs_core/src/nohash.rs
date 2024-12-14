@@ -28,8 +28,7 @@ impl Hasher for NoHasher {
     #[inline]
     fn write_u64(&mut self, hash: u64) {
         debug_assert_eq!(self.hash, 0);
-        // https://docs.rs/rustc-hash/2.1.0/src/rustc_hash/lib.rs.html
-        self.hash = hash.wrapping_mul(0xf1357aea2e62a9c5).rotate_left(20);
+        self.hash = hash;
     }
 }
 
