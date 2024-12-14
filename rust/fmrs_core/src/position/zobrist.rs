@@ -14,6 +14,11 @@ const M: [u64; W] = {
             .wrapping_add(1442695040888963407);
         i += 1;
     }
+    i = 0;
+    while i < W {
+        m[i] = m[i].rotate_left(20);
+        i += 1;
+    }
     m
 };
 
