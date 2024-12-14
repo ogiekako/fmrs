@@ -78,6 +78,7 @@ impl KindBitBoard {
             kind2: BitBoard::empty(),
         }
     }
+    // #[inline(never)]
     pub fn goldish(&self) -> BitBoard {
         // p a b c
         // (false, 5), (true, 1), (true, 2), (true, 3), (true, 4)
@@ -89,17 +90,20 @@ impl KindBitBoard {
     }
 
     // rook and prorook
+    // #[inline(never)]
     pub fn rookish(&self) -> BitBoard {
         debug_assert_eq!(IDS[Kind::Rook.index()].1, 0b111);
         self.kind0 & self.kind1 & self.kind2
     }
 
     // bishop and probishop
+    // #[inline(never)]
     pub fn bishopish(&self) -> BitBoard {
         debug_assert_eq!(IDS[Kind::Bishop.index()].1, 0b110);
         (self.kind1 & self.kind2).and_not(self.kind0)
     }
 
+    // #[inline(never)]
     pub fn bitboard(&self, kind: Kind) -> BitBoard {
         let (promote, i) = IDS[kind.index()];
 
@@ -119,6 +123,7 @@ impl KindBitBoard {
             b.and_not(self.promote)
         }
     }
+    // #[inline(never)]
     pub fn must_get(&self, pos: Square) -> Kind {
         let mut i = 0;
         if self.kind0.get(pos) {
@@ -136,6 +141,7 @@ impl KindBitBoard {
         }
         KINDS[i]
     }
+    // #[inline(never)]
     pub fn set(&mut self, pos: Square, kind: Kind) {
         let (promote, i) = IDS[kind.index()];
 
@@ -152,6 +158,7 @@ impl KindBitBoard {
             self.kind2.set(pos);
         }
     }
+    // #[inline(never)]
     pub fn unset(&mut self, pos: Square, kind: Kind) {
         let (promote, i) = IDS[kind.index()];
 
@@ -176,6 +183,7 @@ impl KindBitBoard {
         self.kind2.shift(dir);
     }
 
+    // #[inline(never)]
     pub fn get(&self, pos: Square) -> Option<Kind> {
         let mut i = 0;
         if self.kind0.get(pos) {
