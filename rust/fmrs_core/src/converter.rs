@@ -243,8 +243,6 @@ mod tests {
 
             let problem = crate::sfen::decode_position(problem).unwrap();
 
-            dbg!(&problem);
-
             let mut solutions = solve(problem.clone(), 10).unwrap();
             solutions.sort();
 

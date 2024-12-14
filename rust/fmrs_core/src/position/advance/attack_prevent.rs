@@ -330,7 +330,14 @@ impl<'a> Context<'a> {
 
         self.options.check_allowed_branches(self.result.len() + 1)?;
 
-        self.memo.insert(digest, self.next_step);
+        self.memo
+            .entry(digest)
+            .and_modify(|prev_step| {
+                if *prev_step > self.next_step {
+                    *prev_step = self.next_step;
+                }
+            })
+            .or_insert(self.next_step);
         self.result.push(next_position);
 
         Ok(())

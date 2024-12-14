@@ -7,12 +7,12 @@ use fmrs_core::position::Position;
 use fmrs_core::position::PositionExt;
 use fmrs_core::solve::Solution;
 
-#[derive(Debug, Clone, clap::ValueEnum)]
+#[derive(Debug, Clone, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
     MemorySave,
+    Standard,
     Parallel,
     DbParallel,
-    Standard,
 }
 
 impl Algorithm {
@@ -20,9 +20,9 @@ impl Algorithm {
     fn iter() -> impl Iterator<Item = Algorithm> {
         [
             Algorithm::MemorySave,
+            Algorithm::Standard,
             Algorithm::Parallel,
             Algorithm::DbParallel,
-            Algorithm::Standard,
         ]
         .into_iter()
     }
@@ -68,17 +68,24 @@ mod tests {
     use solve::Algorithm;
 
     use crate::solver::solve;
+    use fmrs_core::sfen;
     use fmrs_core::{position::Movement, solve::Solution};
 
     #[test]
     fn test_solve() {
-        use fmrs_core::sfen;
-
         for tc in vec![
             (
                 // http://sfenreader.appspot.com/sfen?sfen=3%2Bpks3%2F9%2F4%2BP4%2F9%2F9%2F8B%2F9%2F9%2F9%20b%20S2rb4g2s4n4l16p%201
                 "3+pks3/9/4+P4/9/9/8B/9/9/9 b S2rb4g2s4n4l16p 1",
                 vec!["1f5b+ 4a5b S*4b"],
+            ),
+            (
+                "9/9/6+R2/3bk4/9/3+R5/9/9/9 b B4g4s4n4l18p 1",
+                vec!["B*63"]
+            ),
+            (
+                "9/9/3k5/3b1+R3/9/3+R5/9/9/9 b B4g4s4n4l18p 1",
+                vec!["4433 6354 B*63"]
             ),
             (
                 // http://sfenreader.appspot.com/sfen?sfen=9%2F9%2F9%2F3bkb3%2F9%2F3%2BR1%2BR3%2F9%2F9%2F9%20b%204g4s4n4l18p%201
@@ -169,8 +176,6 @@ mod tests {
 
     #[test]
     fn no_answer() {
-        use fmrs_core::sfen;
-
         for sfen in [
             "4k4/9/4P4/9/9/8p/8K/9/9 b G2r2b3g4s4n4l16p 1",
             "9/9/9/5bp1G/6k2/6l1P/8K/9/8N b 2rb3g4s3n3l16p 1",
@@ -186,6 +191,18 @@ mod tests {
                 let got = solve(board.clone(), None, algorithm).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
+            }
+        }
+    }
+
+    #[test]
+    fn two_answers() {
+        for sfen in ["7lk/7r1/7lP/8G/9/9/9/9/9 b Lr2b3g4s4nl17p 1"] {
+            for algorithm in Algorithm::iter() {
+                eprintln!("solving {} {:?}", sfen, algorithm);
+                let board = sfen::decode_position(sfen).unwrap();
+                let got = solve(board.clone(), None, algorithm).unwrap();
+                assert_eq!(got.len(), 2);
             }
         }
     }

@@ -54,14 +54,16 @@ impl StandardSolver {
 
         if !mate_positions.is_empty() {
             let mut res = vec![];
-            for mate_position in mate_positions {
+            for mate_position in mate_positions.iter() {
                 res.append(&mut reconstruct_solutions(
-                    &mate_position,
+                    mate_position,
                     &self.memo_next,
                     &self.memo,
                     self.solutions_upto - res.len(),
                 ))
             }
+            assert_ne!(res.len(), 0, "{:?}", mate_positions);
+
             res.sort();
             return Ok(SolverStatus::Mate(res));
         }
