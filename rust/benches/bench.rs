@@ -203,26 +203,55 @@ fn bench_solve97(c: &mut Criterion) {
     });
 }
 
-fn bench_jugemu(c: &mut Criterion) {
-    let position =
-        decode_position(include_str!("../problems/jugemu_gentei_kai_36603.sfen")).unwrap();
-    let n_samples = 1;
+fn bench_heavy_problem(c: &mut Criterion, name: &str, sfen: &str, steps: usize, n_samples: usize) {
+    let position = decode_position(sfen).unwrap();
     let mut times = vec![];
     for _ in 0..n_samples {
         let start = std::time::Instant::now();
         let solutions = standard_solve(position.clone(), 1).unwrap();
         assert_eq!(1, solutions.len());
-        assert_eq!(36603, solutions[0].len());
+        assert_eq!(steps, solutions[0].len());
 
         times.push(start.elapsed());
+        assert!(times[0] > Duration::from_millis(100));
     }
     let mut i = 0;
-    c.bench_function("bench_jugemu", |b| {
+    c.bench_function(name, |b| {
         b.iter(|| {
             sleep(times[i] / 1_000_000);
             i = (i + 1) % n_samples;
         })
     });
+}
+
+fn bench_jugemu(c: &mut Criterion) {
+    bench_heavy_problem(
+        c,
+        "bench_jugemu",
+        include_str!("../problems/jugemu_gentei_kai_36603.sfen"),
+        36603,
+        1,
+    );
+}
+
+fn bench_1461(c: &mut Criterion) {
+    bench_heavy_problem(
+        c,
+        "bench_1461",
+        include_str!("../problems/morishige_1461.sfen"),
+        1461,
+        1,
+    );
+}
+
+fn bench_1965(c: &mut Criterion) {
+    bench_heavy_problem(
+        c,
+        "bench_1965",
+        include_str!("../problems/morishige_1965.sfen"),
+        1965,
+        2,
+    );
 }
 
 criterion_group!(
@@ -246,7 +275,7 @@ fn bench_extra() {
 criterion_group!(
     name = bench_extra_inner;
     config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
-    targets = bench_jugemu
+    targets = bench_jugemu, bench_1965, bench_1461,
 );
 
 criterion_main!(benches, bench_extra);

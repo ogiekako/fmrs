@@ -2,10 +2,16 @@ use fmrs_core::{position::PositionExt, sfen};
 
 use crate::solver::{self, Algorithm};
 
-pub async fn solve(algorithm: Algorithm, problem_sfen: Option<String>) -> anyhow::Result<()> {
+pub async fn solve(algorithm: Algorithm, sfen_or_file: Option<String>) -> anyhow::Result<()> {
     let position = sfen::decode_position(
-        match problem_sfen {
-            Some(s) => s,
+        match sfen_or_file {
+            Some(sfen_or_file) => {
+                if sfen_or_file.ends_with(".sfen") {
+                    std::fs::read_to_string(sfen_or_file)?
+                } else {
+                    sfen_or_file
+                }
+            }
             None => {
                 eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
                 eprint!("> ");

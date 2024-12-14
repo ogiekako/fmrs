@@ -22,7 +22,7 @@ enum Action {
     Solve {
         #[clap(value_enum)]
         algorithm: Algorithm,
-        sfen: Option<String>,
+        sfen_or_file: Option<String>,
     },
     Server,
     OneWayMate {
@@ -50,7 +50,10 @@ pub async fn do_main() -> anyhow::Result<()> {
 
     match args.action {
         Action::Bench => command::bench()?,
-        Action::Solve { algorithm, sfen } => command::solve(algorithm, sfen).await?,
+        Action::Solve {
+            algorithm,
+            sfen_or_file,
+        } => command::solve(algorithm, sfen_or_file).await?,
         Action::Server => command::server(1234).await?,
         Action::OneWayMate {
             algorithm,
