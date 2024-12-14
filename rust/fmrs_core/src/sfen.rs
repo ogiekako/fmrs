@@ -336,11 +336,7 @@ pub fn decode_move(s: &str) -> anyhow::Result<Movement> {
                 bail!("Invalid move");
             }
         }
-        Movement::Move {
-            source: decode_square(&s[0..2])?,
-            dest: decode_square(&s[2..4])?,
-            promote,
-        }
+        Movement::move_without_hint(decode_square(&s[0..2])?, decode_square(&s[2..4])?, promote)
     })
 }
 
@@ -363,6 +359,7 @@ pub fn encode_move(m: &Movement) -> String {
             source: from,
             dest: to,
             promote,
+            ..
         } => format!(
             "{}{}{}",
             encode_square(*from),
@@ -385,16 +382,8 @@ pub mod tests {
     fn test_decode_moves() {
         assert_eq!(
             vec![
-                Movement::Move {
-                    source: Square::new(0, 5),
-                    dest: Square::new(4, 1),
-                    promote: true,
-                },
-                Movement::Move {
-                    source: Square::new(3, 0),
-                    dest: Square::new(4, 1),
-                    promote: false,
-                },
+                Movement::move_without_hint(Square::new(0, 5), Square::new(4, 1), true,),
+                Movement::move_without_hint(Square::new(3, 0), Square::new(4, 1), false,),
                 Movement::Drop(Square::new(3, 1), Kind::Silver),
             ],
             decode_moves("1f5b+ 4a5b S*4b").unwrap()

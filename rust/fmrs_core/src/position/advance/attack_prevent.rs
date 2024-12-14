@@ -156,11 +156,7 @@ impl<'a> Context<'a> {
 
         for dest in king_reachable.and_not(under_attack) {
             self.maybe_add_move(
-                &Movement::Move {
-                    source: self.king_pos,
-                    dest,
-                    promote: false,
-                },
+                &&Movement::move_without_hint(self.king_pos, dest, false),
                 Kind::King,
             )?;
         }
@@ -193,11 +189,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::Move {
-                            source: source_pos,
-                            dest,
-                            promote,
-                        },
+                        &Movement::move_without_hint(source_pos, dest, promote),
                         source_kind,
                     )?;
                 }
@@ -234,11 +226,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::Move {
-                            source: source_pos,
-                            dest,
-                            promote,
-                        },
+                        &Movement::move_without_hint(source_pos, dest, promote),
                         source_kind,
                     )?;
                 }

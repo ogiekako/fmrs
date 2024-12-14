@@ -52,12 +52,12 @@ impl Context {
             if kind != Kind::Pawn || !self.allow_drop_pawn {
                 return;
             }
-            self.maybe_add_undo_move(UndoMove::UnDrop((dest, was_pawn_drop)));
+            self.maybe_add_undo_move(UndoMove::UnDrop(dest, was_pawn_drop));
             return;
         }
         // Drop
         if kind.is_hand_piece() && kind != Kind::Pawn {
-            self.maybe_add_undo_move(UndoMove::UnDrop((dest, was_pawn_drop)));
+            self.maybe_add_undo_move(UndoMove::UnDrop(dest, was_pawn_drop));
         }
         // Move
         let prev_kinds = [(kind.unpromote(), true), (kind.into(), false)]

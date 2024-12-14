@@ -3,7 +3,7 @@ use crate::piece::{Color, Kind};
 use super::{checked, Movement, Position, Square};
 
 pub enum UndoMove {
-    UnDrop((Square, bool /* pawn drop */)),
+    UnDrop(Square, bool /* pawn drop */),
     UnMove {
         source: Square,
         dest: Square,
@@ -22,46 +22,57 @@ pub trait PositionExt {
 impl PositionExt for Position {
     fn do_move(&mut self, m: &Movement) -> UndoMove {
         let color = self.turn();
-        let token;
-        match m {
+        self.set_turn(color.opposite());
+        let pawn_drop = self.pawn_drop();
+        match *m {
             Movement::Drop(pos, k) => {
-                let (pos, k) = (*pos, *k);
                 self.hands_mut().remove(color, k);
                 self.set(pos, color, k);
-                token = UndoMove::UnDrop((pos, self.pawn_drop()));
                 self.set_pawn_drop(k == Kind::Pawn);
+
+                UndoMove::UnDrop(pos, pawn_drop)
             }
             Movement::Move {
                 source,
+                source_kind_hint,
                 dest,
                 promote,
+                capture_kind_hint,
             } => {
-                let kind = self.get(*source).unwrap().1;
-                self.unset(*source, color, kind);
-                let capture = if let Some(capture) = self.get(*dest).map(|(_c, k)| k) {
-                    self.unset(*dest, color.opposite(), capture);
+                let kind = if let Some(kind) = source_kind_hint {
+                    kind
+                } else {
+                    self.must_get_kind(source)
+                };
+
+                self.unset(source, color, kind);
+
+                let capture = if let Some(capture) = capture_kind_hint {
+                    capture
+                } else {
+                    self.get_kind(dest)
+                };
+
+                if let Some(capture) = capture {
+                    self.unset(dest, color.opposite(), capture);
                     self.hands_mut().add(color, capture.maybe_unpromote());
-                    Some(capture)
-                } else {
-                    None
-                };
-                if *promote {
-                    self.set(*dest, color, kind.promote().unwrap());
-                } else {
-                    self.set(*dest, color, kind);
                 }
-                token = UndoMove::UnMove {
-                    source: *source,
-                    dest: *dest,
-                    promote: *promote,
-                    capture,
-                    pawn_drop: self.pawn_drop(),
-                };
+                if promote {
+                    self.set(dest, color, kind.promote().unwrap());
+                } else {
+                    self.set(dest, color, kind);
+                }
                 self.set_pawn_drop(false);
+
+                UndoMove::UnMove {
+                    source,
+                    dest,
+                    promote,
+                    capture,
+                    pawn_drop,
+                }
             }
         }
-        self.set_turn(color.opposite());
-        token
     }
 
     // Undoes an movement. The token should be valid for the current position and otherwise it panics.
@@ -71,7 +82,7 @@ impl PositionExt for Position {
         let prev_turn = self.turn().opposite();
         self.set_turn(prev_turn);
         match token {
-            UnDrop((pos, pawn_drop)) => {
+            UnDrop(pos, pawn_drop) => {
                 let (c, k) = self
                     .get(*pos)
                     .unwrap_or_else(|| panic!("{:?} doesn't contain any piece", pos));
@@ -110,6 +121,9 @@ impl PositionExt for Position {
                     source: *from,
                     dest: *to,
                     promote: *promote,
+
+                    capture_kind_hint: None,
+                    source_kind_hint: None,
                 }
             }
         }
@@ -133,11 +147,7 @@ mod tests {
         for tc in &[
             (
                 sfen::tests::START,
-                Movement::Move {
-                    source: Square::new(1, 6),
-                    dest: Square::new(1, 5),
-                    promote: false,
-                },
+                Movement::move_without_hint(Square::new(1, 6), Square::new(1, 5), false),
                 "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -",
             ),
             (
@@ -148,11 +158,7 @@ mod tests {
             (
                 sfen::tests::RYUO,
                 // Capture and promote.
-                Movement::Move {
-                    source: Square::new(7, 4),
-                    dest: Square::new(6, 6),
-                    promote: true,
-                },
+                Movement::move_without_hint(Square::new(7, 4), Square::new(6, 6), true),
                 "8l/1l+R2P3/p2pBG1pp/kps1p4/N2P2G2/P1P1P2PP/1P+n6/1KSG3+r1/LN2+p3L b Sbgsn3p",
             ),
         ] {

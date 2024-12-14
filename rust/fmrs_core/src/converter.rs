@@ -125,6 +125,7 @@ fn update_move_format(
                 source: from,
                 dest: to,
                 promote,
+                ..
             } => {
                 let (_, k) = position.get(*from).unwrap();
                 let capture = if let Some((_, k)) = position.get(*to) {

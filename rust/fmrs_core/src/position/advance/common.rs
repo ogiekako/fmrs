@@ -66,6 +66,7 @@ pub(super) fn maybe_legal_movement(
             source,
             dest,
             promote,
+            ..
         } => rule::is_allowed_move(turn, *source, *dest, kind, *promote),
     }
 }

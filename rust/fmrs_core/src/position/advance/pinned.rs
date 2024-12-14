@@ -97,7 +97,7 @@ fn bishop_pinned(
         }
         let blocker_pos = block.singleton();
 
-        let blocker_kind = position.kind_bb().get(blocker_pos);
+        let blocker_kind = position.kind_bb().must_get(blocker_pos);
         let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
             & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
 
@@ -140,7 +140,7 @@ fn rook_pinned(
         }
         let blocker_pos = block.singleton();
 
-        let blocker_kind = position.kind_bb().get(blocker_pos);
+        let blocker_kind = position.kind_bb().must_get(blocker_pos);
         let reach = reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false)
             & (power_from_attacker & power_from_king | BitBoard::from_square(attacker_pos));
 
@@ -183,7 +183,7 @@ fn lance_pinned(
         if !lances.get(attacker_pos) {
             return;
         }
-        let blocker_kind = position.kind_bb().get(blocker_pos);
+        let blocker_kind = position.kind_bb().must_get(blocker_pos);
         let reach =
             reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power_from_king;
         res.push((blocker_pos, reach));
@@ -201,7 +201,7 @@ fn lance_pinned(
         if !lances.get(attacker_pos) {
             return;
         }
-        let blocker_kind = position.kind_bb().get(blocker_pos);
+        let blocker_kind = position.kind_bb().must_get(blocker_pos);
         let reach =
             reachable(color_bb, blocker_color, blocker_pos, blocker_kind, false) & power_from_king;
         res.push((blocker_pos, reach));

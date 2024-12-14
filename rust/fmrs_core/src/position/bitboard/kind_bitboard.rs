@@ -119,7 +119,7 @@ impl KindBitBoard {
             b.and_not(self.promote)
         }
     }
-    pub fn get(&self, pos: Square) -> Kind {
+    pub fn must_get(&self, pos: Square) -> Kind {
         let mut i = 0;
         if self.kind0.get(pos) {
             i |= 1;
@@ -130,6 +130,7 @@ impl KindBitBoard {
         if self.kind2.get(pos) {
             i |= 4;
         }
+        debug_assert_ne!(i, 0);
         if self.promote.get(pos) {
             i |= 8;
         }
@@ -173,5 +174,25 @@ impl KindBitBoard {
         self.kind0.shift(dir);
         self.kind1.shift(dir);
         self.kind2.shift(dir);
+    }
+
+    pub(crate) fn get(&self, pos: Square) -> Option<Kind> {
+        let mut i = 0;
+        if self.kind0.get(pos) {
+            i |= 1;
+        }
+        if self.kind1.get(pos) {
+            i |= 2;
+        }
+        if self.kind2.get(pos) {
+            i |= 4;
+        }
+        if i == 0 {
+            return None;
+        }
+        if self.promote.get(pos) {
+            i |= 8;
+        }
+        Some(KINDS[i])
     }
 }

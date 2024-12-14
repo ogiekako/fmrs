@@ -163,11 +163,7 @@ impl<'a> Context<'a> {
                 let attack_squares = self.attack_squares(attacker_dest_kind);
                 for dest in attacker_power & attack_squares {
                     self.maybe_add_move(
-                        &Movement::Move {
-                            source: attacker_pos,
-                            dest,
-                            promote,
-                        },
+                        &Movement::move_without_hint(attacker_pos, dest, promote),
                         attacker_source_kind,
                     )?;
                 }
@@ -218,11 +214,7 @@ impl<'a> Context<'a> {
 
                     for dest in attacker_reachable & attack_squares {
                         self.maybe_add_move(
-                            &Movement::Move {
-                                source: attacker_pos,
-                                dest,
-                                promote,
-                            },
+                            &Movement::move_without_hint(attacker_pos, dest, promote),
                             attacker_source_kind,
                         )?;
                     }
@@ -257,20 +249,12 @@ impl<'a> Context<'a> {
             let maybe_promotable = blocker_kind.promote().is_some();
             for blocker_dest in blocker_dest_cands {
                 self.maybe_add_move(
-                    &Movement::Move {
-                        source: blocker_pos,
-                        dest: blocker_dest,
-                        promote: false,
-                    },
+                    &&Movement::move_without_hint(blocker_pos, blocker_dest, false),
                     blocker_kind,
                 )?;
                 if maybe_promotable {
                     self.maybe_add_move(
-                        &Movement::Move {
-                            source: blocker_pos,
-                            dest: blocker_dest,
-                            promote: true,
-                        },
+                        &Movement::move_without_hint(blocker_pos, blocker_dest, true),
                         blocker_kind,
                     )?
                 }

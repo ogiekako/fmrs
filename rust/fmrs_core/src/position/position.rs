@@ -85,7 +85,13 @@ impl Position {
         } else {
             return None;
         };
-        Some((color, self.kind_bb.get(pos)))
+        Some((color, self.kind_bb.must_get(pos)))
+    }
+    pub fn get_kind(&self, pos: Square) -> Option<Kind> {
+        self.kind_bb().get(pos)
+    }
+    pub fn must_get_kind(&self, pos: Square) -> Kind {
+        self.kind_bb().must_get(pos)
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert!(!self.color_bb.bitboard(c).get(pos));
