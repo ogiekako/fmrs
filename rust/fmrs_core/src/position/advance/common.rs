@@ -2,7 +2,7 @@ use crate::{
     piece::{Color, Kind},
     position::{
         bitboard::{self, rule::king_power},
-        rule, Movement, Position,
+        Position,
     },
 };
 
@@ -46,27 +46,4 @@ pub fn checked(position: &Position, color: Color) -> bool {
         }
     }
     false
-}
-
-// Checks double pawn, unmovable pieces.
-pub(super) fn maybe_legal_movement(
-    turn: Color,
-    movement: &Movement,
-    kind: Kind,
-    pawn_mask: usize,
-) -> bool {
-    match movement {
-        Movement::Drop(pos, kind) => {
-            if kind == &Kind::Pawn && pawn_mask >> pos.col() & 1 > 0 {
-                return false;
-            }
-            rule::is_movable(turn, *pos, *kind)
-        }
-        Movement::Move {
-            source,
-            dest,
-            promote,
-            ..
-        } => rule::is_allowed_move(turn, *source, *dest, kind, *promote),
-    }
 }

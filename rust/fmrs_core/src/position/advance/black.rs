@@ -1,4 +1,5 @@
 use crate::nohash::NoHashMap;
+use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
 
 use crate::piece::{Color, Kind};
@@ -117,10 +118,16 @@ impl<'a> Context<'a> {
 
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::BLACK) {
+            let check_needed = matches!(kind, Kind::Pawn | Kind::Lance | Kind::Knight);
+
             let empty_attack_squares = self
                 .attack_squares(kind)
                 .and_not(self.position.color_bb().bitboard(Color::WHITE));
             for pos in empty_attack_squares {
+                if check_needed && !is_legal_drop(Color::BLACK, pos, kind, self.pawn_mask) {
+                    continue;
+                }
+
                 self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
             }
         }
@@ -155,6 +162,7 @@ impl<'a> Context<'a> {
                 if promote && attacker_source_kind.promote().is_none() {
                     continue;
                 }
+
                 let attacker_dest_kind = if promote {
                     attacker_source_kind.promote().unwrap()
                 } else {
@@ -162,6 +170,16 @@ impl<'a> Context<'a> {
                 };
                 let attack_squares = self.attack_squares(attacker_dest_kind);
                 for dest in attacker_power & attack_squares {
+                    if !is_legal_move(
+                        Color::BLACK,
+                        attacker_pos,
+                        dest,
+                        attacker_source_kind,
+                        promote,
+                    ) {
+                        continue;
+                    }
+
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
                         &Movement::move_with_hint(
@@ -220,6 +238,16 @@ impl<'a> Context<'a> {
                     };
 
                     for dest in attacker_reachable & attack_squares {
+                        if !is_legal_move(
+                            Color::BLACK,
+                            attacker_pos,
+                            dest,
+                            attacker_source_kind,
+                            promote,
+                        ) {
+                            continue;
+                        }
+
                         let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
                             &Movement::move_with_hint(
@@ -260,30 +288,33 @@ impl<'a> Context<'a> {
             if self.pinned.is_pinned(blocker_pos) {
                 blocker_dest_cands &= self.pinned.pinned_area(blocker_pos);
             }
-            let maybe_promotable = blocker_kind.promote().is_some();
+            let maybe_promotable = blocker_kind.is_promotable();
             for blocker_dest in blocker_dest_cands {
-                let capture_kind = self.position.get_kind(blocker_dest);
-                self.maybe_add_move(
-                    &Movement::move_with_hint(
+                for promote in [false, true] {
+                    if promote && !maybe_promotable {
+                        continue;
+                    }
+                    if !is_legal_move(
+                        Color::BLACK,
                         blocker_pos,
-                        blocker_kind,
                         blocker_dest,
-                        false,
-                        capture_kind,
-                    ),
-                    blocker_kind,
-                )?;
-                if maybe_promotable {
+                        blocker_kind,
+                        promote,
+                    ) {
+                        continue;
+                    }
+
+                    let capture_kind = self.position.get_kind(blocker_dest);
                     self.maybe_add_move(
                         &Movement::move_with_hint(
                             blocker_pos,
                             blocker_kind,
                             blocker_dest,
-                            true,
+                            promote,
                             capture_kind,
                         ),
                         blocker_kind,
-                    )?
+                    )?;
                 }
             }
         }
@@ -294,10 +325,6 @@ impl<'a> Context<'a> {
 // Helper
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
-        if !common::maybe_legal_movement(Color::BLACK, movement, kind, self.pawn_mask) {
-            return Ok(());
-        }
-
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 

@@ -5,7 +5,7 @@ use crate::{
             king_then_king_or_night_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
         },
-        rule::is_legal_drop,
+        rule::{is_legal_drop, is_legal_move},
     },
 };
 use anyhow::Result;
@@ -230,6 +230,9 @@ impl<'a> Context<'a> {
                     if promote && source_kind.promote().is_none() {
                         continue;
                     }
+                    if !is_legal_move(self.turn, source_pos, dest, source_kind, promote) {
+                        continue;
+                    }
                     self.maybe_add_move(
                         &Movement::move_with_hint(
                             source_pos,
@@ -270,7 +273,10 @@ impl<'a> Context<'a> {
                 }
                 let source_kind = self.position.get(source_pos).unwrap().1;
                 for promote in [false, true] {
-                    if promote && source_kind.promote().is_none() {
+                    if promote && !source_kind.is_promotable() {
+                        continue;
+                    }
+                    if !is_legal_move(self.turn, source_pos, dest, source_kind, promote) {
                         continue;
                     }
                     self.maybe_add_move(
@@ -294,12 +300,6 @@ impl<'a> Context<'a> {
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
-        if !is_king_move
-            && movement.is_move()
-            && !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask)
-        {
-            return Ok(());
-        }
 
         let mut next_position = self.position.clone();
         next_position.do_move(movement);

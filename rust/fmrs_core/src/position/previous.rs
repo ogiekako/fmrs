@@ -113,7 +113,7 @@ impl Context {
             if *promote {
                 kind = kind.unpromote().unwrap();
             }
-            if !rule::is_allowed_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
+            if !rule::is_legal_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
                 return;
             }
         }

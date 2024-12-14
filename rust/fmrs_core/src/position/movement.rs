@@ -39,7 +39,7 @@ impl Movement {
         }
     }
 
-    pub(crate) fn is_move(&self) -> bool {
+    pub fn is_move(&self) -> bool {
         matches!(self, Movement::Move { .. })
     }
 }
