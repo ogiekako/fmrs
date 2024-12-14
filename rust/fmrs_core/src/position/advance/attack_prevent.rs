@@ -41,7 +41,7 @@ pub(super) fn attack_preventing_movements(
         options,
     );
     ctx.advance()?;
-    Ok((ctx.result, ctx.is_mate))
+    Ok((ctx.result, ctx.num_branches == 0))
 }
 
 struct Context<'a> {
@@ -57,7 +57,7 @@ struct Context<'a> {
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
     result: Vec<Position>,
-    is_mate: bool,
+    num_branches: usize,
 
     options: &'a AdvanceOptions,
 }
@@ -98,7 +98,7 @@ impl<'a> Context<'a> {
             should_return_check,
             memo,
             result: vec![],
-            is_mate: true,
+            num_branches: 0,
             options,
         }
     }
@@ -314,6 +314,10 @@ impl<'a> Context<'a> {
             return Ok(());
         }
 
+        self.num_branches += 1;
+
+        self.options.check_allowed_branches(self.num_branches)?;
+
         debug_assert!(
             !common::checked(&next_position, self.turn),
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
@@ -323,21 +327,13 @@ impl<'a> Context<'a> {
             next_position
         );
 
-        self.is_mate = false;
-
         // TODO:compute the digest without making a clone.
         let digest = next_position.digest();
 
-        self.options.check_allowed_branches(self.result.len() + 1)?;
-
-        self.memo
-            .entry(digest)
-            .and_modify(|prev_step| {
-                if *prev_step > self.next_step {
-                    *prev_step = self.next_step;
-                }
-            })
-            .or_insert(self.next_step);
+        if self.memo.contains_key(&digest) {
+            return Ok(());
+        }
+        self.memo.insert(digest, self.next_step);
         self.result.push(next_position);
 
         Ok(())
