@@ -155,8 +155,9 @@ impl<'a> Context<'a> {
         }
 
         for dest in king_reachable.and_not(under_attack) {
+            let capture_kind = self.position.get_kind(dest);
             self.maybe_add_move(
-                &&Movement::move_without_hint(self.king_pos, dest, false),
+                &Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),
                 Kind::King,
             )?;
         }
@@ -170,6 +171,12 @@ impl<'a> Context<'a> {
                 self.maybe_add_move(&Movement::Drop(dest, kind), kind)?;
             }
         }
+
+        let capture_kind = if include_drop {
+            None
+        } else {
+            self.position.get_kind(dest)
+        };
 
         // Move
         let around_dest = king_power(dest) & self.position.color_bb().bitboard(self.turn);
@@ -189,7 +196,13 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::move_without_hint(source_pos, dest, promote),
+                        &Movement::move_with_hint(
+                            source_pos,
+                            source_kind,
+                            dest,
+                            promote,
+                            capture_kind,
+                        ),
                         source_kind,
                     )?;
                 }
@@ -226,7 +239,13 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::move_without_hint(source_pos, dest, promote),
+                        &Movement::move_with_hint(
+                            source_pos,
+                            source_kind,
+                            dest,
+                            promote,
+                            capture_kind,
+                        ),
                         source_kind,
                     )?;
                 }

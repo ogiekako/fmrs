@@ -23,6 +23,21 @@ impl Movement {
             capture_kind_hint: None,
         }
     }
+    pub(crate) fn move_with_hint(
+        source: Square,
+        source_kind_hint: Kind,
+        dest: Square,
+        promote: bool,
+        capture_kind_hint: Option<Kind>,
+    ) -> Movement {
+        Movement::Move {
+            source,
+            source_kind_hint: Some(source_kind_hint),
+            dest,
+            promote,
+            capture_kind_hint: Some(capture_kind_hint),
+        }
+    }
 }
 
 impl std::fmt::Debug for Movement {

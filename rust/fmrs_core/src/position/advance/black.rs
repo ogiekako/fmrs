@@ -162,8 +162,15 @@ impl<'a> Context<'a> {
                 };
                 let attack_squares = self.attack_squares(attacker_dest_kind);
                 for dest in attacker_power & attack_squares {
+                    let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        &Movement::move_without_hint(attacker_pos, dest, promote),
+                        &Movement::move_with_hint(
+                            attacker_pos,
+                            attacker_source_kind,
+                            dest,
+                            promote,
+                            capture_kind,
+                        ),
                         attacker_source_kind,
                     )?;
                 }
@@ -213,8 +220,15 @@ impl<'a> Context<'a> {
                     };
 
                     for dest in attacker_reachable & attack_squares {
+                        let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
-                            &Movement::move_without_hint(attacker_pos, dest, promote),
+                            &Movement::move_with_hint(
+                                attacker_pos,
+                                attacker_source_kind,
+                                dest,
+                                promote,
+                                capture_kind,
+                            ),
                             attacker_source_kind,
                         )?;
                     }
@@ -248,13 +262,26 @@ impl<'a> Context<'a> {
             }
             let maybe_promotable = blocker_kind.promote().is_some();
             for blocker_dest in blocker_dest_cands {
+                let capture_kind = self.position.get_kind(blocker_dest);
                 self.maybe_add_move(
-                    &&Movement::move_without_hint(blocker_pos, blocker_dest, false),
+                    &Movement::move_with_hint(
+                        blocker_pos,
+                        blocker_kind,
+                        blocker_dest,
+                        false,
+                        capture_kind,
+                    ),
                     blocker_kind,
                 )?;
                 if maybe_promotable {
                     self.maybe_add_move(
-                        &Movement::move_without_hint(blocker_pos, blocker_dest, true),
+                        &Movement::move_with_hint(
+                            blocker_pos,
+                            blocker_kind,
+                            blocker_dest,
+                            true,
+                            capture_kind,
+                        ),
                         blocker_kind,
                     )?
                 }
