@@ -15,6 +15,7 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let options = {
         let mut options = AdvanceOptions::default();
         options.max_allowed_branches = Some(1);
+        options.no_memo = true;
         options
     };
 

@@ -327,13 +327,16 @@ impl<'a> Context<'a> {
             next_position
         );
 
-        // TODO:compute the digest without making a clone.
-        let digest = next_position.digest();
+        if !self.options.no_memo {
+            // TODO:compute the digest without making a clone.
+            let digest = next_position.digest();
 
-        if self.memo.contains_key(&digest) {
-            return Ok(());
+            if self.memo.contains_key(&digest) {
+                // Already seen during search on other branches.
+                return Ok(());
+            }
+            self.memo.insert(digest, self.next_step);
         }
-        self.memo.insert(digest, self.next_step);
         self.result.push(next_position);
 
         Ok(())

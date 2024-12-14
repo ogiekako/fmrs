@@ -47,6 +47,7 @@ struct Context<'a> {
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
     result: Vec<Position>,
+    num_branches: usize,
 }
 
 impl<'a> Context<'a> {
@@ -86,6 +87,7 @@ impl<'a> Context<'a> {
             pinned,
             pawn_mask,
             result: vec![],
+            num_branches: 0,
             options,
         })
     }
@@ -338,14 +340,17 @@ impl<'a> Context<'a> {
             next_position
         );
 
-        let digest = next_position.digest();
-        if self.memo.contains_key(&digest) {
-            return Ok(());
+        self.num_branches += 1;
+        self.options.check_allowed_branches(self.num_branches)?;
+
+        if !self.options.no_memo {
+            let digest = next_position.digest();
+            if self.memo.contains_key(&digest) {
+                return Ok(());
+            }
+            self.memo.insert(digest, self.next_step);
         }
 
-        self.options.check_allowed_branches(self.result.len() + 1)?;
-
-        self.memo.insert(digest, self.next_step);
         self.result.push(next_position);
 
         Ok(())
