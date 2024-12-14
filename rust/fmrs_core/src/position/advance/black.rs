@@ -39,7 +39,7 @@ struct Context<'a> {
     position: &'a Position,
     next_step: u32,
     white_king_pos: Square,
-    black_king_checked: bool,
+    black_king_pos: Option<Square>,
     pinned: Pinned,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
@@ -57,12 +57,13 @@ impl<'a> Context<'a> {
         next_step: u32,
         options: &'a AdvanceOptions,
     ) -> anyhow::Result<Self> {
-        let white_king_pos = if let Some(p) = position.bitboard(Color::WHITE, Kind::King).next() {
+        let kings = position.kind_bb().bitboard(Kind::King);
+        let white_king_pos = if let Some(p) = (kings & position.color_bb().white()).next() {
             p
         } else {
             bail!("No white king");
         };
-        let black_king_checked = common::checked(position, Color::BLACK);
+        let black_king_pos = (kings & position.color_bb().black()).next();
 
         let pinned = position
             .bitboard(Color::BLACK, Kind::King)
@@ -83,7 +84,7 @@ impl<'a> Context<'a> {
             memo,
             next_step,
             white_king_pos,
-            black_king_checked,
+            black_king_pos,
             pinned,
             pawn_mask,
             result: vec![],
@@ -93,22 +94,19 @@ impl<'a> Context<'a> {
     }
 
     fn advance(&mut self) -> Result<()> {
-        if self.black_king_checked {
-            let black_king_pos = self
-                .position
-                .bitboard(Color::BLACK, Kind::King)
-                .next()
-                .unwrap();
-            self.result = attack_preventing_movements(
-                self.position,
-                self.memo,
-                self.next_step,
-                black_king_pos,
-                true,
-                self.options,
-            )?
-            .0;
-            return Ok(());
+        if let Some(black_king_pos) = self.position.bitboard(Color::BLACK, Kind::King).next() {
+            if common::checked(self.position, Color::BLACK, black_king_pos.into()) {
+                self.result = attack_preventing_movements(
+                    self.position,
+                    self.memo,
+                    self.next_step,
+                    black_king_pos,
+                    true,
+                    self.options,
+                )?
+                .0;
+                return Ok(());
+            }
         }
 
         self.drops()?;
@@ -330,12 +328,13 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if kind == Kind::King && common::checked(&next_position, Color::BLACK) {
+        if kind == Kind::King && common::checked(&next_position, Color::BLACK, self.black_king_pos)
+        {
             return Ok(());
         }
 
         debug_assert!(
-            !common::checked(&next_position, Color::BLACK),
+            !common::checked(&next_position, Color::BLACK, self.black_king_pos),
             "Black king checked: {:?}",
             next_position
         );

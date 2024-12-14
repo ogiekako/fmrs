@@ -73,7 +73,7 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
     ) -> Self {
         let turn = position.turn();
-        let attacker = attacker(position, king_pos).expect("no attacker");
+        let attacker = attacker(position, position.turn(), king_pos).expect("no attacker");
         let pinned = pinned(position, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
@@ -305,12 +305,13 @@ impl<'a> Context<'a> {
         // TODO: check the second attacker
         if !is_king_move
             && self.attacker.double_check.is_some()
-            && common::checked(&next_position, self.turn)
+            && common::checked(&next_position, self.turn, self.king_pos.into())
         {
             return Ok(());
         }
 
-        if self.should_return_check && !common::checked(&next_position, self.turn.opposite()) {
+        if self.should_return_check && !common::checked(&next_position, self.turn.opposite(), None)
+        {
             return Ok(());
         }
 
@@ -319,7 +320,7 @@ impl<'a> Context<'a> {
         self.options.check_allowed_branches(self.num_branches)?;
 
         debug_assert!(
-            !common::checked(&next_position, self.turn),
+            !common::checked(&next_position, self.turn, None),
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.turn,
             self.position,
@@ -362,10 +363,10 @@ impl<'a> Context<'a> {
     }
 }
 
-struct Attacker {
-    pos: Square,
-    kind: Kind,
-    double_check: Option<(Square, Kind)>,
+pub struct Attacker {
+    pub pos: Square,
+    pub kind: Kind,
+    pub double_check: Option<(Square, Kind)>,
 }
 
 impl Attacker {
@@ -378,9 +379,7 @@ impl Attacker {
     }
 }
 
-fn attacker(position: &Position, king_pos: Square) -> Option<Attacker> {
-    let king_color = position.turn();
-
+pub fn attacker(position: &Position, king_color: Color, king_pos: Square) -> Option<Attacker> {
     let opponent_bb = position.color_bb().bitboard(king_color.opposite());
     let kind_bb = position.kind_bb();
 

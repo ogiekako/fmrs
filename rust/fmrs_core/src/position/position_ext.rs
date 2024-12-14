@@ -130,7 +130,7 @@ impl PositionExt for Position {
     }
 
     fn checked_slow(&self, c: Color) -> bool {
-        checked(self, c)
+        checked(self, c, None)
     }
 }
 

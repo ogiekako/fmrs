@@ -157,7 +157,7 @@ fn bench_pinned300(c: &mut Criterion) {
     for position in positions {
         let king_color: Color = rng.gen();
 
-        if checked(&position, king_color) {
+        if checked(&position, king_color, None) {
             continue;
         }
 
