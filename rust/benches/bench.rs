@@ -1,4 +1,5 @@
 use std::thread::sleep;
+use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fmrs::one_way_mate_steps;
@@ -229,7 +230,7 @@ criterion_group!(
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
-    config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf));
+    config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97
 );
 
@@ -242,6 +243,10 @@ fn bench_extra() {
     bench_extra_inner();
 }
 
-criterion_group!(bench_extra_inner, bench_jugemu);
+criterion_group!(
+    name = bench_extra_inner;
+    config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
+    targets = bench_jugemu
+);
 
 criterion_main!(benches, bench_extra);
