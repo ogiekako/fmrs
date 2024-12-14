@@ -214,12 +214,6 @@ mod tests {
         b.unset(pos, Kind::Pawn);
         assert_eq!(None, b.get(pos));
         b.set(pos, Kind::Knight);
-        assert_eq!(
-            Some(Kind::Knight),
-            b.get(pos),
-            "{:?} kind0: {:?}",
-            b,
-            b.kind0()
-        );
+        assert_eq!(Some(Kind::Knight), b.get(pos));
     }
 }
