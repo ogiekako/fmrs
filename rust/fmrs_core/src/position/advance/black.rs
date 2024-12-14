@@ -334,33 +334,45 @@ impl<'a> Context<'a> {
 // Helper
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
-        let mut next_position = self.position.clone();
-        next_position.do_move(movement);
+        debug_assert_eq!(self.position.clone(), {
+            let undo = self.position.do_move(movement);
+            self.position.undo_move(&undo);
+            self.position.clone()
+        });
+
+        let undo = self.position.do_move(movement);
 
         if kind == Kind::King
-            && common::checked(&next_position, Color::BLACK, movement.dest().into())
+            && common::checked(self.position, Color::BLACK, movement.dest().into())
         {
+            self.position.undo_move(&undo);
             return Ok(());
         }
 
         debug_assert!(
-            !common::checked(&next_position, Color::BLACK, self.black_king_pos),
+            !common::checked(&self.position, Color::BLACK, self.black_king_pos),
             "Black king checked: {:?}",
-            next_position
+            self.position
         );
 
         self.num_branches += 1;
-        self.options.check_allowed_branches(self.num_branches)?;
+        if let Err(err) = self.options.check_allowed_branches(self.num_branches) {
+            self.position.undo_move(&undo);
+            return Err(err);
+        }
 
         if !self.options.no_memo {
-            let digest = next_position.digest();
+            let digest = self.position.digest();
             if self.memo.contains_key(&digest) {
+                self.position.undo_move(&undo);
                 return Ok(());
             }
             self.memo.insert(digest, self.next_step);
         }
 
-        self.result.push(next_position);
+        self.result.push(self.position.clone());
+
+        self.position.undo_move(&undo);
 
         Ok(())
     }
