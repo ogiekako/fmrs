@@ -288,7 +288,9 @@ impl<'a> Context<'a> {
 // Helper methods
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
-        if !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask) {
+        let is_king_move = kind == Kind::King;
+        if !is_king_move && !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask)
+        {
             return Ok(());
         }
 
@@ -296,7 +298,10 @@ impl<'a> Context<'a> {
         next_position.do_move(movement);
 
         // TODO: check the second attacker
-        if self.attacker.double_check.is_some() && common::checked(&next_position, self.turn) {
+        if !is_king_move
+            && self.attacker.double_check.is_some()
+            && common::checked(&next_position, self.turn)
+        {
             return Ok(());
         }
 
@@ -314,6 +319,7 @@ impl<'a> Context<'a> {
         );
 
         self.is_mate = false;
+        // TODO:compute the digest without making a clone.
         let digest = next_position.digest();
         if self.memo.contains_key(&digest) {
             return Ok(());
