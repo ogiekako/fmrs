@@ -7,14 +7,18 @@ use crate::position::Position;
 
 use super::AdvanceOptions;
 
-pub(super) fn advance_old(position: &mut Position) -> anyhow::Result<Vec<Position>> {
+pub(super) fn advance_old(
+    position: &mut Position,
+    result: &mut Vec<Position>,
+) -> anyhow::Result<()> {
     advance(
         position,
         &mut NoHashMap::default(),
         0,
         &AdvanceOptions::default(),
-    )
-    .map(|x| x.0)
+        result,
+    )?;
+    Ok(())
 }
 
 pub(super) fn advance(
@@ -22,11 +26,14 @@ pub(super) fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-) -> anyhow::Result<(Vec<Position>, /* is legal mate */ bool)> {
+    result: &mut Vec<Position>,
+) -> anyhow::Result</* legal mate */ bool> {
     debug_assert_eq!(position.turn(), Color::WHITE);
     let king_pos = position
         .bitboard(Color::WHITE, Kind::King)
         .next()
         .ok_or_else(|| anyhow::anyhow!("white king not found"))?;
-    attack_preventing_movements(position, memo, next_step, king_pos, false, options, None)
+    attack_preventing_movements(
+        position, memo, next_step, king_pos, false, options, None, result,
+    )
 }

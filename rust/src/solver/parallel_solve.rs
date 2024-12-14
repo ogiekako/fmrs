@@ -149,16 +149,17 @@ impl Task {
             }
 
             while let Some(mut position) = self.all_positions.pop() {
-                let (mut new_next_positions, is_mate) = advance(
+                let is_mate = advance(
                     &mut position,
                     &mut self.memo_next,
                     step + 1,
                     &Default::default(),
+                    &mut all_next_positions,
                 )?;
 
-                if step < mate_bound {
-                    all_next_positions.append(&mut new_next_positions);
-                }
+                // if step < mate_bound {
+                //     all_next_positions.append(&mut new_next_positions);
+                // }
                 if is_mate {
                     mate_positions.push(position);
 

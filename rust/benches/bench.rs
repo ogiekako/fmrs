@@ -15,9 +15,11 @@ use rand::{rngs::SmallRng, SeedableRng};
 
 fn bench_black_advance(c: &mut Criterion) {
     let mut black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
-    advance_old(&mut black_position).unwrap();
+    let mut result = vec![];
+    advance_old(&mut black_position, &mut result).unwrap();
     c.bench_function("black_advance", |b| {
-        b.iter(|| advance_old(black_box(&mut black_position)).unwrap())
+        result.clear();
+        b.iter(|| advance_old(black_box(&mut black_position), black_box(&mut result)).unwrap())
     });
 }
 
@@ -27,11 +29,13 @@ fn bench_white_advance(c: &mut Criterion) {
         "B+l+pn1+pR+p1/+l8/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/1+R1+p+p1k1g/7s1/3gs1+p2 w GSNgsnlp 1",
         "B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs1+pN1 w GSgsnlp 1",
     ].map(|x|decode_position(x).unwrap());
-    advance_old(&mut white_positions[0]).unwrap();
+
+    let mut result = vec![];
+    advance_old(&mut white_positions[0], &mut result).unwrap();
     c.bench_function("white_advance", |b| {
         b.iter(|| {
             for white_position in white_positions.iter_mut() {
-                advance_old(black_box(white_position)).unwrap();
+                advance_old(black_box(white_position), black_box(&mut result)).unwrap();
             }
         })
     });
@@ -41,15 +45,17 @@ fn bench_black_pinned(c: &mut Criterion) {
     let mut black_position =
         decode_position("8l/l1SS1PGP1/1PPNP1Pp1/R1g5k/9/2s1gnbsP/3nN4/1lg3l2/K2+B2r2 b 8P2p 1")
             .unwrap();
+    let mut result = vec![];
     c.bench_function("black_pinned", |b| {
-        b.iter(|| advance_old(black_box(&mut black_position)).unwrap())
+        b.iter(|| advance_old(black_box(&mut black_position), black_box(&mut result)).unwrap())
     });
 }
 
 fn bench_solve3(c: &mut Criterion) {
     let mut position = decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap();
+    let mut result = vec![];
     c.bench_function("solve3", |b| {
-        b.iter(|| advance_old(black_box(&mut position)).unwrap())
+        b.iter(|| advance_old(black_box(&mut position), black_box(&mut result)).unwrap())
     });
 }
 

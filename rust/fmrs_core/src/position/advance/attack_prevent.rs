@@ -33,7 +33,8 @@ pub(super) fn attack_preventing_movements(
     should_return_check: bool,
     options: &AdvanceOptions,
     attacker_hint: Option<Attacker>,
-) -> Result<(Vec<Position>, /* is legal mate */ bool)> {
+    result: &mut Vec<Position>,
+) -> Result</* is legal mate */ bool> {
     let mut ctx = Context::new(
         position,
         memo,
@@ -42,9 +43,10 @@ pub(super) fn attack_preventing_movements(
         should_return_check,
         options,
         attacker_hint,
+        result,
     );
     ctx.advance()?;
-    Ok((ctx.result, ctx.num_branches == 0 && !position.pawn_drop()))
+    Ok(ctx.num_branches == 0 && !position.pawn_drop())
 }
 
 struct Context<'a> {
@@ -59,7 +61,7 @@ struct Context<'a> {
     should_return_check: bool,
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
-    result: Vec<Position>,
+    result: &'a mut Vec<Position>,
     num_branches: usize,
 
     options: &'a AdvanceOptions,
@@ -75,6 +77,7 @@ impl<'a> Context<'a> {
         should_return_check: bool,
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,
+        result: &'a mut Vec<Position>,
     ) -> Self {
         let turn = position.turn();
         let attacker = attacker_hint
@@ -102,7 +105,7 @@ impl<'a> Context<'a> {
             next_step,
             should_return_check,
             memo,
-            result: vec![],
+            result,
             num_branches: 0,
             options,
         }

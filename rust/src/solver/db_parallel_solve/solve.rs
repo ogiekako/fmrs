@@ -10,7 +10,8 @@ pub fn db_parallel_solve(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut current_white_positions = advance_old(&mut initial_position)?;
+    let mut current_white_positions = vec![];
+    advance_old(&mut initial_position, &mut current_white_positions)?;
     if current_white_positions.is_empty() {
         return Ok(vec![]);
     }
@@ -112,7 +113,8 @@ fn step_small(
 
     while let Some(mut white_position) = current_white_positions.pop() {
         let mut has_next_position = false;
-        let mut black_positions = advance_old(&mut white_position)?;
+        let mut black_positions = vec![];
+        advance_old(&mut white_position, &mut black_positions)?;
 
         while let Some(mut black_position) = black_positions.pop() {
             has_next_position = true;
@@ -120,7 +122,8 @@ fn step_small(
                 break;
             }
 
-            let mut next_white_positions = advance_old(&mut black_position)?;
+            let mut next_white_positions = vec![];
+            advance_old(&mut black_position, &mut next_white_positions)?;
             while let Some(next_white_position) = next_white_positions.pop() {
                 let digest = next_white_position.digest();
                 if memo_white_positions.insert_if_empty(digest, half_step)? {

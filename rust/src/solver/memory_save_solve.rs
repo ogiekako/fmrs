@@ -11,7 +11,8 @@ pub(super) fn memory_save_solve(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut current_white_positions = advance_old(&mut initial_position)?;
+    let mut current_white_positions = vec![];
+    advance_old(&mut initial_position, &mut current_white_positions)?;
     let mut memo_white_positions = BTreeMap::new();
     for p in current_white_positions.iter() {
         memo_white_positions.insert(p.digest(), 0i32);
@@ -24,7 +25,9 @@ pub(super) fn memory_save_solve(
 
         while let Some(mut white_position) = current_white_positions.pop() {
             let mut has_next_position = false;
-            let mut black_positions = advance_old(&mut white_position)?;
+
+            let mut black_positions = vec![];
+            advance_old(&mut white_position, &mut black_positions)?;
 
             let mut white_position_is_deadend = true;
             while let Some(mut black_position) = black_positions.pop() {
@@ -33,7 +36,8 @@ pub(super) fn memory_save_solve(
                     break;
                 }
 
-                let mut next_white_positions = advance_old(&mut black_position)?;
+                let mut next_white_positions = vec![];
+                advance_old(&mut black_position, &mut next_white_positions)?;
                 while let Some(next_white_position) = next_white_positions.pop() {
                     let digest = next_white_position.digest();
                     white_position_is_deadend = false;

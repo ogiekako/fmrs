@@ -19,19 +19,24 @@ pub(super) fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-) -> anyhow::Result<Vec<Position>> {
+    res: &mut Vec<Position>,
+) -> anyhow::Result<()> {
     debug_assert_eq!(position.turn(), Color::BLACK);
-    let mut ctx = Context::new(position, memo, next_step, options)?;
+    let mut ctx = Context::new(position, memo, next_step, options, res)?;
     ctx.advance()?;
-    Ok(ctx.result)
+    Ok(())
 }
 
-pub(super) fn advance_old(position: &mut Position) -> anyhow::Result<Vec<Position>> {
+pub(super) fn advance_old(
+    position: &mut Position,
+    result: &mut Vec<Position>,
+) -> anyhow::Result<()> {
     advance(
         position,
         &mut NoHashMap::default(),
         0,
         &AdvanceOptions::default(),
+        result,
     )
 }
 
@@ -48,7 +53,7 @@ struct Context<'a> {
 
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
-    result: Vec<Position>,
+    result: &'a mut Vec<Position>,
     num_branches: usize,
 }
 
@@ -58,6 +63,7 @@ impl<'a> Context<'a> {
         memo: &'a mut NoHashMap<u32>,
         next_step: u32,
         options: &'a AdvanceOptions,
+        result: &'a mut Vec<Position>,
     ) -> anyhow::Result<Self> {
         let kings = position.kind_bb().bitboard(Kind::King);
         let white_king_pos = if let Some(p) = (kings & position.color_bb().white()).next() {
@@ -89,7 +95,7 @@ impl<'a> Context<'a> {
             attacker,
             pinned,
             pawn_mask,
-            result: vec![],
+            result,
             num_branches: 0,
             options,
         })
@@ -97,7 +103,7 @@ impl<'a> Context<'a> {
 
     fn advance(&mut self) -> Result<()> {
         if let Some(attacker) = self.attacker.clone() {
-            self.result = attack_preventing_movements(
+            attack_preventing_movements(
                 self.position,
                 self.memo,
                 self.next_step,
@@ -105,8 +111,8 @@ impl<'a> Context<'a> {
                 true,
                 self.options,
                 attacker.into(),
-            )?
-            .0;
+                self.result,
+            )?;
             return Ok(());
         }
 
