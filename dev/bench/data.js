@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1734160557897,
+  "lastUpdate": 1734161358084,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -5572,6 +5572,72 @@ window.BENCHMARK_DATA = {
           {
             "name": "pinned300",
             "value": 5199,
+            "range": "± 19",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "4cbbce190a100f4dbf3194d49ae50b87e336c21c",
+          "message": "refine zobrist hash",
+          "timestamp": "2024-12-14T16:25:28+09:00",
+          "tree_id": "f0865d7ee1ca2cb9123149aad169d0e38dc2c5ed",
+          "url": "https://github.com/ogiekako/fmrs/commit/4cbbce190a100f4dbf3194d49ae50b87e336c21c"
+        },
+        "date": 1734161357438,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4205,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 6916,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 455,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4235,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22323,
+            "range": "± 148",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1447,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5149,
             "range": "± 19",
             "unit": "ns/iter"
           }
