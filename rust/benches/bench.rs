@@ -185,7 +185,7 @@ fn bench_solve97(c: &mut Criterion) {
     let position = decode_position(include_str!("../problems/forest-06-10_97.sfen")).unwrap();
     let n_samples = 3;
     let mut times = vec![];
-    for _ in 0..3 {
+    for _ in 0..n_samples {
         let start = std::time::Instant::now();
         let solutions = standard_solve(position.clone(), 1).unwrap();
         assert_eq!(1, solutions.len());
@@ -202,6 +202,34 @@ fn bench_solve97(c: &mut Criterion) {
     });
 }
 
+const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
+
+fn bench_jugemu(c: &mut Criterion) {
+    if !EXTRA {
+        return;
+    }
+
+    let position =
+        decode_position(include_str!("../problems/jugemu_gentei_kai_36603.sfen")).unwrap();
+    let n_samples = 1;
+    let mut times = vec![];
+    for _ in 0..n_samples {
+        let start = std::time::Instant::now();
+        let solutions = standard_solve(position.clone(), 1).unwrap();
+        assert_eq!(1, solutions.len());
+        assert_eq!(36603, solutions[0].len());
+
+        times.push(start.elapsed());
+    }
+    let mut i = 0;
+    c.bench_function("bench_jugemu", |b| {
+        b.iter(|| {
+            sleep(times[i] / 1_000_000);
+            i = (i + 1) % n_samples;
+        })
+    });
+}
+
 criterion_group!(
     name = benches;
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
@@ -211,4 +239,6 @@ criterion_group!(
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97
 );
 
-criterion_main!(benches);
+criterion_group!(bench_extra, bench_jugemu);
+
+criterion_main!(benches, bench_extra);
