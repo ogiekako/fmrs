@@ -15,7 +15,7 @@ use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
-    position: &Position,
+    position: &mut Position,
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
@@ -26,7 +26,7 @@ pub(super) fn advance(
     Ok(ctx.result)
 }
 
-pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+pub(super) fn advance_old(position: &mut Position) -> anyhow::Result<Vec<Position>> {
     advance(
         position,
         &mut NoHashMap::default(),
@@ -37,7 +37,7 @@ pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> 
 
 struct Context<'a> {
     // Immutable fields
-    position: &'a Position,
+    position: &'a mut Position,
     next_step: u32,
     white_king_pos: Square,
     black_king_pos: Option<Square>,
@@ -54,7 +54,7 @@ struct Context<'a> {
 
 impl<'a> Context<'a> {
     fn new(
-        position: &'a Position,
+        position: &'a mut Position,
         memo: &'a mut NoHashMap<u32>,
         next_step: u32,
         options: &'a AdvanceOptions,

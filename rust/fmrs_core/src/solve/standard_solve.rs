@@ -39,9 +39,9 @@ impl StandardSolver {
 
         let mut mate_positions = vec![];
         let mut all_next_positions = vec![];
-        while let Some(position) = self.current.pop() {
+        while let Some(mut position) = self.current.pop() {
             let (mut new_next_positions, is_mate) = position::advance(
-                &position,
+                &mut position,
                 &mut self.memo_next,
                 self.step,
                 &Default::default(),

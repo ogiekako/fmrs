@@ -7,7 +7,7 @@ use crate::position::Position;
 
 use super::AdvanceOptions;
 
-pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+pub(super) fn advance_old(position: &mut Position) -> anyhow::Result<Vec<Position>> {
     advance(
         position,
         &mut NoHashMap::default(),
@@ -18,7 +18,7 @@ pub(super) fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> 
 }
 
 pub(super) fn advance(
-    position: &Position,
+    position: &mut Position,
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,

@@ -6,11 +6,11 @@ use fmrs_core::{
 use super::{db::Database, reconstruct::reconstruct_solutions};
 
 pub fn db_parallel_solve(
-    initial_position: Position,
+    mut initial_position: Position,
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut current_white_positions = advance_old(&initial_position)?;
+    let mut current_white_positions = advance_old(&mut initial_position)?;
     if current_white_positions.is_empty() {
         return Ok(vec![]);
     }
@@ -110,17 +110,17 @@ fn step_small(
     let mut all_next_white_positions = vec![];
     let mut mate_positions = vec![];
 
-    while let Some(white_position) = current_white_positions.pop() {
+    while let Some(mut white_position) = current_white_positions.pop() {
         let mut has_next_position = false;
-        let mut black_positions = advance_old(&white_position)?;
+        let mut black_positions = advance_old(&mut white_position)?;
 
-        while let Some(black_position) = black_positions.pop() {
+        while let Some(mut black_position) = black_positions.pop() {
             has_next_position = true;
             if !mate_positions.is_empty() {
                 break;
             }
 
-            let mut next_white_positions = advance_old(&black_position)?;
+            let mut next_white_positions = advance_old(&mut black_position)?;
             while let Some(next_white_position) = next_white_positions.pop() {
                 let digest = next_white_position.digest();
                 if memo_white_positions.insert_if_empty(digest, half_step)? {

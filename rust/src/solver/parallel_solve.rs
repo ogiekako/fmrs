@@ -148,9 +148,9 @@ impl Task {
                 return Ok(vec![]);
             }
 
-            while let Some(position) = self.all_positions.pop() {
+            while let Some(mut position) = self.all_positions.pop() {
                 let (mut new_next_positions, is_mate) = advance(
-                    &position,
+                    &mut position,
                     &mut self.memo_next,
                     step + 1,
                     &Default::default(),

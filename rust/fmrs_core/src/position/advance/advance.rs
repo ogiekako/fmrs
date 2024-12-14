@@ -6,7 +6,7 @@ use crate::position::Position;
 use super::{black, white, AdvanceOptions};
 
 pub fn advance(
-    position: &Position,
+    position: &mut Position,
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
@@ -18,7 +18,7 @@ pub fn advance(
     }
 }
 
-pub fn advance_old(position: &Position) -> anyhow::Result<Vec<Position>> {
+pub fn advance_old(position: &mut Position) -> anyhow::Result<Vec<Position>> {
     match position.turn() {
         Color::BLACK => black::advance_old(position),
         Color::WHITE => white::advance_old(position),
@@ -73,9 +73,9 @@ mod tests {
         ] {
             eprintln!("{}", tc.0);
 
-            let position =
+            let mut position =
                 sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
-            let mut got = super::advance_old(&position).unwrap();
+            let mut got = super::advance_old(&mut position).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" "))

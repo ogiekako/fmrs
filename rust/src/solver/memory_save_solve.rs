@@ -7,11 +7,11 @@ use fmrs_core::{
 };
 
 pub(super) fn memory_save_solve(
-    initial_position: Position,
+    mut initial_position: Position,
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut current_white_positions = advance_old(&initial_position)?;
+    let mut current_white_positions = advance_old(&mut initial_position)?;
     let mut memo_white_positions = BTreeMap::new();
     for p in current_white_positions.iter() {
         memo_white_positions.insert(p.digest(), 0i32);
@@ -22,18 +22,18 @@ pub(super) fn memory_save_solve(
     for half_step in 1i32.. {
         let mut all_next_white_positions = vec![];
 
-        while let Some(white_position) = current_white_positions.pop() {
+        while let Some(mut white_position) = current_white_positions.pop() {
             let mut has_next_position = false;
-            let mut black_positions = advance_old(&white_position)?;
+            let mut black_positions = advance_old(&mut white_position)?;
 
             let mut white_position_is_deadend = true;
-            while let Some(black_position) = black_positions.pop() {
+            while let Some(mut black_position) = black_positions.pop() {
                 has_next_position = true;
                 if !mate_positions.is_empty() {
                     break;
                 }
 
-                let mut next_white_positions = advance_old(&black_position)?;
+                let mut next_white_positions = advance_old(&mut black_position)?;
                 while let Some(next_white_position) = next_white_positions.pop() {
                     let digest = next_white_position.digest();
                     white_position_is_deadend = false;

@@ -20,14 +20,15 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let mut unused_memo = NoHashMap::default();
 
     for step in (1..).step_by(2) {
-        let (white_positions, _) = advance(&position, &mut unused_memo, 0, &options).ok()?;
+        let (mut white_positions, _) =
+            advance(&mut position, &mut unused_memo, 0, &options).ok()?;
         debug_assert!(white_positions.len() <= 1);
         if white_positions.len() != 1 {
             return None;
         }
 
         let (mut black_positions, is_mate) =
-            advance(&white_positions[0], &mut unused_memo, 0, &options).ok()?;
+            advance(&mut white_positions[0], &mut unused_memo, 0, &options).ok()?;
 
         if is_mate {
             if !white_positions[0].hands().is_empty(Color::BLACK) {

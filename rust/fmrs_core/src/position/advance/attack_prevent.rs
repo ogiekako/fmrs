@@ -26,7 +26,7 @@ use super::{
 
 // #[inline(never)]
 pub(super) fn attack_preventing_movements(
-    position: &Position,
+    position: &mut Position,
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     king_pos: Square,
@@ -68,7 +68,7 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     // #[inline(never)]
     fn new(
-        position: &'a Position,
+        position: &'a mut Position,
         memo: &'a mut NoHashMap<u32>,
         next_step: u32,
         king_pos: Square,
@@ -334,7 +334,7 @@ impl<'a> Context<'a> {
         );
 
         if !self.options.no_memo {
-            // TODO:compute the digest without making a clone.
+            // TODO: compute the digest without making a clone.
             let digest = next_position.digest();
 
             if self.memo.contains_key(&digest) {
