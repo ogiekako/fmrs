@@ -196,3 +196,30 @@ impl KindBitBoard {
         Some(KINDS[i])
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        piece::Kind,
+        position::{bitboard::KindBitBoard, Square},
+    };
+
+    #[test]
+    fn get_set() {
+        let mut b = KindBitBoard::empty();
+        let pos = Square::from_index(0);
+        assert_eq!(None, b.get(pos));
+        b.set(pos, Kind::Pawn);
+        assert_eq!(Some(Kind::Pawn), b.get(pos));
+        b.unset(pos, Kind::Pawn);
+        assert_eq!(None, b.get(pos));
+        b.set(pos, Kind::Knight);
+        assert_eq!(
+            Some(Kind::Knight),
+            b.get(pos),
+            "{:?} kind0: {:?}",
+            b,
+            b.kind0()
+        );
+    }
+}
