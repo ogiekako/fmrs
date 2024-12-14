@@ -102,6 +102,7 @@ pub fn encode_position(board: &Position) -> String {
     if !has_hand {
         res.push('-');
     }
+    // res.push_str(" 1");
     res
 }
 

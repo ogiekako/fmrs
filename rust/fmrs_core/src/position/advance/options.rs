@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 
 #[derive(Debug, Clone, Default)]
 pub struct AdvanceOptions {
+    pub no_memo: bool,
     // Set 1 for one-way mate.
     pub max_allowed_branches: Option<usize>,
 }

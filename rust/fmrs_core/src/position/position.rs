@@ -132,6 +132,14 @@ impl Position {
             }
         }
     }
+
+    pub fn sfen(&self) -> String {
+        sfen::encode_position(self)
+    }
+
+    pub fn sfen_url(&self) -> String {
+        sfen::sfen_to_image_url(&self.sfen())
+    }
 }
 
 #[cfg(test)]

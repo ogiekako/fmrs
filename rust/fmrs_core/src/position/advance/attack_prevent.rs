@@ -127,9 +127,7 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn capture(&mut self, attacker_pos: Square) -> Result<()> {
-        self.add_movements_to(attacker_pos, false)?;
-
-        Ok(())
+        self.add_movements_to(attacker_pos, false)
     }
 
     // #[inline(never)]
@@ -326,11 +324,9 @@ impl<'a> Context<'a> {
         );
 
         self.is_mate = false;
+
         // TODO:compute the digest without making a clone.
         let digest = next_position.digest();
-        if self.memo.contains_key(&digest) {
-            return Ok(());
-        }
 
         self.options.check_allowed_branches(self.result.len() + 1)?;
 
