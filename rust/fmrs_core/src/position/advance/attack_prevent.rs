@@ -1,6 +1,9 @@
 use crate::{
     nohash::NoHashMap,
-    position::bitboard::{any_power, reachable_sub},
+    position::bitboard::{
+        king_then_king_or_night_power, lance_reachable,
+        magic::{bishop_reachable, rook_reachable},
+    },
 };
 use anyhow::Result;
 
@@ -40,7 +43,7 @@ pub(super) fn attack_preventing_movements(
 
 struct Context<'a> {
     position: &'a Position,
-    position_without_king: Position,
+    occupied_without_king: BitBoard,
     turn: Color,
     king_pos: Square,
     pinned: Pinned,
@@ -77,12 +80,12 @@ impl<'a> Context<'a> {
             mask
         };
 
-        let mut position_without_king = position.clone();
-        position_without_king.unset(king_pos, turn, Kind::King);
+        let mut occupied_without_king = position.color_bb().both();
+        occupied_without_king.unset(king_pos);
 
         Self {
             position,
-            position_without_king,
+            occupied_without_king,
             turn,
             king_pos,
             pinned,
@@ -132,32 +135,56 @@ impl<'a> Context<'a> {
         let king_color = self.turn;
         let attacker_color = king_color.opposite();
 
-        let mut attacker_cands = BitBoard::empty();
         let mut king_reachable = king_power(self.king_pos).and_not(color_bb.bitboard(self.turn));
         if king_reachable.is_empty() {
             return Ok(());
         }
-
-        for dest in king_reachable {
-            attacker_cands |= any_power(king_color, dest);
-        }
-        attacker_cands &= color_bb.bitboard(attacker_color);
-
-        for attacker_pos in attacker_cands {
+        let mut seen_cands = BitBoard::empty();
+        let non_line_cands = king_then_king_or_night_power(king_color, self.king_pos)
+            & color_bb.bitboard(attacker_color);
+        for attacker_pos in non_line_cands {
             let attacker_kind = self.position.must_get_kind(attacker_pos);
-            let attacker_reach = reachable_sub(
-                self.position_without_king.color_bb(),
-                attacker_color,
-                attacker_pos,
-                attacker_kind,
-            );
+            let attacker_reach = match attacker_kind {
+                Kind::Lance | Kind::Bishop | Kind::Rook => continue,
+                Kind::ProBishop | Kind::ProRook => king_power(attacker_pos),
+                _ => {
+                    seen_cands.set(attacker_pos);
+                    power(attacker_color, attacker_pos, attacker_kind)
+                }
+            };
+
             king_reachable = king_reachable.and_not(attacker_reach);
             if king_reachable.is_empty() {
                 return Ok(());
             }
         }
 
+        let lances = self.position.bitboard(attacker_color, Kind::Lance);
+        let bishipish = self.position.kind_bb().bishopish() & color_bb.bitboard(attacker_color);
+        let rookish = self.position.kind_bb().rookish() & color_bb.bitboard(attacker_color);
+
         for dest in king_reachable {
+            if !lances.is_empty() {
+                let attacking_lances =
+                    lance_reachable(self.occupied_without_king, king_color, dest) & lances;
+                if !attacking_lances.is_empty() {
+                    continue;
+                }
+            }
+            if !bishipish.is_empty() {
+                let attacking_bishops =
+                    bishop_reachable(self.occupied_without_king, dest) & bishipish;
+                if !attacking_bishops.is_empty() {
+                    continue;
+                }
+            }
+            if !rookish.is_empty() {
+                let attacking_rooks = rook_reachable(self.occupied_without_king, dest) & rookish;
+                if !attacking_rooks.is_empty() {
+                    continue;
+                }
+            }
+
             let capture_kind = self.position.get_kind(dest);
             self.maybe_add_move(
                 &Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),

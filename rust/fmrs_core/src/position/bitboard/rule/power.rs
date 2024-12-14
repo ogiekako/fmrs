@@ -26,6 +26,10 @@ pub fn king_power(pos: Square) -> BitBoard {
     KING_POWER[pos.index()]
 }
 
+pub fn king_then_king_or_night_power(color: Color, pos: Square) -> BitBoard {
+    KING_THEN_KING_OR_NIGHT_POWER[color.index()][pos.index()]
+}
+
 pub fn lance_power(color: Color, pos: Square) -> BitBoard {
     LANCE_POWER[color.index()][pos.index()]
 }
@@ -38,8 +42,8 @@ pub fn rook_power(pos: Square) -> BitBoard {
     ROOK_POWER[pos.index()]
 }
 
-pub fn any_power(color: Color, pos: Square) -> BitBoard {
-    ANY_POWER[color.index()][pos.index()]
+pub fn queen_power(pos: Square) -> BitBoard {
+    QUEEN_POWER[pos.index()]
 }
 
 pub fn king_and_any_power(color: Color, pos: Square) -> BitBoard {
@@ -115,16 +119,14 @@ lazy_static! {
             .chain(run((0, 1)))
             .chain(run((1, 0)).chain([(-1, -1), (-1, 1), (1, -1), (1, 1)].into_iter()))
     );
-    static ref ANY_POWER: KindPower = {
-        let mut res = [[BitBoard::empty(); 81]; 2];
-        for color in Color::iter() {
-            for pos in Square::iter() {
-                let mut p = BitBoard::empty();
-                for k in [Kind::Knight, Kind::ProBishop, Kind::ProRook] {
-                    p |= power(color, pos, k);
-                }
-                res[color.index()][pos.index()] = p;
+    static ref QUEEN_POWER: [BitBoard; 81] = {
+        let mut res = [BitBoard::empty(); 81];
+        for pos in Square::iter() {
+            let mut p = BitBoard::empty();
+            for k in [Kind::ProBishop, Kind::ProRook] {
+                p |= power(Color::BLACK, pos, k);
             }
+            res[pos.index()] = p;
         }
         res
     };
@@ -137,6 +139,20 @@ lazy_static! {
                     for k in [Kind::Knight, Kind::ProBishop, Kind::ProRook] {
                         p |= power(color, pos2, k);
                     }
+                }
+                res[color.index()][pos.index()] = p;
+            }
+        }
+        res
+    };
+    static ref KING_THEN_KING_OR_NIGHT_POWER: KindPower = {
+        let mut res = [[BitBoard::empty(); 81]; 2];
+        for color in Color::iter() {
+            for pos in Square::iter() {
+                let mut p = BitBoard::empty();
+                for pos2 in king_power(pos) {
+                    p |= king_power(pos2);
+                    p |= knight_power(color, pos2);
                 }
                 res[color.index()][pos.index()] = p;
             }
