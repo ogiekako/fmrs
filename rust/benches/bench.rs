@@ -202,13 +202,7 @@ fn bench_solve97(c: &mut Criterion) {
     });
 }
 
-const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
-
 fn bench_jugemu(c: &mut Criterion) {
-    if !EXTRA {
-        return;
-    }
-
     let position =
         decode_position(include_str!("../problems/jugemu_gentei_kai_36603.sfen")).unwrap();
     let n_samples = 1;
@@ -239,6 +233,15 @@ criterion_group!(
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97
 );
 
-criterion_group!(bench_extra, bench_jugemu);
+const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
+
+fn bench_extra() {
+    if !EXTRA {
+        return;
+    }
+    bench_extra_inner();
+}
+
+criterion_group!(bench_extra_inner, bench_jugemu);
 
 criterion_main!(benches, bench_extra);
