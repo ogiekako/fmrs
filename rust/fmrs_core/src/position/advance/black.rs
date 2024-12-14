@@ -221,30 +221,30 @@ impl<'a> Context<'a> {
                 continue;
             }
 
-            for promote in [false, true] {
-                let attacker_dest_kind = if promote {
-                    let Some(k) = attacker_source_kind.promote() else {
-                        continue;
-                    };
-                    k
+            for attacker_pos in attackers {
+                let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
+                    self.pinned.pinned_area(attacker_pos)
                 } else {
-                    attacker_source_kind
+                    bitboard::reachable(
+                        self.position.color_bb(),
+                        Color::BLACK,
+                        attacker_pos,
+                        attacker_source_kind,
+                        false,
+                    )
                 };
 
-                let attack_squares = self.attack_squares(attacker_dest_kind);
-
-                for attacker_pos in attackers {
-                    let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
-                        self.pinned.pinned_area(attacker_pos)
+                for promote in [false, true] {
+                    let attacker_dest_kind = if promote {
+                        let Some(k) = attacker_source_kind.promote() else {
+                            continue;
+                        };
+                        k
                     } else {
-                        bitboard::reachable(
-                            self.position.color_bb(),
-                            Color::BLACK,
-                            attacker_pos,
-                            attacker_source_kind,
-                            false,
-                        )
+                        attacker_source_kind
                     };
+
+                    let attack_squares = self.attack_squares(attacker_dest_kind);
 
                     for dest in attacker_reachable & attack_squares {
                         if !is_legal_move(

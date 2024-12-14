@@ -50,6 +50,10 @@ pub fn king_and_any_power(color: Color, pos: Square) -> BitBoard {
     KING_AND_ANY_POWER[color.index()][pos.index()]
 }
 
+pub fn power2(color: Color, pos: Square, step1: Kind, step2: Kind) -> BitBoard {
+    POWER2[color.index()][pos.index()][step1.index()][step2.index()]
+}
+
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
@@ -155,6 +159,23 @@ lazy_static! {
                     p |= knight_power(color, pos2);
                 }
                 res[color.index()][pos.index()] = p;
+            }
+        }
+        res
+    };
+    static ref POWER2: [[[[BitBoard; 14]; 14]; 81]; 2] = {
+        let mut res = [[[[BitBoard::empty(); 14]; 14]; 81]; 2];
+        for color in Color::iter() {
+            for pos in Square::iter() {
+                for step1 in Kind::iter() {
+                    for step2 in Kind::iter() {
+                        let mut p = BitBoard::empty();
+                        for pos2 in power(color, pos, step1) {
+                            p |= power(color, pos2, step2);
+                        }
+                        res[color.index()][pos.index()][step1.index()][step2.index()] = p;
+                    }
+                }
             }
         }
         res
