@@ -28,5 +28,5 @@ pub(super) fn advance(
         .bitboard(Color::WHITE, Kind::King)
         .next()
         .ok_or_else(|| anyhow::anyhow!("white king not found"))?;
-    attack_preventing_movements(position, memo, next_step, king_pos, false, options)
+    attack_preventing_movements(position, memo, next_step, king_pos, false, options, None)
 }

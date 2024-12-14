@@ -24,6 +24,7 @@ use super::{
     AdvanceOptions,
 };
 
+// #[inline(never)]
 pub(super) fn attack_preventing_movements(
     position: &Position,
     memo: &mut NoHashMap<u32>,
@@ -31,6 +32,7 @@ pub(super) fn attack_preventing_movements(
     king_pos: Square,
     should_return_check: bool,
     options: &AdvanceOptions,
+    attacker_hint: Option<Attacker>,
 ) -> Result<(Vec<Position>, /* is legal mate */ bool)> {
     let mut ctx = Context::new(
         position,
@@ -39,6 +41,7 @@ pub(super) fn attack_preventing_movements(
         king_pos,
         should_return_check,
         options,
+        attacker_hint,
     );
     ctx.advance()?;
     Ok((ctx.result, ctx.num_branches == 0 && !position.pawn_drop()))
@@ -71,9 +74,11 @@ impl<'a> Context<'a> {
         king_pos: Square,
         should_return_check: bool,
         options: &'a AdvanceOptions,
+        attacker_hint: Option<Attacker>,
     ) -> Self {
         let turn = position.turn();
-        let attacker = attacker(position, position.turn(), king_pos).expect("no attacker");
+        let attacker = attacker_hint
+            .unwrap_or_else(|| attacker(position, turn, king_pos).expect("no attacker"));
         let pinned = pinned(position, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
@@ -363,6 +368,7 @@ impl<'a> Context<'a> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Attacker {
     pub pos: Square,
     pub kind: Kind,

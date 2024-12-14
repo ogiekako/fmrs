@@ -9,7 +9,7 @@ use crate::position::{
     Movement, Position, PositionExt, Square,
 };
 
-use super::attack_prevent::attack_preventing_movements;
+use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
 use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
@@ -40,6 +40,7 @@ struct Context<'a> {
     next_step: u32,
     white_king_pos: Square,
     black_king_pos: Option<Square>,
+    attacker: Option<Attacker>,
     pinned: Pinned,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
@@ -64,6 +65,7 @@ impl<'a> Context<'a> {
             bail!("No white king");
         };
         let black_king_pos = (kings & position.color_bb().black()).next();
+        let attacker = black_king_pos.and_then(|pos| attacker(position, Color::BLACK, pos));
 
         let pinned = position
             .bitboard(Color::BLACK, Kind::King)
@@ -85,6 +87,7 @@ impl<'a> Context<'a> {
             next_step,
             white_king_pos,
             black_king_pos,
+            attacker,
             pinned,
             pawn_mask,
             result: vec![],
@@ -94,19 +97,18 @@ impl<'a> Context<'a> {
     }
 
     fn advance(&mut self) -> Result<()> {
-        if let Some(black_king_pos) = self.position.bitboard(Color::BLACK, Kind::King).next() {
-            if common::checked(self.position, Color::BLACK, black_king_pos.into()) {
-                self.result = attack_preventing_movements(
-                    self.position,
-                    self.memo,
-                    self.next_step,
-                    black_king_pos,
-                    true,
-                    self.options,
-                )?
-                .0;
-                return Ok(());
-            }
+        if let Some(attacker) = self.attacker.clone() {
+            self.result = attack_preventing_movements(
+                self.position,
+                self.memo,
+                self.next_step,
+                self.black_king_pos.unwrap(),
+                true,
+                self.options,
+                attacker.into(),
+            )?
+            .0;
+            return Ok(());
         }
 
         self.drops()?;
@@ -116,6 +118,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::BLACK) {
             let check_needed = matches!(kind, Kind::Pawn | Kind::Lance | Kind::Knight);
@@ -134,6 +137,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
+    #[inline(never)]
     fn direct_attack_moves(&mut self) -> Result<()> {
         self.non_leap_piece_direct_attack()?;
         self.leap_piece_direct_attack()?;
@@ -141,7 +145,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
         // Non line or leap pieces
@@ -197,7 +201,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
         for attacker_source_kind in [
             Kind::Lance,
@@ -266,7 +270,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
             self.position,
@@ -328,8 +332,8 @@ impl<'a> Context<'a> {
         let mut next_position = self.position.clone();
         next_position.do_move(movement);
 
-        if kind == Kind::King && common::checked(&next_position, Color::BLACK, self.black_king_pos)
-        {
+        // This is next position and self.black_king_pos can't be used.
+        if kind == Kind::King && common::checked(&next_position, Color::BLACK, None) {
             return Ok(());
         }
 
