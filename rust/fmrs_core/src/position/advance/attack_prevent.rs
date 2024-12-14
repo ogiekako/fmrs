@@ -139,7 +139,7 @@ impl<'a> Context<'a> {
         }
 
         for dest in king_reachable {
-            attacker_cands |= any_power(attacker_color, dest);
+            attacker_cands |= any_power(king_color, dest);
         }
         attacker_cands &= color_bb.bitboard(attacker_color);
 
