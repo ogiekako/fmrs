@@ -22,7 +22,7 @@ pub(super) fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
+) -> anyhow::Result<(Vec<Position>, /* is legal mate */ bool)> {
     debug_assert_eq!(position.turn(), Color::WHITE);
     let king_pos = position
         .bitboard(Color::WHITE, Kind::King)

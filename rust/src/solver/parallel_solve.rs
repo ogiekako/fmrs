@@ -159,7 +159,7 @@ impl Task {
                 if step < mate_bound {
                     all_next_positions.append(&mut new_next_positions);
                 }
-                if is_mate && !position.pawn_drop() {
+                if is_mate {
                     mate_positions.push(position);
 
                     let mut g = self.mate_in.lock().unwrap();

@@ -1,5 +1,5 @@
 use fmrs_core::{
-    nohash::{NoHashMap, NoHashSet},
+    nohash::NoHashMap,
     piece::Color,
     position::{advance, checked, AdvanceOptions, Position},
 };
@@ -10,8 +10,6 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         return None;
     }
 
-    let mut visited = NoHashSet::default();
-
     let options = {
         let mut options = AdvanceOptions::default();
         options.max_allowed_branches = Some(1);
@@ -19,22 +17,19 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         options
     };
 
-    let mut hashmap = NoHashMap::default();
+    let mut unused_memo = NoHashMap::default();
 
-    // TODO: `advance` without cache.
     for step in (1..).step_by(2) {
-        hashmap.clear();
-        let (white_positions, _) = advance(&position, &mut hashmap, step, &options).ok()?;
+        let (white_positions, _) = advance(&position, &mut unused_memo, 0, &options).ok()?;
         debug_assert!(white_positions.len() <= 1);
         if white_positions.len() != 1 {
             return None;
         }
 
-        hashmap.clear();
         let (mut black_positions, is_mate) =
-            advance(&white_positions[0], &mut hashmap, step + 1, &options).ok()?;
+            advance(&white_positions[0], &mut unused_memo, 0, &options).ok()?;
 
-        if is_mate && !white_positions[0].pawn_drop() {
+        if is_mate {
             if !white_positions[0].hands().is_empty(Color::BLACK) {
                 return None;
             }
@@ -42,10 +37,6 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         }
 
         debug_assert_eq!(black_positions.len(), 1);
-
-        if !visited.insert(position.digest()) {
-            return None;
-        }
 
         position = black_positions.remove(0);
     }

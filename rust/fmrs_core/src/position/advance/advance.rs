@@ -10,10 +10,11 @@ pub fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-) -> anyhow::Result<(Vec<Position>, /* is mate */ bool)> {
-    match position.turn() {
-        Color::BLACK => black::advance(position, memo, next_step, options).map(|x| (x, false)),
-        Color::WHITE => white::advance(position, memo, next_step, options),
+) -> anyhow::Result<(Vec<Position>, /* is legal mate */ bool)> {
+    if position.turn().is_black() {
+        black::advance(position, memo, next_step, options).map(|x| (x, false))
+    } else {
+        white::advance(position, memo, next_step, options)
     }
 }
 

@@ -47,7 +47,7 @@ impl StandardSolver {
                 &Default::default(),
             )?;
             all_next_positions.append(&mut new_next_positions);
-            if is_mate && !position.pawn_drop() {
+            if is_mate {
                 mate_positions.push(position);
             }
         }

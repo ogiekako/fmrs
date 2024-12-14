@@ -31,7 +31,7 @@ pub(super) fn attack_preventing_movements(
     king_pos: Square,
     should_return_check: bool,
     options: &AdvanceOptions,
-) -> Result<(Vec<Position>, /* is mate */ bool)> {
+) -> Result<(Vec<Position>, /* is legal mate */ bool)> {
     let mut ctx = Context::new(
         position,
         memo,
@@ -41,7 +41,7 @@ pub(super) fn attack_preventing_movements(
         options,
     );
     ctx.advance()?;
-    Ok((ctx.result, ctx.num_branches == 0))
+    Ok((ctx.result, ctx.num_branches == 0 && !position.pawn_drop()))
 }
 
 struct Context<'a> {
