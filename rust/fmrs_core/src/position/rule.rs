@@ -1,6 +1,6 @@
 use crate::piece::{Color, Kind};
 
-use super::Square;
+use super::{BitBoard, Square};
 
 pub(super) fn promotable(pos: Square, c: Color) -> bool {
     match c {
@@ -35,5 +35,34 @@ pub(super) fn is_movable(color: Color, dest: Square, kind: Kind) -> bool {
     match color {
         Color::BLACK => dest.row() >= d,
         Color::WHITE => dest.row() < 9 - d,
+    }
+}
+
+const ILLEGAL_KNIGHT_MASKS: [BitBoard; 2] = [
+    BitBoard::from_u128(
+        0b000000011000000011000000011000000011000000011000000011000000011000000011000000011,
+    ),
+    BitBoard::from_u128(
+        0b110000000110000000110000000110000000110000000110000000110000000110000000110000000,
+    ),
+];
+
+const ILLEGAL_PAWN_MASKS: [BitBoard; 2] = [
+    BitBoard::from_u128(
+        0b000000001000000001000000001000000001000000001000000001000000001000000001000000001,
+    ),
+    BitBoard::from_u128(
+        0b100000000100000000100000000100000000100000000100000000100000000100000000100000000,
+    ),
+];
+
+pub fn is_legal_drop(color: Color, pos: Square, kind: Kind, pawn_mask: usize) -> bool {
+    match kind {
+        Kind::Pawn => {
+            !ILLEGAL_PAWN_MASKS[color.index()].get(pos) && pawn_mask >> pos.col() & 1 == 0
+        }
+        Kind::Lance => !ILLEGAL_PAWN_MASKS[color.index()].get(pos),
+        Kind::Knight => !ILLEGAL_KNIGHT_MASKS[color.index()].get(pos),
+        _ => true,
     }
 }

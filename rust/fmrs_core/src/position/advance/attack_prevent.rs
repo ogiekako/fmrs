@@ -1,8 +1,11 @@
 use crate::{
     nohash::NoHashMap,
-    position::bitboard::{
-        king_then_king_or_night_power, lance_reachable,
-        magic::{bishop_reachable, rook_reachable},
+    position::{
+        bitboard::{
+            king_then_king_or_night_power, lance_reachable,
+            magic::{bishop_reachable, rook_reachable},
+        },
+        rule::is_legal_drop,
     },
 };
 use anyhow::Result;
@@ -198,7 +201,9 @@ impl<'a> Context<'a> {
         // Drop
         if include_drop {
             for kind in self.position.hands().kinds(self.turn) {
-                self.maybe_add_move(&Movement::Drop(dest, kind), kind)?;
+                if is_legal_drop(self.turn, dest, kind, self.pawn_mask) {
+                    self.maybe_add_move(&Movement::Drop(dest, kind), kind)?;
+                }
             }
         }
 
@@ -289,7 +294,9 @@ impl<'a> Context<'a> {
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
-        if !is_king_move && !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask)
+        if !is_king_move
+            && movement.is_move()
+            && !common::maybe_legal_movement(self.turn, movement, kind, self.pawn_mask)
         {
             return Ok(());
         }

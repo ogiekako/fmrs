@@ -1,9 +1,21 @@
 use rand::{distributions::Standard, prelude::Distribution};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
     x: usize,
 }
+
+const ROW: [usize; 81] = [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 1
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 2
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 3
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 4
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 5
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 6
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 7
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 8
+    0, 1, 2, 3, 4, 5, 6, 7, 8, // 9
+];
 
 impl Square {
     pub fn new(col: usize, row: usize) -> Self {
@@ -14,7 +26,7 @@ impl Square {
         self.x / 9
     }
     pub fn row(self) -> usize {
-        self.x % 9
+        ROW[self.x]
     }
     pub fn iter() -> impl Iterator<Item = Self> {
         (0..9).flat_map(|col| (0..9).map(move |row| Self::new(col, row)))
