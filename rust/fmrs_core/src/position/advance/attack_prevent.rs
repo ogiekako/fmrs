@@ -327,10 +327,7 @@ impl<'a> Context<'a> {
         }
 
         self.num_branches += 1;
-        if let Err(err) = self.options.check_allowed_branches(self.num_branches) {
-            self.position.undo_move(&undo);
-            return Err(err);
-        }
+        self.options.check_allowed_branches(self.num_branches)?;
 
         debug_assert!(
             !common::checked(&self.position, self.turn, None),

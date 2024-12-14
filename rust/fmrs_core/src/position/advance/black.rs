@@ -356,10 +356,7 @@ impl<'a> Context<'a> {
         );
 
         self.num_branches += 1;
-        if let Err(err) = self.options.check_allowed_branches(self.num_branches) {
-            self.position.undo_move(&undo);
-            return Err(err);
-        }
+        self.options.check_allowed_branches(self.num_branches)?;
 
         if !self.options.no_memo {
             let digest = self.position.digest();
