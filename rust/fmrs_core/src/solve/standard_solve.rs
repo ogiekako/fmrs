@@ -43,7 +43,6 @@ impl StandardSolver {
         let mut movements = vec![];
 
         while let Some(mut position) = self.current.pop() {
-            movements.clear();
             let is_mate = position::advance(
                 &mut position,
                 &mut self.memo_next,
@@ -55,7 +54,7 @@ impl StandardSolver {
                 mate_positions.push(position);
                 continue;
             }
-            for movement in movements.iter() {
+            while let Some(movement) = movements.pop() {
                 let undo = position.do_move(&movement);
                 all_next_positions.push(position.clone());
                 position.undo_move(&undo);
