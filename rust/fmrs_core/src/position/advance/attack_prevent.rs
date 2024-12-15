@@ -83,7 +83,7 @@ impl<'a> Context<'a> {
         result: &'a mut Vec<Movement>,
     ) -> Self {
         let turn = position.turn();
-        let color_bb = position.color();
+        let color_bb = position.color_bb();
         let attacker = attacker_hint.unwrap_or_else(|| {
             attacker(position, &color_bb, turn, king_pos, false).expect("no attacker")
         });
@@ -98,8 +98,6 @@ impl<'a> Context<'a> {
 
         let mut occupied_without_king = color_bb.both();
         occupied_without_king.unset(king_pos);
-
-        let color_bb = position.color();
 
         Self {
             position,
@@ -162,7 +160,7 @@ impl<'a> Context<'a> {
         let non_line_cands =
             king_then_king_or_night_power(king_color, self.king_pos) & attacker_color_bb;
         for attacker_pos in non_line_cands {
-            let attacker_kind = self.position.must_get_kind(attacker_pos);
+            let attacker_kind = self.position.kind_bb().must_get(attacker_pos);
             let attacker_reach = match attacker_kind {
                 Kind::Lance | Kind::Bishop | Kind::Rook => continue,
                 Kind::ProBishop | Kind::ProRook => king_power(attacker_pos),
@@ -204,7 +202,7 @@ impl<'a> Context<'a> {
                 }
             }
 
-            let capture_kind = self.position.get_kind(dest);
+            let capture_kind = self.position.kind_bb().get(dest);
             self.maybe_add_move(
                 Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),
                 Kind::King,
@@ -226,7 +224,7 @@ impl<'a> Context<'a> {
         let capture_kind = if include_drop {
             None
         } else {
-            self.position.get_kind(dest)
+            self.position.kind_bb().get(dest)
         };
 
         // Move

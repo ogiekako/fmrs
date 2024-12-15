@@ -42,7 +42,7 @@ impl PositionExt for Position {
                 let kind = if let Some(kind) = source_kind_hint {
                     kind
                 } else {
-                    self.must_get_kind(source)
+                    self.kind_bb().must_get(source)
                 };
 
                 self.unset(source, color, kind);
@@ -50,7 +50,7 @@ impl PositionExt for Position {
                 let capture = if let Some(capture) = capture_kind_hint {
                     capture
                 } else {
-                    self.get_kind(dest)
+                    self.kind_bb().get(dest)
                 };
 
                 if let Some(capture) = capture {
@@ -83,7 +83,7 @@ impl PositionExt for Position {
         self.set_turn(prev_turn);
         match token {
             &UnDrop(pos, pawn_drop) => {
-                let k = self.must_get_kind(pos);
+                let k = self.kind_bb().must_get(pos);
                 self.unset(pos, prev_turn, k);
                 self.hands_mut().add(prev_turn, k.maybe_unpromote());
                 self.set_pawn_drop(pawn_drop);
@@ -96,7 +96,7 @@ impl PositionExt for Position {
                 capture,
                 pawn_drop,
             } => {
-                let k = self.must_get_kind(to);
+                let k = self.kind_bb().must_get(to);
                 self.unset(to, prev_turn, k);
                 debug_assert_eq!(None, self.get(from));
                 let prev_k = if promote { k.unpromote().unwrap() } else { k };

@@ -67,7 +67,7 @@ impl<'a> Context<'a> {
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
         let kings = position.kind_bb().bitboard(Kind::King);
-        let color_bb = position.color();
+        let color_bb = position.color_bb();
         let white_king_pos = if let Some(p) = (kings & color_bb.white()).next() {
             p
         } else {
@@ -163,7 +163,7 @@ impl<'a> Context<'a> {
             self.position.kind_bb().pawn_silver_goldish() & lion_king_range & self.position.black();
 
         for attacker_pos in attacker_cands {
-            let attacker_source_kind = self.position.must_get_kind(attacker_pos);
+            let attacker_source_kind = self.position.kind_bb().must_get(attacker_pos);
 
             let attacker_range = if self.pinned.is_pinned(attacker_pos) {
                 self.pinned.pinned_area(attacker_pos)
@@ -192,7 +192,7 @@ impl<'a> Context<'a> {
                 }
 
                 for dest in attacker_range & attack_squares {
-                    let capture_kind = self.position.get_kind(dest);
+                    let capture_kind = self.position.kind_bb().get(dest);
                     self.maybe_add_move(
                         Movement::move_with_hint(
                             attacker_pos,
@@ -226,7 +226,7 @@ impl<'a> Context<'a> {
             let reachable_squares = reach_from_king & self.position.black_knight_reach();
 
             for dest in reachable_squares {
-                let capture_kind = self.position.get_kind(dest);
+                let capture_kind = self.position.kind_bb().get(dest);
                 let sources = self.position.bitboard(Color::BLACK, Kind::Knight)
                     & knight_power(Color::WHITE, dest);
                 for source in sources {
@@ -282,7 +282,7 @@ impl<'a> Context<'a> {
                     }
 
                     for dest in attacker_reachable & attack_squares {
-                        let capture_kind = self.position.get_kind(dest);
+                        let capture_kind = self.position.kind_bb().get(dest);
                         self.maybe_add_move(
                             Movement::move_with_hint(
                                 attacker_pos,
@@ -310,7 +310,7 @@ impl<'a> Context<'a> {
             Color::BLACK,
         );
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
-            let blocker_kind = self.position.must_get_kind(blocker_pos);
+            let blocker_kind = self.position.kind_bb().must_get(blocker_pos);
 
             let mut blocker_dest_cands = bitboard::reachable(
                 &self.color_bb,
@@ -339,7 +339,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
 
-                    let capture_kind = self.position.get_kind(blocker_dest);
+                    let capture_kind = self.position.kind_bb().get(blocker_dest);
                     self.maybe_add_move(
                         Movement::move_with_hint(
                             blocker_pos,

@@ -110,9 +110,7 @@ fn bishop_pinned(
         return;
     }
 
-    let occupied = position.occupied();
-
-    let reachable_from_king = magic::bishop_reachable(occupied, king_pos);
+    let reachable_from_king = magic::bishop_reachable(color_bb.both(), king_pos);
 
     potential_attackers = potential_attackers.and_not(reachable_from_king);
 
@@ -120,7 +118,7 @@ fn bishop_pinned(
         let power_from_attacker = bishop_power(attacker_pos);
 
         let block = reachable_from_king
-            & magic::bishop_reachable(occupied, attacker_pos)
+            & magic::bishop_reachable(color_bb.both(), attacker_pos)
             & color_bb.bitboard(blocker_color);
         if block.is_empty() {
             continue;
@@ -153,9 +151,7 @@ fn rook_pinned(
         return;
     }
 
-    let occupied = position.occupied();
-
-    let reachable_from_king = magic::rook_reachable(occupied, king_pos);
+    let reachable_from_king = magic::rook_reachable(color_bb.both(), king_pos);
 
     potential_attackers = potential_attackers.and_not(reachable_from_king);
 
@@ -163,7 +159,7 @@ fn rook_pinned(
         let power_from_attacker = rook_power(attacker_pos);
 
         let block = reachable_from_king
-            & magic::rook_reachable(occupied, attacker_pos)
+            & magic::rook_reachable(color_bb.both(), attacker_pos)
             & color_bb.bitboard(blocker_color);
         if block.is_empty() {
             continue;
@@ -200,7 +196,7 @@ fn lance_pinned(
         return;
     }
 
-    let mut occupied = position.occupied() & power_from_king;
+    let mut occupied = color_bb.both() & power_from_king;
 
     if king_color.is_white() {
         let blocker_pos = occupied.next().unwrap();

@@ -24,7 +24,7 @@ struct Context {
 impl Context {
     fn new(position: Position, allow_drop_pawn: bool) -> Self {
         let turn = position.turn();
-        let color_bb = position.color();
+        let color_bb = position.color_bb();
         Self {
             position,
             color_bb,

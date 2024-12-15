@@ -53,22 +53,6 @@ impl Position {
         self.black_bb
     }
 
-    // pub fn white(&self) -> BitBoard {
-    //     self.occupied().and_not(self.black())
-    // }
-
-    pub fn occupied(&self) -> BitBoard {
-        self.kind_bb.occupied()
-    }
-
-    // pub fn color_bb(&self, color: Color) -> BitBoard {
-    //     if color.is_black() {
-    //         self.black()
-    //     } else {
-    //         self.white()
-    //     }
-    // }
-
     /// Returns a bitboard of pieces of the specified color and kind.
     pub fn bitboard(&self, color: Color, kind: Kind) -> BitBoard {
         if color.is_black() {
@@ -89,15 +73,6 @@ impl Position {
         } else {
             (Color::WHITE, kind)
         })
-    }
-    pub fn get_kind(&self, pos: Square) -> Option<Kind> {
-        self.has(pos).then(|| self.must_get_kind(pos))
-    }
-    pub fn has(&self, pos: Square) -> bool {
-        self.occupied().get(pos)
-    }
-    pub fn must_get_kind(&self, pos: Square) -> Kind {
-        self.kind_bb().must_get(pos)
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), None);
@@ -159,10 +134,10 @@ impl Position {
         self.board_digest = 0;
         self.black_knight_reach.clear();
 
-        let color_bb = self.color();
+        let color_bb = self.color_bb();
         for c in Color::iter() {
             for pos in color_bb.bitboard(c) {
-                let k = self.must_get_kind(pos);
+                let k = self.kind_bb.must_get(pos);
                 self.board_digest ^= zobrist(c, pos, k);
 
                 if c == Color::BLACK && k == Kind::Knight {
@@ -184,8 +159,8 @@ impl Position {
         self.black_knight_reach
     }
 
-    pub fn color(&self) -> ColorBitBoard {
-        let occupied = self.occupied();
+    pub fn color_bb(&self) -> ColorBitBoard {
+        let occupied = self.kind_bb.occupied();
         let black = self.black();
         let white = occupied.and_not(black);
         ColorBitBoard::new(black, white, occupied)

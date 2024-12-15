@@ -21,7 +21,7 @@ pub fn checked(
     let color_bb = if let Some(color_bb) = color_bb_hint {
         color_bb
     } else {
-        &position.color()
+        &position.color_bb()
     };
     attacker(position, color_bb, color, king_pos, true).is_some()
 }
