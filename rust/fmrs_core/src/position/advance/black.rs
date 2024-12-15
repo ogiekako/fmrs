@@ -1,5 +1,5 @@
 use crate::nohash::NoHashMap;
-use crate::position::bitboard::{gold_power, king_power, knight_power, power};
+use crate::position::bitboard::{gold_power, king_power, knight_power, pawn_power, power};
 use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
 
@@ -45,6 +45,8 @@ struct Context<'a> {
     position: &'a mut Position,
     next_step: u32,
     white_king_pos: Square,
+    // Empty or white piece squares from which white king is checked with gold.
+    gold_reach_from_king: BitBoard,
     black_king_pos: Option<Square>,
     attacker: Option<Attacker>,
     pinned: Pinned,
@@ -74,6 +76,9 @@ impl<'a> Context<'a> {
         let black_king_pos = (kings & position.color_bb().black()).next();
         let attacker = black_king_pos.and_then(|pos| attacker(position, Color::BLACK, pos, false));
 
+        let gold_reach_from_king =
+            gold_power(Color::WHITE, white_king_pos).and_not(position.color_bb().black());
+
         let pinned = black_king_pos
             .map(|pos| pinned(position, Color::BLACK, pos, Color::BLACK))
             .unwrap_or_else(|| Pinned::empty());
@@ -91,6 +96,7 @@ impl<'a> Context<'a> {
             memo,
             next_step,
             white_king_pos,
+            gold_reach_from_king,
             black_king_pos,
             attacker,
             pinned,
@@ -152,10 +158,36 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
+        // Pawn
+        for promote in [true, false] {
+            let reach_from_king = if promote {
+                self.gold_reach_from_king & BitBoard::BLACK_PROMOTABLE
+            } else {
+                pawn_power(Color::WHITE, self.white_king_pos)
+                    .and_not(self.position.color_bb().black())
+            };
+            if reach_from_king.is_empty() {
+                continue;
+            }
+            let reachable_squares = reach_from_king & self.position.black_pawn_reach();
+
+            for dest in reachable_squares {
+                let capture_kind = self.position.get_kind(dest);
+                let source = pawn_power(Color::WHITE, dest).next().unwrap();
+                if self.pinned.is_pinned(source) {
+                    continue;
+                }
+                self.maybe_add_move(
+                    &Movement::move_with_hint(source, Kind::Pawn, dest, promote, capture_kind),
+                    Kind::Pawn,
+                )?;
+            }
+        }
+
         let lion_king_range = lion_king_power(self.white_king_pos);
         let king_range = king_power(self.white_king_pos).and_not(self.position.color_bb().black());
 
-        let attacker_cands = self.position.kind_bb().pawn_silver_goldish()
+        let attacker_cands = self.position.kind_bb().silver_goldish()
             & lion_king_range
             & self.position.color_bb().black();
 
@@ -217,11 +249,11 @@ impl<'a> Context<'a> {
         // Knight
         for promote in [true, false] {
             let reach_from_king = if promote {
-                gold_power(Color::WHITE, self.white_king_pos) & BitBoard::BLACK_PROMOTABLE
+                self.gold_reach_from_king & BitBoard::BLACK_PROMOTABLE
             } else {
                 knight_power(Color::WHITE, self.white_king_pos)
-            }
-            .and_not(self.position.color_bb().black());
+                    .and_not(self.position.color_bb().black())
+            };
             if reach_from_king.is_empty() {
                 continue;
             }
