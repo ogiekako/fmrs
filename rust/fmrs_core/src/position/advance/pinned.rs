@@ -1,7 +1,9 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{bishop_power, lance_power, magic, reachable, rook_power, BitBoard},
+        bitboard::{
+            bishop_power, lance_power, magic, reachable, rook_power, BitBoard, ColorBitBoard,
+        },
         Position, Square,
     },
 };
@@ -53,6 +55,7 @@ impl Pinned {
 
 pub fn pinned(
     position: &Position,
+    color_bb: &ColorBitBoard,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
@@ -61,9 +64,30 @@ pub fn pinned(
 
     let mut res = vec![];
 
-    lance_pinned(position, king_color, king_pos, blocker_color, &mut res);
-    bishop_pinned(position, king_color, king_pos, blocker_color, &mut res);
-    rook_pinned(position, king_color, king_pos, blocker_color, &mut res);
+    lance_pinned(
+        position,
+        color_bb,
+        king_color,
+        king_pos,
+        blocker_color,
+        &mut res,
+    );
+    bishop_pinned(
+        position,
+        color_bb,
+        king_color,
+        king_pos,
+        blocker_color,
+        &mut res,
+    );
+    rook_pinned(
+        position,
+        color_bb,
+        king_color,
+        king_pos,
+        blocker_color,
+        &mut res,
+    );
 
     Pinned::new(res)
 }
@@ -71,12 +95,12 @@ pub fn pinned(
 // #[inline(never)]
 fn bishop_pinned(
     position: &Position,
+    color_bb: &ColorBitBoard,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
     res: &mut Vec<(Square, BitBoard)>,
 ) {
-    let color_bb = position.color_bb();
     let attacker_color = king_color.opposite();
 
     let power_from_king = bishop_power(king_pos);
@@ -86,7 +110,7 @@ fn bishop_pinned(
         return;
     }
 
-    let occupied = color_bb.both();
+    let occupied = position.occupied();
 
     let reachable_from_king = magic::bishop_reachable(occupied, king_pos);
 
@@ -114,12 +138,12 @@ fn bishop_pinned(
 // #[inline(never)]
 fn rook_pinned(
     position: &Position,
+    color_bb: &ColorBitBoard,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
     res: &mut Vec<(Square, BitBoard)>,
 ) {
-    let color_bb = position.color_bb();
     let attacker_color = king_color.opposite();
 
     let power_from_king = rook_power(king_pos);
@@ -129,7 +153,7 @@ fn rook_pinned(
         return;
     }
 
-    let occupied = color_bb.both();
+    let occupied = position.occupied();
 
     let reachable_from_king = magic::rook_reachable(occupied, king_pos);
 
@@ -157,12 +181,12 @@ fn rook_pinned(
 // #[inline(never)]
 fn lance_pinned(
     position: &Position,
+    color_bb: &ColorBitBoard,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
     res: &mut Vec<(Square, BitBoard)>,
 ) {
-    let color_bb = position.color_bb();
     let attacker_color = king_color.opposite();
 
     let lances = position.bitboard(attacker_color, Kind::Lance);
@@ -176,7 +200,7 @@ fn lance_pinned(
         return;
     }
 
-    let mut occupied = color_bb.both() & power_from_king;
+    let mut occupied = position.occupied() & power_from_king;
 
     if king_color.is_white() {
         let blocker_pos = occupied.next().unwrap();

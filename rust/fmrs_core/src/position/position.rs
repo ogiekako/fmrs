@@ -3,10 +3,10 @@ use crate::piece::*;
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct Position {
-    color_bb: ColorBitBoard, // 32 bytes
-    kind_bb: KindBitBoard,   // 64 bytes
-    hands: Hands,            // 8 bytes
-    board_digest: u64,       // 8 bytes
+    black_bb: BitBoard,    // 16 bytes
+    kind_bb: KindBitBoard, // 64 bytes
+    hands: Hands,          // 8 bytes
+    board_digest: u64,     // 8 bytes
     black_knight_reach: BitBoard,
 }
 
@@ -49,40 +49,62 @@ impl Position {
         self.hands.set_pawn_drop(x)
     }
 
-    pub fn color_bb(&self) -> &ColorBitBoard {
-        &self.color_bb
+    pub fn black(&self) -> BitBoard {
+        self.black_bb
     }
+
+    // pub fn white(&self) -> BitBoard {
+    //     self.occupied().and_not(self.black())
+    // }
+
+    pub fn occupied(&self) -> BitBoard {
+        self.kind_bb.occupied()
+    }
+
+    // pub fn color_bb(&self, color: Color) -> BitBoard {
+    //     if color.is_black() {
+    //         self.black()
+    //     } else {
+    //         self.white()
+    //     }
+    // }
 
     /// Returns a bitboard of pieces of the specified color and kind.
     pub fn bitboard(&self, color: Color, kind: Kind) -> BitBoard {
-        self.kind_bb.bitboard(kind) & self.color_bb.bitboard(color)
+        if color.is_black() {
+            self.kind_bb.bitboard(kind) & self.black_bb
+        } else {
+            self.kind_bb.bitboard(kind).and_not(self.black_bb)
+        }
     }
     pub fn kind_bb(&self) -> &KindBitBoard {
         &self.kind_bb
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
-        let color = if self.color_bb().bitboard(Color::BLACK).get(pos) {
-            Color::BLACK
-        } else if self.color_bb().bitboard(Color::WHITE).get(pos) {
-            Color::WHITE
-        } else {
+        let Some(kind) = self.kind_bb.get(pos) else {
             return None;
         };
-        Some((color, self.kind_bb.must_get(pos)))
+        Some(if self.black().get(pos) {
+            (Color::BLACK, kind)
+        } else {
+            (Color::WHITE, kind)
+        })
     }
     pub fn get_kind(&self, pos: Square) -> Option<Kind> {
         self.has(pos).then(|| self.must_get_kind(pos))
     }
     pub fn has(&self, pos: Square) -> bool {
-        self.color_bb().black().get(pos) || self.color_bb().white().get(pos)
+        self.occupied().get(pos)
     }
     pub fn must_get_kind(&self, pos: Square) -> Kind {
         self.kind_bb().must_get(pos)
     }
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert!(!self.color_bb.bitboard(c).get(pos));
+        debug_assert_eq!(self.get(pos), None);
 
-        self.color_bb.set(c, pos);
+        if c.is_black() {
+            self.black_bb.set(pos);
+        }
         self.kind_bb.set(pos, k);
 
         if k == Kind::Knight && c == Color::BLACK {
@@ -92,9 +114,11 @@ impl Position {
         self.board_digest ^= zobrist(c, pos, k);
     }
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
-        debug_assert!(self.color_bb.bitboard(c).get(pos));
+        debug_assert_eq!(self.get(pos), Some((c, k)));
 
-        self.color_bb.unset(c, pos);
+        if c.is_black() {
+            self.black_bb.unset(pos);
+        }
         self.kind_bb.unset(pos, k);
 
         if k == Kind::Knight && c == Color::BLACK {
@@ -129,14 +153,15 @@ impl Position {
     }
 
     pub fn shift(&mut self, dir: Direction) {
-        self.color_bb.shift(dir);
+        self.black_bb.shift(dir);
         self.kind_bb.shift(dir);
 
         self.board_digest = 0;
         self.black_knight_reach.clear();
 
+        let color_bb = self.color();
         for c in Color::iter() {
-            for pos in self.color_bb.bitboard(c) {
+            for pos in color_bb.bitboard(c) {
                 let k = self.must_get_kind(pos);
                 self.board_digest ^= zobrist(c, pos, k);
 
@@ -157,6 +182,13 @@ impl Position {
 
     pub(crate) fn black_knight_reach(&self) -> BitBoard {
         self.black_knight_reach
+    }
+
+    pub fn color(&self) -> ColorBitBoard {
+        let occupied = self.occupied();
+        let black = self.black();
+        let white = occupied.and_not(black);
+        ColorBitBoard::new(black, white, occupied)
     }
 }
 

@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard::{self, BitBoard},
+    bitboard::{self, ColorBitBoard},
     rule, Position, Square, UndoMove,
 };
 
@@ -15,24 +15,21 @@ pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
 
 struct Context {
     position: Position,
+    color_bb: ColorBitBoard,
     allow_drop_pawn: bool,
     turn: Color,
-    black_pieces: BitBoard,
-    white_pieces: BitBoard,
     result: RefCell<Vec<UndoMove>>,
 }
 
 impl Context {
     fn new(position: Position, allow_drop_pawn: bool) -> Self {
         let turn = position.turn();
-        let black_pieces = position.color_bb().bitboard(Color::BLACK);
-        let white_pieces = position.color_bb().bitboard(Color::WHITE);
+        let color_bb = position.color();
         Self {
             position,
+            color_bb,
             allow_drop_pawn,
             turn,
-            black_pieces,
-            white_pieces,
             result: vec![].into(),
         }
     }
@@ -64,9 +61,8 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources =
-                bitboard::reachable(self.position.color_bb(), self.turn, dest, prev_kind, false)
-                    .and_not(self.black_pieces | self.white_pieces);
+            let sources = bitboard::reachable(&self.color_bb, self.turn, dest, prev_kind, false)
+                .and_not(self.color_bb.both());
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,

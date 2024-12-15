@@ -204,6 +204,10 @@ impl KindBitBoard {
         }
         Some(KINDS[i])
     }
+
+    pub fn occupied(&self) -> BitBoard {
+        self.kind0 | self.kind1 | self.kind2
+    }
 }
 
 #[cfg(test)]

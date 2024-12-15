@@ -134,21 +134,15 @@ fn bench_reachable(c: &mut Criterion) {
             }
         };
         let capture_same_color: bool = rng.gen();
-        test_cases.push((position, color, pos, kind, capture_same_color));
+        test_cases.push((position.color(), color, pos, kind, capture_same_color));
     }
 
     c.bench_function("reachable", |b| {
         b.iter(|| {
             test_cases
                 .iter()
-                .for_each(|(position, color, pos, kind, capture_same_color)| {
-                    let bb = reachable(
-                        position.color_bb(),
-                        *color,
-                        *pos,
-                        *kind,
-                        *capture_same_color,
-                    );
+                .for_each(|(color_bb, color, pos, kind, capture_same_color)| {
+                    let bb = reachable(color_bb, *color, *pos, *kind, *capture_same_color);
                     black_box(bb);
                 })
         })
@@ -163,7 +157,7 @@ fn bench_pinned300(c: &mut Criterion) {
     for position in positions {
         let king_color: Color = rng.gen();
 
-        if checked(&position, king_color, None) {
+        if checked(&position, king_color, None, None) {
             continue;
         }
 
@@ -181,7 +175,9 @@ fn bench_pinned300(c: &mut Criterion) {
             test_cases
                 .iter()
                 .for_each(|(position, king_color, king_pos, blocker_color)| {
-                    let pinned = pinned(position, *king_color, *king_pos, *blocker_color);
+                    let color_bb = position.color();
+                    let pinned =
+                        pinned(position, &color_bb, *king_color, *king_pos, *blocker_color);
                     black_box(pinned);
                 })
         })

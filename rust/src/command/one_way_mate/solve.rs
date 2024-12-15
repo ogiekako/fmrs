@@ -6,7 +6,7 @@ use fmrs_core::{
 
 pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
     let mut position = position.clone();
-    if checked(&position, Color::WHITE, None) {
+    if checked(&position, Color::WHITE, None, None) {
         return None;
     }
 

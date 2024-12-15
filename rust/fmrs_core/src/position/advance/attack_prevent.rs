@@ -4,6 +4,7 @@ use crate::{
         bitboard::{
             king_then_king_or_night_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
+            ColorBitBoard,
         },
         rule::{is_legal_drop, is_legal_move},
     },
@@ -53,6 +54,7 @@ struct Context<'a> {
     position: &'a mut Position,
     occupied_without_king: BitBoard,
     turn: Color,
+    color_bb: ColorBitBoard,
     king_pos: Square,
     pinned: Pinned,
     attacker: Attacker,
@@ -81,9 +83,11 @@ impl<'a> Context<'a> {
         result: &'a mut Vec<Movement>,
     ) -> Self {
         let turn = position.turn();
-        let attacker = attacker_hint
-            .unwrap_or_else(|| attacker(position, turn, king_pos, false).expect("no attacker"));
-        let pinned = pinned(position, turn, king_pos, turn);
+        let color_bb = position.color();
+        let attacker = attacker_hint.unwrap_or_else(|| {
+            attacker(position, &color_bb, turn, king_pos, false).expect("no attacker")
+        });
+        let pinned = pinned(position, &color_bb, turn, king_pos, turn);
         let pawn_mask = {
             let mut mask = Default::default();
             for pos in position.bitboard(turn, Kind::Pawn) {
@@ -92,13 +96,16 @@ impl<'a> Context<'a> {
             mask
         };
 
-        let mut occupied_without_king = position.color_bb().both();
+        let mut occupied_without_king = color_bb.both();
         occupied_without_king.unset(king_pos);
+
+        let color_bb = position.color();
 
         Self {
             position,
             occupied_without_king,
             turn,
+            color_bb,
             king_pos,
             pinned,
             attacker,
@@ -142,17 +149,18 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
-        let color_bb = self.position.color_bb();
         let king_color = self.turn;
         let attacker_color = king_color.opposite();
+        let attacker_color_bb = self.color_bb.bitboard(attacker_color);
 
-        let mut king_reachable = king_power(self.king_pos).and_not(color_bb.bitboard(self.turn));
+        let mut king_reachable =
+            king_power(self.king_pos).and_not(self.color_bb.bitboard(king_color));
         if king_reachable.is_empty() {
             return Ok(());
         }
         let mut seen_cands = BitBoard::default();
-        let non_line_cands = king_then_king_or_night_power(king_color, self.king_pos)
-            & color_bb.bitboard(attacker_color);
+        let non_line_cands =
+            king_then_king_or_night_power(king_color, self.king_pos) & attacker_color_bb;
         for attacker_pos in non_line_cands {
             let attacker_kind = self.position.must_get_kind(attacker_pos);
             let attacker_reach = match attacker_kind {
@@ -171,8 +179,8 @@ impl<'a> Context<'a> {
         }
 
         let lances = self.position.bitboard(attacker_color, Kind::Lance);
-        let bishipish = self.position.kind_bb().bishopish() & color_bb.bitboard(attacker_color);
-        let rookish = self.position.kind_bb().rookish() & color_bb.bitboard(attacker_color);
+        let bishipish = self.position.kind_bb().bishopish() & attacker_color_bb;
+        let rookish = self.position.kind_bb().rookish() & attacker_color_bb;
 
         for dest in king_reachable {
             if !lances.is_empty() {
@@ -222,7 +230,7 @@ impl<'a> Context<'a> {
         };
 
         // Move
-        let around_dest = king_power(dest) & self.position.color_bb().bitboard(self.turn);
+        let around_dest = king_power(dest) & self.color_bb.bitboard(self.turn);
         for source_pos in around_dest {
             let source_kind = self.position.get(source_pos).unwrap().1;
             if source_kind == Kind::King {
@@ -268,13 +276,9 @@ impl<'a> Context<'a> {
             if on_board.is_empty() {
                 continue;
             }
-            let sources = bitboard::reachable(
-                self.position.color_bb(),
-                self.turn.opposite(),
-                dest,
-                leap_kind,
-                false,
-            ) & on_board;
+            let sources =
+                bitboard::reachable(&self.color_bb, self.turn.opposite(), dest, leap_kind, false)
+                    & on_board;
             for source_pos in sources {
                 if self.pinned.is_unpin_move(source_pos, dest) {
                     continue;
@@ -314,13 +318,15 @@ impl<'a> Context<'a> {
         // TODO: check the second attacker
         if !is_king_move
             && self.attacker.double_check.is_some()
-            && common::checked(&self.position, self.turn, self.king_pos.into())
+            && common::checked(&self.position, self.turn, self.king_pos.into(), None)
         {
             self.position.undo_move(&undo);
             return Ok(());
         }
 
-        if self.should_return_check && !common::checked(self.position, self.turn.opposite(), None) {
+        if self.should_return_check
+            && !common::checked(self.position, self.turn.opposite(), None, None)
+        {
             self.position.undo_move(&undo);
             return Ok(());
         }
@@ -333,7 +339,7 @@ impl<'a> Context<'a> {
         }
 
         debug_assert!(
-            !common::checked(&self.position, self.turn, None),
+            !common::checked(&self.position, self.turn, None, None),
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.turn,
             self.position,
@@ -364,13 +370,13 @@ impl<'a> Context<'a> {
             return BitBoard::default();
         }
         bitboard::reachable(
-            self.position.color_bb(),
+            &self.color_bb,
             self.turn,
             self.king_pos,
             attacker_kind.maybe_unpromote(),
             false,
         ) & bitboard::reachable(
-            self.position.color_bb(),
+            &self.color_bb,
             self.turn.opposite(),
             attacker_pos,
             attacker_kind.maybe_unpromote(),
@@ -398,11 +404,12 @@ impl Attacker {
 
 pub fn attacker(
     position: &Position,
+    color_bb: &ColorBitBoard,
     king_color: Color,
     king_pos: Square,
     early_return: bool,
 ) -> Option<Attacker> {
-    let opponent_bb = position.color_bb().bitboard(king_color.opposite());
+    let opponent_bb = color_bb.bitboard(king_color.opposite());
     let kind_bb = position.kind_bb();
 
     let mut attacker: Option<Attacker> = None;
@@ -433,13 +440,7 @@ pub fn attacker(
             continue;
         }
         if attacker_kind.is_line_piece() {
-            attacker_cands &= reachable(
-                position.color_bb(),
-                king_color,
-                king_pos,
-                attacker_kind,
-                false,
-            );
+            attacker_cands &= reachable(&color_bb, king_color, king_pos, attacker_kind, false);
             if attacker_cands.is_empty() {
                 continue;
             }
