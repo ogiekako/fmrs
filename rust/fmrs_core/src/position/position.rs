@@ -134,8 +134,10 @@ impl Position {
 
         self.board_digest = 0;
         self.black_knight_reach.clear();
-        for pos in Square::iter() {
-            if let Some((c, k)) = self.get(pos) {
+
+        for c in Color::iter() {
+            for pos in self.color_bb.bitboard(c) {
+                let k = self.must_get_kind(pos);
                 self.board_digest ^= zobrist(c, pos, k);
 
                 if c == Color::BLACK && k == Kind::Knight {

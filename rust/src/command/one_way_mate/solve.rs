@@ -78,6 +78,11 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
             return (step as usize).into();
         }
 
+        if white_movements.is_empty() {
+            // Pawn drop mate.
+            return None;
+        }
+
         debug_assert_eq!(white_movements.len(), 1);
 
         position.do_move(&white_movements.remove(0));
