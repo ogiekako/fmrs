@@ -1,5 +1,5 @@
 use fmrs_core::{
-    position::{advance_old, Movement, Position},
+    position::{advance_old, Movement, Position, PositionExt},
     solve::Solution,
 };
 
@@ -11,13 +11,17 @@ pub fn db_parallel_solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let mut current_white_positions = vec![];
-    advance_old(&mut initial_position, &mut current_white_positions)?;
-    if current_white_positions.is_empty() {
+    let mut movements = vec![];
+    advance_old(&mut initial_position, &mut movements)?;
+    if movements.is_empty() {
         return Ok(vec![]);
     }
     let memo_white_positions = Database::new()?;
-    for p in current_white_positions.iter() {
-        memo_white_positions.insert_if_empty(p.digest(), 0i32)?;
+    for movement in movements.iter() {
+        let undo = initial_position.do_move(movement);
+        memo_white_positions.insert_if_empty(initial_position.digest(), 0i32)?;
+        current_white_positions.push(initial_position.clone());
+        initial_position.undo_move(&undo);
     }
 
     let mut half_step = 1;
@@ -111,26 +115,35 @@ fn step_small(
     let mut all_next_white_positions = vec![];
     let mut mate_positions = vec![];
 
+    let mut black_movements = vec![];
+
     while let Some(mut white_position) = current_white_positions.pop() {
         let mut has_next_position = false;
-        let mut black_positions = vec![];
-        advance_old(&mut white_position, &mut black_positions)?;
+        let mut white_movements = vec![];
+        advance_old(&mut white_position, &mut white_movements)?;
 
-        while let Some(mut black_position) = black_positions.pop() {
+        while let Some(white_movement) = white_movements.pop() {
             has_next_position = true;
             if !mate_positions.is_empty() {
                 break;
             }
 
-            let mut next_white_positions = vec![];
-            advance_old(&mut black_position, &mut next_white_positions)?;
-            while let Some(next_white_position) = next_white_positions.pop() {
-                let digest = next_white_position.digest();
+            let undo_white = white_position.do_move(&white_movement);
+
+            advance_old(&mut white_position, &mut black_movements)?;
+            while let Some(black_movement) = black_movements.pop() {
+                let black_undo = white_position.do_move(&black_movement);
+
+                let digest = white_position.digest();
                 if memo_white_positions.insert_if_empty(digest, half_step)? {
+                    white_position.undo_move(&black_undo);
                     continue;
                 }
-                all_next_white_positions.push(next_white_position);
+                all_next_white_positions.push(white_position.clone());
+                white_position.undo_move(&black_undo);
             }
+
+            white_position.undo_move(&undo_white);
         }
 
         if !has_next_position && !white_position.pawn_drop() {

@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use fmrs_core::nohash::NoHashMap;
 use sysinfo::SystemExt;
 
-use fmrs_core::position::{advance, Digest, Position};
+use fmrs_core::position::{advance, Digest, Position, PositionExt};
 
 use fmrs_core::solve::{reconstruct_solutions, Solution};
 
@@ -83,7 +83,9 @@ impl Task {
 
     fn solve(mut self, start_step: u32) -> anyhow::Result<Vec<Solution>> {
         let mut mate_positions = vec![];
-        let mut all_next_positions = Vec::new();
+        let mut all_next_positions = vec![];
+        let mut movements = vec![];
+
         for step in start_step.. {
             let threads_to_spawn = {
                 let mut g = self.active_thread_count.lock().unwrap();
@@ -154,7 +156,7 @@ impl Task {
                     &mut self.memo_next,
                     step + 1,
                     &Default::default(),
-                    &mut all_next_positions,
+                    &mut movements,
                 )?;
 
                 // if step < mate_bound {
@@ -167,6 +169,12 @@ impl Task {
                     if g.is_none() || g.unwrap() > step {
                         *g = Some(step);
                     }
+                    continue;
+                }
+                while let Some(movement) = movements.pop() {
+                    let undo = position.do_move(&movement);
+                    all_next_positions.push(position.clone());
+                    position.undo_move(&undo);
                 }
             }
             if !mate_positions.is_empty() || all_next_positions.is_empty() {

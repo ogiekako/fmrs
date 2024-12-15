@@ -2,7 +2,7 @@ use crate::{piece::Kind, sfen};
 
 use super::Square;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialOrd, Ord)]
 pub enum Movement {
     Drop(Square, Kind),
     Move {
@@ -13,6 +13,34 @@ pub enum Movement {
         capture_kind_hint: Option<Option<Kind>>,
     },
 }
+
+impl Eq for Movement {}
+
+impl PartialEq for Movement {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Movement::Drop(pos1, kind1), Movement::Drop(pos2, kind2)) => {
+                pos1 == pos2 && kind1 == kind2
+            }
+            (
+                Movement::Move {
+                    source: source1,
+                    dest: dest1,
+                    promote: promote1,
+                    ..
+                },
+                Movement::Move {
+                    source: source2,
+                    dest: dest2,
+                    promote: promote2,
+                    ..
+                },
+            ) => source1 == source2 && dest1 == dest2 && promote1 == promote2,
+            _ => false,
+        }
+    }
+}
+
 impl Movement {
     pub(crate) fn move_without_hint(source: Square, dest: Square, promote: bool) -> Movement {
         Movement::Move {

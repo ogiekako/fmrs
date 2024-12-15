@@ -11,11 +11,15 @@ pub(super) fn memory_save_solve(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
+    let mut black_movements = vec![];
     let mut current_white_positions = vec![];
-    advance_old(&mut initial_position, &mut current_white_positions)?;
+    advance_old(&mut initial_position, &mut black_movements)?;
     let mut memo_white_positions = BTreeMap::new();
-    for p in current_white_positions.iter() {
-        memo_white_positions.insert(p.digest(), 0i32);
+    while let Some(black_movement) = black_movements.pop() {
+        let black_undo = initial_position.do_move(&black_movement);
+        memo_white_positions.insert(initial_position.digest(), 0i32);
+        current_white_positions.push(initial_position.clone());
+        initial_position.undo_move(&black_undo);
     }
 
     let mut mate_positions = vec![];
@@ -26,33 +30,42 @@ pub(super) fn memory_save_solve(
         while let Some(mut white_position) = current_white_positions.pop() {
             let mut has_next_position = false;
 
-            let mut black_positions = vec![];
-            advance_old(&mut white_position, &mut black_positions)?;
+            let mut white_movements = vec![];
+            advance_old(&mut white_position, &mut white_movements)?;
 
             let mut white_position_is_deadend = true;
-            while let Some(mut black_position) = black_positions.pop() {
+            while let Some(white_movement) = white_movements.pop() {
                 has_next_position = true;
                 if !mate_positions.is_empty() {
+                    white_movements.clear();
                     break;
                 }
 
-                let mut next_white_positions = vec![];
-                advance_old(&mut black_position, &mut next_white_positions)?;
-                while let Some(next_white_position) = next_white_positions.pop() {
-                    let digest = next_white_position.digest();
+                let white_undo = white_position.do_move(&white_movement);
+
+                advance_old(&mut white_position, &mut black_movements)?;
+                while let Some(black_movement) = black_movements.pop() {
+                    let black_undo = white_position.do_move(&black_movement);
+
+                    let digest = white_position.digest();
                     white_position_is_deadend = false;
                     if memo_white_positions.contains_key(&digest) {
+                        white_position.undo_move(&black_undo);
                         continue;
                     }
                     memo_white_positions.insert(digest, half_step);
-                    all_next_white_positions.push(next_white_position);
+                    all_next_white_positions.push(white_position.clone());
+                    white_position.undo_move(&black_undo);
                 }
+
+                white_position.undo_move(&white_undo);
             }
 
             if !has_next_position && !white_position.pawn_drop() {
                 mate_positions.push(white_position);
             } else if white_position_is_deadend {
                 let digest = white_position.digest();
+                assert!(memo_white_positions.contains_key(&digest));
                 memo_white_positions.remove(&digest);
             }
         }

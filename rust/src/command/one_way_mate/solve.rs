@@ -1,7 +1,7 @@
 use fmrs_core::{
     nohash::NoHashMap,
     piece::Color,
-    position::{advance, checked, AdvanceOptions, Position},
+    position::{advance, checked, AdvanceOptions, Position, PositionExt},
 };
 
 pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
@@ -19,41 +19,27 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
 
     let mut unused_memo = NoHashMap::default();
 
+    let mut moves = vec![];
     for step in (1..).step_by(2) {
-        let mut white_positions = vec![];
-        advance(
-            &mut position,
-            &mut unused_memo,
-            0,
-            &options,
-            &mut white_positions,
-        )
-        .ok()?;
-        debug_assert!(white_positions.len() <= 1);
-        if white_positions.len() != 1 {
+        advance(&mut position, &mut unused_memo, 0, &options, &mut moves).ok()?;
+        debug_assert!(moves.len() <= 1);
+        if moves.len() != 1 {
             return None;
         }
+        position.do_move(&moves.remove(0));
 
-        let mut black_positions = vec![];
-        let is_mate = advance(
-            &mut white_positions[0],
-            &mut unused_memo,
-            0,
-            &options,
-            &mut black_positions,
-        )
-        .ok()?;
+        let is_mate = advance(&mut position, &mut unused_memo, 0, &options, &mut moves).ok()?;
 
         if is_mate {
-            if !white_positions[0].hands().is_empty(Color::BLACK) {
+            if !position.hands().is_empty(Color::BLACK) {
                 return None;
             }
             return (step as usize).into();
         }
 
-        debug_assert_eq!(black_positions.len(), 1);
+        debug_assert_eq!(moves.len(), 1);
 
-        position = black_positions.remove(0);
+        position.do_move(&moves.remove(0));
     }
     unreachable!();
 }

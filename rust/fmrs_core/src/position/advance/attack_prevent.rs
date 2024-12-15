@@ -33,7 +33,7 @@ pub(super) fn attack_preventing_movements(
     should_return_check: bool,
     options: &AdvanceOptions,
     attacker_hint: Option<Attacker>,
-    result: &mut Vec<Position>,
+    result: &mut Vec<Movement>,
 ) -> Result</* is legal mate */ bool> {
     let mut ctx = Context::new(
         position,
@@ -61,7 +61,7 @@ struct Context<'a> {
     should_return_check: bool,
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
-    result: &'a mut Vec<Position>,
+    result: &'a mut Vec<Movement>,
     num_branches: usize,
 
     options: &'a AdvanceOptions,
@@ -77,7 +77,7 @@ impl<'a> Context<'a> {
         should_return_check: bool,
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,
-        result: &'a mut Vec<Position>,
+        result: &'a mut Vec<Movement>,
     ) -> Self {
         let turn = position.turn();
         let attacker = attacker_hint
@@ -196,7 +196,7 @@ impl<'a> Context<'a> {
 
             let capture_kind = self.position.get_kind(dest);
             self.maybe_add_move(
-                &Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),
+                Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),
                 Kind::King,
             )?;
         }
@@ -208,7 +208,7 @@ impl<'a> Context<'a> {
         if include_drop {
             for kind in self.position.hands().kinds(self.turn) {
                 if is_legal_drop(self.turn, dest, kind, self.pawn_mask) {
-                    self.maybe_add_move(&Movement::Drop(dest, kind), kind)?;
+                    self.maybe_add_move(Movement::Drop(dest, kind), kind)?;
                 }
             }
         }
@@ -240,7 +240,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::move_with_hint(
+                        Movement::move_with_hint(
                             source_pos,
                             source_kind,
                             dest,
@@ -286,7 +286,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::move_with_hint(
+                        Movement::move_with_hint(
                             source_pos,
                             source_kind,
                             dest,
@@ -304,10 +304,10 @@ impl<'a> Context<'a> {
 
 // Helper methods
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
+    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
-        let undo = self.position.do_move(movement);
+        let undo = self.position.do_move(&movement);
 
         // TODO: check the second attacker
         if !is_king_move
@@ -346,7 +346,7 @@ impl<'a> Context<'a> {
             self.memo.insert(digest, self.next_step);
         }
 
-        self.result.push(self.position.clone());
+        self.result.push(movement.clone());
 
         self.position.undo_move(&undo);
 

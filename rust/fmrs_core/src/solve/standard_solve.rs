@@ -1,6 +1,6 @@
 use crate::nohash::NoHashMap;
 
-use crate::position::{self, Position};
+use crate::position::{self, Position, PositionExt};
 
 use super::{reconstruct_solutions, Solution};
 use log::info;
@@ -40,17 +40,25 @@ impl StandardSolver {
 
         let mut mate_positions = vec![];
         let mut all_next_positions = vec![];
+        let mut movements = vec![];
 
         while let Some(mut position) = self.current.pop() {
+            movements.clear();
             let is_mate = position::advance(
                 &mut position,
                 &mut self.memo_next,
                 self.step,
                 &Default::default(),
-                &mut all_next_positions,
+                &mut movements,
             )?;
             if is_mate {
                 mate_positions.push(position);
+                continue;
+            }
+            for movement in movements.iter() {
+                let undo = position.do_move(&movement);
+                all_next_positions.push(position.clone());
+                position.undo_move(&undo);
             }
         }
 

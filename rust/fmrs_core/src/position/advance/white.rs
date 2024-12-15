@@ -3,13 +3,13 @@ use crate::nohash::NoHashMap;
 use crate::piece::{Color, Kind};
 
 use crate::position::advance::attack_prevent::attack_preventing_movements;
-use crate::position::Position;
+use crate::position::{Movement, Position};
 
 use super::AdvanceOptions;
 
 pub(super) fn advance_old(
     position: &mut Position,
-    result: &mut Vec<Position>,
+    result: &mut Vec<Movement>,
 ) -> anyhow::Result<()> {
     advance(
         position,
@@ -26,7 +26,7 @@ pub(super) fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-    result: &mut Vec<Position>,
+    result: &mut Vec<Movement>,
 ) -> anyhow::Result</* legal mate */ bool> {
     debug_assert_eq!(position.turn(), Color::WHITE);
     let king_pos = position

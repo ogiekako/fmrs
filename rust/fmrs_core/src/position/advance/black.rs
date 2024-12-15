@@ -19,7 +19,7 @@ pub(super) fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-    res: &mut Vec<Position>,
+    res: &mut Vec<Movement>,
 ) -> anyhow::Result<()> {
     debug_assert_eq!(position.turn(), Color::BLACK);
     let mut ctx = Context::new(position, memo, next_step, options, res)?;
@@ -29,7 +29,7 @@ pub(super) fn advance(
 
 pub(super) fn advance_old(
     position: &mut Position,
-    result: &mut Vec<Position>,
+    result: &mut Vec<Movement>,
 ) -> anyhow::Result<()> {
     advance(
         position,
@@ -53,7 +53,7 @@ struct Context<'a> {
 
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
-    result: &'a mut Vec<Position>,
+    result: &'a mut Vec<Movement>,
     num_branches: usize,
 }
 
@@ -63,7 +63,7 @@ impl<'a> Context<'a> {
         memo: &'a mut NoHashMap<u32>,
         next_step: u32,
         options: &'a AdvanceOptions,
-        result: &'a mut Vec<Position>,
+        result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
         let kings = position.kind_bb().bitboard(Kind::King);
         let white_king_pos = if let Some(p) = (kings & position.color_bb().white()).next() {
@@ -136,7 +136,7 @@ impl<'a> Context<'a> {
                     continue;
                 }
 
-                self.maybe_add_move(&Movement::Drop(pos, kind), kind)?;
+                self.maybe_add_move(Movement::Drop(pos, kind), kind)?;
             }
         }
         Ok(())
@@ -197,7 +197,7 @@ impl<'a> Context<'a> {
 
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        &Movement::move_with_hint(
+                        Movement::move_with_hint(
                             attacker_pos,
                             attacker_source_kind,
                             dest,
@@ -237,13 +237,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
                     self.maybe_add_move(
-                        &Movement::move_with_hint(
-                            source,
-                            Kind::Knight,
-                            dest,
-                            promote,
-                            capture_kind,
-                        ),
+                        Movement::move_with_hint(source, Kind::Knight, dest, promote, capture_kind),
                         Kind::Knight,
                     )?;
                 }
@@ -300,7 +294,7 @@ impl<'a> Context<'a> {
 
                         let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
-                            &Movement::move_with_hint(
+                            Movement::move_with_hint(
                                 attacker_pos,
                                 attacker_source_kind,
                                 dest,
@@ -356,7 +350,7 @@ impl<'a> Context<'a> {
 
                     let capture_kind = self.position.get_kind(blocker_dest);
                     self.maybe_add_move(
-                        &Movement::move_with_hint(
+                        Movement::move_with_hint(
                             blocker_pos,
                             blocker_kind,
                             blocker_dest,
@@ -374,8 +368,8 @@ impl<'a> Context<'a> {
 
 // Helper
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: &Movement, kind: Kind) -> Result<()> {
-        let undo = self.position.do_move(movement);
+    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
+        let undo = self.position.do_move(&movement);
 
         if kind == Kind::King
             && common::checked(self.position, Color::BLACK, movement.dest().into())
@@ -402,7 +396,7 @@ impl<'a> Context<'a> {
             self.memo.insert(digest, self.next_step);
         }
 
-        self.result.push(self.position.clone());
+        self.result.push(movement);
 
         self.position.undo_move(&undo);
 

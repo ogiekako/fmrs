@@ -1,5 +1,5 @@
-use crate::nohash::NoHashMap;
 use crate::piece::Color;
+use crate::{nohash::NoHashMap, position::Movement};
 
 use crate::position::Position;
 
@@ -10,7 +10,7 @@ pub fn advance(
     memo: &mut NoHashMap<u32>,
     next_step: u32,
     options: &AdvanceOptions,
-    result: &mut Vec<Position>,
+    result: &mut Vec<Movement>,
 ) -> anyhow::Result</* is legal mate */ bool> {
     if position.turn().is_black() {
         black::advance(position, memo, next_step, options, result)?;
@@ -20,7 +20,7 @@ pub fn advance(
     }
 }
 
-pub fn advance_old(position: &mut Position, result: &mut Vec<Position>) -> anyhow::Result<()> {
+pub fn advance_old(position: &mut Position, result: &mut Vec<Movement>) -> anyhow::Result<()> {
     match position.turn() {
         Color::BLACK => black::advance_old(position, result),
         Color::WHITE => white::advance_old(position, result),
@@ -29,7 +29,6 @@ pub fn advance_old(position: &mut Position, result: &mut Vec<Position>) -> anyho
 
 #[cfg(test)]
 mod tests {
-    use crate::position::{Position, PositionExt};
 
     #[test]
     fn advance() {
@@ -81,15 +80,7 @@ mod tests {
             super::advance_old(&mut position, &mut got).unwrap();
             got.sort();
 
-            let mut want = sfen::decode_moves(&tc.1.join(" "))
-                .unwrap()
-                .iter()
-                .map(|m| {
-                    let mut b = position.clone();
-                    b.do_move(m);
-                    b
-                })
-                .collect::<Vec<Position>>();
+            let mut want = sfen::decode_moves(&tc.1.join(" ")).unwrap();
             want.sort();
             assert_eq!(got, want);
         }
