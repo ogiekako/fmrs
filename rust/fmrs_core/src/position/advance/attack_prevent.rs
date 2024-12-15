@@ -46,7 +46,7 @@ pub(super) fn attack_preventing_movements(
         result,
     );
     ctx.advance()?;
-    Ok(ctx.num_branches == 0 && !position.pawn_drop())
+    Ok(ctx.is_mate && !position.pawn_drop())
 }
 
 struct Context<'a> {
@@ -62,7 +62,8 @@ struct Context<'a> {
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
     result: &'a mut Vec<Movement>,
-    num_branches: usize,
+    is_mate: bool,
+    num_branches_without_pawn_drop: usize,
 
     options: &'a AdvanceOptions,
 }
@@ -106,7 +107,8 @@ impl<'a> Context<'a> {
             should_return_check,
             memo,
             result,
-            num_branches: 0,
+            is_mate: true,
+            num_branches_without_pawn_drop: 0,
             options,
         }
     }
@@ -323,8 +325,12 @@ impl<'a> Context<'a> {
             return Ok(());
         }
 
-        self.num_branches += 1;
-        self.options.check_allowed_branches(self.num_branches)?;
+        self.is_mate = false;
+        if !movement.is_pawn_drop() {
+            self.num_branches_without_pawn_drop += 1;
+            self.options
+                .check_allowed_branches(self.num_branches_without_pawn_drop)?;
+        }
 
         debug_assert!(
             !common::checked(&self.position, self.turn, None),

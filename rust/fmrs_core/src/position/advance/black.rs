@@ -54,7 +54,7 @@ struct Context<'a> {
     // Mutable fields
     memo: &'a mut NoHashMap<u32>,
     result: &'a mut Vec<Movement>,
-    num_branches: usize,
+    num_branches_without_pawn_drop: usize,
 }
 
 impl<'a> Context<'a> {
@@ -96,7 +96,7 @@ impl<'a> Context<'a> {
             pinned,
             pawn_mask,
             result,
-            num_branches: 0,
+            num_branches_without_pawn_drop: 0,
             options,
         })
     }
@@ -371,8 +371,11 @@ impl<'a> Context<'a> {
             self.position
         );
 
-        self.num_branches += 1;
-        self.options.check_allowed_branches(self.num_branches)?;
+        if !movement.is_pawn_drop() {
+            self.num_branches_without_pawn_drop += 1;
+            self.options
+                .check_allowed_branches(self.num_branches_without_pawn_drop)?;
+        }
 
         if !self.options.no_memo {
             let digest = self.position.digest();

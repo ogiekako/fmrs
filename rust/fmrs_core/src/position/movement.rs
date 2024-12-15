@@ -77,6 +77,10 @@ impl Movement {
             Movement::Move { dest, .. } => *dest,
         }
     }
+
+    pub fn is_pawn_drop(&self) -> bool {
+        matches!(self, Movement::Drop(_, Kind::Pawn))
+    }
 }
 
 impl std::fmt::Debug for Movement {

@@ -1,5 +1,5 @@
 use fmrs_core::{
-    nohash::NoHashMap,
+    nohash::{NoHashMap, NoHashSet},
     piece::Color,
     position::{advance, checked, AdvanceOptions, Position, PositionExt},
 };
@@ -10,25 +10,66 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         return None;
     }
 
-    let options = {
-        let mut options = AdvanceOptions::default();
-        options.max_allowed_branches = Some(1);
-        options.no_memo = true;
-        options
+    let options = AdvanceOptions {
+        max_allowed_branches: Some(1),
+        no_memo: true,
     };
+
+    let mut seen_positions = NoHashSet::default();
 
     let mut unused_memo = NoHashMap::default();
 
-    let mut moves = vec![];
+    let mut black_movements = vec![];
+    let mut white_movements = vec![];
+
     for step in (1..).step_by(2) {
-        advance(&mut position, &mut unused_memo, 0, &options, &mut moves).ok()?;
-        debug_assert!(moves.len() <= 1);
-        if moves.len() != 1 {
+        advance(
+            &mut position,
+            &mut unused_memo,
+            0,
+            &options,
+            &mut black_movements,
+        )
+        .ok()?;
+        debug_assert!(black_movements.len() <= 2);
+        if black_movements.len() == 0 {
             return None;
         }
-        position.do_move(&moves.remove(0));
+        if black_movements.len() == 2 {
+            if black_movements[0].is_pawn_drop() {
+                black_movements.swap(0, 1);
+            }
+            debug_assert!(black_movements[1].is_pawn_drop());
+            let pawn_move = black_movements.remove(1);
+            let undo = position.do_move(&pawn_move);
+            advance(
+                &mut position,
+                &mut unused_memo,
+                0,
+                &options,
+                &mut white_movements,
+            )
+            .ok()?;
+            if !white_movements.is_empty() {
+                return None;
+            }
+            position.undo_move(&undo);
+        }
 
-        let is_mate = advance(&mut position, &mut unused_memo, 0, &options, &mut moves).ok()?;
+        if black_movements.len() != 1 {
+            return None;
+        }
+
+        position.do_move(&black_movements.remove(0));
+
+        let is_mate = advance(
+            &mut position,
+            &mut unused_memo,
+            0,
+            &options,
+            &mut white_movements,
+        )
+        .ok()?;
 
         if is_mate {
             if !position.hands().is_empty(Color::BLACK) {
@@ -37,9 +78,18 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
             return (step as usize).into();
         }
 
-        debug_assert_eq!(moves.len(), 1);
+        debug_assert_eq!(white_movements.len(), 1);
 
-        position.do_move(&moves.remove(0));
+        position.do_move(&white_movements.remove(0));
+
+        if step > 60 {
+            // Avoid perpetual check
+            let digest = position.digest();
+            if seen_positions.contains(&digest) {
+                return None;
+            }
+            seen_positions.insert(digest);
+        }
     }
     unreachable!();
 }
@@ -73,6 +123,15 @@ mod tests {
             got.push(sum_steps);
         }
         assert_eq!(got, vec![33, 22, 54]);
+    }
+
+    #[test]
+    fn oneway43() {
+        let position = Position::from_sfen(
+            "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3RK1k/P1pGP1+p1p/1PNNN3P/RL6L b -",
+        )
+        .unwrap();
+        assert_eq!(one_way_mate_steps(&position), Some(43));
     }
 
     #[test]
