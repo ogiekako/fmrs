@@ -3,6 +3,7 @@ use crate::nohash::NoHashMap;
 use crate::position::{self, Position};
 
 use super::{reconstruct_solutions, Solution};
+use log::info;
 
 pub struct StandardSolver {
     solutions_upto: usize,
@@ -66,6 +67,11 @@ impl StandardSolver {
             assert_ne!(res.len(), 0, "{:?}", mate_positions);
 
             res.sort();
+            info!(
+                "Found {} solutions searching {} positions",
+                res.len(),
+                self.memo.len() + self.memo_next.len(),
+            );
             return Ok(SolverStatus::Mate(res));
         }
         if all_next_positions.is_empty() {

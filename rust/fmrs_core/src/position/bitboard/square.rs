@@ -29,7 +29,7 @@ impl Square {
         ROW[self.x]
     }
     pub fn iter() -> impl Iterator<Item = Self> {
-        (0..9).flat_map(|col| (0..9).map(move |row| Self::new(col, row)))
+        (0..81).map(Self::from_index)
     }
     pub(crate) fn index(self) -> usize {
         self.x
@@ -37,6 +37,10 @@ impl Square {
     pub(crate) fn from_index(x: usize) -> Self {
         debug_assert!(x < 81);
         Self { x }
+    }
+
+    pub(crate) fn col_row(&self) -> (usize, usize) {
+        (self.col(), self.row())
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::nohash::NoHashMap;
-use crate::position::bitboard::{king_power, power};
+use crate::position::bitboard::{gold_power, king_power, knight_power, power};
 use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
 
@@ -214,9 +214,44 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
+        // Knight
+        for promote in [true, false] {
+            let reach_from_king = if promote {
+                gold_power(Color::WHITE, self.white_king_pos) & BitBoard::BLACK_PROMOTABLE
+            } else {
+                knight_power(Color::WHITE, self.white_king_pos)
+            }
+            .and_not(self.position.color_bb().black());
+            if reach_from_king.is_empty() {
+                continue;
+            }
+
+            let reachable_squares = reach_from_king & self.position.black_knight_reach();
+
+            for dest in reachable_squares {
+                let capture_kind = self.position.get_kind(dest);
+                let sources = self.position.bitboard(Color::BLACK, Kind::Knight)
+                    & knight_power(Color::WHITE, dest);
+                for source in sources {
+                    if self.pinned.is_pinned(source) {
+                        continue;
+                    }
+                    self.maybe_add_move(
+                        &Movement::move_with_hint(
+                            source,
+                            Kind::Knight,
+                            dest,
+                            promote,
+                            capture_kind,
+                        ),
+                        Kind::Knight,
+                    )?;
+                }
+            }
+        }
+
         for attacker_source_kind in [
             Kind::Lance,
-            Kind::Knight,
             Kind::Bishop,
             Kind::Rook,
             Kind::ProBishop,

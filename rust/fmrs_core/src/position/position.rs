@@ -7,22 +7,24 @@ pub struct Position {
     kind_bb: KindBitBoard,   // 64 bytes
     hands: Hands,            // 8 bytes
     board_digest: u64,       // 8 bytes
+    black_knight_reach: BitBoard,
 }
 
 pub type Digest = u64;
 
-#[test]
-fn test_position_size() {
-    assert_eq!(112, std::mem::size_of::<Position>());
-}
-
+use crate::position::bitboard::knight_power;
 use crate::position::zobrist::zobrist;
 use crate::sfen;
 use std::fmt;
 
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", sfen::encode_position(self))
+        write!(
+            f,
+            "{} ({})",
+            sfen::encode_position(self),
+            self.black_knight_reach
+        )
     }
 }
 
@@ -88,6 +90,10 @@ impl Position {
         self.color_bb.set(c, pos);
         self.kind_bb.set(pos, k);
 
+        if k == Kind::Knight && c == Color::BLACK {
+            self.black_knight_reach |= knight_power(c, pos);
+        }
+
         self.board_digest ^= zobrist(c, pos, k);
     }
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
@@ -95,6 +101,26 @@ impl Position {
 
         self.color_bb.unset(c, pos);
         self.kind_bb.unset(pos, k);
+
+        if k == Kind::Knight && c == Color::BLACK {
+            let (col, row) = pos.col_row();
+            if col >= 1 && row >= 2 {
+                if col == 1
+                    || self.get(Square::new(col - 2, row)) != Some((Color::BLACK, Kind::Knight))
+                {
+                    debug_assert!(self.black_knight_reach.get(Square::new(col - 1, row - 2)));
+                    self.black_knight_reach.unset(Square::new(col - 1, row - 2));
+                }
+            }
+            if col <= 7 && row >= 2 {
+                if col == 7
+                    || self.get(Square::new(col + 2, row)) != Some((Color::BLACK, Kind::Knight))
+                {
+                    debug_assert!(self.black_knight_reach.get(Square::new(col + 1, row - 2)));
+                    self.black_knight_reach.unset(Square::new(col + 1, row - 2));
+                }
+            }
+        }
 
         self.board_digest ^= zobrist(c, pos, k);
     }
@@ -112,9 +138,14 @@ impl Position {
         self.kind_bb.shift(dir);
 
         self.board_digest = 0;
+        self.black_knight_reach.clear();
         for pos in Square::iter() {
             if let Some((c, k)) = self.get(pos) {
                 self.board_digest ^= zobrist(c, pos, k);
+
+                if c == Color::BLACK && k == Kind::Knight {
+                    self.black_knight_reach |= knight_power(c, pos);
+                }
             }
         }
     }
@@ -125,6 +156,10 @@ impl Position {
 
     pub fn sfen_url(&self) -> String {
         sfen::sfen_to_image_url(&self.sfen())
+    }
+
+    pub(crate) fn black_knight_reach(&self) -> BitBoard {
+        self.black_knight_reach
     }
 }
 

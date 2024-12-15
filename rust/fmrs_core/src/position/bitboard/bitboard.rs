@@ -7,10 +7,17 @@ pub struct BitBoard(u128);
 
 impl BitBoard {
     pub const UPPER: BitBoard = BitBoard::from_u128(
-        0b1000000001000000001000000001000000001000000001000000001000000001000000001u128,
+        0b000000001000000001000000001000000001000000001000000001000000001000000001000000001u128,
     );
     pub const LOWER: BitBoard = BitBoard::from_u128(
         0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
+    );
+
+    pub const BLACK_PROMOTABLE: BitBoard = BitBoard::from_u128(
+        0b000000111000000111000000111000000111000000111000000111000000111000000111000000111u128,
+    );
+    pub const WHITE_PROMOTABLE: BitBoard = BitBoard::from_u128(
+        0b111000000111000000111000000111000000111000000111000000111000000111000000111000000u128,
     );
 
     pub fn is_empty(&self) -> bool {
@@ -66,6 +73,10 @@ impl BitBoard {
 
     pub(crate) fn from_square(pos: Square) -> BitBoard {
         BitBoard::from_u128(1 << pos.index())
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.0 = 0;
     }
 }
 
