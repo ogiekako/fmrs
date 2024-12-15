@@ -74,10 +74,6 @@ impl BitBoard {
     pub(crate) fn from_square(pos: Square) -> BitBoard {
         BitBoard::from_u128(1 << pos.index())
     }
-
-    pub(crate) fn clear(&mut self) {
-        self.0 = 0;
-    }
 }
 
 impl Iterator for BitBoard {

@@ -5,18 +5,6 @@ pub struct Square {
     x: usize,
 }
 
-const ROW: [usize; 81] = [
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 1
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 2
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 3
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 4
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 5
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 6
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 7
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 8
-    0, 1, 2, 3, 4, 5, 6, 7, 8, // 9
-];
-
 impl Square {
     pub fn new(col: usize, row: usize) -> Self {
         debug_assert!(col < 9 && row < 9);
@@ -26,7 +14,7 @@ impl Square {
         self.x / 9
     }
     pub fn row(self) -> usize {
-        ROW[self.x]
+        self.x % 9
     }
     pub fn iter() -> impl Iterator<Item = Self> {
         (0..81).map(Self::from_index)
@@ -37,10 +25,6 @@ impl Square {
     pub(crate) fn from_index(x: usize) -> Self {
         debug_assert!(x < 81);
         Self { x }
-    }
-
-    pub(crate) fn col_row(&self) -> (usize, usize) {
-        (self.col(), self.row())
     }
 }
 

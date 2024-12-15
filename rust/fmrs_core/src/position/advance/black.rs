@@ -1,5 +1,5 @@
 use crate::nohash::NoHashMap;
-use crate::position::bitboard::{gold_power, king_power, knight_power, power, ColorBitBoard};
+use crate::position::bitboard::{king_power, lion_king_power, power, ColorBitBoard};
 use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
 
@@ -378,22 +378,4 @@ impl<'a> Context<'a> {
             true,
         )
     }
-}
-
-fn lion_king_power(pos: Square) -> BitBoard {
-    let mut res = bitboard::power(Color::BLACK, pos, Kind::King);
-    for i in [-1, 1] {
-        for j in [-1, 1] {
-            let col = pos.col() as isize + i;
-            let row = pos.row() as isize + j;
-            if (0..9).contains(&col) && (0..9).contains(&row) {
-                res |= bitboard::power(
-                    Color::BLACK,
-                    Square::new(col as usize, row as usize),
-                    Kind::King,
-                );
-            }
-        }
-    }
-    res
 }

@@ -26,6 +26,10 @@ pub fn king_power(pos: Square) -> BitBoard {
     KING_POWER[pos.index()]
 }
 
+pub fn lion_king_power(pos: Square) -> BitBoard {
+    LION_KING_POWER[pos.index()]
+}
+
 pub fn king_then_king_or_night_power(color: Color, pos: Square) -> BitBoard {
     KING_THEN_KING_OR_NIGHT_POWER[color.index()][pos.index()]
 }
@@ -95,6 +99,35 @@ lazy_static! {
             (1, -1),
             (1, 0),
             (1, 1)
+        ]
+        .into_iter()
+    );
+    static ref LION_KING_POWER: [BitBoard; 81] = powers_sub(
+        [
+            (-2, -2),
+            (-2, -1),
+            (-2, 0),
+            (-2, 1),
+            (-2, 2),
+            (-1, -2),
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (-1, 2),
+            (0, -2),
+            (0, -1),
+            (0, 1),
+            (0, 2),
+            (1, -2),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+            (1, 2),
+            (2, -2),
+            (2, -1),
+            (2, 0),
+            (2, 1),
+            (2, 2)
         ]
         .into_iter()
     );
