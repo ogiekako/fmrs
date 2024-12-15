@@ -126,7 +126,7 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::BLACK) {
-            let check_needed = matches!(kind, Kind::Pawn | Kind::Lance | Kind::Knight);
+            let check_needed = matches!(kind, Kind::Pawn);
 
             let empty_attack_squares = self
                 .attack_squares(kind)
@@ -182,19 +182,13 @@ impl<'a> Context<'a> {
                     attacker_source_kind
                 };
 
-                let attack_squares = power(Color::WHITE, self.white_king_pos, attacker_dest_kind);
+                let mut attack_squares =
+                    power(Color::WHITE, self.white_king_pos, attacker_dest_kind);
+                if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
+                    attack_squares &= BitBoard::BLACK_PROMOTABLE;
+                }
 
                 for dest in attacker_range & attack_squares {
-                    if !is_legal_move(
-                        Color::BLACK,
-                        attacker_pos,
-                        dest,
-                        attacker_source_kind,
-                        promote,
-                    ) {
-                        continue;
-                    }
-
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
                         Movement::move_with_hint(
@@ -279,19 +273,12 @@ impl<'a> Context<'a> {
                         attacker_source_kind
                     };
 
-                    let attack_squares = self.attack_squares(attacker_dest_kind);
+                    let mut attack_squares = self.attack_squares(attacker_dest_kind);
+                    if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
+                        attack_squares &= BitBoard::BLACK_PROMOTABLE;
+                    }
 
                     for dest in attacker_reachable & attack_squares {
-                        if !is_legal_move(
-                            Color::BLACK,
-                            attacker_pos,
-                            dest,
-                            attacker_source_kind,
-                            promote,
-                        ) {
-                            continue;
-                        }
-
                         let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
                             Movement::move_with_hint(
