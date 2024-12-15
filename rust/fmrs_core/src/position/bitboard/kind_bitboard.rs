@@ -79,14 +79,13 @@ impl KindBitBoard {
             | (self.promote ^ self.kind0).and_not(self.kind1) & (self.kind2)
     }
 
-    pub(crate) fn silver_goldish(&self) -> BitBoard {
+    pub(crate) fn pawn_silver_goldish(&self) -> BitBoard {
         // p a b c
-        // (false, 4), (false, 5), (true, 1), (true, 2), (true, 3), (true, 4)
-        // ~p & ~a & ~b & c | p & ~c | (p & ~a | ~p & a) & ~b & c
-        // = ~b & (~p & ~a & c | c & (p ^ a)) | p & ~c
+        // (false, 1), (false, 4), (false, 5), (true, 1), (true, 2), (true, 3), (true, 4)
+        // ~p & a & ~b & ~c | ~p & ~a & ~b & c | p & ~c | (p & ~a | ~p & a) & ~b & c
+        // = ~b & (~p & (a ^ c) | c & (p ^ a)) | p & ~c
 
-        (self.kind2.and_not(self.kind0).and_not(self.promote)
-            | (self.promote ^ self.kind0) & self.kind2)
+        ((self.kind0 ^ self.kind2).and_not(self.promote) | (self.promote ^ self.kind0) & self.kind2)
             .and_not(self.kind1)
             | self.promote.and_not(self.kind2)
     }

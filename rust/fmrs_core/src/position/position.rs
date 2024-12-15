@@ -8,13 +8,11 @@ pub struct Position {
     hands: Hands,            // 8 bytes
     board_digest: u64,       // 8 bytes
     black_knight_reach: BitBoard,
-    black_pawn_reach: BitBoard,
 }
 
 pub type Digest = u64;
 
 use crate::position::bitboard::knight_power;
-use crate::position::bitboard::pawn_power;
 use crate::position::zobrist::zobrist;
 use crate::sfen;
 use std::fmt;
@@ -90,9 +88,6 @@ impl Position {
         if k == Kind::Knight && c == Color::BLACK {
             self.black_knight_reach |= knight_power(c, pos);
         }
-        if k == Kind::Pawn && c == Color::BLACK {
-            self.black_pawn_reach |= pawn_power(c, pos);
-        }
 
         self.board_digest ^= zobrist(c, pos, k);
     }
@@ -121,13 +116,6 @@ impl Position {
                 }
             }
         }
-        if k == Kind::Pawn && c == Color::BLACK {
-            debug_assert_eq!(
-                pawn_power(c, pos),
-                self.black_pawn_reach & pawn_power(c, pos)
-            );
-            self.black_pawn_reach = self.black_pawn_reach.and_not(pawn_power(c, pos));
-        }
 
         self.board_digest ^= zobrist(c, pos, k);
     }
@@ -146,16 +134,12 @@ impl Position {
 
         self.board_digest = 0;
         self.black_knight_reach.clear();
-        self.black_pawn_reach.clear();
         for pos in Square::iter() {
             if let Some((c, k)) = self.get(pos) {
                 self.board_digest ^= zobrist(c, pos, k);
 
                 if c == Color::BLACK && k == Kind::Knight {
                     self.black_knight_reach |= knight_power(c, pos);
-                }
-                if c == Color::BLACK && k == Kind::Pawn {
-                    self.black_pawn_reach |= pawn_power(c, pos);
                 }
             }
         }
@@ -171,10 +155,6 @@ impl Position {
 
     pub(crate) fn black_knight_reach(&self) -> BitBoard {
         self.black_knight_reach
-    }
-
-    pub(crate) fn black_pawn_reach(&self) -> BitBoard {
-        self.black_pawn_reach
     }
 }
 
