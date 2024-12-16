@@ -354,7 +354,7 @@ impl<'a> Context<'a> {
         if !self.options.no_memo {
             let digest = self.position.digest();
 
-            if self.memo_contains_position() {
+            if self.memo_contains(&digest) {
                 // Already seen during search on other branches.
                 *self.position = orig;
                 return Ok(());
@@ -370,8 +370,8 @@ impl<'a> Context<'a> {
     }
 
     // #[inline(never)]
-    fn memo_contains_position(&self) -> bool {
-        self.memo.contains_key(&self.position.digest())
+    fn memo_contains(&self, digest: &u64) -> bool {
+        self.memo.contains_key(digest)
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
