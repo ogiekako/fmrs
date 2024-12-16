@@ -43,8 +43,8 @@ impl BuildHasher for BuildNoHasher {
     }
 }
 
-pub type NoHashMap<V> = hashbrown::HashMap<u64, V, BuildNoHasher>;
-pub type NoHashSet = hashbrown::HashSet<u64, BuildNoHasher>;
+pub type NoHashMap<V> = HashMap<u64, V, BuildNoHasher>;
+pub type NoHashSet = HashSet<u64, BuildNoHasher>;
 
 #[cfg(test)]
 mod tests {
