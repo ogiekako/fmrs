@@ -106,7 +106,7 @@ impl<'a> Context<'a> {
     }
 
     fn advance(&mut self) -> Result<()> {
-        if let Some(attacker) = self.attacker.clone() {
+        if let Some(attacker) = &self.attacker {
             attack_preventing_movements(
                 self.position,
                 self.memo,
@@ -114,7 +114,7 @@ impl<'a> Context<'a> {
                 self.black_king_pos.unwrap(),
                 true,
                 self.options,
-                attacker.into(),
+                attacker.clone().into(),
                 self.result,
             )?;
             return Ok(());
