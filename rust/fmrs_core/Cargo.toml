@@ -6,19 +6,19 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.58"
-getrandom = { version = "0.2", features = ["js"] }
-lazy_static = "1.4.0"
-percent-encoding = "2.1.0"
-rand = { version = "0.8.5" }
-serde = { version = "1.0.139", features = ["derive"] }
-serde_repr = "0.1.8"
-url = "2.1.0"
-log = "0.4.22"
-env_logger = "0.11.5"
-pretty_assertions = "1.2.1"
-xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
+anyhow = "*"
+getrandom = { version = "*", features = ["js"] }
+lazy_static = "*"
+percent-encoding = "*"
+rand = { version = "*" }
+serde = { version = "*", features = ["derive"] }
+serde_repr = "*"
+url = "*"
+log = "*"
+env_logger = "*"
+pretty_assertions = "*"
+xxhash-rust = { version = "*", features = ["xxh3"] }
 
 [dev-dependencies]
-pretty_assertions = "1.2.1"
-serde_json = "1.0.82"
+pretty_assertions = "*"
+serde_json = "*"

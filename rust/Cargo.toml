@@ -19,37 +19,37 @@ members = ["wasm", "fmrs_core"]
 
 [dependencies]
 fmrs_core = { path = "./fmrs_core" }
-lazy_static = "1.4.0"
+lazy_static = "*"
 
-serde = { version = "1.0.137", features = ["derive"] }
-serde_yaml = "0.9"
-bincode = "1.2.0"
+serde = { version = "*", features = ["derive"] }
+serde_yaml = "*"
+bincode = "*"
 
-rand = { version = "0.8.5", features = ["small_rng"] }
-sled = { version = "0.34.7" } # default-features = false
-percent-encoding = "2.1.0"
-anyhow = "1.0.58"
-clap = { version = "4", features = ["derive"] }
-actix-web = "4.1.0"
-serde_json = "1.0.81"
-serde_repr = "0.1.8"
-futures = "0.3.21"
-actix-files = "0.6.1"
-pprof = { version = "0.14", features = [
+rand = { version = "*", features = ["small_rng"] }
+sled = { version = "*" } # default-features = false
+percent-encoding = "*"
+anyhow = "*"
+clap = { version = "*", features = ["derive"] }
+actix-web = "*"
+serde_json = "*"
+serde_repr = "*"
+futures = "*"
+actix-files = "*"
+pprof = { version = "*", features = [
     "criterion",
     "flamegraph",
     "_protobuf",
     "protobuf-codec",
 ] }
-sysinfo = "0.33"
-tempfile = "3.3.0"
-log = "0.4.22"
-env_logger = "0.11.5"
-rayon = "1.10.0"
+sysinfo = "*"
+tempfile = "*"
+log = "*"
+env_logger = "*"
+rayon = "*"
 
 [dev-dependencies]
-pretty_assertions = "1"
-criterion = { version = "0.5.1", features = ["html_reports"] }
+pretty_assertions = "*"
+criterion = { version = "*", features = ["html_reports"] }
 
 [profile.dev]
 opt-level = 2
