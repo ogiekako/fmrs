@@ -1,5 +1,4 @@
 use sled::Mode;
-use sysinfo::SystemExt;
 
 #[derive(Clone)]
 pub(super) struct Database {

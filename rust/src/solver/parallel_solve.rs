@@ -1,7 +1,6 @@
 use std::sync::{Arc, Mutex};
 
 use fmrs_core::nohash::NoHashMap;
-use sysinfo::SystemExt;
 
 use fmrs_core::position::{advance, Digest, Position, PositionExt};
 
