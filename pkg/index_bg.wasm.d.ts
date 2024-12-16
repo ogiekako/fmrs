@@ -12,6 +12,7 @@ export const solver_no_solution: (a: number) => number;
 export const solver_solutions_found: (a: number) => number;
 export const solver_solutions_sfen: (a: number, b: number) => void;
 export const solver_solutions_json: (a: number) => number;
+export const __wbindgen_exn_store: (a: number) => void;
 export const __wbindgen_free: (a: number, b: number, c: number) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
