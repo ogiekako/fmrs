@@ -199,7 +199,8 @@ fn bench_solve97(c: &mut Criterion) {
     let mut i = 0;
     c.bench_function("bench_solve97", |b| {
         b.iter(|| {
-            sleep(times[i] / 1_000);
+            let start = std::time::Instant::now();
+            while start.elapsed() < times[i] / 1_000 {}
             i = (i + 1) % n_samples;
         })
     });
@@ -220,7 +221,8 @@ fn bench_heavy_problem(c: &mut Criterion, name: &str, sfen: &str, steps: usize, 
     let mut i = 0;
     c.bench_function(name, |b| {
         b.iter(|| {
-            sleep(times[i] / 1_000_000);
+            let start = std::time::Instant::now();
+            while start.elapsed() < times[i] / 1_000_000 {}
             i = (i + 1) % n_samples;
         })
     });
