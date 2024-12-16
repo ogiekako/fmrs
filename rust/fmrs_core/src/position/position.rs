@@ -1,5 +1,3 @@
-use ahash::RandomState;
-
 use crate::direction::Direction;
 use crate::piece::*;
 
@@ -8,14 +6,13 @@ pub struct Position {
     black_bb: BitBoard,    // 16 bytes
     kind_bb: KindBitBoard, // 64 bytes
     hands: Hands,          // 8 bytes
+    _padding: u64,         // 8 bytes
 }
 
 pub type Digest = u64;
 
 use crate::sfen;
 use std::fmt;
-use std::hash::Hasher;
-use std::hash::{BuildHasher, Hash as _};
 
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -116,10 +113,16 @@ impl Position {
     }
 
     pub fn digest(&self) -> Digest {
-        // let mut hasher = FxHasher::default();
-        let mut hasher = RandomState::with_seed(123).build_hasher();
-        self.hash(&mut hasher);
-        hasher.finish()
+        xxhash_rust::xxh3::xxh3_64(self.as_bytes())
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts(
+                self as *const Position as *const u8,
+                std::mem::size_of::<Position>(),
+            )
+        }
     }
 }
 
@@ -170,5 +173,10 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn position_size() {
+        assert_eq!(std::mem::size_of::<Position>(), 96);
     }
 }

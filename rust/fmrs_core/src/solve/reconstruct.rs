@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use crate::nohash::NoHashMap;
 
@@ -69,7 +69,8 @@ impl<'a> Context<'a> {
             };
 
             #[cfg(debug_assertions)]
-            let mut positions: HashMap<u64, Position> = HashMap::new();
+            let mut positions: std::collections::HashMap<u64, Position> =
+                std::collections::HashMap::new();
 
             for undo_move in previous(position.clone(), step < self.mate_in) {
                 let movement = position.undo_move(&undo_move);
