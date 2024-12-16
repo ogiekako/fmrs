@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use crate::nohash::NoHashMap;
 
@@ -68,8 +68,35 @@ impl<'a> Context<'a> {
                 self.memo_black_turn
             };
 
+            #[cfg(debug_assertions)]
+            let mut positions: HashMap<u64, Position> = HashMap::new();
+
             for undo_move in previous(position.clone(), step < self.mate_in) {
                 let movement = position.undo_move(&undo_move);
+
+                #[cfg(debug_assertions)]
+                {
+                    debug_assert!(
+                        !positions.contains_key(&position.digest()),
+                        "{:?} {:?} {} {} {}",
+                        positions.get(&position.digest()).unwrap(),
+                        position,
+                        positions.get(&position.digest()).unwrap() == &position,
+                        position.digest(),
+                        positions.get(&position.digest()).as_ref().unwrap().digest(),
+                    );
+                    positions.insert(position.digest(), position.clone());
+                    pretty_assertions::assert_eq!(
+                        position,
+                        {
+                            let sfen = position.sfen();
+                            Position::from_sfen(&sfen).unwrap()
+                        },
+                        "{:?}",
+                        position
+                    );
+                }
+
                 if memo_previous.get(&position.digest()) == Some(&(step - 1)) {
                     solution_rev.push(movement);
                     queue.push_back((position.clone(), step - 1, solution_rev.clone())); // TODO: avoid O(n^2) operation

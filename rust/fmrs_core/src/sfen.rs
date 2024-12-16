@@ -10,6 +10,8 @@ use url::Url;
 use crate::piece::*;
 use crate::position::*;
 
+static PAWN_DROP_STEP: &str = "-1";
+
 fn encode_piece(c: Color, mut k: Kind) -> String {
     let mut res = String::new();
     if let Some(x) = k.unpromote() {
@@ -102,7 +104,10 @@ pub fn encode_position(board: &Position) -> String {
     if !has_hand {
         res.push('-');
     }
-    // res.push_str(" 1");
+    if board.pawn_drop() {
+        res.push(' ');
+        res.push_str(PAWN_DROP_STEP);
+    }
     res
 }
 
@@ -171,6 +176,10 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
         "b" => board.set_turn(Color::BLACK),
         "w" => board.set_turn(Color::WHITE),
         _ => bail!("Illegal turn string {}", v[1]),
+    }
+
+    if v.get(3) == Some(&PAWN_DROP_STEP) {
+        board.set_pawn_drop(true);
     }
 
     if v[2] == "-" {

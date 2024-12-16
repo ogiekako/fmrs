@@ -2,6 +2,7 @@ use crate::piece::{Color, Kind};
 
 use super::{checked, Movement, Position, Square};
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum UndoMove {
     UnDrop(Square, bool /* pawn drop */),
     UnMove {
@@ -143,7 +144,7 @@ mod tests {
             (
                 sfen::tests::RYUO,
                 Movement::Drop(Square::new(2, 0), Kind::Pawn),
-                "6p1l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L b Sbgn2p",
+                "6p1l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L b Sbgn2p -1",
             ),
             (
                 sfen::tests::RYUO,

@@ -6,7 +6,6 @@ mod position;
 mod position_ext;
 mod previous;
 mod rule;
-mod zobrist;
 
 pub use advance::advance;
 pub use advance::advance_old;

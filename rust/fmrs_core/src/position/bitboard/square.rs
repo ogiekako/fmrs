@@ -22,7 +22,7 @@ impl Square {
     pub(crate) fn index(self) -> usize {
         self.x
     }
-    pub(crate) fn from_index(x: usize) -> Self {
+    pub fn from_index(x: usize) -> Self {
         debug_assert!(x < 81);
         Self { x }
     }

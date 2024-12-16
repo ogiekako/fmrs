@@ -53,7 +53,7 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::Solve {
             algorithm,
             sfen_or_file,
-        } => command::solve(algorithm, sfen_or_file).await?,
+        } => command::solve(algorithm, sfen_or_file)?,
         Action::Server => command::server(1234).await?,
         Action::OneWayMate {
             algorithm,
@@ -61,7 +61,7 @@ pub async fn do_main() -> anyhow::Result<()> {
             iteration,
             start,
             bucket,
-        } => command::one_way_mate(algorithm, seed, iteration, start, bucket).await?,
+        } => command::one_way_mate(algorithm, seed, iteration, start, bucket)?,
         Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
     }
     Ok(())

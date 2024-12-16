@@ -4,8 +4,8 @@ use fmrs_core::{
     position::{advance, checked, AdvanceOptions, Position, PositionExt},
 };
 
-pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
-    let mut position = position.clone();
+pub fn one_way_mate_steps(initial_position: &Position) -> Option<usize> {
+    let mut position = initial_position.clone();
     if checked(&position, Color::WHITE, None, None) {
         return None;
     }
@@ -61,7 +61,6 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
         }
 
         position.do_move(&black_movements.remove(0));
-
         let is_mate = advance(
             &mut position,
             &mut unused_memo,
@@ -78,8 +77,7 @@ pub fn one_way_mate_steps(position: &Position) -> Option<usize> {
             return (step as usize).into();
         }
 
-        if white_movements.is_empty() {
-            // Pawn drop mate.
+        if white_movements.len() != 1 {
             return None;
         }
 

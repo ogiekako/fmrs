@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use fmrs_core::{piece::Color, position::Position, sfen};
 use log::info;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rayon::prelude::*;
 
 use super::{action::Action, solve::one_way_mate_steps};
 
@@ -16,14 +17,26 @@ pub(super) fn generate_one_way_mate_with_beam(
         seed, start, bucket
     );
 
-    let mut g = Generator::new(seed, start, bucket);
-    let problem = g.generate();
+    let parallel = 16;
 
-    println!(
-        "generated problem: {}",
-        &sfen::encode_position(&problem.position)
-    );
-    println!("generated problem steps = {}", problem.step);
+    assert!(std::thread::available_parallelism().unwrap().get() >= parallel as usize);
+
+    let problems: Vec<Problem> = (seed..seed + parallel)
+        .into_par_iter()
+        .map(|seed| {
+            let mut g = Generator::new(seed, start, bucket);
+            let problem = g.generate();
+            problem
+        })
+        .collect();
+
+    for problem in problems {
+        println!(
+            "generated problem (step = {}): {}",
+            problem.step,
+            &sfen::encode_position(&problem.position)
+        );
+    }
 
     Ok(())
 }
@@ -172,7 +185,7 @@ fn random_one_way_mate_positions(rng: &mut SmallRng, count: usize) -> Vec<(Posit
 
     (0..count)
         .map(|i| {
-            if i % 100 == 0 {
+            if (i + 1) % 100 == 0 {
                 info!("generate_one_way_mate_positions: {}", i);
             }
 

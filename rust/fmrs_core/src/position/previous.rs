@@ -10,6 +10,9 @@ use super::{
 pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
     let ctx = Context::new(position, allow_drop_pawn);
     ctx.previous();
+    debug_assert!(
+        ctx.result.borrow().len() <= 1 || ctx.result.borrow()[0] != ctx.result.borrow()[1]
+    );
     ctx.result.take()
 }
 

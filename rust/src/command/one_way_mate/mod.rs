@@ -12,7 +12,7 @@ pub enum OneWayMateGenerator {
     Sa,
 }
 
-pub async fn one_way_mate(
+pub fn one_way_mate(
     algo: OneWayMateGenerator,
     seed: u64,
     // SA

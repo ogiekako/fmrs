@@ -1,19 +1,21 @@
+use ahash::RandomState;
+
 use crate::direction::Direction;
 use crate::piece::*;
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default, Hash)]
 pub struct Position {
     black_bb: BitBoard,    // 16 bytes
     kind_bb: KindBitBoard, // 64 bytes
     hands: Hands,          // 8 bytes
-    board_digest: u64,     // 8 bytes
 }
 
 pub type Digest = u64;
 
-use crate::position::zobrist::zobrist;
 use crate::sfen;
 use std::fmt;
+use std::hash::Hasher;
+use std::hash::{BuildHasher, Hash as _};
 
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -43,7 +45,7 @@ impl Position {
     pub fn pawn_drop(&self) -> bool {
         self.hands.pawn_drop()
     }
-    pub(super) fn set_pawn_drop(&mut self, x: bool) {
+    pub fn set_pawn_drop(&mut self, x: bool) {
         self.hands.set_pawn_drop(x)
     }
 
@@ -79,8 +81,6 @@ impl Position {
             self.black_bb.set(pos);
         }
         self.kind_bb.set(pos, k);
-
-        self.board_digest ^= zobrist(c, pos, k);
     }
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), Some((c, k)));
@@ -89,12 +89,6 @@ impl Position {
             self.black_bb.unset(pos);
         }
         self.kind_bb.unset(pos, k);
-
-        self.board_digest ^= zobrist(c, pos, k);
-    }
-
-    pub fn digest(&self) -> Digest {
-        self.board_digest ^ self.hands.x
     }
 
     pub fn from_sfen(s: &str) -> anyhow::Result<Self> {
@@ -104,17 +98,6 @@ impl Position {
     pub fn shift(&mut self, dir: Direction) {
         self.black_bb.shift(dir);
         self.kind_bb.shift(dir);
-
-        self.board_digest = 0;
-
-        let color_bb = self.color_bb();
-
-        for c in Color::iter() {
-            for pos in color_bb.bitboard(c) {
-                let k = self.kind_bb.must_get(pos);
-                self.board_digest ^= zobrist(c, pos, k);
-            }
-        }
     }
 
     pub fn sfen(&self) -> String {
@@ -130,6 +113,13 @@ impl Position {
         let black = self.black();
         let white = occupied.and_not(black);
         ColorBitBoard::new(black, white, occupied)
+    }
+
+    pub fn digest(&self) -> Digest {
+        // let mut hasher = FxHasher::default();
+        let mut hasher = RandomState::with_seed(123).build_hasher();
+        self.hash(&mut hasher);
+        hasher.finish()
     }
 }
 
@@ -150,5 +140,35 @@ mod tests {
             position.set(Square::new(0, 1), Color::BLACK, Kind::Pawn);
             position.digest()
         });
+    }
+
+    #[test]
+    fn digest_no_collision() {
+        for (pos1, pos2) in [
+            (
+                "9/9/5B3/4kb3/9/5+R3/9/9/2+R6 b 4g4s4n4l18p",
+                "9/9/5B3/4kb3/9/5+R3/2R6/9/9 b 4g4s4n4l18p",
+            ),
+            (
+                "9/9/5B3/4kb3/2R6/5+R3/9/9/9 b 4g4s4n4l18p",
+                "9/9/5B3/4kb3/9/5+R3/2R6/9/9 b 4g4s4n4l18p",
+            ),
+        ] {
+            let mut pos1 = Position::from_sfen(pos1).unwrap();
+            let mut pos2 = Position::from_sfen(pos2).unwrap();
+
+            for pawn_drop1 in [true, false] {
+                for pawn_drop2 in [true, false] {
+                    pos1.set_pawn_drop(pawn_drop1);
+                    pos2.set_pawn_drop(pawn_drop2);
+
+                    assert_ne!(pos1, pos2);
+                    assert_ne!(pos1.digest(), pos2.digest(), "{:?} {:?}", pos1, pos2);
+
+                    pretty_assertions::assert_eq!(Position::from_sfen(&pos1.sfen()).unwrap(), pos1);
+                    pretty_assertions::assert_eq!(Position::from_sfen(&pos2.sfen()).unwrap(), pos2);
+                }
+            }
+        }
     }
 }

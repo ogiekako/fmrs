@@ -2,7 +2,7 @@ use fmrs_core::{position::PositionExt, sfen};
 
 use crate::solver::{self, Algorithm};
 
-pub async fn solve(algorithm: Algorithm, sfen_or_file: Option<String>) -> anyhow::Result<()> {
+pub fn solve(algorithm: Algorithm, sfen_or_file: Option<String>) -> anyhow::Result<()> {
     let position = sfen::decode_position(
         match sfen_or_file {
             Some(sfen_or_file) => {

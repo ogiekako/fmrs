@@ -85,7 +85,12 @@ impl<'a> Context<'a> {
         let turn = position.turn();
         let color_bb = position.color_bb();
         let attacker = attacker_hint.unwrap_or_else(|| {
-            attacker(position, &color_bb, turn, king_pos, false).expect("no attacker")
+            attacker(position, &color_bb, turn, king_pos, false).unwrap_or_else(|| {
+                panic!(
+                    "No attacker found: position={:?} turn={:?} king_pos={:?}",
+                    position, turn, king_pos
+                )
+            })
         });
         let pinned = pinned(position, &color_bb, turn, king_pos, turn);
         let pawn_mask = {
