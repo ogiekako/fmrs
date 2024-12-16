@@ -23,7 +23,7 @@ pub fn gold_power(color: Color, pos: Square) -> BitBoard {
 }
 
 pub fn king_power(pos: Square) -> BitBoard {
-    KING_POWER[pos.index()]
+    KING_POWER2[pos.index()]
 }
 
 pub fn lion_king_power(pos: Square) -> BitBoard {
@@ -57,6 +57,33 @@ pub fn king_and_any_power(color: Color, pos: Square) -> BitBoard {
 pub fn power2(color: Color, pos: Square, step1: Kind, step2: Kind) -> BitBoard {
     POWER2[color.index()][pos.index()][step1.index()][step2.index()]
 }
+
+const KING_POWER2: [BitBoard; 81] = {
+    let mut res = [BitBoard::empty(); 81];
+    let mut i = 0;
+    while i < 81 {
+        let pos = Square::from_index(i);
+
+        let mut dx = -1;
+        while dx < 2 {
+            let mut dy = -1;
+            while dy < 2 {
+                if dx != 0 || dy != 0 {
+                    let col = pos.col() as isize + dx;
+                    let row = pos.row() as isize + dy;
+
+                    if 0 <= col && col < 9 && 0 <= row && row < 9 {
+                        res[i].set(Square::new(col as usize, row as usize));
+                    }
+                }
+                dy += 1;
+            }
+            dx += 1;
+        }
+        i += 1;
+    }
+    res
+};
 
 type KindPower = [[BitBoard; 81]; 2];
 

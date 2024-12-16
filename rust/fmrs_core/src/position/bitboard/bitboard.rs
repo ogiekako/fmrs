@@ -23,7 +23,7 @@ impl BitBoard {
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
-    pub fn set(&mut self, pos: Square) {
+    pub const fn set(&mut self, pos: Square) {
         let i = pos.index();
         self.0 |= 1 << i;
     }
@@ -73,6 +73,10 @@ impl BitBoard {
 
     pub(crate) fn from_square(pos: Square) -> BitBoard {
         BitBoard::from_u128(1 << pos.index())
+    }
+
+    pub(crate) const fn empty() -> BitBoard {
+        BitBoard(0)
     }
 }
 
