@@ -14,13 +14,10 @@ rand = { version = "0.8.5" }
 serde = { version = "1.0.139", features = ["derive"] }
 serde_repr = "0.1.8"
 url = "2.1.0"
-rustc-hash = "2.1.0"
 log = "0.4.22"
 env_logger = "0.11.5"
-ahash = "0.8.11"
 pretty_assertions = "1.2.1"
-xxhash-rust = { version = "0.8.5", features = ["xxh3"] }
-
+xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
