@@ -2,7 +2,7 @@ use crate::direction::Direction;
 
 use super::square::Square;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct BitBoard(u128);
 
 impl BitBoard {

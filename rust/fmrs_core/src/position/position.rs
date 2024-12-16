@@ -1,7 +1,7 @@
 use crate::direction::Direction;
 use crate::piece::*;
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default, Hash)]
+#[derive(Clone, PartialEq, Eq, Ord, PartialOrd, Default)]
 pub struct Position {
     black_bb: BitBoard,    // 16 bytes
     kind_bb: KindBitBoard, // 64 bytes
