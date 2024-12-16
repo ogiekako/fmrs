@@ -331,12 +331,13 @@ impl<'a> Context<'a> {
 // Helper
 impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
-        let undo = self.position.do_move(&movement);
+        let orig = self.position.clone();
+        self.position.do_move(&movement);
 
         if kind == Kind::King
             && common::checked(self.position, Color::BLACK, movement.dest().into(), None)
         {
-            self.position.undo_move(&undo);
+            *self.position = orig;
             return Ok(());
         }
 
@@ -355,7 +356,7 @@ impl<'a> Context<'a> {
         if !self.options.no_memo {
             let digest = self.position.digest();
             if self.memo.contains_key(&digest) {
-                self.position.undo_move(&undo);
+                *self.position = orig;
                 return Ok(());
             }
             self.memo.insert(digest, self.next_step);
@@ -363,7 +364,7 @@ impl<'a> Context<'a> {
 
         self.result.push(movement);
 
-        self.position.undo_move(&undo);
+        *self.position = orig;
 
         Ok(())
     }

@@ -316,21 +316,22 @@ impl<'a> Context<'a> {
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
-        let undo = self.position.do_move(&movement);
+        let orig = self.position.clone();
+        self.position.do_move(&movement);
 
         // TODO: check the second attacker
         if !is_king_move
             && self.attacker.double_check.is_some()
             && common::checked(&self.position, self.turn, self.king_pos.into(), None)
         {
-            self.position.undo_move(&undo);
+            *self.position = orig;
             return Ok(());
         }
 
         if self.should_return_check
             && !common::checked(self.position, self.turn.opposite(), None, None)
         {
-            self.position.undo_move(&undo);
+            *self.position = orig;
             return Ok(());
         }
 
@@ -355,7 +356,7 @@ impl<'a> Context<'a> {
 
             if self.memo.contains_key(&digest) {
                 // Already seen during search on other branches.
-                self.position.undo_move(&undo);
+                *self.position = orig;
                 return Ok(());
             }
             self.memo.insert(digest, self.next_step);
@@ -363,7 +364,7 @@ impl<'a> Context<'a> {
 
         self.result.push(movement.clone());
 
-        self.position.undo_move(&undo);
+        *self.position = orig;
 
         Ok(())
     }
