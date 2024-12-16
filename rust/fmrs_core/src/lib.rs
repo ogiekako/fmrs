@@ -9,6 +9,7 @@ pub mod piece;
 pub mod position;
 pub mod sfen;
 pub mod solve;
+pub mod memo;
 
 #[cfg(test)]
 mod tests {

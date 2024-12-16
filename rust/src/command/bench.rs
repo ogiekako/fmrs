@@ -5,21 +5,16 @@ use pprof::protos::Message;
 
 use crate::solver::{self, Algorithm};
 
-pub fn bench() -> anyhow::Result<()> {
-    let problem = include_str!("../../problems/forest-06-10_97.sfen");
-    // let problem = include_str!("../../problems/ofm-139_5.sfen");
-    // let problem = include_str!("../../problems/chain_207.sfen");
+pub fn bench(file: &str) -> anyhow::Result<()> {
+    let sfen = std::fs::read_to_string(file)?;
+    let position = sfen::decode_position(&sfen).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
-    let position = sfen::decode_position(problem).map_err(|_e| anyhow::anyhow!("parse failed"))?;
-
-    let guard = pprof::ProfilerGuardBuilder::default()
-        .frequency(60)
-        .build()?;
+    let guard = pprof::ProfilerGuard::new(100).unwrap();
 
     let start = std::time::Instant::now();
 
     let answer =
-        solver::solve(position, None, Algorithm::Parallel).map_err(|e| anyhow::anyhow!("{}", e))?;
+        solver::solve(position, None, Algorithm::Standard).map_err(|e| anyhow::anyhow!("{}", e))?;
     assert_eq!(answer.len(), 1);
 
     println!(

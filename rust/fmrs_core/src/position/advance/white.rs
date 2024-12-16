@@ -1,4 +1,4 @@
-use crate::nohash::NoHashMap;
+use crate::memo::Memo;
 
 use crate::piece::{Color, Kind};
 
@@ -7,23 +7,9 @@ use crate::position::{Movement, Position};
 
 use super::AdvanceOptions;
 
-pub(super) fn advance_old(
-    position: &mut Position,
-    result: &mut Vec<Movement>,
-) -> anyhow::Result<()> {
-    advance(
-        position,
-        &mut NoHashMap::default(),
-        0,
-        &AdvanceOptions::default(),
-        result,
-    )?;
-    Ok(())
-}
-
 pub(super) fn advance(
     position: &mut Position,
-    memo: &mut NoHashMap<u32>,
+    memo: &mut Memo,
     next_step: u32,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,

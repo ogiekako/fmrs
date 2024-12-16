@@ -112,6 +112,7 @@ impl Position {
         ColorBitBoard::new(black, white, occupied)
     }
 
+    // #[inline(never)]
     pub fn digest(&self) -> Digest {
         xxhash_rust::xxh3::xxh3_64(self.as_bytes())
     }

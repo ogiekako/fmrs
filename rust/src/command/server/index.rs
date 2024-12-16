@@ -52,7 +52,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
             step_tx,
             problem.clone(),
             Some(10),
-            Algorithm::DbParallel,
+            Algorithm::Standard,
         ) {
             Ok(solutions) => {
                 SolveResponse::Solved(fmrs_core::converter::convert(&problem, &solutions))

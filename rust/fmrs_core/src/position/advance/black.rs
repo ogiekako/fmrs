@@ -1,4 +1,4 @@
-use crate::nohash::NoHashMap;
+use crate::memo::Memo;
 use crate::position::bitboard::{king_power, lion_king_power, power, ColorBitBoard};
 use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
@@ -16,7 +16,7 @@ use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
     position: &mut Position,
-    memo: &mut NoHashMap<u32>,
+    memo: &mut Memo,
     next_step: u32,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
@@ -25,19 +25,6 @@ pub(super) fn advance(
     let mut ctx = Context::new(position, memo, next_step, options, res)?;
     ctx.advance()?;
     Ok(())
-}
-
-pub(super) fn advance_old(
-    position: &mut Position,
-    result: &mut Vec<Movement>,
-) -> anyhow::Result<()> {
-    advance(
-        position,
-        &mut NoHashMap::default(),
-        0,
-        &AdvanceOptions::default(),
-        result,
-    )
 }
 
 struct Context<'a> {
@@ -53,7 +40,7 @@ struct Context<'a> {
     options: &'a AdvanceOptions,
 
     // Mutable fields
-    memo: &'a mut NoHashMap<u32>,
+    memo: &'a mut Memo,
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
 }
@@ -61,7 +48,7 @@ struct Context<'a> {
 impl<'a> Context<'a> {
     fn new(
         position: &'a mut Position,
-        memo: &'a mut NoHashMap<u32>,
+        memo: &'a mut Memo,
         next_step: u32,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,

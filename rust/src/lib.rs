@@ -18,7 +18,9 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Action {
-    Bench,
+    Bench {
+        file: String,
+    },
     Solve {
         #[clap(value_enum)]
         algorithm: Algorithm,
@@ -49,7 +51,7 @@ pub async fn do_main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
-        Action::Bench => command::bench()?,
+        Action::Bench { file } => command::bench(&file)?,
         Action::Solve {
             algorithm,
             sfen_or_file,

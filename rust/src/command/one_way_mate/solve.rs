@@ -1,5 +1,6 @@
 use fmrs_core::{
-    nohash::{NoHashMap, NoHashSet},
+    memo::Memo,
+    nohash::NoHashSet,
     piece::Color,
     position::{advance, checked, AdvanceOptions, Position, PositionExt},
 };
@@ -17,7 +18,7 @@ pub fn one_way_mate_steps(initial_position: &Position) -> Option<usize> {
 
     let mut seen_positions = NoHashSet::default();
 
-    let mut unused_memo = NoHashMap::default();
+    let mut unused_memo = Memo::default();
 
     let mut black_movements = vec![];
     let mut white_movements = vec![];

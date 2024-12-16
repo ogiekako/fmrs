@@ -1,5 +1,5 @@
 use crate::{
-    nohash::NoHashMap,
+    memo::Memo,
     position::{
         bitboard::{
             king_then_king_or_night_power, lance_reachable,
@@ -28,7 +28,7 @@ use super::{
 // #[inline(never)]
 pub(super) fn attack_preventing_movements(
     position: &mut Position,
-    memo: &mut NoHashMap<u32>,
+    memo: &mut Memo,
     next_step: u32,
     king_pos: Square,
     should_return_check: bool,
@@ -62,7 +62,7 @@ struct Context<'a> {
     next_step: u32,
     should_return_check: bool,
     // Mutable fields
-    memo: &'a mut NoHashMap<u32>,
+    memo: &'a mut Memo,
     result: &'a mut Vec<Movement>,
     is_mate: bool,
     num_branches_without_pawn_drop: usize,
@@ -74,7 +74,7 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn new(
         position: &'a mut Position,
-        memo: &'a mut NoHashMap<u32>,
+        memo: &'a mut Memo,
         next_step: u32,
         king_pos: Square,
         should_return_check: bool,
@@ -354,7 +354,7 @@ impl<'a> Context<'a> {
         if !self.options.no_memo {
             let digest = self.position.digest();
 
-            if self.memo.contains_key(&digest) {
+            if self.memo_contains_position() {
                 // Already seen during search on other branches.
                 *self.position = orig;
                 return Ok(());
@@ -362,11 +362,16 @@ impl<'a> Context<'a> {
             self.memo.insert(digest, self.next_step);
         }
 
-        self.result.push(movement.clone());
+        self.result.push(movement);
 
         *self.position = orig;
 
         Ok(())
+    }
+
+    // #[inline(never)]
+    fn memo_contains_position(&self) -> bool {
+        self.memo.contains_key(&self.position.digest())
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {

@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use crate::memo::Memo;
 use crate::nohash::NoHashMap;
 
 use crate::position::{previous, Position, PositionExt};
@@ -8,8 +9,8 @@ use super::Solution;
 
 pub fn reconstruct_solutions(
     mate: &Position,
-    memo_black_turn: &NoHashMap<u32>,
-    memo_white_turn: &NoHashMap<u32>,
+    memo_black_turn: &Memo,
+    memo_white_turn: &Memo,
     solutions_upto: usize,
 ) -> Vec<Solution> {
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
@@ -19,16 +20,16 @@ pub fn reconstruct_solutions(
 }
 
 struct Context<'a> {
-    memo_black_turn: &'a NoHashMap<u32>,
-    memo_white_turn: &'a NoHashMap<u32>,
+    memo_black_turn: &'a Memo,
+    memo_white_turn: &'a Memo,
     mate_in: u32,
     solutions_upto: usize,
 }
 
 impl<'a> Context<'a> {
     fn new(
-        memo_black_turn: &'a NoHashMap<u32>,
-        memo_white_turn: &'a NoHashMap<u32>,
+        memo_black_turn: &'a Memo,
+        memo_white_turn: &'a Memo,
         mate_in: u32,
         solutions_upto: usize,
     ) -> Self {

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use fmrs_core::nohash::NoHashMap;
+use fmrs_core::memo::Memo;
 
 use fmrs_core::position::{advance, Digest, Position, PositionExt};
 
@@ -12,9 +12,9 @@ pub(super) fn parallel_solve(
     solutions_upto: usize,
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
-    let mut memo = NoHashMap::default();
+    let mut memo = Memo::default();
     memo.insert(position.digest(), step);
-    let memo_next = NoHashMap::default();
+    let memo_next = Memo::default();
     let all_positions = vec![position];
 
     let task = Task::new(
@@ -40,8 +40,8 @@ const NTHREAD: usize = 16;
 
 struct Task {
     all_positions: Vec<Position>,
-    memo: NoHashMap<u32>,
-    memo_next: NoHashMap<u32>,
+    memo: Memo,
+    memo_next: Memo,
     mate_in: Arc<Mutex<Option<u32>>>,
     solutions_upto: usize,
     active_thread_count: Arc<Mutex<usize>>,
@@ -51,8 +51,8 @@ struct Task {
 impl Task {
     fn new(
         all_positions: Vec<Position>,
-        memo: NoHashMap<u32>,
-        memo_next: NoHashMap<u32>,
+        memo: Memo,
+        memo_next: Memo,
         mate_in: Arc<Mutex<Option<u32>>>,
         solutions_upto: usize,
         active_thread_count: Arc<Mutex<usize>>,

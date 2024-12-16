@@ -8,7 +8,6 @@ mod previous;
 mod rule;
 
 pub use advance::advance;
-pub use advance::advance_old;
 pub use advance::checked;
 pub use advance::AdvanceOptions;
 pub use bitboard::BitBoard;

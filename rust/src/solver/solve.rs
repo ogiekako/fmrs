@@ -1,5 +1,3 @@
-use crate::solver::db_parallel_solve;
-use crate::solver::memory_save_solve;
 use crate::solver::parallel_solve;
 use crate::solver::standard_solve;
 use fmrs_core::piece::*;
@@ -9,22 +7,14 @@ use fmrs_core::solve::Solution;
 
 #[derive(Debug, Clone, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
-    MemorySave,
     Standard,
     Parallel,
-    DbParallel,
 }
 
 impl Algorithm {
     #[cfg(test)]
     fn iter() -> impl Iterator<Item = Algorithm> {
-        [
-            Algorithm::MemorySave,
-            Algorithm::Standard,
-            Algorithm::Parallel,
-            Algorithm::DbParallel,
-        ]
-        .into_iter()
+        [Algorithm::Standard, Algorithm::Parallel].into_iter()
     }
 }
 
@@ -56,13 +46,7 @@ pub fn solve_with_progress(
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
-        Algorithm::MemorySave => {
-            memory_save_solve::memory_save_solve(position, progress, solutions_upto)
-        }
         Algorithm::Parallel => parallel_solve::parallel_solve(position, progress, solutions_upto),
-        Algorithm::DbParallel => {
-            db_parallel_solve::db_parallel_solve(position, progress, solutions_upto)
-        }
         Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto),
     }
 }

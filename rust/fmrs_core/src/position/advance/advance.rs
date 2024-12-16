@@ -1,5 +1,5 @@
-use crate::piece::Color;
-use crate::{nohash::NoHashMap, position::Movement};
+use crate::memo::Memo;
+use crate::position::Movement;
 
 use crate::position::Position;
 
@@ -7,7 +7,7 @@ use super::{black, white, AdvanceOptions};
 
 pub fn advance(
     position: &mut Position,
-    memo: &mut NoHashMap<u32>,
+    memo: &mut Memo,
     next_step: u32,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
@@ -20,15 +20,9 @@ pub fn advance(
     }
 }
 
-pub fn advance_old(position: &mut Position, result: &mut Vec<Movement>) -> anyhow::Result<()> {
-    match position.turn() {
-        Color::BLACK => black::advance_old(position, result),
-        Color::WHITE => white::advance_old(position, result),
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::{memo::Memo, position::AdvanceOptions};
 
     #[test]
     fn advance() {
@@ -77,7 +71,14 @@ mod tests {
             let mut position =
                 sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
             let mut got = vec![];
-            super::advance_old(&mut position, &mut got).unwrap();
+            super::advance(
+                &mut position,
+                &mut Memo::default(),
+                1,
+                &AdvanceOptions::default(),
+                &mut got,
+            )
+            .unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" ")).unwrap();

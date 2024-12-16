@@ -1,4 +1,4 @@
-use crate::nohash::NoHashMap;
+use crate::memo::Memo;
 
 use crate::position::{self, Position, PositionExt};
 
@@ -9,8 +9,8 @@ pub struct StandardSolver {
     solutions_upto: usize,
     step: u32,
     current: Vec<Position>,
-    memo: NoHashMap<u32>,
-    memo_next: NoHashMap<u32>,
+    memo: Memo,
+    memo_next: Memo,
 }
 
 #[derive(PartialEq, Eq)]
@@ -24,14 +24,14 @@ impl StandardSolver {
     pub fn new(position: Position, solutions_upto: usize) -> Self {
         let step = 0;
         let current = vec![position];
-        let mut memo = NoHashMap::default();
+        let mut memo = Memo::default();
         memo.insert(current[0].digest(), step);
         Self {
             solutions_upto,
             step,
             current,
             memo,
-            memo_next: NoHashMap::default(),
+            memo_next: Memo::default(),
         }
     }
 
