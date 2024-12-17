@@ -186,7 +186,7 @@ fn random_one_way_mate_positions(rng: &mut SmallRng, count: usize) -> Vec<(Posit
     (0..count)
         .map(|i| {
             if (i + 1) % 100 == 0 {
-                info!("generate_one_way_mate_positions: {}", i);
+                info!("generate_one_way_mate_positions: {}", i + 1);
             }
 
             let mut position = initial_position.clone();
