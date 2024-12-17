@@ -342,11 +342,17 @@ impl<'a> Context<'a> {
 
         if !self.options.no_memo {
             let digest = self.position.digest();
-            if self.memo.contains_key(&digest) {
+
+            let mut contains = true;
+            self.memo.entry(digest).or_insert_with(|| {
+                contains = false;
+                self.next_step
+            });
+
+            if contains {
                 *self.position = orig;
                 return Ok(());
             }
-            self.memo.insert(digest, self.next_step);
         }
 
         self.result.push(movement);
