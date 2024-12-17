@@ -2,14 +2,28 @@ use fmrs_core::{
     memo::Memo,
     nohash::NoHashSet,
     piece::Color,
-    position::{advance, checked, AdvanceOptions, Position, PositionExt},
+    position::{advance, AdvanceOptions, Position, PositionExt},
 };
 
 pub fn one_way_mate_steps(initial_position: &Position) -> Option<usize> {
-    let mut position = initial_position.clone();
-    if checked(&position, Color::WHITE, None, None) {
-        return None;
+    if initial_position.turn().is_black() {
+        if initial_position.checked_slow(Color::WHITE) {
+            return None;
+        }
+    } else {
+        if initial_position.checked_slow(Color::BLACK)
+            || !initial_position.checked_slow(Color::WHITE)
+        {
+            return None;
+        }
     }
+    let initial_step = if initial_position.turn().is_black() {
+        1
+    } else {
+        0
+    };
+
+    let mut position = initial_position.clone();
 
     let options = AdvanceOptions {
         max_allowed_branches: Some(1),
@@ -23,45 +37,49 @@ pub fn one_way_mate_steps(initial_position: &Position) -> Option<usize> {
     let mut black_movements = vec![];
     let mut white_movements = vec![];
 
-    for step in (1..).step_by(2) {
-        advance(
-            &mut position,
-            &mut unused_memo,
-            0,
-            &options,
-            &mut black_movements,
-        )
-        .ok()?;
-        debug_assert!(black_movements.len() <= 2);
-        if black_movements.len() == 0 {
-            return None;
-        }
-        if black_movements.len() == 2 {
-            if black_movements[0].is_pawn_drop() {
-                black_movements.swap(0, 1);
-            }
-            debug_assert!(black_movements[1].is_pawn_drop());
-            let pawn_move = black_movements.remove(1);
-            let undo = position.do_move(&pawn_move);
+    for step in (initial_step..).step_by(2) {
+        if step > 0 {
             advance(
                 &mut position,
                 &mut unused_memo,
                 0,
                 &options,
-                &mut white_movements,
+                &mut black_movements,
             )
             .ok()?;
-            if !white_movements.is_empty() {
+            debug_assert!(black_movements.len() <= 2);
+            if black_movements.len() == 0 {
                 return None;
             }
-            position.undo_move(&undo);
+            if black_movements.len() == 2 {
+                if black_movements[0].is_pawn_drop() {
+                    black_movements.swap(0, 1);
+                }
+                debug_assert!(black_movements[1].is_pawn_drop());
+                let pawn_move = black_movements.remove(1);
+                let undo = position.do_move(&pawn_move);
+                advance(
+                    &mut position,
+                    &mut unused_memo,
+                    0,
+                    &options,
+                    &mut white_movements,
+                )
+                .ok()?;
+                if !white_movements.is_empty() {
+                    return None;
+                }
+                position.undo_move(&undo);
+            }
+
+            if black_movements.len() != 1 {
+                return None;
+            }
+
+            position.do_move(&black_movements.remove(0));
         }
 
-        if black_movements.len() != 1 {
-            return None;
-        }
-
-        position.do_move(&black_movements.remove(0));
+        assert!(position.turn().is_white());
         let is_mate = advance(
             &mut position,
             &mut unused_memo,
@@ -136,6 +154,24 @@ mod tests {
         )
         .unwrap();
         assert_eq!(one_way_mate_steps(&position), Some(43));
+    }
+
+    #[test]
+    fn oneway_from_white() {
+        for (sfen, step) in [
+            (
+                "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3R2k/P1pGP1K1p/1PNNN3P/RL6L w P",
+                42,
+            ),
+            (
+                "4lk+P2/5n3/S2Pp4/1SG2pL1G/2SL4S/1N1p1l1B1/B4NR2/3g1K1p1/PNP1P3P w Prg7p",
+                54,
+            ),
+        ] {
+            let position = Position::from_sfen(sfen).unwrap();
+            assert_eq!(position.turn(), Color::WHITE);
+            assert_eq!(one_way_mate_steps(&position), Some(step));
+        }
     }
 
     #[test]

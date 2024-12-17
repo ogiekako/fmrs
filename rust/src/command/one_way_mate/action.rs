@@ -13,6 +13,7 @@ pub(super) enum Action {
     ToHand(Square, Color),                // move a piece to hand
     TwoActions(Box<Action>, Box<Action>),
     Shift(Direction),
+    ChangeTurn,
 }
 
 impl Action {
@@ -95,6 +96,10 @@ impl Action {
             Action::Shift(dir) => {
                 position.shift(dir);
                 Ok(Action::Shift(dir.opposite()))
+            }
+            Action::ChangeTurn => {
+                position.set_turn(position.turn().opposite());
+                Ok(Action::ChangeTurn)
             }
         }
     }

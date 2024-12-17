@@ -11,17 +11,16 @@ pub(super) fn generate_one_way_mate_with_beam(
     seed: u64,
     start: usize,
     bucket: usize,
+    parallel: usize,
 ) -> anyhow::Result<()> {
     info!(
         "generate_one_way_mate_with_beam: seed={} start={} bucket={}",
         seed, start, bucket
     );
 
-    let parallel = 16;
+    assert!(std::thread::available_parallelism().unwrap().get() >= parallel);
 
-    assert!(std::thread::available_parallelism().unwrap().get() >= parallel as usize);
-
-    let problems: Vec<Problem> = (seed..seed + parallel)
+    let problems: Vec<Problem> = (seed..seed + parallel as u64)
         .into_par_iter()
         .map(|seed| {
             let mut g = Generator::new(seed, start, bucket);
@@ -174,6 +173,7 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
                 )
             }
             40..=49 => return Action::Shift(rng.gen()),
+            50..=59 => return Action::ChangeTurn,
             _ => (),
         }
     }
