@@ -354,12 +354,17 @@ impl<'a> Context<'a> {
         if !self.options.no_memo {
             let digest = self.position.digest();
 
-            if self.memo_contains(&digest) {
+            let mut contains = true;
+            self.memo.entry(digest).or_insert_with(|| {
+                contains = false;
+                self.next_step
+            });
+
+            if contains {
                 // Already seen during search on other branches.
                 *self.position = orig;
                 return Ok(());
             }
-            self.memo.insert(digest, self.next_step);
         }
 
         self.result.push(movement);
@@ -367,11 +372,6 @@ impl<'a> Context<'a> {
         *self.position = orig;
 
         Ok(())
-    }
-
-    // #[inline(never)]
-    fn memo_contains(&self, digest: &u64) -> bool {
-        self.memo.contains_key(digest)
     }
 
     fn blockable_squares(&self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {

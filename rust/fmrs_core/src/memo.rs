@@ -1,3 +1,5 @@
+use std::collections::hash_map::Entry;
+
 use crate::nohash::NoHashMap;
 
 #[derive(Debug, Clone)]
@@ -31,5 +33,10 @@ impl Memo {
     #[inline]
     pub fn len(&self) -> usize {
         self.steps.len()
+    }
+
+    #[inline]
+    pub fn entry(&mut self, digest: u64) -> Entry<'_, u64, u32> {
+        self.steps.entry(digest)
     }
 }
