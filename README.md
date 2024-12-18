@@ -7,4 +7,5 @@
 
 ## Web
 
-`npm run serve`
+Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) and run
+`npm run serve` or `npm run serve -- --port $PORT`
