@@ -1,6 +1,6 @@
 use fmrs_core::{
     piece::{Color, KINDS, NUM_HAND_KIND},
-    position::Position,
+    position::{Movement, Position},
     sfen,
 };
 use log::info;
@@ -51,26 +51,32 @@ pub(super) fn generate_one_way_mate_with_beam(
 struct Generator {
     problems: BTreeSet<Problem>,
     metadata: HashMap<u64, ProblemMetadata>,
+    seen_movements: HashMap<Vec<Movement>, usize>,
 
     rng: SmallRng,
 
     best_problems: Vec<Problem>,
 }
 
-const SEARCH_DEPTH: usize = 6;
+const SEARCH_DEPTH_LOG_BASE: f64 = 1.8;
+const SEARCH_DEPTH_MULT: f64 = 7.;
 const SEARCH_ITER_LOG_BASE: f64 = 1.8;
-const SEARCH_ITER_MULT: usize = 10000;
+const SEARCH_ITER_MULT: f64 = 15000.;
 const USE_LOG_BASE: f64 = 1.8;
-const USE_MULT: usize = 4;
+const USE_MULT: f64 = 2.;
 const MAX_PRODUCE: usize = 2;
 
 impl Generator {
     fn new(seed: u64, start: usize, _bucket: usize) -> Self {
         let mut rng = SmallRng::seed_from_u64(seed);
-        let problems: BTreeSet<_> = random_one_way_mate_positions(&mut rng, start)
-            .into_iter()
-            .map(|(position, step)| Problem::new(position, step))
-            .collect();
+
+        let mut problems = BTreeSet::new();
+        let mut metadata = HashMap::new();
+
+        for (problem, movements) in random_one_way_mate_positions(&mut rng, start) {
+            metadata.insert(problem.position.digest(), ProblemMetadata::new(movements));
+            problems.insert(problem);
+        }
 
         let mut best_problems: Vec<Problem> = vec![];
         for problem in problems.iter() {
@@ -82,14 +88,10 @@ impl Generator {
             }
         }
 
-        let metadata = problems
-            .iter()
-            .map(|problem| (problem.position.digest(), ProblemMetadata::default()))
-            .collect();
-
         Self {
             problems,
             metadata,
+            seen_movements: HashMap::new(),
 
             rng,
 
@@ -97,41 +99,58 @@ impl Generator {
         }
     }
 
-    fn iteration(step: usize) -> usize {
-        let log = (step as f64).log(SEARCH_ITER_LOG_BASE) as usize + 1;
-        log * SEARCH_ITER_MULT
+    fn iteration(step: usize, seen: usize) -> usize {
+        let log = (step as f64).log(SEARCH_ITER_LOG_BASE) + 1.;
+        (log * SEARCH_ITER_MULT / seen as f64) as usize
     }
 
-    fn max_use(step: usize) -> usize {
-        let log = (step as f64).log(USE_LOG_BASE) as usize + 1;
-        log * USE_MULT
+    fn max_use(step: usize, seen: usize) -> usize {
+        let log = (step as f64).log(USE_LOG_BASE) + 1.;
+        (log * USE_MULT / seen as f64) as usize
+    }
+
+    fn search_depth(step: usize, seen: usize) -> usize {
+        let log = (step as f64).log(SEARCH_DEPTH_LOG_BASE) + 1.;
+        (log * SEARCH_DEPTH_MULT / seen as f64) as usize
     }
 
     fn generate(&mut self) -> Vec<Problem> {
+        let mut undo_to_solvable = vec![];
         while !self.problems.is_empty() {
             let problem = self.problems.first().unwrap();
 
             let metadata = self.metadata.get_mut(&problem.position.digest()).unwrap();
-            if metadata.used >= Self::max_use(problem.step) || metadata.produced >= MAX_PRODUCE {
+
+            let seen = self
+                .seen_movements
+                .entry(metadata.movements.clone())
+                .or_default();
+            *seen += 1;
+
+            if metadata.used >= Self::max_use(problem.step, *seen)
+                || metadata.produced >= MAX_PRODUCE
+            {
                 self.problems.pop_first().unwrap();
                 continue;
             }
             metadata.used += 1;
 
             let mut position = problem.position.clone();
-            let mut undo_to_solvable = vec![];
+            undo_to_solvable.clear();
 
-            for _ in 0..Self::iteration(problem.step) {
+            for _ in 0..Self::iteration(problem.step, *seen) {
                 let action = random_action(&mut self.rng, true);
                 let Ok(undo_action) = action.try_apply(&mut position) else {
                     continue;
                 };
-                let step = one_way_mate_steps(&position, &mut vec![]).unwrap_or(0);
 
-                if step < problem.step {
+                let mut movements = vec![];
+                let step = one_way_mate_steps(&position, &mut movements).unwrap_or(0);
+
+                if step == 0 {
                     undo_to_solvable.push(undo_action);
 
-                    if undo_to_solvable.len() >= SEARCH_DEPTH {
+                    if undo_to_solvable.len() >= Self::search_depth(problem.step, *seen) {
                         for undo_action in undo_to_solvable.iter().rev() {
                             undo_action.clone().try_apply(&mut position).unwrap();
                         }
@@ -169,7 +188,7 @@ impl Generator {
 
                     self.metadata
                         .entry(new_problem.position.digest())
-                        .or_default();
+                        .or_insert_with(|| ProblemMetadata::new(movements));
 
                     self.problems.insert(new_problem);
 
@@ -189,9 +208,9 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
             20..=29 => return Action::FromHand(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
             30..=34 => return Action::ToHand(rng.gen(), Color::WHITE),
             35..=39 if allow_black_capture => return Action::ToHand(rng.gen(), Color::BLACK),
-            40..=44 => return Action::Shift(rng.gen()),
-            50..=54 => return Action::ChangeTurn,
-            60..=64 if allow_black_capture => {
+            40..=42 => return Action::Shift(rng.gen()),
+            50..=52 if allow_black_capture => return Action::ChangeTurn,
+            60..=62 if allow_black_capture => {
                 return Action::HandToHand(rng.gen(), KINDS[rng.gen_range(0..NUM_HAND_KIND)])
             }
             _ => (),
@@ -199,27 +218,31 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
     }
 }
 
-fn random_one_way_mate_positions(rng: &mut SmallRng, count: usize) -> Vec<(Position, usize)> {
-    let initial_position =
-        Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
-
+fn random_one_way_mate_positions(
+    rng: &mut SmallRng,
+    count: usize,
+) -> Vec<(Problem, Vec<Movement>)> {
+    let mut position = Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
+    let mut solution = vec![];
     (0..count)
         .map(|i| {
             if (i + 1) % 100 == 0 {
                 info!("generate_one_way_mate_positions: {}", i + 1);
             }
 
-            let mut position = initial_position.clone();
-
-            loop {
+            for j in 0.. {
                 let action = random_action(rng, false);
                 if action.try_apply(&mut position).is_err() {
                     continue;
                 }
-                if let Some(step) = one_way_mate_steps(&position, &mut vec![]) {
-                    return (position, step);
+                solution.clear();
+                if let Some(step) = one_way_mate_steps(&position, &mut solution) {
+                    if step > 0 && j > 100 {
+                        return (Problem::new(position.clone(), step), solution.clone());
+                    }
                 }
             }
+            unreachable!()
         })
         .collect()
 }
@@ -246,14 +269,25 @@ impl Ord for Problem {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+impl Problem {
+    fn new(position: Position, step: usize) -> Self {
+        Self { position, step }
+    }
+}
+
+#[derive(Clone, Debug)]
 struct ProblemMetadata {
+    movements: Vec<Movement>,
     used: usize,
     produced: usize,
 }
 
-impl Problem {
-    fn new(position: Position, step: usize) -> Self {
-        Self { position, step }
+impl ProblemMetadata {
+    fn new(movements: Vec<Movement>) -> Self {
+        Self {
+            movements,
+            used: 0,
+            produced: 0,
+        }
     }
 }
