@@ -41,7 +41,7 @@ pub(super) fn generate_one_way_mate_with_beam(
         println!(
             "generated problem (step = {}): {}",
             problem.step,
-            &sfen::encode_position(&problem.position)
+            problem.position.sfen_url()
         );
     }
 
