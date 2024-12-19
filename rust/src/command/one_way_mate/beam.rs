@@ -148,14 +148,14 @@ impl Generator {
                     let mut is_best = false;
                     if self.best_problems[0].step < step {
                         self.best_problems.clear();
-                        self.best_problems.push(new_problem.clone());
                         is_best = true;
                     } else if self.best_problems[0].step == step {
-                        self.best_problems.push(new_problem.clone());
                         is_best = true;
                     }
 
-                    if is_best {
+                    if is_best && !self.best_problems.contains(&new_problem) {
+                        self.best_problems.push(new_problem.clone());
+
                         info!(
                             "best={} {} |best|={} |problems|={}",
                             self.best_problems[0].step,
