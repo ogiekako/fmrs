@@ -1,8 +1,10 @@
+use std::hash::Hash;
+
 use crate::{piece::Kind, sfen};
 
 use super::Square;
 
-#[derive(Clone, Copy, PartialOrd, Ord)]
+#[derive(Clone, Copy)]
 pub enum Movement {
     Drop(Square, Kind),
     Move {
@@ -12,6 +14,64 @@ pub enum Movement {
         promote: bool,
         capture_kind_hint: Option<Option<Kind>>,
     },
+}
+
+impl Hash for Movement {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Movement::Drop(pos, kind) => {
+                0.hash(state);
+                pos.index().hash(state);
+                kind.hash(state);
+            }
+            Movement::Move {
+                source,
+                dest,
+                promote,
+                ..
+            } => {
+                1.hash(state);
+                source.index().hash(state);
+                dest.index().hash(state);
+                promote.hash(state);
+            }
+        }
+    }
+}
+
+impl PartialOrd for Movement {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Movement {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Movement::Drop(pos1, kind1), Movement::Drop(pos2, kind2)) => {
+                pos1.cmp(pos2).then_with(|| kind1.cmp(kind2))
+            }
+            (
+                Movement::Move {
+                    source: source1,
+                    dest: dest1,
+                    promote: promote1,
+                    ..
+                },
+                Movement::Move {
+                    source: source2,
+                    dest: dest2,
+                    promote: promote2,
+                    ..
+                },
+            ) => source1
+                .cmp(source2)
+                .then_with(|| dest1.cmp(dest2))
+                .then_with(|| promote1.cmp(&promote2)),
+            (Movement::Drop(_, _), Movement::Move { .. }) => std::cmp::Ordering::Less,
+            (Movement::Move { .. }, Movement::Drop(_, _)) => std::cmp::Ordering::Greater,
+        }
+    }
 }
 
 impl Eq for Movement {}
