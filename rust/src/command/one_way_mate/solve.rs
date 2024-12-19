@@ -51,12 +51,15 @@ pub fn one_way_mate_steps(
                 }
                 debug_assert!(movements[movements.len() - 1].is_pawn_drop());
                 let pawn_move = movements.pop().unwrap();
-                let undo = position.do_move(&pawn_move);
-                advance(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
-                position.undo_move(&undo);
-            }
 
-            if movements.len() != prev_len + 1 {
+                let orig = position.clone();
+                position.do_move(&pawn_move);
+                advance(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+                if movements.len() != prev_len + 1 {
+                    return None;
+                }
+                position = orig;
+            } else if movements.len() != prev_len + 1 {
                 return None;
             }
 
