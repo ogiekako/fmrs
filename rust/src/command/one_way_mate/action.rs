@@ -14,7 +14,6 @@ pub(super) enum Action {
     TwoActions(Box<Action>, Box<Action>),
     Shift(Direction),
     ChangeTurn,
-    HandToHand(Color, Kind),
 }
 
 impl Action {
@@ -101,19 +100,6 @@ impl Action {
             Action::ChangeTurn => {
                 position.set_turn(position.turn().opposite());
                 Ok(Action::ChangeTurn)
-            }
-            Action::HandToHand(color, kind) => {
-                debug_assert!(kind.is_hand_piece());
-
-                let hands = position.hands_mut();
-
-                if hands.count(color, kind) == 0 {
-                    bail!("no piece in hand");
-                }
-                hands.remove(color, kind);
-                hands.add(color.opposite(), kind);
-
-                Ok(Action::HandToHand(color.opposite(), kind))
             }
         }
     }
