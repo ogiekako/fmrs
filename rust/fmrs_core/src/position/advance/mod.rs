@@ -1,5 +1,5 @@
 mod advance;
-mod attack_prevent;
+pub mod attack_prevent;
 mod black;
 mod common;
 mod options;

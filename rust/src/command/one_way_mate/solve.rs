@@ -14,9 +14,12 @@ pub fn one_way_mate_steps(
             return None;
         }
     } else {
-        if initial_position.checked_slow(Color::BLACK)
-            || !initial_position.checked_slow(Color::WHITE)
-        {
+        if initial_position.checked_slow(Color::BLACK) {
+            return None;
+        }
+        let attacker = initial_position.attacker_slow(Color::WHITE)?;
+        // TODO: consider allowing possible double check.
+        if attacker.double_check.is_some() {
             return None;
         }
     }

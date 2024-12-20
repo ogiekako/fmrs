@@ -1,6 +1,9 @@
 use crate::piece::{Color, Kind};
 
-use super::{checked, Movement, Position, Square};
+use super::{
+    advance::attack_prevent::{attacker, Attacker},
+    checked, Movement, Position, Square,
+};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum UndoMove {
@@ -18,6 +21,7 @@ pub trait PositionExt {
     fn do_move(&mut self, m: &Movement) -> UndoMove;
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
     fn checked_slow(&self, c: Color) -> bool;
+    fn attacker_slow(&self, c: Color) -> Option<Attacker>;
 }
 
 impl PositionExt for Position {
@@ -122,6 +126,16 @@ impl PositionExt for Position {
 
     fn checked_slow(&self, c: Color) -> bool {
         checked(self, c, None, None)
+    }
+
+    fn attacker_slow(&self, c: Color) -> Option<Attacker> {
+        attacker(
+            self,
+            &self.color_bb(),
+            c,
+            self.bitboard(c, Kind::King).next()?,
+            false,
+        )
     }
 }
 
