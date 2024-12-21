@@ -36,7 +36,9 @@ const TRIGGER_PARALLEL_SOLVE: usize = 2;
 #[cfg(not(test))]
 const TRIGGER_PARALLEL_SOLVE: usize = 2_000_000;
 
-const NTHREAD: usize = 16;
+lazy_static::lazy_static! {
+    static ref NTHREAD: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+}
 
 struct Task {
     all_positions: Vec<Position>,
@@ -96,9 +98,9 @@ impl Task {
                 if spawn_limit > 1
                     && step > start_step + 5
                     && self.all_positions.len() >= TRIGGER_PARALLEL_SOLVE
-                    && *g < NTHREAD
+                    && *g < *NTHREAD
                 {
-                    let threads_to_spawn = (NTHREAD + 1 - *g).min(spawn_limit);
+                    let threads_to_spawn = (*NTHREAD + 1 - *g).min(spawn_limit);
                     *g += threads_to_spawn - 1;
                     threads_to_spawn.into()
                 } else {
