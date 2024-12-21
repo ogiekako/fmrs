@@ -18,11 +18,10 @@ pub fn one_way_mate(
     // SA
     iteration: usize,
     // Beam
-    start: usize,
     parallel: usize,
 ) -> anyhow::Result<()> {
     match algo {
-        OneWayMateGenerator::Beam => generate_one_way_mate_with_beam(seed, start, parallel),
+        OneWayMateGenerator::Beam => generate_one_way_mate_with_beam(seed, parallel),
         OneWayMateGenerator::Sa => generate_one_way_mate_with_sa(seed, iteration),
     }
 }

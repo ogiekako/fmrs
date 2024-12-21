@@ -35,8 +35,6 @@ enum Action {
         seed: u64,
         #[arg(long, default_value = "100000000")] // 100M
         iteration: usize,
-        #[arg(long, default_value = "2000")]
-        start: usize,
         #[arg(long, default_value = "12")]
         parallel: usize,
     },
@@ -61,9 +59,8 @@ pub async fn do_main() -> anyhow::Result<()> {
             algorithm,
             seed,
             iteration,
-            start,
             parallel,
-        } => command::one_way_mate(algorithm, seed, iteration, start, parallel)?,
+        } => command::one_way_mate(algorithm, seed, iteration, parallel)?,
         Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
     }
     Ok(())

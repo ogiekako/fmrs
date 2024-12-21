@@ -1,43 +1,60 @@
-use actix_web::rt::time::Instant;
+use std::{io::Write as _, time::Instant};
+
 use fmrs_core::{
     piece::Color,
     position::{Position, PositionExt},
 };
-use log::info;
+use log::{debug, info};
 use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use super::{action::Action, solve::one_way_mate_steps};
 
-pub(super) fn generate_one_way_mate_with_beam(
-    seed: u64,
-    start: usize,
-    parallel: usize,
-) -> anyhow::Result<()> {
+pub(super) fn generate_one_way_mate_with_beam(mut seed: u64, parallel: usize) -> ! {
     info!(
-        "generate_one_way_mate_with_beam: seed={} start={} parallel={}",
-        seed, start, parallel,
+        "generate_one_way_mate_with_beam: seed={} parallel={}",
+        seed, parallel,
     );
 
-    let problems = generate(seed, start, parallel);
+    let start_time = Instant::now();
 
-    for problem in problems.iter() {
-        println!(
-            "generated problem (step = {}): {}",
-            problem.step,
-            problem.position.sfen_url()
+    let mut best_problems: Vec<Problem> = vec![];
+    loop {
+        eprint!(".");
+        std::io::stderr().flush().unwrap();
+
+        let problems = generate(
+            &mut seed,
+            parallel,
+            best_problems.get(0).map(|p| p.step).unwrap_or(0),
+            &start_time,
         );
-    }
 
-    Ok(())
+        for problem in problems {
+            if best_problems.is_empty() || best_problems[0].step < problem.step {
+                best_problems.clear();
+
+                println!(
+                    "{} {} ({:.1?})",
+                    problem.step,
+                    problem.position.sfen_url(),
+                    start_time.elapsed()
+                );
+
+                best_problems.push(problem);
+            } else if best_problems[0].step == problem.step {
+                best_problems.push(problem);
+            }
+        }
+    }
 }
 
-const SEARCH_DEPTH: usize = 7;
+const SEARCH_DEPTH: usize = 8;
 const SEARCH_ITER_MULT: usize = 15000;
 const USE_MULT: usize = 4;
 const MAX_PRODUCE: usize = 2;
 
-fn insert(all_problems: &mut Vec<Vec<Problem>>, mut position: Position) {
+fn insert(all_problems: &mut Vec<Vec<Problem>>, mut position: Position, min_step: usize) {
     let mut movements = vec![];
     let step = one_way_mate_steps(&position, &mut movements).unwrap();
 
@@ -46,85 +63,99 @@ fn insert(all_problems: &mut Vec<Vec<Problem>>, mut position: Position) {
     }
     all_problems[step].push(Problem::new(position.clone(), step));
     for (i, movement) in movements.iter().enumerate() {
+        if step - 1 - i < min_step {
+            break;
+        }
         position.do_move(movement);
         all_problems[step - 1 - i].push(Problem::new(position.clone(), step - 1 - i));
     }
 }
 
-fn generate(mut seed: u64, bucket: usize, parallel: usize) -> Vec<Problem> {
+fn generate(
+    seed: &mut u64,
+    parallel: usize,
+    want_step: usize,
+    start_time: &Instant,
+) -> Vec<Problem> {
     let mut all_problems: Vec<Vec<Problem>> = vec![];
 
-    let initial_cands = random_one_way_mate_positions(seed, bucket);
-    seed += bucket as u64;
+    let initial_cands = random_one_way_mate_positions(*seed, parallel);
+    *seed += parallel as u64;
 
     for cand in initial_cands.into_iter() {
-        insert(&mut all_problems, cand.position);
+        insert(&mut all_problems, cand.position, 0);
     }
 
-    let start = Instant::now();
     for step in 0.. {
         if step >= all_problems.len() {
             break;
         }
 
-        all_problems[step].shuffle(&mut SmallRng::seed_from_u64(seed));
-        seed += 1;
-        all_problems[step].truncate(bucket);
+        all_problems[step].shuffle(&mut SmallRng::seed_from_u64(*seed));
+        *seed += 1;
+        all_problems[step].truncate(parallel);
 
-        let n = all_problems[step].len();
-
-        info!(
-            "step = {} #problems = {} best = {} elapsed={:.1}s",
-            step,
-            n,
-            all_problems.len() - 1,
-            start.elapsed().as_secs_f64()
-        );
-        if n == 0 {
+        if step >= want_step {
+            info!(
+                "step = {} #problems = {} best = {} elapsed={:.1?}",
+                step,
+                all_problems[step].len(),
+                all_problems.len() - 1,
+                start_time.elapsed()
+            );
+        }
+        if all_problems[step].is_empty() {
             continue;
         }
 
-        let chunks = all_problems[step]
-            .chunks_mut((n + parallel - 1) / parallel)
-            .collect::<Vec<_>>();
+        if !all_problems[step].is_empty() {
+            let mut i = 0;
+            while all_problems[step].len() < parallel {
+                let p = all_problems[step][i].clone();
+                all_problems[step].push(p);
+                i += 1;
+            }
+        }
 
-        let new_positions = chunks
-            .into_par_iter()
+        let base_seed = *seed;
+        let new_positions = all_problems[step]
+            .par_iter_mut()
             .enumerate()
-            .map(|(i, problems)| {
-                let mut rng = SmallRng::seed_from_u64(seed + i as u64);
+            .map(|(i, problem)| {
+                assert_eq!(step, problem.step);
+
+                let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
 
                 let num_use = (USE_MULT as f64 * ((step as f64 + 1.).log2() + 1.)).ceil() as usize;
 
                 let mut count = 0;
                 let mut new_positions = vec![];
+
                 for _ in 0..num_use {
-                    for problem in problems.iter_mut() {
-                        assert_eq!(step, problem.step);
-
-                        if problem.produced >= MAX_PRODUCE {
-                            continue;
-                        }
-                        if let Some(new_problem) = compute_better_problem(&mut rng, problem) {
-                            count += new_problem.step - problem.step;
-
-                            new_positions.push(new_problem.position);
-                            problem.produced += 1;
-                        }
+                    if problem.produced >= MAX_PRODUCE {
+                        break;
                     }
-                    if count * parallel >= bucket {
+                    if let Some(new_problem) = compute_better_problem(&mut rng, problem) {
+                        count += new_problem.step - problem.step;
+
+                        new_positions.push(new_problem.position);
+                        problem.produced += 1;
+                    }
+
+                    if count >= MAX_PRODUCE {
                         break;
                     }
                 }
+
                 new_positions
             })
             .collect::<Vec<_>>()
             .concat();
 
-        seed += bucket as u64;
+        *seed += parallel as u64;
 
         for new_position in new_positions {
-            insert(&mut all_problems, new_position);
+            insert(&mut all_problems, new_position, step + 1);
         }
     }
 
@@ -199,7 +230,7 @@ fn random_one_way_mate_positions(seed: u64, count: usize) -> Vec<Problem> {
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(seed + i as u64);
             if (i + 1) % 1000 == 0 {
-                info!("generate_one_way_mate_positions: {}", i + 1);
+                debug!("generate_one_way_mate_positions: {}", i + 1);
             }
             let mut position = initial_position.clone();
 
