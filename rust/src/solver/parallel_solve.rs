@@ -37,7 +37,7 @@ const TRIGGER_PARALLEL_SOLVE: usize = 2;
 const TRIGGER_PARALLEL_SOLVE: usize = 2_000_000;
 
 lazy_static::lazy_static! {
-    static ref NTHREAD: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1);
+    static ref NTHREAD: usize = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(1).min(32);
 }
 
 struct Task {
