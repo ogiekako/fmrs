@@ -1,8 +1,10 @@
-use std::collections::VecDeque;
-
-use fmrs_core::{piece::Color, position::Position, sfen};
+use actix_web::rt::time::Instant;
+use fmrs_core::{
+    piece::Color,
+    position::{Position, PositionExt},
+};
 use log::info;
-use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use super::{action::Action, solve::one_way_mate_steps};
@@ -10,26 +12,16 @@ use super::{action::Action, solve::one_way_mate_steps};
 pub(super) fn generate_one_way_mate_with_beam(
     seed: u64,
     start: usize,
-    bucket: usize,
     parallel: usize,
 ) -> anyhow::Result<()> {
     info!(
-        "generate_one_way_mate_with_beam: seed={} start={} bucket={}",
-        seed, start, bucket
+        "generate_one_way_mate_with_beam: seed={} start={} parallel={}",
+        seed, start, parallel,
     );
 
-    assert!(std::thread::available_parallelism().unwrap().get() >= parallel);
+    let problems = generate(seed, start, parallel);
 
-    let problems: Vec<Problem> = (seed..seed + parallel as u64)
-        .into_par_iter()
-        .map(|seed| {
-            let mut g = Generator::new(seed, start, bucket);
-            let problem = g.generate();
-            problem
-        })
-        .collect();
-
-    for problem in problems {
+    for problem in problems.iter() {
         println!(
             "generated problem (step = {}): {}",
             problem.step,
@@ -40,120 +32,139 @@ pub(super) fn generate_one_way_mate_with_beam(
     Ok(())
 }
 
-struct Generator {
-    problems: VecDeque<Problem>,
-    bucket: usize,
-
-    head: usize,
-
-    rng: SmallRng,
-
-    best_problem: Problem,
-}
-
-const SEARCH_DEPTH: usize = 6;
-const SEARCH_ITER_MULT: usize = 20000;
-const USE_MULT: usize = 5;
+const SEARCH_DEPTH: usize = 7;
+const SEARCH_ITER_MULT: usize = 15000;
+const USE_MULT: usize = 4;
 const MAX_PRODUCE: usize = 2;
 
-impl Generator {
-    fn new(seed: u64, start: usize, bucket: usize) -> Self {
-        let mut rng = SmallRng::seed_from_u64(seed);
-        let problems: VecDeque<_> = random_one_way_mate_positions(&mut rng, start)
-            .into_iter()
-            .map(|(position, step)| Problem::new(position, step))
-            .collect();
-        let mut best_problem = problems[0].clone();
-        problems.iter().for_each(|problem| {
-            if problem.step > best_problem.step {
-                best_problem = problem.clone();
-            }
-        });
+fn insert(all_problems: &mut Vec<Vec<Problem>>, mut position: Position) {
+    let mut movements = vec![];
+    let step = one_way_mate_steps(&position, &mut movements).unwrap();
 
-        Self {
-            problems,
-            bucket,
+    if step >= all_problems.len() {
+        all_problems.resize(step + 1, vec![]);
+    }
+    all_problems[step].push(Problem::new(position.clone(), step));
+    for (i, movement) in movements.iter().enumerate() {
+        position.do_move(movement);
+        all_problems[step - 1 - i].push(Problem::new(position.clone(), step - 1 - i));
+    }
+}
 
-            head: 0,
+fn generate(mut seed: u64, bucket: usize, parallel: usize) -> Vec<Problem> {
+    let mut all_problems: Vec<Vec<Problem>> = vec![];
 
-            rng,
+    let initial_cands = random_one_way_mate_positions(seed, bucket);
+    seed += bucket as u64;
 
-            best_problem,
-        }
+    for cand in initial_cands.into_iter() {
+        insert(&mut all_problems, cand.position);
     }
 
-    fn generate(&mut self) -> Problem {
-        while !self.problems.is_empty() {
-            if self.head >= self.problems.len() {
-                self.head = 0;
-            }
-            if self.head == 0 && self.problems.len() >= self.bucket {
-                self.problems.pop_front().unwrap();
-                continue;
-            }
-            let problem = {
-                let problem = &mut self.problems[self.head];
-                if problem.used
-                    >= (problem.step.next_power_of_two().trailing_zeros() + 1) as usize * USE_MULT
-                    || problem.produced >= MAX_PRODUCE
-                {
-                    self.problems.remove(self.head);
-                    continue;
-                }
-                problem.used += 1;
-                self.head += 1;
-                problem
-            };
+    let start = Instant::now();
+    for step in 0.. {
+        if step >= all_problems.len() {
+            break;
+        }
 
-            let mut position = problem.position.clone();
-            let mut undo_to_solvable = vec![];
+        all_problems[step].shuffle(&mut SmallRng::seed_from_u64(seed));
+        seed += 1;
+        all_problems[step].truncate(bucket);
 
-            for _ in 0..(problem.step.next_power_of_two().trailing_zeros() + 1) as usize
-                * SEARCH_ITER_MULT
-            {
-                let action = random_action(&mut self.rng, true);
-                let Ok(undo_action) = action.try_apply(&mut position) else {
-                    continue;
-                };
-                let step = one_way_mate_steps(&position, &mut vec![]).unwrap_or(0);
+        let n = all_problems[step].len();
 
-                if step < problem.step {
-                    undo_to_solvable.push(undo_action);
+        info!(
+            "step = {} #problems = {} best = {} elapsed={:.1}s",
+            step,
+            n,
+            all_problems.len() - 1,
+            start.elapsed().as_secs_f64()
+        );
+        if n == 0 {
+            continue;
+        }
 
-                    if undo_to_solvable.len() >= SEARCH_DEPTH {
-                        for undo_action in undo_to_solvable.iter().rev() {
-                            undo_action.clone().try_apply(&mut position).unwrap();
+        let chunks = all_problems[step]
+            .chunks_mut((n + parallel - 1) / parallel)
+            .collect::<Vec<_>>();
+
+        let new_positions = chunks
+            .into_par_iter()
+            .enumerate()
+            .map(|(i, problems)| {
+                let mut rng = SmallRng::seed_from_u64(seed + i as u64);
+
+                let num_use = (USE_MULT as f64 * ((step as f64 + 1.).log2() + 1.)).ceil() as usize;
+
+                let mut count = 0;
+                let mut new_positions = vec![];
+                for _ in 0..num_use {
+                    for problem in problems.iter_mut() {
+                        assert_eq!(step, problem.step);
+
+                        if problem.produced >= MAX_PRODUCE {
+                            continue;
                         }
-                        undo_to_solvable.clear();
+                        if let Some(new_problem) = compute_better_problem(&mut rng, problem) {
+                            count += new_problem.step - problem.step;
+
+                            new_positions.push(new_problem.position);
+                            problem.produced += 1;
+                        }
                     }
-                    continue;
-                }
-
-                undo_to_solvable.clear();
-
-                if step > problem.step {
-                    problem.produced += 1;
-
-                    let new_problem = Problem::new(position.clone(), step);
-                    if self.best_problem.step < step {
-                        self.best_problem = new_problem.clone();
-
-                        info!(
-                            "best={} {} len={}",
-                            self.best_problem.step,
-                            sfen::sfen_to_image_url(&sfen::encode_position(
-                                &self.best_problem.position
-                            )),
-                            self.problems.len()
-                        );
+                    if count * parallel >= bucket {
+                        break;
                     }
-                    self.problems.push_back(new_problem);
-                    break;
                 }
-            }
+                new_positions
+            })
+            .collect::<Vec<_>>()
+            .concat();
+
+        seed += bucket as u64;
+
+        for new_position in new_positions {
+            insert(&mut all_problems, new_position);
         }
-        self.best_problem.clone()
     }
+
+    all_problems.remove(all_problems.len() - 1)
+}
+
+fn compute_better_problem(rng: &mut SmallRng, problem: &Problem) -> Option<Problem> {
+    let mut position = problem.position.clone();
+    let mut solvable_position = position.clone();
+    let mut inferior_count = 0;
+
+    let mut movements = vec![];
+
+    let iteration =
+        (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log2() + 1.)).ceil() as usize;
+    for _ in 0..iteration {
+        let action = random_action(rng, true);
+        if action.try_apply(&mut position).is_err() {
+            continue;
+        }
+        movements.clear();
+        let step = one_way_mate_steps(&position, &mut movements);
+
+        if step.is_none() || step.unwrap() < problem.step {
+            inferior_count += 1;
+            if inferior_count >= SEARCH_DEPTH {
+                position = solvable_position.clone();
+            }
+            continue;
+        }
+
+        let step = step.unwrap();
+
+        if step > problem.step {
+            return Problem::new(position, step).into();
+        }
+
+        solvable_position = position.clone();
+    }
+    None
 }
 
 fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
@@ -179,37 +190,36 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
     }
 }
 
-fn random_one_way_mate_positions(rng: &mut SmallRng, count: usize) -> Vec<(Position, usize)> {
+fn random_one_way_mate_positions(seed: u64, count: usize) -> Vec<Problem> {
     let initial_position =
         Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
 
     (0..count)
+        .into_par_iter()
         .map(|i| {
-            if (i + 1) % 100 == 0 {
+            let mut rng = SmallRng::seed_from_u64(seed + i as u64);
+            if (i + 1) % 1000 == 0 {
                 info!("generate_one_way_mate_positions: {}", i + 1);
             }
-
             let mut position = initial_position.clone();
 
             loop {
-                let action = random_action(rng, false);
+                let action = random_action(&mut rng, false);
                 if action.try_apply(&mut position).is_err() {
                     continue;
                 }
                 if let Some(step) = one_way_mate_steps(&position, &mut vec![]) {
-                    return (position, step);
+                    return Problem::new(position, step);
                 }
             }
         })
-        .collect()
+        .collect::<Vec<_>>()
 }
 
 #[derive(Clone, Debug)]
 struct Problem {
     position: Position,
     step: usize,
-
-    used: usize,
     produced: usize,
 }
 
@@ -218,7 +228,6 @@ impl Problem {
         Self {
             position,
             step,
-            used: 0,
             produced: 0,
         }
     }

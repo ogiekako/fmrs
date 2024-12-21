@@ -6,6 +6,7 @@ use crate::{
             magic::{bishop_reachable, rook_reachable},
             ColorBitBoard,
         },
+        checked,
         rule::{is_legal_drop, is_legal_move},
     },
 };
@@ -313,26 +314,45 @@ impl<'a> Context<'a> {
 
 // Helper methods
 impl<'a> Context<'a> {
-    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
+    fn update<'b>(
+        &self,
+        new_position: &'b mut Option<Position>,
+        movement: &Movement,
+    ) -> &'b Position {
+        if new_position.is_none() {
+            let mut p = self.position.clone();
+            p.do_move(movement);
+            *new_position = Some(p);
+        }
+        new_position.as_ref().unwrap()
+    }
+
+    fn maybe_add_move<'b>(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
-        let orig = self.position.clone();
-        self.position.do_move(&movement);
+        let mut new_position = None;
 
         // TODO: check the second attacker
-        if !is_king_move
-            && self.attacker.double_check.is_some()
-            && common::checked(&self.position, self.turn, self.king_pos.into(), None)
-        {
-            *self.position = orig;
-            return Ok(());
+        if !is_king_move && self.attacker.double_check.is_some() {
+            if checked(
+                self.update(&mut new_position, &movement),
+                self.turn,
+                self.king_pos.into(),
+                None,
+            ) {
+                return Ok(());
+            }
         }
 
-        if self.should_return_check
-            && !common::checked(self.position, self.turn.opposite(), None, None)
-        {
-            *self.position = orig;
-            return Ok(());
+        if self.should_return_check {
+            if !checked(
+                self.update(&mut new_position, &movement),
+                self.turn.opposite(),
+                None,
+                None,
+            ) {
+                return Ok(());
+            }
         }
 
         self.is_mate = false;
@@ -343,16 +363,22 @@ impl<'a> Context<'a> {
         }
 
         debug_assert!(
-            !common::checked(&self.position, self.turn, None, None),
+            !common::checked(
+                self.update(&mut new_position, &movement),
+                self.turn,
+                None,
+                None,
+            ),
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.turn,
             self.position,
             movement,
-            self.position
+            new_position.as_ref().unwrap()
         );
 
         if !self.options.no_memo {
-            let digest = self.position.digest();
+            self.update(&mut new_position, &movement);
+            let digest = new_position.as_ref().unwrap().digest();
 
             let mut contains = true;
             self.memo.entry(digest).or_insert_with(|| {
@@ -362,14 +388,11 @@ impl<'a> Context<'a> {
 
             if contains {
                 // Already seen during search on other branches.
-                *self.position = orig;
                 return Ok(());
             }
         }
 
         self.result.push(movement);
-
-        *self.position = orig;
 
         Ok(())
     }
