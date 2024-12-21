@@ -317,21 +317,41 @@ impl<'a> Context<'a> {
 
 // Helper
 impl<'a> Context<'a> {
+    fn update<'b>(
+        &self,
+        new_position: &'b mut Option<Position>,
+        movement: &'b Movement,
+    ) -> &'b Position {
+        new_position.get_or_insert_with(|| {
+            let mut position = self.position.clone();
+            position.do_move(movement);
+            position
+        })
+    }
+
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
-        let orig = self.position.clone();
-        self.position.do_move(&movement);
+        let mut new_position = None;
 
         if kind == Kind::King
-            && common::checked(self.position, Color::BLACK, movement.dest().into(), None)
+            && common::checked(
+                self.update(&mut new_position, &movement),
+                Color::BLACK,
+                movement.dest().into(),
+                None,
+            )
         {
-            *self.position = orig;
             return Ok(());
         }
 
         debug_assert!(
-            !common::checked(&self.position, Color::BLACK, self.black_king_pos, None,),
+            !common::checked(
+                self.update(&mut new_position, &movement),
+                Color::BLACK,
+                self.black_king_pos,
+                None,
+            ),
             "Black king checked: {:?}",
-            self.position
+            new_position.as_ref().unwrap()
         );
 
         if !movement.is_pawn_drop() {
@@ -341,7 +361,7 @@ impl<'a> Context<'a> {
         }
 
         if !self.options.no_memo {
-            let digest = self.position.digest();
+            let digest = self.update(&mut new_position, &movement).digest();
 
             let mut contains = true;
             self.memo.entry(digest).or_insert_with(|| {
@@ -350,14 +370,11 @@ impl<'a> Context<'a> {
             });
 
             if contains {
-                *self.position = orig;
                 return Ok(());
             }
         }
 
         self.result.push(movement);
-
-        *self.position = orig;
 
         Ok(())
     }
