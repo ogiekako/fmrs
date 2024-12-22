@@ -30,7 +30,7 @@ pub(super) fn generate_one_way_mate_with_beam(
         let problems = generate(
             &mut seed,
             parallel,
-            best_problems.get(0).map(|p| p.step + 1).unwrap_or(0),
+            best_problems.get(0).cloned(),
             &start_time,
         );
 
@@ -81,10 +81,14 @@ fn insert(all_problems: &mut Vec<Vec<Problem>>, mut position: Position, min_step
 fn generate(
     seed: &mut u64,
     parallel: usize,
-    want_step: usize,
+    prev_best: Option<Problem>,
     start_time: &Instant,
 ) -> Vec<Problem> {
     let mut all_problems: Vec<Vec<Problem>> = vec![];
+
+    if let Some(best) = prev_best.as_ref() {
+        insert(&mut all_problems, best.position.clone(), 0);
+    }
 
     let initial_cands = random_one_way_mate_positions(*seed, parallel);
     *seed += parallel as u64;
@@ -102,7 +106,7 @@ fn generate(
         *seed += 1;
         all_problems[step].truncate(parallel);
 
-        if step >= want_step {
+        if step >= prev_best.as_ref().map(|p| p.step + 1).unwrap_or(0) {
             info!(
                 "step = {} #problems = {} best = {} elapsed={:.1?}",
                 step,
