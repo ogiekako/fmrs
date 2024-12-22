@@ -20,7 +20,7 @@ impl Hash for Movement {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         match self {
             Movement::Drop(pos, kind) => {
-                0.hash(state);
+                1.hash(state);
                 pos.index().hash(state);
                 kind.hash(state);
             }
@@ -30,7 +30,7 @@ impl Hash for Movement {
                 promote,
                 ..
             } => {
-                1.hash(state);
+                2.hash(state);
                 source.index().hash(state);
                 dest.index().hash(state);
                 promote.hash(state);

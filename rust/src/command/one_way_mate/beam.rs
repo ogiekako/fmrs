@@ -78,8 +78,8 @@ pub(super) fn generate_one_way_mate_with_beam(
     unreachable!()
 }
 
-const SEARCH_DEPTH_MIN: usize = 4;
-const SEARCH_DEPTH_MAX: usize = 8;
+const SEARCH_DEPTH_MIN: usize = 6;
+const SEARCH_DEPTH_MAX: usize = 9;
 const SEARCH_ITER_MULT: usize = 10000;
 const USE_MULT: usize = 1;
 const MAX_PRODUCE: [usize; 2] = [1, 1];
@@ -152,7 +152,7 @@ fn generate(
 
         let weights = keys
             .iter()
-            .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.))
+            .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.).sqrt())
             .collect::<Vec<_>>();
         let sum_weight = weights.iter().sum::<f64>();
         let mut key_weights = keys
@@ -195,18 +195,17 @@ fn generate(
             );
         }
 
+        for problem in problems.iter() {
+            *seen_stats
+                .entry(problem.white_movements_digest)
+                .or_default() += 1;
+        }
+
         let mut i = 0;
         while problems.len() < parallel {
             let p = problems[i];
             problems.push(p);
             i += 1;
-        }
-
-        for problem in problems.iter() {
-            seen_stats
-                .entry(problem.white_movements_digest)
-                .and_modify(|e| *e += 1)
-                .or_insert(1);
         }
 
         let base_seed = *seed;
