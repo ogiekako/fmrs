@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     collections::{BTreeMap, HashMap},
     hash::{Hash as _, Hasher as _},
     io::Write as _,
@@ -160,13 +159,14 @@ fn generate(
             .into_iter()
             .zip(weights.into_iter())
             .map(|(k, weight)| {
-                let p = weight as f64 / sum_weight;
+                let p = weight / sum_weight;
                 let u: f64 = rng.gen();
                 let reservoir = u.powf(1.0 / p);
+                assert!(reservoir.is_finite(), "{} {}", weight, sum_weight);
                 (k, reservoir)
             })
             .collect::<Vec<_>>();
-        key_weights.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+        key_weights.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
 
         let mut problems = vec![];
         'outer: while !buckets.is_empty() {
@@ -342,7 +342,7 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
         match rng.gen_range(0..100) {
             0..=9 => return Action::Move(rng.gen(), rng.gen()),
             10..=19 => return Action::Swap(rng.gen(), rng.gen()),
-            20..=29 => return Action::FromHand(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
+            20..=27 => return Action::FromHand(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
             30..=39 => {
                 return Action::ToHand(
                     rng.gen(),
@@ -353,9 +353,9 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
                     },
                 )
             }
-            40..=49 => return Action::Shift(rng.gen()),
-            50..=59 => return Action::ChangeTurn,
-            60..=61 => return Action::HandToHand(rng.gen(), rng.gen()),
+            40..=47 => return Action::Shift(rng.gen()),
+            50..=54 => return Action::ChangeTurn,
+            60..=60 => return Action::HandToHand(rng.gen(), rng.gen()),
             _ => (),
         }
     }
