@@ -73,10 +73,11 @@ pub(super) fn generate_one_way_mate_with_beam(
     unreachable!()
 }
 
-const SEARCH_DEPTH: usize = 7;
+const SEARCH_DEPTH_MIN: usize = 4;
+const SEARCH_DEPTH_MAX: usize = 8;
 const SEARCH_ITER_MULT: usize = 10000;
 const USE_MULT: usize = 1;
-const MAX_PRODUCE: usize = 1;
+const MAX_PRODUCE: [usize; 2] = [1, 1];
 
 fn insert(all_problems: &mut Vec<Vec<Problem>>, problem: Problem, min_step: usize) {
     let mut movements = vec![];
@@ -191,21 +192,34 @@ fn generate(
 
                 let num_use = (USE_MULT as f64 * ((step as f64 + 1.).log10() + 1.)).ceil() as usize;
 
-                let mut count = 0;
+                let mut count = [0, 0];
                 let mut new_problems = vec![];
 
                 for _ in 0..num_use {
-                    match compute_better_problem(&mut rng, &problem) {
+                    let search_depth = rng.gen_range(SEARCH_DEPTH_MIN..=SEARCH_DEPTH_MAX);
+
+                    let must_step_parity = if count[0] >= MAX_PRODUCE[0] {
+                        Some(1)
+                    } else if count[1] >= MAX_PRODUCE[1] {
+                        Some(0)
+                    } else {
+                        None
+                    };
+
+                    match compute_better_problem(&mut rng, &problem, search_depth, must_step_parity)
+                    {
                         Ok(new_problem) => {
-                            count += new_problem.step - problem.step;
+                            for s in problem.step + 1..=new_problem.step {
+                                count[s % 2] += 1;
+                            }
 
                             new_problems.push(new_problem);
+
+                            if count[0] >= MAX_PRODUCE[0] && count[1] >= MAX_PRODUCE[1] {
+                                break;
+                            }
                         }
                         Err(modified_problem) => problem = modified_problem,
-                    }
-
-                    if count >= MAX_PRODUCE {
-                        break;
                     }
                 }
 
@@ -222,7 +236,12 @@ fn generate(
     all_problems.remove(all_problems.len() - 1)
 }
 
-fn compute_better_problem(rng: &mut SmallRng, problem: &Problem) -> Result<Problem, Problem> {
+fn compute_better_problem(
+    rng: &mut SmallRng,
+    problem: &Problem,
+    search_depth: usize,
+    must_step_parity: Option<usize>,
+) -> Result<Problem, Problem> {
     let mut position = problem.position.clone();
     let mut solvable_position = position.clone();
     let mut inferior_count = 0;
@@ -241,23 +260,30 @@ fn compute_better_problem(rng: &mut SmallRng, problem: &Problem) -> Result<Probl
 
         if step.is_none() || step.unwrap() < problem.step {
             inferior_count += 1;
-            if inferior_count >= SEARCH_DEPTH {
+            if inferior_count >= search_depth {
                 position = solvable_position.clone();
             }
             continue;
         }
         inferior_count = 0;
+        solvable_position = position.clone();
+
         let step = step.unwrap();
 
-        if step > problem.step {
-            return Ok(Problem::new(position, step, &movements));
+        if step == problem.step {
+            continue;
         }
 
-        solvable_position = position.clone();
+        if must_step_parity.is_none()
+            || step >= problem.step + 2
+            || Some(step % 2) == must_step_parity
+        {
+            return Ok(Problem::new(position, step, &movements));
+        }
     }
     movements.clear();
-    one_way_mate_steps(&solvable_position, &mut movements).unwrap();
-    Err(Problem::new(solvable_position, problem.step, &movements))
+    let step = one_way_mate_steps(&solvable_position, &mut movements).unwrap();
+    Err(Problem::new(solvable_position, step, &movements))
 }
 
 fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
