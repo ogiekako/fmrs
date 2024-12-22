@@ -148,9 +148,11 @@ fn generate(
                 .push(problem);
         }
 
-        let keys = buckets.keys().copied().collect::<Vec<_>>();
-        let weights = buckets
-            .keys()
+        let mut keys = buckets.keys().copied().collect::<Vec<_>>();
+        keys.shuffle(&mut rng);
+
+        let weights = keys
+            .iter()
             .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.))
             .collect::<Vec<_>>();
         let sum_weight = weights.iter().sum::<f64>();
