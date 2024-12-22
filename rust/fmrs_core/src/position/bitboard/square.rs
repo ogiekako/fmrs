@@ -26,6 +26,12 @@ impl Square {
         debug_assert!(x < 81);
         Self { x }
     }
+
+    pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
+        let col = (self.col() as isize + dir.col() + 9) % 9;
+        let row = (self.row() as isize + dir.row() + 9) % 9;
+        *self = Square::new(col as usize, row as usize)
+    }
 }
 
 impl std::fmt::Debug for Square {

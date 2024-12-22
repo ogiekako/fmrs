@@ -138,6 +138,8 @@ pub struct PositionAux {
     occupied: Option<BitBoard>,
     white_bb: Option<BitBoard>,
     kind_bb: [Option<BitBoard>; NUM_KIND],
+    white_king_pos: Option<Square>,
+    black_king_pos: Option<Option<Square>>,
 }
 
 impl Debug for PositionAux {
@@ -153,6 +155,8 @@ impl PositionAux {
             occupied: None,
             white_bb: None,
             kind_bb: [None; 14],
+            white_king_pos: None,
+            black_king_pos: None,
         }
     }
 
@@ -249,8 +253,30 @@ impl PositionAux {
     }
 
     pub fn checked_slow(&mut self, king_color: Color) -> bool {
-        let king_pos = self.bitboard(king_color, Kind::King).singleton();
+        let king_pos = self.must_king_pos(king_color);
         attacker(self, king_color, king_pos, true).is_some()
+    }
+
+    fn must_king_pos(&mut self, color: Color) -> Square {
+        if color.is_black() {
+            self.black_king_pos().unwrap()
+        } else {
+            self.white_king_pos()
+        }
+    }
+
+    pub fn white_king_pos(&mut self) -> Square {
+        if self.white_king_pos.is_none() {
+            self.white_king_pos = Some((self.kind_bb(Kind::King) & self.white_bb()).singleton());
+        }
+        self.white_king_pos.unwrap()
+    }
+
+    pub fn black_king_pos(&mut self) -> Option<Square> {
+        if self.black_king_pos.is_none() {
+            self.black_king_pos = Some((self.kind_bb(Kind::King) & self.black_bb()).next());
+        }
+        self.black_king_pos.unwrap()
     }
 
     pub fn do_move(&mut self, movement: &Movement) {
@@ -302,6 +328,15 @@ impl PositionAux {
                 if let Some(bb) = self.kind_bb[dest_kind.index()].as_mut() {
                     bb.set(*dest);
                 }
+
+                // Update king_pos
+                if source_kind == Kind::King {
+                    if self.turn().is_black() {
+                        self.black_king_pos = Some(Some(*dest));
+                    } else {
+                        self.white_king_pos = Some(*dest);
+                    }
+                }
             }
             Movement::Drop(pos, kind) => {
                 if let Some(bb) = self.occupied.as_mut() {
@@ -331,6 +366,14 @@ impl PositionAux {
         }
         self.kind_bb[kind.index()].as_mut().map(|bb| bb.unset(pos));
 
+        if kind == Kind::King {
+            if color.is_black() {
+                self.black_king_pos = None;
+            } else {
+                self.white_king_pos = None;
+            }
+        }
+
         self.core.unset(pos, color, kind);
     }
 
@@ -340,6 +383,14 @@ impl PositionAux {
             self.white_bb.as_mut().map(|bb| bb.set(pos));
         }
         self.kind_bb[kind.index()].as_mut().map(|bb| bb.set(pos));
+
+        if kind == Kind::King {
+            if color.is_black() {
+                self.black_king_pos = Some(Some(pos));
+            } else {
+                self.white_king_pos = Some(pos);
+            }
+        }
 
         self.core.set(pos, color, kind);
     }
@@ -358,6 +409,10 @@ impl PositionAux {
         for bb in &mut self.kind_bb {
             bb.as_mut().map(|bb| bb.shift(dir));
         }
+        self.white_king_pos.as_mut().map(|pos| pos.shift(dir));
+        self.black_king_pos
+            .as_mut()
+            .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
 
         self.core.shift(dir);
     }
