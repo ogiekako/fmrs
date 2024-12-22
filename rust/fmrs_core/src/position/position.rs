@@ -209,10 +209,6 @@ impl PositionAux {
         self.core.hands()
     }
 
-    pub(crate) fn pawn_silver_goldish(&self) -> BitBoard {
-        self.core.kind_bb().pawn_silver_goldish()
-    }
-
     pub(crate) fn must_get_kind(&self, pos: Square) -> Kind {
         // TODO: consider having pos -> kind mapping
         self.core.kind_bb().must_get(pos)
@@ -234,6 +230,10 @@ impl PositionAux {
 
     pub fn turn(&self) -> Color {
         self.core.turn()
+    }
+
+    pub fn pawn_silver_goldish(&self) -> BitBoard {
+        self.core.kind_bb().pawn_silver_goldish()
     }
 
     pub fn bishopish(&self) -> BitBoard {

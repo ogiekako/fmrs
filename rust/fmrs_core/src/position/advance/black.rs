@@ -1,7 +1,7 @@
 use crate::memo::Memo;
 use crate::position::bitboard::{king_power, lion_king_power, power};
 use crate::position::position::PositionAux;
-use crate::position::rule::{is_legal_drop, is_legal_move};
+use crate::position::rule::is_legal_move;
 use anyhow::Result;
 
 use crate::piece::{Color, Kind};
@@ -107,16 +107,13 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         for kind in self.position.hands().kinds(Color::BLACK) {
-            let check_needed = matches!(kind, Kind::Pawn);
-
             let empty_attack_squares = self
                 .attack_squares(kind)
                 .and_not(self.position.color_bb(Color::WHITE));
             for pos in empty_attack_squares {
-                if check_needed && !is_legal_drop(Color::BLACK, pos, kind, self.pawn_mask) {
+                if kind == Kind::Pawn && self.pawn_mask >> pos.col() & 1 != 0 {
                     continue;
                 }
-
                 self.maybe_add_move(Movement::Drop(pos, kind), kind)?;
             }
         }
