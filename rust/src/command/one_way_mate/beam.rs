@@ -1,4 +1,4 @@
-use std::{io::Write as _, time::Instant};
+use std::{io::Write as _, time::Instant, usize};
 
 use fmrs_core::{
     piece::Color,
@@ -10,7 +10,11 @@ use rayon::prelude::*;
 
 use super::{action::Action, solve::one_way_mate_steps};
 
-pub(super) fn generate_one_way_mate_with_beam(mut seed: u64, parallel: usize) -> ! {
+pub(super) fn generate_one_way_mate_with_beam(
+    mut seed: u64,
+    parallel: usize,
+    goal: Option<usize>,
+) -> anyhow::Result<()> {
     info!(
         "generate_one_way_mate_with_beam: seed={} parallel={}",
         seed, parallel,
@@ -40,6 +44,9 @@ pub(super) fn generate_one_way_mate_with_beam(mut seed: u64, parallel: usize) ->
                     problem.position.sfen_url(),
                     start_time.elapsed()
                 );
+                if problem.step >= goal.unwrap_or(usize::MAX) {
+                    return Ok(());
+                }
 
                 best_problems.push(problem);
             } else if best_problems[0].step == problem.step {

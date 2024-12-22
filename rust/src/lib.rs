@@ -37,6 +37,8 @@ enum Action {
         iteration: usize,
         #[arg(long, default_value = "12")]
         parallel: usize,
+        #[arg(long)]
+        goal: Option<usize>,
     },
     FromImage {
         url: String,
@@ -60,7 +62,8 @@ pub async fn do_main() -> anyhow::Result<()> {
             seed,
             iteration,
             parallel,
-        } => command::one_way_mate(algorithm, seed, iteration, parallel)?,
+            goal,
+        } => command::one_way_mate(algorithm, seed, iteration, parallel, goal)?,
         Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
     }
     Ok(())
