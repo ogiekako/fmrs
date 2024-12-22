@@ -46,6 +46,7 @@ tempfile = "*"
 log = "*"
 env_logger = "*"
 rayon = "*"
+rustc-hash = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"

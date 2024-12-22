@@ -1,12 +1,19 @@
-use std::{collections::BTreeMap, io::Write as _, time::Instant, usize};
+use std::{
+    collections::BTreeMap,
+    hash::{Hash as _, Hasher as _},
+    io::Write as _,
+    time::Instant,
+    usize,
+};
 
 use fmrs_core::{
     piece::Color,
-    position::{Position, PositionExt},
+    position::{Movement, Position, PositionExt},
 };
 use log::{debug, info};
 use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
+use rustc_hash::FxHasher;
 
 use super::{action::Action, solve::one_way_mate_steps};
 
@@ -23,9 +30,17 @@ pub(super) fn generate_one_way_mate_with_beam(
     let start_time = Instant::now();
 
     let mut best_problems: Vec<Problem> = vec![];
-    loop {
+    for i in 0.. {
         eprint!(".");
         std::io::stderr().flush().unwrap();
+
+        if (i + 1) % 10 == 0 {
+            info!(
+                "best = {} (one iter in {:.1?})",
+                best_problems[0].step,
+                start_time.elapsed() / (i + 1),
+            );
+        }
 
         let problems = generate(
             &mut seed,
@@ -54,6 +69,7 @@ pub(super) fn generate_one_way_mate_with_beam(
             }
         }
     }
+    unreachable!()
 }
 
 const SEARCH_DEPTH: usize = 8;
@@ -79,7 +95,7 @@ fn insert(all_problems: &mut Vec<Vec<Problem>>, problem: Problem, min_step: usiz
         all_problems[step - 1 - i].push(Problem::new(
             position.clone(),
             step - 1 - i,
-            problem.parent_digest,
+            &movements[i + 1..],
         ));
     }
 }
@@ -116,7 +132,7 @@ fn generate(
         let mut buckets = BTreeMap::new();
         for problem in all_problems[step].iter() {
             buckets
-                .entry(problem.parent_digest)
+                .entry(problem.white_movements.clone())
                 .or_insert_with(Vec::new)
                 .push(problem);
         }
@@ -133,7 +149,7 @@ fn generate(
                     break 'outer;
                 }
                 if ps.is_empty() {
-                    buckets.remove(&key);
+                    buckets.remove(key);
                 }
             }
         }
@@ -167,8 +183,6 @@ fn generate(
             .map(|(i, problem)| {
                 let mut problem = problem.clone();
 
-                let digest = problem.position.digest();
-
                 assert_eq!(step, problem.step);
 
                 let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
@@ -179,7 +193,7 @@ fn generate(
                 let mut new_problems = vec![];
 
                 for _ in 0..num_use {
-                    match compute_better_problem(&mut rng, &problem, digest) {
+                    match compute_better_problem(&mut rng, &problem) {
                         Ok(new_problem) => {
                             count += new_problem.step - problem.step;
 
@@ -206,11 +220,7 @@ fn generate(
     all_problems.remove(all_problems.len() - 1)
 }
 
-fn compute_better_problem(
-    rng: &mut SmallRng,
-    problem: &Problem,
-    digest: u64,
-) -> Result<Problem, Problem> {
+fn compute_better_problem(rng: &mut SmallRng, problem: &Problem) -> Result<Problem, Problem> {
     let mut position = problem.position.clone();
     let mut solvable_position = position.clone();
     let mut inferior_count = 0;
@@ -220,10 +230,10 @@ fn compute_better_problem(
     let iteration =
         (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log10() + 1.)).ceil() as usize;
     for _ in 0..iteration {
-        let action = random_action(rng, true);
-        if action.try_apply(&mut position).is_err() {
+        if random_action(rng, true).try_apply(&mut position).is_err() {
             continue;
         }
+
         movements.clear();
         let step = one_way_mate_steps(&position, &mut movements);
 
@@ -234,20 +244,18 @@ fn compute_better_problem(
             }
             continue;
         }
-
+        inferior_count = 0;
         let step = step.unwrap();
 
         if step > problem.step {
-            return Ok(Problem::new(position, step, digest));
+            return Ok(Problem::new(position, step, &movements));
         }
 
         solvable_position = position.clone();
     }
-    Err(Problem::new(
-        solvable_position,
-        problem.step,
-        problem.parent_digest,
-    ))
+    movements.clear();
+    one_way_mate_steps(&solvable_position, &mut movements).unwrap();
+    Err(Problem::new(solvable_position, problem.step, &movements))
 }
 
 fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
@@ -287,13 +295,15 @@ fn random_one_way_mate_positions(seed: u64, count: usize) -> Vec<Problem> {
             }
             let mut position = initial_position.clone();
 
+            let mut movements = vec![];
             loop {
                 let action = random_action(&mut rng, false);
                 if action.try_apply(&mut position).is_err() {
                     continue;
                 }
-                if let Some(step) = one_way_mate_steps(&position, &mut vec![]) {
-                    return Problem::new(position, step, 0);
+                movements.clear();
+                if let Some(step) = one_way_mate_steps(&position, &mut movements) {
+                    return Problem::new(position, step, &movements);
                 }
             }
         })
@@ -304,15 +314,23 @@ fn random_one_way_mate_positions(seed: u64, count: usize) -> Vec<Problem> {
 struct Problem {
     position: Position,
     step: usize,
-    parent_digest: u64,
+    white_movements: u64,
 }
 
 impl Problem {
-    fn new(position: Position, step: usize, parent_digest: u64) -> Self {
+    fn new(position: Position, step: usize, movements: &[Movement]) -> Self {
+        assert_eq!(step, movements.len());
+
+        let mut hasher = FxHasher::default();
+        movements
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| i % 2 == step % 2)
+            .for_each(|(_, m)| m.hash(&mut hasher));
         Self {
             position,
             step,
-            parent_digest,
+            white_movements: hasher.finish(),
         }
     }
 }
