@@ -1,4 +1,4 @@
-mod bench;
+pub mod bench;
 mod one_way_mate;
 mod server;
 mod solve;

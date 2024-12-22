@@ -3,7 +3,7 @@
 
 use clap::{Parser, Subcommand};
 pub use command::one_way_mate_steps;
-use command::OneWayMateGenerator;
+use command::{bench::BenchCommand, OneWayMateGenerator};
 use fmrs_core::sfen;
 use solver::Algorithm;
 
@@ -19,6 +19,8 @@ struct Args {
 #[derive(Subcommand)]
 enum Action {
     Bench {
+        cmd: BenchCommand,
+        #[arg(long, default_value = "./problems/forest-06-10_97.sfen")]
         file: String,
     },
     Solve {
@@ -51,7 +53,7 @@ pub async fn do_main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
-        Action::Bench { file } => command::bench(&file)?,
+        Action::Bench { cmd, file } => command::bench(cmd, &file)?,
         Action::Solve {
             algorithm,
             sfen_or_file,
