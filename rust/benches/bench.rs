@@ -187,19 +187,27 @@ fn bench_reachable(c: &mut Criterion) {
             }
         };
         let capture_same_color: bool = rng.gen();
-        test_cases.push((position, color, pos, kind, capture_same_color));
+        test_cases.push((
+            PositionAux::new(position),
+            color,
+            pos,
+            kind,
+            capture_same_color,
+        ));
     }
 
     c.bench_function("reachable", |b| {
-        b.iter(|| {
-            test_cases
-                .iter()
-                .for_each(|(position, color, pos, kind, capture_same_color)| {
-                    let mut position = PositionAux::new(position.clone());
-                    let bb = reachable(&mut position, *color, *pos, *kind, *capture_same_color);
-                    black_box(bb);
-                })
-        })
+        b.iter_with_setup(
+            || test_cases.clone(),
+            |mut test_cases| {
+                test_cases.iter_mut().for_each(
+                    |(position, color, pos, kind, capture_same_color)| {
+                        let bb = reachable(position, *color, *pos, *kind, *capture_same_color);
+                        black_box(bb);
+                    },
+                )
+            },
+        )
     });
 }
 
@@ -218,7 +226,7 @@ fn bench_pinned300(c: &mut Criterion) {
 
         let king_pos = position.bitboard(king_color, Kind::King).next().unwrap();
         let blocker_color: Color = rng.gen();
-        test_cases.push((position, king_color, king_pos, blocker_color));
+        test_cases.push((position_aux, king_color, king_pos, blocker_color));
         if test_cases.len() >= 300 {
             break;
         }
@@ -226,15 +234,17 @@ fn bench_pinned300(c: &mut Criterion) {
     assert_eq!(300, test_cases.len());
 
     c.bench_function("pinned300", |b| {
-        b.iter(|| {
-            test_cases
-                .iter()
-                .for_each(|(position, king_color, king_pos, blocker_color)| {
-                    let mut position = PositionAux::new(position.clone());
-                    let pinned = pinned(&mut position, *king_color, *king_pos, *blocker_color);
-                    black_box(pinned);
-                })
-        })
+        b.iter_with_setup(
+            || test_cases.clone(),
+            |mut test_cases| {
+                test_cases.iter_mut().for_each(
+                    |(position, king_color, king_pos, blocker_color)| {
+                        let pinned = pinned(position, *king_color, *king_pos, *blocker_color);
+                        black_box(pinned);
+                    },
+                );
+            },
+        )
     });
 }
 
