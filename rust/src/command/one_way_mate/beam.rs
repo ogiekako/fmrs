@@ -26,7 +26,7 @@ pub(super) fn generate_one_way_mate_with_beam(mut seed: u64, parallel: usize) ->
         let problems = generate(
             &mut seed,
             parallel,
-            best_problems.get(0).map(|p| p.step).unwrap_or(0),
+            best_problems.get(0).map(|p| p.step + 1).unwrap_or(0),
             &start_time,
         );
 
@@ -126,7 +126,7 @@ fn generate(
 
                 let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
 
-                let num_use = (USE_MULT as f64 * ((step as f64 + 1.).log2() + 1.)).ceil() as usize;
+                let num_use = (USE_MULT as f64 * ((step as f64 + 1.).log10() + 1.)).ceil() as usize;
 
                 let mut count = 0;
                 let mut new_positions = vec![];
@@ -170,7 +170,7 @@ fn compute_better_problem(rng: &mut SmallRng, problem: &Problem) -> Option<Probl
     let mut movements = vec![];
 
     let iteration =
-        (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log2() + 1.)).ceil() as usize;
+        (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log10() + 1.)).ceil() as usize;
     for _ in 0..iteration {
         let action = random_action(rng, true);
         if action.try_apply(&mut position).is_err() {
