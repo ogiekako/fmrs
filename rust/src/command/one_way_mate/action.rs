@@ -14,6 +14,7 @@ pub(super) enum Action {
     TwoActions(Box<Action>, Box<Action>),
     Shift(Direction),
     ChangeTurn,
+    HandToHand(Color, Kind),
 }
 
 impl Action {
@@ -100,6 +101,18 @@ impl Action {
             Action::ChangeTurn => {
                 position.set_turn(position.turn().opposite());
                 Ok(Action::ChangeTurn)
+            }
+            Action::HandToHand(color, kind) => {
+                if kind == Kind::King {
+                    bail!("cannot take king");
+                }
+                let hand_kind = kind.maybe_unpromote();
+                if !position.hands_mut().has(color, hand_kind) {
+                    bail!("no piece in hand");
+                }
+                position.hands_mut().remove(color, hand_kind);
+                position.hands_mut().add(color.opposite(), hand_kind);
+                Ok(Action::HandToHand(color.opposite(), hand_kind))
             }
         }
     }
