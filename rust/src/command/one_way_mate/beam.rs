@@ -113,8 +113,7 @@ fn generate(
         insert(&mut all_problems, best.clone(), 0);
     }
 
-    let initial_cands = random_one_way_mate_positions(*seed, parallel);
-    *seed += parallel as u64;
+    let initial_cands = random_one_way_mate_positions(seed, parallel);
 
     for cand in initial_cands.into_iter() {
         insert(&mut all_problems, cand, 0);
@@ -133,10 +132,12 @@ fn generate(
         let mut buckets = BTreeMap::new();
         for problem in all_problems[step].iter() {
             buckets
-                .entry(problem.white_movements.clone())
+                .entry(problem.white_movements_digest)
                 .or_insert_with(Vec::new)
                 .push(problem);
         }
+        buckets.values_mut().for_each(|ps| ps.shuffle(&mut rng));
+
         let mut keys = buckets.keys().cloned().collect::<Vec<_>>();
         keys.shuffle(&mut rng);
         let mut problems = vec![];
@@ -283,14 +284,17 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
     }
 }
 
-fn random_one_way_mate_positions(seed: u64, count: usize) -> Vec<Problem> {
+fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
     let initial_position =
         Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
+
+    let base_seed = *seed;
+    *seed += count as u64;
 
     (0..count)
         .into_par_iter()
         .map(|i| {
-            let mut rng = SmallRng::seed_from_u64(seed + i as u64);
+            let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
             if (i + 1) % 1000 == 0 {
                 debug!("generate_one_way_mate_positions: {}", i + 1);
             }
@@ -315,7 +319,7 @@ fn random_one_way_mate_positions(seed: u64, count: usize) -> Vec<Problem> {
 struct Problem {
     position: Position,
     step: usize,
-    white_movements: u64,
+    white_movements_digest: u64,
 }
 
 impl Problem {
@@ -331,7 +335,7 @@ impl Problem {
         Self {
             position,
             step,
-            white_movements: hasher.finish(),
+            white_movements_digest: hasher.finish(),
         }
     }
 }
