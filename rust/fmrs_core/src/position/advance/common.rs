@@ -1,17 +1,10 @@
-use crate::{
-    piece::{Color, Kind},
-    position::{position::PositionAux, Square},
-};
+use crate::{piece::Color, position::position::PositionAux};
 
 use super::attack_prevent::attacker;
 
-pub fn checked(position: &mut PositionAux, color: Color, king_pos_hint: Option<Square>) -> bool {
-    let king_pos = if let Some(king_pos) = king_pos_hint {
-        king_pos
-    } else if let Some(king_pos) = position.bitboard(color, Kind::King).next() {
-        king_pos
-    } else {
+pub fn checked(position: &mut PositionAux, color: Color) -> bool {
+    if color.is_black() && position.black_king_pos().is_none() {
         return false;
-    };
-    attacker(position, color, king_pos, true).is_some()
+    }
+    attacker(position, color, true).is_some()
 }

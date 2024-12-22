@@ -224,13 +224,12 @@ fn bench_pinned300(c: &mut Criterion) {
         let king_color: Color = rng.gen();
 
         let mut position_aux = PositionAux::new(position.clone());
-        if checked(&mut position_aux, king_color, None) {
+        if checked(&mut position_aux, king_color) {
             continue;
         }
 
-        let king_pos = position.bitboard(king_color, Kind::King).next().unwrap();
         let blocker_color: Color = rng.gen();
-        test_cases.push((position_aux, king_color, king_pos, blocker_color));
+        test_cases.push((position_aux, king_color, blocker_color));
         if test_cases.len() >= 300 {
             break;
         }
@@ -241,12 +240,12 @@ fn bench_pinned300(c: &mut Criterion) {
         b.iter_with_setup(
             || test_cases.clone(),
             |mut test_cases| {
-                test_cases.iter_mut().for_each(
-                    |(position, king_color, king_pos, blocker_color)| {
-                        let pinned = pinned(position, *king_color, *king_pos, *blocker_color);
+                test_cases
+                    .iter_mut()
+                    .for_each(|(position, king_color, blocker_color)| {
+                        let pinned = pinned(position, *king_color, *blocker_color);
                         black_box(pinned);
-                    },
-                );
+                    });
             },
         )
     });

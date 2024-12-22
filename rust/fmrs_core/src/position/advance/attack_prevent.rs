@@ -85,10 +85,10 @@ impl<'a> Context<'a> {
         let color_bb = position.color_bitboard();
         let attacker = match attacker_hint {
             Some(attacker) => attacker,
-            None => attacker(position, turn, king_pos, false)
+            None => attacker(position, turn, false)
                 .ok_or_else(|| anyhow::anyhow!("No attacker found"))?,
         };
-        let pinned = pinned(position, turn, king_pos, turn);
+        let pinned = pinned(position, turn, turn);
 
         let mut occupied_without_king = color_bb.both();
         occupied_without_king.unset(king_pos);
@@ -333,14 +333,14 @@ impl<'a> Context<'a> {
         // TODO: check the second attacker
         if !is_king_move && self.attacker.double_check.is_some() {
             let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
-            if checked(&mut np, self.position.turn(), self.king_pos.into()) {
+            if checked(&mut np, self.position.turn()) {
                 return Ok(());
             }
         }
 
         if self.should_return_check {
             let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
-            if !checked(&mut np, self.position.turn().opposite(), None) {
+            if !checked(&mut np, self.position.turn().opposite()) {
                 return Ok(());
             }
         }
@@ -356,7 +356,6 @@ impl<'a> Context<'a> {
             !common::checked(
                 &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 self.position.turn(),
-                None,
             ),
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.position.turn(),
@@ -426,7 +425,6 @@ impl Attacker {
 pub fn attacker(
     position: &mut PositionAux,
     king_color: Color,
-    king_pos: Square,
     early_return: bool,
 ) -> Option<Attacker> {
     let opponent_bb = position.color_bb(king_color.opposite());
@@ -454,11 +452,16 @@ pub fn attacker(
         if attacker_cands.is_empty() {
             continue;
         }
-        attacker_cands &= power(king_color, king_pos, attacker_kind);
+        attacker_cands &= power(
+            king_color,
+            position.must_king_pos(king_color),
+            attacker_kind,
+        );
         if attacker_cands.is_empty() {
             continue;
         }
         if attacker_kind.is_line_piece() {
+            let king_pos = position.must_king_pos(king_color);
             attacker_cands &= reachable(position, king_color, king_pos, attacker_kind, false);
             if attacker_cands.is_empty() {
                 continue;

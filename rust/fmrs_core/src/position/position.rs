@@ -253,16 +253,7 @@ impl PositionAux {
     }
 
     pub fn checked_slow(&mut self, king_color: Color) -> bool {
-        let king_pos = self.must_king_pos(king_color);
-        attacker(self, king_color, king_pos, true).is_some()
-    }
-
-    fn must_king_pos(&mut self, color: Color) -> Square {
-        if color.is_black() {
-            self.black_king_pos().unwrap()
-        } else {
-            self.white_king_pos()
-        }
+        attacker(self, king_color, true).is_some()
     }
 
     pub fn white_king_pos(&mut self) -> Square {
@@ -415,6 +406,14 @@ impl PositionAux {
             .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
 
         self.core.shift(dir);
+    }
+
+    pub(crate) fn must_king_pos(&mut self, king_color: Color) -> Square {
+        if king_color.is_black() {
+            self.black_king_pos().unwrap()
+        } else {
+            self.white_king_pos()
+        }
     }
 
     // TODO: remember attackers

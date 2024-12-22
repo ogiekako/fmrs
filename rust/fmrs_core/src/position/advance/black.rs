@@ -51,13 +51,16 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
-        let kings = position.kind_bb(Kind::King);
-        let black_king_pos = (kings & position.black_bb()).next();
-        let attacker = black_king_pos.and_then(|pos| attacker(position, Color::BLACK, pos, false));
-
-        let pinned = black_king_pos
-            .map(|pos| pinned(position, Color::BLACK, pos, Color::BLACK))
-            .unwrap_or_else(|| Pinned::empty());
+        let attacker = position
+            .black_king_pos()
+            .is_some()
+            .then(|| attacker(position, Color::BLACK, false))
+            .flatten();
+        let pinned = position
+            .black_king_pos()
+            .is_some()
+            .then(|| pinned(position, Color::BLACK, Color::BLACK))
+            .unwrap_or_else(Pinned::default);
 
         let pawn_mask = {
             let mut mask = Default::default();
@@ -250,13 +253,7 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
-        let white_king_pos = self.position.white_king_pos();
-        let blockers = pinned(
-            &mut self.position,
-            Color::WHITE,
-            white_king_pos,
-            Color::BLACK,
-        );
+        let blockers = pinned(&mut self.position, Color::WHITE, Color::BLACK);
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
@@ -324,7 +321,6 @@ impl<'a> Context<'a> {
             && common::checked(
                 &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 Color::BLACK,
-                movement.dest().into(),
             )
         {
             return Ok(());
@@ -335,7 +331,6 @@ impl<'a> Context<'a> {
                 !common::checked(
                     &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                     Color::BLACK,
-                    self.position.black_king_pos(),
                 )
             },
             "Black king checked: {:?}",

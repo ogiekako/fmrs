@@ -131,13 +131,6 @@ impl Movement {
         matches!(self, Movement::Move { .. })
     }
 
-    pub(crate) fn dest(&self) -> Square {
-        match self {
-            Movement::Drop(pos, _) => *pos,
-            Movement::Move { dest, .. } => *dest,
-        }
-    }
-
     pub fn is_pawn_drop(&self) -> bool {
         matches!(self, Movement::Drop(_, Kind::Pawn))
     }
