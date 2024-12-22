@@ -36,8 +36,9 @@ pub(super) fn generate_one_way_mate_with_beam(
 
         if (i + 1) % 10 == 0 {
             info!(
-                "best = {} (one iter in {:.1?})",
+                "best = {} ({:.1?} (iter/{:.1?})",
                 best_problems[0].step,
+                start_time.elapsed(),
                 start_time.elapsed() / (i + 1),
             );
         }
@@ -72,7 +73,7 @@ pub(super) fn generate_one_way_mate_with_beam(
     unreachable!()
 }
 
-const SEARCH_DEPTH: usize = 8;
+const SEARCH_DEPTH: usize = 7;
 const SEARCH_ITER_MULT: usize = 10000;
 const USE_MULT: usize = 1;
 const MAX_PRODUCE: usize = 1;
