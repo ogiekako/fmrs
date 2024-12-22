@@ -173,9 +173,9 @@ impl Task {
                     continue;
                 }
                 while let Some(movement) = movements.pop() {
-                    let undo = position.do_move(&movement);
-                    all_next_positions.push(position.clone());
-                    position.undo_move(&undo);
+                    let mut next_position = position.clone();
+                    next_position.do_move(&movement);
+                    all_next_positions.push(next_position);
                 }
             }
             if !mate_positions.is_empty() || all_next_positions.is_empty() {

@@ -20,24 +20,21 @@ pub enum UndoMove {
 }
 
 pub trait PositionExt {
-    fn do_move(&mut self, m: &Movement) -> UndoMove;
+    fn do_move(&mut self, m: &Movement);
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
     fn checked_slow(&self, c: Color) -> bool;
     fn attacker_slow(&self, c: Color) -> Option<Attacker>;
 }
 
 impl PositionExt for Position {
-    fn do_move(&mut self, m: &Movement) -> UndoMove {
+    fn do_move(&mut self, m: &Movement) {
         let color = self.turn();
         self.set_turn(color.opposite());
-        let pawn_drop = self.pawn_drop();
         match *m {
             Movement::Drop(pos, k) => {
                 self.hands_mut().remove(color, k);
                 self.set(pos, color, k);
                 self.set_pawn_drop(k == Kind::Pawn);
-
-                UndoMove::UnDrop(pos, pawn_drop)
             }
             Movement::Move {
                 source,
@@ -70,14 +67,6 @@ impl PositionExt for Position {
                     self.set(dest, color, kind);
                 }
                 self.set_pawn_drop(false);
-
-                UndoMove::UnMove {
-                    source,
-                    dest,
-                    promote,
-                    capture,
-                    pawn_drop,
-                }
             }
         }
     }
@@ -168,11 +157,7 @@ mod tests {
         ] {
             let (board_sfen, movement, want) = (tc.0, tc.1, tc.2);
             let mut board = sfen::decode_position(board_sfen).unwrap();
-            let token = board.do_move(&movement);
-            assert_eq!(want, sfen::encode_position(&board));
-            let m = board.undo_move(&token);
-            assert_eq!(board_sfen, sfen::encode_position(&board));
-            board.do_move(&m);
+            board.do_move(&movement);
             assert_eq!(want, sfen::encode_position(&board));
         }
     }

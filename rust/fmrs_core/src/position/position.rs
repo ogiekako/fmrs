@@ -153,10 +153,6 @@ impl<'a> PositionAux<'a> {
         position
     }
 
-    // pub fn core(&self) -> &Position {
-    //     self.core
-    // }
-
     pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
         *self.kind_bb[kind.index()].get_or_insert_with(|| self.core.kind_bb().bitboard(kind))
     }

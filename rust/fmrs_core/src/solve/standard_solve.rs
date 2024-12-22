@@ -55,9 +55,9 @@ impl StandardSolver {
                 continue;
             }
             while let Some(movement) = movements.pop() {
-                let undo = position.do_move(&movement);
-                all_next_positions.push(position.clone());
-                position.undo_move(&undo);
+                let mut next_position = position.clone();
+                next_position.do_move(&movement);
+                all_next_positions.push(next_position);
             }
         }
 
