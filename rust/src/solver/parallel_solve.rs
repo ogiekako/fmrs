@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use fmrs_core::memo::Memo;
 
-use fmrs_core::position::{advance, Digest, Position, PositionExt};
+use fmrs_core::position::{advance::advance, Digest, Position, PositionExt};
 
 use fmrs_core::solve::{reconstruct_solutions, Solution};
 

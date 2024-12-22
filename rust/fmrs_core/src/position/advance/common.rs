@@ -5,11 +5,7 @@ use crate::{
 
 use super::attack_prevent::attacker;
 
-pub fn checked(
-    position: &mut PositionAux<'_>,
-    color: Color,
-    king_pos_hint: Option<Square>,
-) -> bool {
+pub fn checked(position: &mut PositionAux, color: Color, king_pos_hint: Option<Square>) -> bool {
     let king_pos = if let Some(king_pos) = king_pos_hint {
         king_pos
     } else if let Some(king_pos) = position.bitboard(color, Kind::King).next() {

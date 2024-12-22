@@ -1,6 +1,7 @@
 use crate::memo::Memo;
 
-use crate::position::{self, Position, PositionExt};
+use crate::position::advance::advance;
+use crate::position::{Position, PositionExt};
 
 use super::{reconstruct_solutions, Solution};
 use log::info;
@@ -43,7 +44,7 @@ impl StandardSolver {
         let mut movements = vec![];
 
         while let Some(mut position) = self.current.pop() {
-            let is_mate = position::advance(
+            let is_mate = advance(
                 &mut position,
                 &mut self.memo_next,
                 self.step,

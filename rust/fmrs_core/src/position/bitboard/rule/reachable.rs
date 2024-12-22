@@ -9,7 +9,7 @@ use crate::{
 use super::{magic, power};
 
 pub fn reachable(
-    position: &mut PositionAux<'_>,
+    position: &mut PositionAux,
     color: Color,
     pos: Square,
     kind: Kind,
@@ -24,7 +24,7 @@ pub fn reachable(
 }
 
 pub fn reachable_sub(
-    position: &mut PositionAux<'_>,
+    position: &mut PositionAux,
     color: Color,
     pos: Square,
     kind: Kind,

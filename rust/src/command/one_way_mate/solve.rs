@@ -2,29 +2,26 @@ use fmrs_core::{
     memo::Memo,
     nohash::NoHashSet,
     piece::Color,
-    position::{advance, AdvanceOptions, Movement, Position, PositionExt},
+    position::{
+        advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement, Position,
+    },
 };
 
 pub fn one_way_mate_steps(
     initial_position: &Position,
     movements: &mut Vec<Movement>,
 ) -> Option<usize> {
+    let mut position = PositionAux::new(initial_position.clone());
     if initial_position.turn().is_black() {
-        if initial_position.checked_slow(Color::WHITE) {
+        if position.checked_slow(Color::WHITE) {
             return None;
         }
     } else {
-        if initial_position.checked_slow(Color::BLACK) {
+        if position.checked_slow(Color::BLACK) {
             return None;
         }
     }
-    let initial_step = if initial_position.turn().is_black() {
-        1
-    } else {
-        0
-    };
-
-    let mut position = initial_position.clone();
+    let initial_step = if position.turn().is_black() { 1 } else { 0 };
 
     let options = AdvanceOptions {
         max_allowed_branches: Some(1),
@@ -38,7 +35,7 @@ pub fn one_way_mate_steps(
     for step in (initial_step..).step_by(2) {
         if step > 0 {
             let prev_len = movements.len();
-            advance(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+            advance_aux(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
             debug_assert!(movements.len() - prev_len <= 2);
             if movements.len() == prev_len {
                 return None;
@@ -52,7 +49,7 @@ pub fn one_way_mate_steps(
 
                 let orig = position.clone();
                 position.do_move(&pawn_move);
-                advance(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+                advance_aux(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
                 if movements.len() != prev_len + 1 {
                     return None;
                 }
@@ -67,7 +64,7 @@ pub fn one_way_mate_steps(
         assert!(position.turn().is_white(), "{:?}", position);
 
         let prev_len = movements.len();
-        let is_mate = advance(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+        let is_mate = advance_aux(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
 
         if is_mate {
             if !position.hands().is_empty(Color::BLACK) {

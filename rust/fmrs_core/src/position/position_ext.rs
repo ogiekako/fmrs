@@ -1,11 +1,6 @@
-use crate::piece::{Color, Kind};
+use crate::piece::Kind;
 
-use super::{
-    advance::attack_prevent::{attacker, Attacker},
-    checked,
-    position::PositionAux,
-    Movement, Position, Square,
-};
+use super::{Movement, Position, Square};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum UndoMove {
@@ -22,8 +17,8 @@ pub enum UndoMove {
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement);
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
-    fn checked_slow(&self, c: Color) -> bool;
-    fn attacker_slow(&self, c: Color) -> Option<Attacker>;
+    // fn checked_slow(&self, c: Color) -> bool;
+    // fn attacker_slow(&self, c: Color) -> Option<Attacker>;
 }
 
 impl PositionExt for Position {
@@ -115,16 +110,16 @@ impl PositionExt for Position {
         }
     }
 
-    fn checked_slow(&self, c: Color) -> bool {
-        let mut position = PositionAux::new(self);
-        checked(&mut position, c, None)
-    }
+    // fn checked_slow(&self, c: Color) -> bool {
+    //     let mut position = PositionAux::new(self);
+    //     checked(&mut position, c, None)
+    // }
 
-    fn attacker_slow(&self, c: Color) -> Option<Attacker> {
-        let king_pos = self.bitboard(c, Kind::King).next()?;
-        let mut position = PositionAux::new(self);
-        attacker(&mut position, c, king_pos, false)
-    }
+    // fn attacker_slow(&self, c: Color) -> Option<Attacker> {
+    //     let king_pos = self.bitboard(c, Kind::King).next()?;
+    //     let mut position = PositionAux::new(self);
+    //     attacker(&mut position, c, king_pos, false)
+    // }
 }
 
 #[cfg(test)]

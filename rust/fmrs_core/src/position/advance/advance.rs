@@ -1,4 +1,5 @@
 use crate::memo::Memo;
+use crate::position::position::PositionAux;
 use crate::position::Movement;
 
 use crate::position::Position;
@@ -6,7 +7,23 @@ use crate::position::Position;
 use super::{black, white, AdvanceOptions};
 
 pub fn advance(
-    position: &mut Position,
+    position: &Position,
+    memo: &mut Memo,
+    next_step: u32,
+    options: &AdvanceOptions,
+    result: &mut Vec<Movement>,
+) -> anyhow::Result</* is legal mate */ bool> {
+    let mut position = PositionAux::new(position.clone());
+    if position.turn().is_black() {
+        black::advance(&mut position, memo, next_step, options, result)?;
+        Ok(false)
+    } else {
+        white::advance(&mut position, memo, next_step, options, result)
+    }
+}
+
+pub fn advance_aux(
+    position: &mut PositionAux,
     memo: &mut Memo,
     next_step: u32,
     options: &AdvanceOptions,

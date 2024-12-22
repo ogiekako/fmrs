@@ -1,4 +1,4 @@
-mod advance;
+pub mod advance;
 pub mod attack_prevent;
 mod black;
 mod common;

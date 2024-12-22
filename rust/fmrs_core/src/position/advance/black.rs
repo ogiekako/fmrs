@@ -1,5 +1,5 @@
 use crate::memo::Memo;
-use crate::position::bitboard::{king_power, lion_king_power, power, ColorBitBoard};
+use crate::position::bitboard::{king_power, lion_king_power, power};
 use crate::position::position::PositionAux;
 use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
@@ -15,8 +15,8 @@ use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
 use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
-pub(super) fn advance(
-    position: &mut Position,
+pub(super) fn advance<'a>(
+    position: &'a mut PositionAux,
     memo: &mut Memo,
     next_step: u32,
     options: &AdvanceOptions,
@@ -30,8 +30,7 @@ pub(super) fn advance(
 
 struct Context<'a> {
     // Immutable fields
-    position: PositionAux<'a>,
-    color_bb: ColorBitBoard,
+    position: &'a mut PositionAux,
     next_step: u32,
     white_king_pos: Square,
     black_king_pos: Option<Square>,
@@ -48,15 +47,12 @@ struct Context<'a> {
 
 impl<'a> Context<'a> {
     fn new(
-        position: &'a mut Position,
+        position: &'a mut PositionAux,
         memo: &'a mut Memo,
         next_step: u32,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
-        let mut position = PositionAux::new(position);
-        let color_bb = position.color_bitboard();
-
         let kings = position.kind_bb(Kind::King);
 
         let white_king_pos = if let Some(p) = (kings & position.white_bb()).next() {
@@ -65,11 +61,10 @@ impl<'a> Context<'a> {
             bail!("No white king");
         };
         let black_king_pos = (kings & position.black_bb()).next();
-        let attacker =
-            black_king_pos.and_then(|pos| attacker(&mut position, Color::BLACK, pos, false));
+        let attacker = black_king_pos.and_then(|pos| attacker(position, Color::BLACK, pos, false));
 
         let pinned = black_king_pos
-            .map(|pos| pinned(&mut position, Color::BLACK, pos, Color::BLACK))
+            .map(|pos| pinned(position, Color::BLACK, pos, Color::BLACK))
             .unwrap_or_else(|| Pinned::empty());
 
         let pawn_mask = {
@@ -82,7 +77,6 @@ impl<'a> Context<'a> {
 
         Ok(Self {
             position,
-            color_bb,
             memo,
             next_step,
             white_king_pos,
@@ -125,7 +119,7 @@ impl<'a> Context<'a> {
 
             let empty_attack_squares = self
                 .attack_squares(kind)
-                .and_not(self.color_bb.bitboard(Color::WHITE));
+                .and_not(self.position.color_bb(Color::WHITE));
             for pos in empty_attack_squares {
                 if check_needed && !is_legal_drop(Color::BLACK, pos, kind, self.pawn_mask) {
                     continue;
@@ -332,7 +326,7 @@ impl<'a> Context<'a> {
 
         if kind == Kind::King
             && common::checked(
-                &mut PositionAux::new(self.update(&mut new_position, &movement)),
+                &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 Color::BLACK,
                 movement.dest().into(),
             )
@@ -342,7 +336,7 @@ impl<'a> Context<'a> {
 
         debug_assert!(
             !common::checked(
-                &mut PositionAux::new(self.update(&mut new_position, &movement)),
+                &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 Color::BLACK,
                 self.black_king_pos,
             ),

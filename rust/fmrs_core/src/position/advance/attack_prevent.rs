@@ -27,8 +27,8 @@ use super::{
 };
 
 // #[inline(never)]
-pub(super) fn attack_preventing_movements<'p, 'a>(
-    position: &'a mut PositionAux<'p>,
+pub(super) fn attack_preventing_movements<'a>(
+    position: &'a mut PositionAux,
     memo: &'a mut Memo,
     next_step: u32,
     king_pos: Square,
@@ -51,8 +51,8 @@ pub(super) fn attack_preventing_movements<'p, 'a>(
     Ok(ctx.is_mate && !position.pawn_drop())
 }
 
-struct Context<'p, 'a> {
-    position: &'a mut PositionAux<'p>,
+struct Context<'a> {
+    position: &'a mut PositionAux,
     occupied_without_king: BitBoard,
     king_pos: Square,
     pinned: Pinned,
@@ -69,10 +69,10 @@ struct Context<'p, 'a> {
     options: &'a AdvanceOptions,
 }
 
-impl<'p, 'a> Context<'p, 'a> {
+impl<'a> Context<'a> {
     // #[inline(never)]
     fn new(
-        position: &'a mut PositionAux<'p>,
+        position: &'a mut PositionAux,
         memo: &'a mut Memo,
         next_step: u32,
         king_pos: Square,
@@ -316,16 +316,13 @@ impl<'p, 'a> Context<'p, 'a> {
 }
 
 // Helper methods
-impl<'p, 'a> Context<'p, 'a> {
+impl<'a> Context<'a> {
     fn update<'b>(
         &self,
         new_position: &'b mut Option<Position>,
         movement: &Movement,
     ) -> &'b Position {
-        if new_position.is_none() {
-            *new_position = self.position.moved(movement).into();
-        }
-        new_position.as_ref().unwrap()
+        new_position.get_or_insert_with(|| self.position.moved(movement))
     }
 
     fn maybe_add_move<'b>(&mut self, movement: Movement, kind: Kind) -> Result<()> {
@@ -335,14 +332,14 @@ impl<'p, 'a> Context<'p, 'a> {
 
         // TODO: check the second attacker
         if !is_king_move && self.attacker.double_check.is_some() {
-            let mut np = PositionAux::new(self.update(&mut new_position, &movement));
+            let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
             if checked(&mut np, self.position.turn(), self.king_pos.into()) {
                 return Ok(());
             }
         }
 
         if self.should_return_check {
-            let mut np = PositionAux::new(self.update(&mut new_position, &movement));
+            let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
             if !checked(&mut np, self.position.turn().opposite(), None) {
                 return Ok(());
             }
@@ -357,7 +354,7 @@ impl<'p, 'a> Context<'p, 'a> {
 
         debug_assert!(
             !common::checked(
-                &mut PositionAux::new(self.update(&mut new_position, &movement)),
+                &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 self.position.turn(),
                 None,
             ),
@@ -427,7 +424,7 @@ impl Attacker {
 }
 
 pub fn attacker(
-    position: &mut PositionAux<'_>,
+    position: &mut PositionAux,
     king_color: Color,
     king_pos: Square,
     early_return: bool,

@@ -42,7 +42,7 @@ impl Pinned {
 }
 
 pub fn pinned(
-    position: &mut PositionAux<'_>,
+    position: &mut PositionAux,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
@@ -60,8 +60,7 @@ pub fn pinned(
 
 // #[inline(never)]
 fn bishop_pinned(
-    position: &mut PositionAux<'_>,
-
+    position: &mut PositionAux,
     king_color: Color,
     king_pos: Square,
     blocker_color: Color,
@@ -101,7 +100,7 @@ fn bishop_pinned(
 
 // #[inline(never)]
 fn rook_pinned(
-    position: &mut PositionAux<'_>,
+    position: &mut PositionAux,
 
     king_color: Color,
     king_pos: Square,
@@ -142,7 +141,7 @@ fn rook_pinned(
 
 // #[inline(never)]
 fn lance_pinned(
-    position: &mut PositionAux<'_>,
+    position: &mut PositionAux,
 
     king_color: Color,
     king_pos: Square,

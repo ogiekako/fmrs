@@ -1,8 +1,8 @@
 use crate::solver::parallel_solve;
 use crate::solver::standard_solve;
 use fmrs_core::piece::*;
+use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::Position;
-use fmrs_core::position::PositionExt;
 use fmrs_core::solve::Solution;
 
 #[derive(Debug, Clone, PartialEq, Eq, clap::ValueEnum)]
@@ -36,12 +36,13 @@ pub fn solve_with_progress(
     if position.turn() != Color::BLACK {
         anyhow::bail!("The turn should be from black");
     }
-    if position.checked_slow(Color::WHITE) {
+    let mut position_aux = PositionAux::new(position.clone());
+    if position_aux.checked_slow(Color::WHITE) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
     debug_assert_ne!(
-        position.turn() == Color::BLACK,
-        position.checked_slow(Color::WHITE)
+        position_aux.turn() == Color::BLACK,
+        position_aux.checked_slow(Color::WHITE)
     );
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);

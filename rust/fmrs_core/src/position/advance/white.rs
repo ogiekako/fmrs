@@ -4,12 +4,12 @@ use crate::piece::{Color, Kind};
 
 use crate::position::advance::attack_prevent::attack_preventing_movements;
 use crate::position::position::PositionAux;
-use crate::position::{Movement, Position};
+use crate::position::Movement;
 
 use super::AdvanceOptions;
 
-pub(super) fn advance(
-    position: &mut Position,
+pub(super) fn advance<'a>(
+    position: &'a mut PositionAux,
     memo: &mut Memo,
     next_step: u32,
     options: &AdvanceOptions,
@@ -22,16 +22,7 @@ pub(super) fn advance(
         .next()
         .ok_or_else(|| anyhow::anyhow!("white king not found"))?;
 
-    let mut position = PositionAux::new(position);
-
     attack_preventing_movements(
-        &mut position,
-        memo,
-        next_step,
-        king_pos,
-        false,
-        options,
-        None,
-        result,
+        position, memo, next_step, king_pos, false, options, None, result,
     )
 }

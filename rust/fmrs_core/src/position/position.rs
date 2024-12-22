@@ -20,6 +20,7 @@ impl fmt::Debug for Position {
     }
 }
 
+use super::advance::attack_prevent::attacker;
 use super::bitboard::BitBoard;
 use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
@@ -129,16 +130,17 @@ impl Position {
     }
 }
 
-#[derive(Debug)]
-pub struct PositionAux<'a> {
-    core: &'a Position,
+// TOOD: remove clone
+#[derive(Debug, Clone)]
+pub struct PositionAux {
+    core: Position,
     occupied: Option<BitBoard>,
     white_bb: Option<BitBoard>,
     kind_bb: [Option<BitBoard>; NUM_KIND],
 }
 
-impl<'a> PositionAux<'a> {
-    pub fn new(core: &'a Position) -> Self {
+impl PositionAux {
+    pub fn new(core: Position) -> Self {
         Self {
             core,
             occupied: None,
@@ -192,7 +194,7 @@ impl<'a> PositionAux<'a> {
         ColorBitBoard::new(self.black_bb(), self.white_bb(), self.occupied_bb())
     }
 
-    pub(crate) fn hands(&self) -> Hands {
+    pub fn hands(&self) -> Hands {
         self.core.hands()
     }
 
@@ -219,25 +221,103 @@ impl<'a> PositionAux<'a> {
         ))
     }
 
-    pub(crate) fn turn(&self) -> Color {
+    pub fn turn(&self) -> Color {
         self.core.turn()
     }
 
-    pub(crate) fn bishopish(&self) -> BitBoard {
+    pub fn bishopish(&self) -> BitBoard {
         self.core.kind_bb().bishopish()
     }
 
-    pub(crate) fn rookish(&self) -> BitBoard {
+    pub fn rookish(&self) -> BitBoard {
         self.core.kind_bb().rookish()
     }
 
-    pub(crate) fn goldish(&self) -> BitBoard {
+    pub fn goldish(&self) -> BitBoard {
         self.core.kind_bb().goldish()
     }
 
-    pub(crate) fn pawn_drop(&self) -> bool {
+    pub fn pawn_drop(&self) -> bool {
         self.core.pawn_drop()
     }
+
+    pub fn checked_slow(&mut self, king_color: Color) -> bool {
+        let king_pos = self.bitboard(king_color, Kind::King).singleton();
+        attacker(self, king_color, king_pos, true).is_some()
+    }
+
+    pub fn do_move(&mut self, movement: &Movement) {
+        // Update
+        // occupied, white_bb, kind_bb
+        match movement {
+            Movement::Move {
+                source,
+                source_kind_hint,
+                dest,
+                promote,
+                capture_kind_hint,
+            } => {
+                let source_kind = source_kind_hint.unwrap_or_else(|| self.must_get_kind(*source));
+                let capture_kind = capture_kind_hint.unwrap_or_else(|| self.get_kind(*dest));
+                let dest_kind = if *promote {
+                    source_kind.promote().unwrap()
+                } else {
+                    source_kind
+                };
+
+                // Update occupied
+                if let Some(bb) = self.occupied.as_mut() {
+                    bb.unset(*source);
+                    bb.set(*dest);
+                }
+
+                // Update white_bb
+                if self.turn().is_white() {
+                    if let Some(bb) = self.white_bb.as_mut() {
+                        bb.unset(*source);
+                        bb.set(*dest);
+                    }
+                } else if capture_kind.is_some() {
+                    if let Some(bb) = self.white_bb.as_mut() {
+                        bb.unset(*dest);
+                    }
+                }
+
+                // Update kind_bb
+                if let Some(bb) = self.kind_bb[source_kind.index()].as_mut() {
+                    bb.unset(*source);
+                }
+                if let Some(capture_kind) = capture_kind {
+                    if let Some(bb) = self.kind_bb[capture_kind.index()].as_mut() {
+                        bb.unset(*dest);
+                    }
+                }
+                if let Some(bb) = self.kind_bb[dest_kind.index()].as_mut() {
+                    bb.set(*dest);
+                }
+            }
+            Movement::Drop(pos, kind) => {
+                if let Some(bb) = self.occupied.as_mut() {
+                    bb.set(*pos);
+                }
+                if self.turn().is_white() {
+                    if let Some(bb) = self.white_bb.as_mut() {
+                        bb.set(*pos);
+                    }
+                }
+                if let Some(bb) = self.kind_bb[kind.index()].as_mut() {
+                    bb.set(*pos);
+                }
+            }
+        }
+        self.core.do_move(movement);
+    }
+
+    pub fn digest(&self) -> u64 {
+        self.core.digest()
+    }
+
+    // TODO: remember attackers
 }
 
 #[cfg(test)]

@@ -65,7 +65,7 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let mut position = PositionAux::new(&self.position);
+            let mut position = PositionAux::new(self.position.clone());
             let sources = bitboard::reachable(&mut position, self.turn, dest, prev_kind, false)
                 .and_not(self.color_bb.both());
             for source in sources {
