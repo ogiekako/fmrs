@@ -35,8 +35,6 @@ enum Action {
         algorithm: OneWayMateGenerator,
         #[arg(long, default_value = "0")]
         seed: u64,
-        #[arg(long, default_value = "100000000")] // 100M
-        iteration: usize,
         #[arg(long, default_value = "12")]
         parallel: usize,
         #[arg(long)]
@@ -62,10 +60,9 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::OneWayMate {
             algorithm,
             seed,
-            iteration,
             parallel,
             goal,
-        } => command::one_way_mate(algorithm, seed, iteration, parallel, goal)?,
+        } => command::one_way_mate(algorithm, seed, parallel, goal)?,
         Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
     }
     Ok(())

@@ -2,11 +2,12 @@ use anyhow::bail;
 use fmrs_core::{
     direction::Direction,
     piece::{Color, Kind},
-    position::{Position, Square},
+    position::{position::PositionAux, Square},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Action {
+#[allow(unused)]
+pub enum Action {
     Move(Square, Square),
     Swap(Square, Square),
     FromHand(Color, Square, Color, Kind), // drop to an empty square
@@ -18,7 +19,7 @@ pub(super) enum Action {
 }
 
 impl Action {
-    pub(super) fn try_apply(self, position: &mut Position) -> anyhow::Result<Action> {
+    pub(super) fn try_apply(self, position: &mut PositionAux) -> anyhow::Result<Action> {
         match self {
             Action::Move(from, to) => {
                 if let Some((color, kind)) = position.get(from) {

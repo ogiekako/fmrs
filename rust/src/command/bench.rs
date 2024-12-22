@@ -58,7 +58,7 @@ fn bench_solve(file: &str) -> anyhow::Result<()> {
 }
 
 fn bench_one_way() -> anyhow::Result<()> {
-    one_way_mate(OneWayMateGenerator::Beam, 0, 0, 8, Some(33))?;
+    one_way_mate(OneWayMateGenerator::Beam, 0, 8, Some(33))?;
 
     Ok(())
 }

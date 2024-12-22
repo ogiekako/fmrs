@@ -121,7 +121,11 @@ fn bench_oneway(c: &mut Criterion) {
     c.bench_function("oneway", |b| {
         b.iter(|| {
             positions.iter().for_each(|(position, steps)| {
-                assert_eq!(one_way_mate_steps(black_box(position), &mut vec![]), *steps)
+                let mut position = PositionAux::new(position.clone());
+                assert_eq!(
+                    one_way_mate_steps(black_box(&mut position), &mut vec![]),
+                    *steps
+                )
             })
         })
     });

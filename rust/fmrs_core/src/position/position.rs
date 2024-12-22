@@ -13,6 +13,7 @@ pub type Digest = u64;
 
 use crate::sfen;
 use std::fmt;
+use std::fmt::Debug;
 
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -131,12 +132,18 @@ impl Position {
 }
 
 // TOOD: remove clone
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PositionAux {
     core: Position,
     occupied: Option<BitBoard>,
     white_bb: Option<BitBoard>,
     kind_bb: [Option<BitBoard>; NUM_KIND],
+}
+
+impl Debug for PositionAux {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.core.sfen_url())
+    }
 }
 
 impl PositionAux {
@@ -315,6 +322,44 @@ impl PositionAux {
 
     pub fn digest(&self) -> u64 {
         self.core.digest()
+    }
+
+    pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
+        self.occupied.as_mut().map(|bb| bb.unset(pos));
+        if color.is_white() {
+            self.white_bb.as_mut().map(|bb| bb.unset(pos));
+        }
+        self.kind_bb[kind.index()].as_mut().map(|bb| bb.unset(pos));
+
+        self.core.unset(pos, color, kind);
+    }
+
+    pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
+        self.occupied.as_mut().map(|bb| bb.set(pos));
+        if color.is_white() {
+            self.white_bb.as_mut().map(|bb| bb.set(pos));
+        }
+        self.kind_bb[kind.index()].as_mut().map(|bb| bb.set(pos));
+
+        self.core.set(pos, color, kind);
+    }
+
+    pub fn hands_mut(&mut self) -> &mut Hands {
+        self.core.hands_mut()
+    }
+
+    pub fn set_turn(&mut self, color: Color) {
+        self.core.set_turn(color);
+    }
+
+    pub fn shift(&mut self, dir: Direction) {
+        self.occupied.as_mut().map(|bb| bb.shift(dir));
+        self.white_bb.as_mut().map(|bb| bb.shift(dir));
+        for bb in &mut self.kind_bb {
+            bb.as_mut().map(|bb| bb.shift(dir));
+        }
+
+        self.core.shift(dir);
     }
 
     // TODO: remember attackers

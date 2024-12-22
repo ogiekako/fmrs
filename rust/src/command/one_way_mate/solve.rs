@@ -2,17 +2,14 @@ use fmrs_core::{
     memo::Memo,
     nohash::NoHashSet,
     piece::Color,
-    position::{
-        advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement, Position,
-    },
+    position::{advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement},
 };
 
 pub fn one_way_mate_steps(
-    initial_position: &Position,
+    position: &mut PositionAux,
     movements: &mut Vec<Movement>,
 ) -> Option<usize> {
-    let mut position = PositionAux::new(initial_position.clone());
-    if initial_position.turn().is_black() {
+    if position.turn().is_black() {
         if position.checked_slow(Color::WHITE) {
             return None;
         }
@@ -21,6 +18,18 @@ pub fn one_way_mate_steps(
             return None;
         }
     }
+    let orig = position.clone();
+    let res = one_way_mate_steps_inner(position, movements);
+    if position.digest() != orig.digest() {
+        *position = orig;
+    }
+    res
+}
+
+fn one_way_mate_steps_inner(
+    position: &mut PositionAux,
+    movements: &mut Vec<Movement>,
+) -> Option<usize> {
     let initial_step = if position.turn().is_black() { 1 } else { 0 };
 
     let options = AdvanceOptions {
@@ -35,7 +44,7 @@ pub fn one_way_mate_steps(
     for step in (initial_step..).step_by(2) {
         if step > 0 {
             let prev_len = movements.len();
-            advance_aux(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+            advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
             debug_assert!(movements.len() - prev_len <= 2);
             if movements.len() == prev_len {
                 return None;
@@ -49,11 +58,11 @@ pub fn one_way_mate_steps(
 
                 let orig = position.clone();
                 position.do_move(&pawn_move);
-                advance_aux(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+                advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
                 if movements.len() != prev_len + 1 {
                     return None;
                 }
-                position = orig;
+                *position = orig;
             } else if movements.len() != prev_len + 1 {
                 return None;
             }
@@ -64,7 +73,7 @@ pub fn one_way_mate_steps(
         assert!(position.turn().is_white(), "{:?}", position);
 
         let prev_len = movements.len();
-        let is_mate = advance_aux(&mut position, &mut unused_memo, 0, &options, movements).ok()?;
+        let is_mate = advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
 
         if is_mate {
             if !position.hands().is_empty(Color::BLACK) {
@@ -95,6 +104,7 @@ pub fn one_way_mate_steps(
 
 #[cfg(test)]
 mod tests {
+    use fmrs_core::position::Position;
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
     use super::*;
@@ -107,15 +117,16 @@ mod tests {
         let mut got: Vec<usize> = vec![];
         for _ in 0..3 {
             let mut sum_steps = 0;
-            let mut position =
-                Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
+            let mut position = PositionAux::new(
+                Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap(),
+            );
 
             for _ in 0..1_000_000 {
                 let action = random_action(&mut rng);
                 if action.try_apply(&mut position).is_err() {
                     continue;
                 }
-                if let Some(steps) = one_way_mate_steps(&position, &mut vec![]) {
+                if let Some(steps) = one_way_mate_steps(&mut position, &mut vec![]) {
                     sum_steps += steps;
                 }
             }
@@ -126,11 +137,13 @@ mod tests {
 
     #[test]
     fn oneway43() {
-        let position = Position::from_sfen(
-            "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3RK1k/P1pGP1+p1p/1PNNN3P/RL6L b -",
-        )
-        .unwrap();
-        assert_eq!(one_way_mate_steps(&position, &mut vec![]), Some(43));
+        let mut position = PositionAux::new(
+            Position::from_sfen(
+                "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3RK1k/P1pGP1+p1p/1PNNN3P/RL6L b -",
+            )
+            .unwrap(),
+        );
+        assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(43));
     }
 
     #[test]
@@ -145,16 +158,18 @@ mod tests {
                 54,
             ),
         ] {
-            let position = Position::from_sfen(sfen).unwrap();
+            let mut position = PositionAux::new(Position::from_sfen(sfen).unwrap());
             assert_eq!(position.turn(), Color::WHITE);
-            assert_eq!(one_way_mate_steps(&position, &mut vec![]), Some(step));
+            assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(step));
         }
     }
 
     #[test]
     fn test_diamond() {
-        let position = Position::from_sfen(include_str!("../../../problems/diamond.sfen")).unwrap();
-        assert_eq!(one_way_mate_steps(&position, &mut vec![]), Some(55));
+        let mut position = PositionAux::new(
+            Position::from_sfen(include_str!("../../../problems/diamond.sfen")).unwrap(),
+        );
+        assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(55));
     }
 
     fn random_action(rng: &mut SmallRng) -> Action {

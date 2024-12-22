@@ -8,7 +8,7 @@ use std::{
 
 use fmrs_core::{
     piece::{Color, Kind},
-    position::{Movement, Position, PositionExt},
+    position::{position::PositionAux, Movement, Position},
 };
 use log::{debug, info};
 use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
@@ -60,9 +60,9 @@ pub(super) fn generate_one_way_mate_with_beam(
                 best_problems.clear();
 
                 println!(
-                    "{} {} ({:.1?})",
+                    "{} {:?} ({:.1?})",
                     problem.step,
-                    problem.position.sfen_url(),
+                    problem.position,
                     start_time.elapsed()
                 );
                 if problem.step >= goal.unwrap_or(usize::MAX) {
@@ -84,9 +84,9 @@ const SEARCH_ITER_MULT: usize = 10000;
 const USE_MULT: usize = 1;
 const MAX_PRODUCE: [usize; 2] = [1, 1];
 
-fn insert(all_problems: &mut Vec<Vec<Problem>>, problem: Problem, min_step: usize) {
+fn insert(all_problems: &mut Vec<Vec<Problem>>, mut problem: Problem, min_step: usize) {
     let mut movements = vec![];
-    let step = one_way_mate_steps(&problem.position, &mut movements).unwrap();
+    let step = one_way_mate_steps(&mut problem.position, &mut movements).unwrap();
 
     if step >= all_problems.len() {
         all_problems.resize(step + 1, vec![]);
@@ -275,7 +275,7 @@ fn compute_better_problem(
     must_step_parity: Option<usize>,
 ) -> Result<Problem, Problem> {
     let mut position = problem.position.clone();
-    let mut solvable_position = position.clone();
+    let mut solvable_position = problem.position.clone();
     let mut solvable_position_movements = None;
 
     let mut inferior_count = 0;
@@ -284,6 +284,7 @@ fn compute_better_problem(
 
     let iteration =
         (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log10() + 1.)).ceil() as usize;
+
     for _ in 0..iteration {
         if random_action(rng, true).try_apply(&mut position).is_err() {
             continue;
@@ -304,7 +305,7 @@ fn compute_better_problem(
         );
 
         movements.clear();
-        let step = one_way_mate_steps(&position, &mut movements);
+        let step = one_way_mate_steps(&mut position, &mut movements);
 
         if step.is_none() || step.unwrap() < problem.step {
             inferior_count += 1;
@@ -362,6 +363,7 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
 }
 
 fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
+    // TOOD: Use more random positions
     let initial_position =
         Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
 
@@ -375,7 +377,7 @@ fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
             if (i + 1) % 1000 == 0 {
                 debug!("generate_one_way_mate_positions: {}", i + 1);
             }
-            let mut position = initial_position.clone();
+            let mut position = PositionAux::new(initial_position.clone());
 
             let mut movements = vec![];
             loop {
@@ -384,7 +386,7 @@ fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
                     continue;
                 }
                 movements.clear();
-                if let Some(step) = one_way_mate_steps(&position, &mut movements) {
+                if let Some(step) = one_way_mate_steps(&mut position, &mut movements) {
                     return Problem::new(position, step, &movements);
                 }
             }
@@ -394,13 +396,13 @@ fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
 
 #[derive(Clone, Debug)]
 struct Problem {
-    position: Position,
+    position: PositionAux,
     step: usize,
     white_movements_digest: u64,
 }
 
 impl Problem {
-    fn new(position: Position, step: usize, movements: &[Movement]) -> Self {
+    fn new(position: PositionAux, step: usize, movements: &[Movement]) -> Self {
         assert_eq!(step, movements.len());
 
         let mut hasher = FxHasher::default();
