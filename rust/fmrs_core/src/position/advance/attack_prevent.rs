@@ -31,7 +31,6 @@ pub(super) fn attack_preventing_movements<'a>(
     position: &'a mut PositionAux,
     memo: &'a mut Memo,
     next_step: u32,
-    king_pos: Square,
     should_return_check: bool,
     options: &'a AdvanceOptions,
     attacker_hint: Option<Attacker>,
@@ -41,7 +40,6 @@ pub(super) fn attack_preventing_movements<'a>(
         position,
         memo,
         next_step,
-        king_pos,
         should_return_check,
         options,
         attacker_hint,
@@ -54,7 +52,6 @@ pub(super) fn attack_preventing_movements<'a>(
 struct Context<'a> {
     position: &'a mut PositionAux,
     occupied_without_king: BitBoard,
-    king_pos: Square,
     pinned: Pinned,
     attacker: Attacker,
     pawn_mask: Option<usize>,
@@ -75,14 +72,12 @@ impl<'a> Context<'a> {
         position: &'a mut PositionAux,
         memo: &'a mut Memo,
         next_step: u32,
-        king_pos: Square,
         should_return_check: bool,
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
         let turn = position.turn();
-        let color_bb = position.color_bitboard();
         let attacker = match attacker_hint {
             Some(attacker) => attacker,
             None => attacker(position, turn, false)
@@ -90,16 +85,15 @@ impl<'a> Context<'a> {
         };
         let pinned = pinned(position, turn, turn);
 
-        let mut occupied_without_king = color_bb.both();
-        occupied_without_king.unset(king_pos);
+        let mut occupied_without_king = position.occupied_bb();
+        occupied_without_king.unset(position.must_king_pos(turn));
 
         Ok(Self {
             position,
             occupied_without_king,
-            king_pos,
             pinned,
             attacker,
-            pawn_mask: None,
+            pawn_mask: None, // TODO: move to PositionAux
             next_step,
             should_return_check,
             memo,
@@ -154,14 +148,15 @@ impl<'a> Context<'a> {
         let attacker_color = king_color.opposite();
         let attacker_color_bb = self.position.color_bb(attacker_color);
 
-        let mut king_reachable =
-            king_power(self.king_pos).and_not(self.position.color_bb(king_color));
+        let mut king_reachable = king_power(self.position.must_turn_king_pos())
+            .and_not(self.position.color_bb(king_color));
         if king_reachable.is_empty() {
             return Ok(());
         }
         let mut seen_cands = BitBoard::default();
         let non_line_cands =
-            king_then_king_or_night_power(king_color, self.king_pos) & attacker_color_bb;
+            king_then_king_or_night_power(king_color, self.position.must_turn_king_pos())
+                & attacker_color_bb;
         for attacker_pos in non_line_cands {
             let attacker_kind = self.position.must_get_kind(attacker_pos);
             let attacker_reach = match attacker_kind {
@@ -206,8 +201,9 @@ impl<'a> Context<'a> {
             }
 
             let capture_kind = self.position.get_kind(dest);
+            let king_pos = self.position.must_turn_king_pos();
             self.maybe_add_move(
-                Movement::move_with_hint(self.king_pos, Kind::King, dest, false, capture_kind),
+                Movement::move_with_hint(king_pos, Kind::King, dest, false, capture_kind),
                 Kind::King,
             )?;
         }
@@ -386,13 +382,14 @@ impl<'a> Context<'a> {
     }
 
     fn blockable_squares(&mut self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        if king_power(self.king_pos).get(attacker_pos) {
+        let king_pos = self.position.must_turn_king_pos();
+        if king_power(king_pos).get(attacker_pos) {
             return BitBoard::default();
         }
         bitboard::reachable(
             self.position,
             self.position.turn(),
-            self.king_pos,
+            king_pos,
             attacker_kind.maybe_unpromote(),
             false,
         ) & bitboard::reachable(

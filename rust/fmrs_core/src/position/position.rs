@@ -416,6 +416,14 @@ impl PositionAux {
         }
     }
 
+    pub(crate) fn must_turn_king_pos(&mut self) -> Square {
+        if self.turn().is_black() {
+            self.black_king_pos().unwrap()
+        } else {
+            self.white_king_pos()
+        }
+    }
+
     // TODO: remember attackers
 }
 

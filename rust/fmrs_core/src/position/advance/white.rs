@@ -1,6 +1,6 @@
 use crate::memo::Memo;
 
-use crate::piece::{Color, Kind};
+use crate::piece::Color;
 
 use crate::position::advance::attack_prevent::attack_preventing_movements;
 use crate::position::position::PositionAux;
@@ -16,13 +16,5 @@ pub(super) fn advance<'a>(
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* legal mate */ bool> {
     debug_assert_eq!(position.turn(), Color::WHITE);
-
-    let king_pos = position
-        .bitboard(Color::WHITE, Kind::King)
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("white king not found"))?;
-
-    attack_preventing_movements(
-        position, memo, next_step, king_pos, false, options, None, result,
-    )
+    attack_preventing_movements(position, memo, next_step, false, options, None, result)
 }
