@@ -28,23 +28,6 @@ pub struct KindBitBoard {
 // 6: ProBishop
 // 7: ProRook
 
-const IDS: [(bool, u8); 14] = [
-    (false, 1),
-    (false, 2),
-    (false, 3),
-    (false, 4),
-    (false, 5),
-    (false, 6),
-    (false, 7),
-    (true, 5),
-    (true, 1),
-    (true, 2),
-    (true, 3),
-    (true, 4),
-    (true, 6),
-    (true, 7),
-];
-
 const KINDS: [Kind; 16] = [
     Kind::King, // dummy
     Kind::Pawn,
@@ -93,20 +76,36 @@ impl KindBitBoard {
     // rook and prorook
     // #[inline(never)]
     pub fn rookish(&self) -> BitBoard {
-        debug_assert_eq!(IDS[Kind::Rook.index()].1, 0b111);
         self.kind0 & self.kind1 & self.kind2
     }
 
     // bishop and probishop
     // #[inline(never)]
     pub fn bishopish(&self) -> BitBoard {
-        debug_assert_eq!(IDS[Kind::Bishop.index()].1, 0b110);
         (self.kind1 & self.kind2).and_not(self.kind0)
     }
 
-    // #[inline(never)]
+    fn ids(kind: Kind) -> (bool, usize) {
+        if kind.index() < 7 {
+            return (false, kind.index() + 1);
+        }
+        (
+            true,
+            match kind {
+                Kind::ProPawn => 1,
+                Kind::ProLance => 2,
+                Kind::ProKnight => 3,
+                Kind::ProSilver => 4,
+                Kind::King => 5,
+                Kind::ProBishop => 6,
+                Kind::ProRook => 7,
+                _ => unreachable!("{:?}", kind),
+            },
+        )
+    }
+
     pub fn bitboard(&self, kind: Kind) -> BitBoard {
-        let (promote, i) = IDS[kind.index()];
+        let (promote, i) = Self::ids(kind);
 
         let b = match i {
             1 => self.kind0.and_not(self.kind1 | self.kind2),
@@ -144,7 +143,7 @@ impl KindBitBoard {
     }
     // #[inline(never)]
     pub fn set(&mut self, pos: Square, kind: Kind) {
-        let (promote, i) = IDS[kind.index()];
+        let (promote, i) = Self::ids(kind);
 
         if promote {
             self.promote.set(pos);
@@ -161,7 +160,7 @@ impl KindBitBoard {
     }
     // #[inline(never)]
     pub fn unset(&mut self, pos: Square, kind: Kind) {
-        let (promote, i) = IDS[kind.index()];
+        let (promote, i) = Self::ids(kind);
 
         if promote {
             self.promote.unset(pos);

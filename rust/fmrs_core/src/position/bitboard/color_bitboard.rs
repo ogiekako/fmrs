@@ -25,14 +25,6 @@ impl ColorBitBoard {
         }
     }
 
-    pub(crate) fn black(&self) -> BitBoard {
-        self.black
-    }
-
-    pub(crate) fn white(&self) -> BitBoard {
-        self.white
-    }
-
     pub fn both(&self) -> BitBoard {
         self.occupied
     }

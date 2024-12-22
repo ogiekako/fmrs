@@ -24,6 +24,9 @@ impl Color {
     pub fn is_white(self) -> bool {
         self.0
     }
+    pub fn from_is_black(b: bool) -> Color {
+        Color(!b)
+    }
     pub fn from_is_white(b: bool) -> Color {
         Color(b)
     }

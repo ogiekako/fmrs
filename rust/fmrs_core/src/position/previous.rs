@@ -4,6 +4,7 @@ use crate::piece::{Color, Kind};
 
 use super::{
     bitboard::{self, ColorBitBoard},
+    position::PositionAux,
     rule, Position, Square, UndoMove,
 };
 
@@ -64,7 +65,8 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources = bitboard::reachable(&self.color_bb, self.turn, dest, prev_kind, false)
+            let mut position = PositionAux::new(&self.position);
+            let sources = bitboard::reachable(&mut position, self.turn, dest, prev_kind, false)
                 .and_not(self.color_bb.both());
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {

@@ -14,9 +14,7 @@ pub fn one_way_mate_steps(
             return None;
         }
     } else {
-        if initial_position.checked_slow(Color::BLACK)
-            || !initial_position.checked_slow(Color::WHITE)
-        {
+        if initial_position.checked_slow(Color::BLACK) {
             return None;
         }
     }
@@ -66,7 +64,7 @@ pub fn one_way_mate_steps(
             position.do_move(&movements.last().unwrap());
         }
 
-        assert!(position.turn().is_white());
+        assert!(position.turn().is_white(), "{:?}", position);
 
         let prev_len = movements.len();
         let is_mate = advance(&mut position, &mut unused_memo, 0, &options, movements).ok()?;

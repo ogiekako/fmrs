@@ -24,6 +24,8 @@ use super::bitboard::BitBoard;
 use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
 use super::hands::Hands;
+use super::Movement;
+use super::PositionExt as _;
 use super::Square;
 
 impl Position {
@@ -33,8 +35,8 @@ impl Position {
     pub fn set_turn(&mut self, c: Color) {
         self.hands.set_turn(c);
     }
-    pub fn hands(&self) -> &Hands {
-        &self.hands
+    pub fn hands(&self) -> Hands {
+        self.hands
     }
     pub fn hands_mut(&mut self) -> &mut Hands {
         &mut self.hands
@@ -124,6 +126,121 @@ impl Position {
                 std::mem::size_of::<Position>(),
             )
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct PositionAux<'a> {
+    core: &'a Position,
+    occupied: Option<BitBoard>,
+    white_bb: Option<BitBoard>,
+    kind_bb: [Option<BitBoard>; NUM_KIND],
+}
+
+impl<'a> PositionAux<'a> {
+    pub fn new(core: &'a Position) -> Self {
+        Self {
+            core,
+            occupied: None,
+            white_bb: None,
+            kind_bb: [None; 14],
+        }
+    }
+
+    pub fn moved(&self, movement: &Movement) -> Position {
+        let mut position = self.core.clone();
+        position.do_move(movement);
+        position
+    }
+
+    // pub fn core(&self) -> &Position {
+    //     self.core
+    // }
+
+    pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
+        *self.kind_bb[kind.index()].get_or_insert_with(|| self.core.kind_bb().bitboard(kind))
+    }
+
+    pub fn bitboard(&mut self, color: Color, kind: Kind) -> BitBoard {
+        self.kind_bb(kind) & self.color_bb(color)
+    }
+
+    pub fn occupied_bb(&mut self) -> BitBoard {
+        *self
+            .occupied
+            .get_or_insert_with(|| self.core.kind_bb().occupied())
+    }
+
+    pub fn black_bb(&self) -> BitBoard {
+        self.core.black()
+    }
+
+    pub fn white_bb(&mut self) -> BitBoard {
+        if self.white_bb.is_none() {
+            let occupied = self.occupied_bb();
+            self.white_bb = Some(occupied.and_not(self.black_bb()));
+        }
+        self.white_bb.unwrap()
+    }
+
+    pub fn color_bb(&mut self, color: Color) -> BitBoard {
+        if color.is_black() {
+            self.core.black()
+        } else {
+            self.white_bb()
+        }
+    }
+
+    pub fn color_bitboard(&mut self) -> ColorBitBoard {
+        // Consider avoiding the clone
+        ColorBitBoard::new(self.black_bb(), self.white_bb(), self.occupied_bb())
+    }
+
+    pub(crate) fn hands(&self) -> Hands {
+        self.core.hands()
+    }
+
+    pub(crate) fn pawn_silver_goldish(&self) -> BitBoard {
+        self.core.kind_bb().pawn_silver_goldish()
+    }
+
+    pub(crate) fn must_get_kind(&self, pos: Square) -> Kind {
+        // TODO: consider having pos -> kind mapping
+        self.core.kind_bb().must_get(pos)
+    }
+
+    pub(crate) fn get_kind(&self, dest: Square) -> Option<Kind> {
+        self.core.kind_bb().get(dest)
+    }
+
+    pub fn get(&mut self, pos: Square) -> Option<(Color, Kind)> {
+        if !self.occupied_bb().get(pos) {
+            return None;
+        }
+        Some((
+            Color::from_is_black(self.black_bb().get(pos)),
+            self.must_get_kind(pos),
+        ))
+    }
+
+    pub(crate) fn turn(&self) -> Color {
+        self.core.turn()
+    }
+
+    pub(crate) fn bishopish(&self) -> BitBoard {
+        self.core.kind_bb().bishopish()
+    }
+
+    pub(crate) fn rookish(&self) -> BitBoard {
+        self.core.kind_bb().rookish()
+    }
+
+    pub(crate) fn goldish(&self) -> BitBoard {
+        self.core.kind_bb().goldish()
+    }
+
+    pub(crate) fn pawn_drop(&self) -> bool {
+        self.core.pawn_drop()
     }
 }
 

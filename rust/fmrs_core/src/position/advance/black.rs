@@ -1,5 +1,6 @@
 use crate::memo::Memo;
 use crate::position::bitboard::{king_power, lion_king_power, power, ColorBitBoard};
+use crate::position::position::PositionAux;
 use crate::position::rule::{is_legal_drop, is_legal_move};
 use anyhow::{bail, Result};
 
@@ -7,7 +8,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
-    Movement, Position, PositionExt, Square,
+    Movement, Position, Square,
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
@@ -29,7 +30,7 @@ pub(super) fn advance(
 
 struct Context<'a> {
     // Immutable fields
-    position: &'a mut Position,
+    position: PositionAux<'a>,
     color_bb: ColorBitBoard,
     next_step: u32,
     white_king_pos: Square,
@@ -53,19 +54,22 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
-        let kings = position.kind_bb().bitboard(Kind::King);
-        let color_bb = position.color_bb();
-        let white_king_pos = if let Some(p) = (kings & color_bb.white()).next() {
+        let mut position = PositionAux::new(position);
+        let color_bb = position.color_bitboard();
+
+        let kings = position.kind_bb(Kind::King);
+
+        let white_king_pos = if let Some(p) = (kings & position.white_bb()).next() {
             p
         } else {
             bail!("No white king");
         };
-        let black_king_pos = (kings & position.black()).next();
+        let black_king_pos = (kings & position.black_bb()).next();
         let attacker =
-            black_king_pos.and_then(|pos| attacker(position, &color_bb, Color::BLACK, pos, false));
+            black_king_pos.and_then(|pos| attacker(&mut position, Color::BLACK, pos, false));
 
         let pinned = black_king_pos
-            .map(|pos| pinned(position, &color_bb, Color::BLACK, pos, Color::BLACK))
+            .map(|pos| pinned(&mut position, Color::BLACK, pos, Color::BLACK))
             .unwrap_or_else(|| Pinned::empty());
 
         let pawn_mask = {
@@ -95,7 +99,7 @@ impl<'a> Context<'a> {
     fn advance(&mut self) -> Result<()> {
         if let Some(attacker) = &self.attacker {
             attack_preventing_movements(
-                self.position,
+                &mut self.position,
                 self.memo,
                 self.next_step,
                 self.black_king_pos.unwrap(),
@@ -144,19 +148,17 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.white_king_pos);
-        let king_range = king_power(self.white_king_pos).and_not(self.position.black());
+        let king_range = king_power(self.white_king_pos).and_not(self.position.black_bb());
 
         let attacker_cands =
-            self.position.kind_bb().pawn_silver_goldish() & lion_king_range & self.position.black();
+            self.position.pawn_silver_goldish() & lion_king_range & self.position.black_bb();
 
         for attacker_pos in attacker_cands {
-            let attacker_source_kind = self.position.kind_bb().must_get(attacker_pos);
+            let attacker_source_kind = self.position.must_get_kind(attacker_pos);
 
-            let attacker_range = if self.pinned.is_pinned(attacker_pos) {
-                self.pinned.pinned_area(attacker_pos)
-            } else {
+            let attacker_range = self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
                 bitboard::power(Color::BLACK, attacker_pos, attacker_source_kind)
-            } & king_range;
+            }) & king_range;
             if attacker_range.is_empty() {
                 continue;
             }
@@ -179,7 +181,7 @@ impl<'a> Context<'a> {
                 }
 
                 for dest in attacker_range & attack_squares {
-                    let capture_kind = self.position.kind_bb().get(dest);
+                    let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
                         Movement::move_with_hint(
                             attacker_pos,
@@ -212,17 +214,16 @@ impl<'a> Context<'a> {
             }
 
             for attacker_pos in attackers {
-                let attacker_reachable = if self.pinned.is_pinned(attacker_pos) {
-                    self.pinned.pinned_area(attacker_pos)
-                } else {
-                    bitboard::reachable(
-                        &self.color_bb,
-                        Color::BLACK,
-                        attacker_pos,
-                        attacker_source_kind,
-                        false,
-                    )
-                };
+                let attacker_reachable =
+                    self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
+                        bitboard::reachable(
+                            &mut self.position,
+                            Color::BLACK,
+                            attacker_pos,
+                            attacker_source_kind,
+                            false,
+                        )
+                    });
 
                 for promote in [false, true] {
                     let attacker_dest_kind = if promote {
@@ -240,7 +241,7 @@ impl<'a> Context<'a> {
                     }
 
                     for dest in attacker_reachable & attack_squares {
-                        let capture_kind = self.position.kind_bb().get(dest);
+                        let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
                             Movement::move_with_hint(
                                 attacker_pos,
@@ -261,26 +262,27 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(
-            self.position,
-            &self.color_bb,
+            &mut self.position,
             Color::WHITE,
             self.white_king_pos,
             Color::BLACK,
         );
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
-            let blocker_kind = self.position.kind_bb().must_get(blocker_pos);
+            let blocker_kind = self.position.must_get_kind(blocker_pos);
 
             let mut blocker_dest_cands = bitboard::reachable(
-                &self.color_bb,
+                &mut self.position,
                 Color::BLACK,
                 blocker_pos,
                 blocker_kind,
                 false,
             )
             .and_not(blocker_pinned_area);
-            if self.pinned.is_pinned(blocker_pos) {
-                blocker_dest_cands &= self.pinned.pinned_area(blocker_pos);
+
+            if let Some(area) = self.pinned.pinned_area(blocker_pos) {
+                blocker_dest_cands &= area;
             }
+
             let maybe_promotable = blocker_kind.is_promotable();
             for blocker_dest in blocker_dest_cands {
                 for promote in [false, true] {
@@ -297,7 +299,7 @@ impl<'a> Context<'a> {
                         continue;
                     }
 
-                    let capture_kind = self.position.kind_bb().get(blocker_dest);
+                    let capture_kind = self.position.get_kind(blocker_dest);
                     self.maybe_add_move(
                         Movement::move_with_hint(
                             blocker_pos,
@@ -322,11 +324,7 @@ impl<'a> Context<'a> {
         new_position: &'b mut Option<Position>,
         movement: &'b Movement,
     ) -> &'b Position {
-        new_position.get_or_insert_with(|| {
-            let mut position = self.position.clone();
-            position.do_move(movement);
-            position
-        })
+        new_position.get_or_insert_with(|| self.position.moved(movement))
     }
 
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
@@ -334,10 +332,9 @@ impl<'a> Context<'a> {
 
         if kind == Kind::King
             && common::checked(
-                self.update(&mut new_position, &movement),
+                &mut PositionAux::new(self.update(&mut new_position, &movement)),
                 Color::BLACK,
                 movement.dest().into(),
-                None,
             )
         {
             return Ok(());
@@ -345,10 +342,9 @@ impl<'a> Context<'a> {
 
         debug_assert!(
             !common::checked(
-                self.update(&mut new_position, &movement),
+                &mut PositionAux::new(self.update(&mut new_position, &movement)),
                 Color::BLACK,
                 self.black_king_pos,
-                None,
             ),
             "Black king checked: {:?}",
             new_position.as_ref().unwrap()
@@ -380,9 +376,9 @@ impl<'a> Context<'a> {
     }
 
     // Squares moving to which produces a check.
-    fn attack_squares(&self, kind: Kind) -> BitBoard {
+    fn attack_squares(&mut self, kind: Kind) -> BitBoard {
         bitboard::reachable(
-            &self.color_bb,
+            &mut self.position,
             Color::WHITE,
             self.white_king_pos,
             kind,

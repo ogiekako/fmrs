@@ -59,7 +59,7 @@ fn raw_kind(kind: Kind) -> Option<jkf::RawKind> {
     })
 }
 
-fn hands(hands: &Hands) -> Vec<BTreeMap<jkf::RawKind, usize>> {
+fn hands(hands: Hands) -> Vec<BTreeMap<jkf::RawKind, usize>> {
     let mut res = vec![];
     for color in [Color::BLACK, Color::WHITE] {
         let mut map = BTreeMap::default();

@@ -7,6 +7,7 @@ use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
+use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{advance, checked, AdvanceOptions, Position, Square};
 use fmrs_core::sfen::decode_position;
 use pprof::criterion::{Output, PProfProfiler};
@@ -186,15 +187,16 @@ fn bench_reachable(c: &mut Criterion) {
             }
         };
         let capture_same_color: bool = rng.gen();
-        test_cases.push((position.color_bb(), color, pos, kind, capture_same_color));
+        test_cases.push((position, color, pos, kind, capture_same_color));
     }
 
     c.bench_function("reachable", |b| {
         b.iter(|| {
             test_cases
                 .iter()
-                .for_each(|(color_bb, color, pos, kind, capture_same_color)| {
-                    let bb = reachable(color_bb, *color, *pos, *kind, *capture_same_color);
+                .for_each(|(position, color, pos, kind, capture_same_color)| {
+                    let mut position = PositionAux::new(position);
+                    let bb = reachable(&mut position, *color, *pos, *kind, *capture_same_color);
                     black_box(bb);
                 })
         })
@@ -209,7 +211,8 @@ fn bench_pinned300(c: &mut Criterion) {
     for position in positions {
         let king_color: Color = rng.gen();
 
-        if checked(&position, king_color, None, None) {
+        let mut position_aux = PositionAux::new(&position);
+        if checked(&mut position_aux, king_color, None) {
             continue;
         }
 
@@ -227,9 +230,8 @@ fn bench_pinned300(c: &mut Criterion) {
             test_cases
                 .iter()
                 .for_each(|(position, king_color, king_pos, blocker_color)| {
-                    let color_bb = position.color_bb();
-                    let pinned =
-                        pinned(position, &color_bb, *king_color, *king_pos, *blocker_color);
+                    let mut position = PositionAux::new(position);
+                    let pinned = pinned(&mut position, *king_color, *king_pos, *blocker_color);
                     black_box(pinned);
                 })
         })

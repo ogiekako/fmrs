@@ -2,7 +2,9 @@ use crate::piece::{Color, Kind};
 
 use super::{
     advance::attack_prevent::{attacker, Attacker},
-    checked, Movement, Position, Square,
+    checked,
+    position::PositionAux,
+    Movement, Position, Square,
 };
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
@@ -125,17 +127,14 @@ impl PositionExt for Position {
     }
 
     fn checked_slow(&self, c: Color) -> bool {
-        checked(self, c, None, None)
+        let mut position = PositionAux::new(self);
+        checked(&mut position, c, None)
     }
 
     fn attacker_slow(&self, c: Color) -> Option<Attacker> {
-        attacker(
-            self,
-            &self.color_bb(),
-            c,
-            self.bitboard(c, Kind::King).next()?,
-            false,
-        )
+        let king_pos = self.bitboard(c, Kind::King).next()?;
+        let mut position = PositionAux::new(self);
+        attacker(&mut position, c, king_pos, false)
     }
 }
 

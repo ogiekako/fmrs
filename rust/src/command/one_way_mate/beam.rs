@@ -8,7 +8,7 @@ use std::{
 };
 
 use fmrs_core::{
-    piece::Color,
+    piece::{Color, Kind},
     position::{Movement, Position, PositionExt},
 };
 use log::{debug, info};
@@ -274,6 +274,8 @@ fn compute_better_problem(
 ) -> Result<Problem, Problem> {
     let mut position = problem.position.clone();
     let mut solvable_position = position.clone();
+    let mut solvable_position_movements = None;
+
     let mut inferior_count = 0;
 
     let mut movements = vec![];
@@ -284,6 +286,20 @@ fn compute_better_problem(
         if random_action(rng, true).try_apply(&mut position).is_err() {
             continue;
         }
+        assert_eq!(
+            position
+                .bitboard(Color::WHITE, Kind::King)
+                .u128()
+                .count_ones(),
+            1
+        );
+        assert_eq!(
+            position
+                .bitboard(Color::BLACK, Kind::King)
+                .u128()
+                .count_ones(),
+            1
+        );
 
         movements.clear();
         let step = one_way_mate_steps(&position, &mut movements);
@@ -297,6 +313,7 @@ fn compute_better_problem(
         }
         inferior_count = 0;
         solvable_position = position.clone();
+        solvable_position_movements = Some(movements.clone());
 
         let step = step.unwrap();
 
@@ -311,9 +328,11 @@ fn compute_better_problem(
             return Ok(Problem::new(position, step, &movements));
         }
     }
-    movements.clear();
-    let step = one_way_mate_steps(&solvable_position, &mut movements).unwrap();
-    Err(Problem::new(solvable_position, step, &movements))
+    Err(if let Some(movements) = solvable_position_movements {
+        Problem::new(solvable_position, movements.len(), &movements)
+    } else {
+        problem.clone()
+    })
 }
 
 fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {

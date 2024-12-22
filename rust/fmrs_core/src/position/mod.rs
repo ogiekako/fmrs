@@ -2,7 +2,7 @@ pub mod advance;
 pub mod bitboard;
 mod hands;
 mod movement;
-mod position;
+pub mod position;
 mod position_ext;
 mod previous;
 mod rule;
