@@ -1,5 +1,6 @@
 use std::{
-    collections::BTreeMap,
+    cmp::Ordering,
+    collections::{BTreeMap, HashMap},
     hash::{Hash as _, Hasher as _},
     io::Write as _,
     time::Instant,
@@ -29,6 +30,8 @@ pub(super) fn generate_one_way_mate_with_beam(
 
     let start_time = Instant::now();
 
+    let mut seen_stats: HashMap<u64, usize> = Default::default();
+
     let mut best_problems: Vec<Problem> = vec![];
     for i in 0.. {
         eprint!(".");
@@ -36,8 +39,10 @@ pub(super) fn generate_one_way_mate_with_beam(
 
         if (i + 1) % 10 == 0 {
             info!(
-                "best = {} ({:.1?} (iter/{:.1?})",
+                "best = {} #seen = {} iter = {} ({:.1?} iter/{:.1?})",
                 best_problems[0].step,
+                seen_stats.len(),
+                i + 1,
                 start_time.elapsed(),
                 start_time.elapsed() / (i + 1),
             );
@@ -48,6 +53,7 @@ pub(super) fn generate_one_way_mate_with_beam(
             parallel,
             best_problems.get(0).cloned(),
             &start_time,
+            &mut seen_stats,
         );
 
         for problem in problems {
@@ -107,6 +113,7 @@ fn generate(
     parallel: usize,
     prev_best: Option<Problem>,
     start_time: &Instant,
+    seen_stats: &mut HashMap<u64, usize>,
 ) -> Vec<Problem> {
     let mut all_problems: Vec<Vec<Problem>> = vec![];
 
@@ -127,6 +134,9 @@ fn generate(
         if step >= all_problems.len() {
             break;
         }
+        if all_problems[step].is_empty() {
+            continue;
+        }
 
         all_problems[step].shuffle(&mut rng);
 
@@ -137,13 +147,28 @@ fn generate(
                 .or_insert_with(Vec::new)
                 .push(problem);
         }
-        buckets.values_mut().for_each(|ps| ps.shuffle(&mut rng));
 
-        let mut keys = buckets.keys().cloned().collect::<Vec<_>>();
-        keys.shuffle(&mut rng);
+        let keys = buckets.keys().copied().collect::<Vec<_>>();
+        let weights = buckets
+            .keys()
+            .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.))
+            .collect::<Vec<_>>();
+        let sum_weight = weights.iter().sum::<f64>();
+        let mut key_weights = keys
+            .into_iter()
+            .zip(weights.into_iter())
+            .map(|(k, weight)| {
+                let p = weight as f64 / sum_weight;
+                let u: f64 = rng.gen();
+                let reservoir = u.powf(1.0 / p);
+                (k, reservoir)
+            })
+            .collect::<Vec<_>>();
+        key_weights.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+
         let mut problems = vec![];
         'outer: while !buckets.is_empty() {
-            for key in keys.iter() {
+            for (key, _) in key_weights.iter() {
                 let Some(ps) = buckets.get_mut(key) else {
                     continue;
                 };
@@ -159,15 +184,13 @@ fn generate(
 
         if step >= prev_best.as_ref().map(|p| p.step + 1).unwrap_or(0) {
             info!(
-                "step = {} #problems = {} best = {} elapsed={:.1?}",
+                "step = {} #problems = {} veriety = {} best = {} elapsed={:.1?}",
                 step,
                 problems.len(),
+                key_weights.len(),
                 all_problems.len() - 1,
                 start_time.elapsed()
             );
-        }
-        if problems.is_empty() {
-            continue;
         }
 
         let mut i = 0;
@@ -175,6 +198,13 @@ fn generate(
             let p = problems[i];
             problems.push(p);
             i += 1;
+        }
+
+        for problem in problems.iter() {
+            seen_stats
+                .entry(problem.white_movements_digest)
+                .and_modify(|e| *e += 1)
+                .or_insert(1);
         }
 
         let base_seed = *seed;
