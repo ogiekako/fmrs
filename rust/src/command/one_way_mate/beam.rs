@@ -57,8 +57,8 @@ pub(super) fn generate_one_way_mate_with_beam(
 }
 
 const SEARCH_DEPTH: usize = 8;
-const SEARCH_ITER_MULT: usize = 15000;
-const USE_MULT: usize = 4;
+const SEARCH_ITER_MULT: usize = 10000;
+const USE_MULT: usize = 1;
 const MAX_PRODUCE: usize = 2;
 
 fn insert(all_problems: &mut Vec<Vec<Problem>>, mut position: Position, min_step: usize) {
@@ -129,6 +129,8 @@ fn generate(
         }
 
         let base_seed = *seed;
+        *seed += parallel as u64;
+
         let new_positions = all_problems[step]
             .par_iter_mut()
             .enumerate()
@@ -162,8 +164,6 @@ fn generate(
             })
             .collect::<Vec<_>>()
             .concat();
-
-        *seed += parallel as u64;
 
         for new_position in new_positions {
             insert(&mut all_problems, new_position, step + 1);
