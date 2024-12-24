@@ -273,8 +273,8 @@ impl PositionAux {
     }
 
     pub fn do_move(&mut self, movement: &Movement) {
-        // Update
-        // occupied, white_bb, kind_bb
+        let turn = self.turn();
+
         match movement {
             Movement::Move {
                 source,
@@ -290,94 +290,24 @@ impl PositionAux {
                 } else {
                     source_kind
                 };
-
-                // Update occupied
-                if let Some(bb) = self.occupied.as_mut() {
-                    bb.unset(*source);
-                    bb.set(*dest);
-                }
-
-                // Update white_bb
-                if self.turn().is_white() {
-                    if let Some(bb) = self.white_bb.as_mut() {
-                        bb.unset(*source);
-                        bb.set(*dest);
-                    }
-                } else if capture_kind.is_some() {
-                    if let Some(bb) = self.white_bb.as_mut() {
-                        bb.unset(*dest);
-                    }
-                }
-
-                // Update kind_bb
-                if let Some(bb) = self.kind_bb[source_kind.index()].as_mut() {
-                    bb.unset(*source);
-                }
                 if let Some(capture_kind) = capture_kind {
-                    if let Some(bb) = self.kind_bb[capture_kind.index()].as_mut() {
-                        bb.unset(*dest);
-                    }
+                    self.unset(*dest, turn.opposite(), capture_kind);
+                    self.hands_mut().add(turn, capture_kind.maybe_unpromote());
                 }
-                if let Some(bb) = self.kind_bb[dest_kind.index()].as_mut() {
-                    bb.set(*dest);
-                }
+                self.unset(*source, turn, source_kind);
+                self.set(*dest, turn, dest_kind);
 
-                // Update king_pos
-                if source_kind == Kind::King {
-                    if self.turn().is_black() {
-                        self.black_king_pos = Some(Some(*dest));
-                    } else {
-                        self.white_king_pos = Some(*dest);
-                    }
-                }
-
-                // Update bishopish, rookish
-                if capture_kind.map(|k| k.maybe_unpromote()) == Some(Kind::Bishop) {
-                    if let Some(bb) = self.bishopish.as_mut() {
-                        bb.unset(*dest);
-                    }
-                } else if capture_kind.map(|k| k.maybe_unpromote()) == Some(Kind::Rook) {
-                    if let Some(bb) = self.rookish.as_mut() {
-                        bb.unset(*dest);
-                    }
-                }
-                if source_kind.maybe_unpromote() == Kind::Bishop {
-                    if let Some(bb) = self.bishopish.as_mut() {
-                        bb.unset(*source);
-                        bb.set(*dest);
-                    }
-                } else if source_kind.maybe_unpromote() == Kind::Rook {
-                    if let Some(bb) = self.rookish.as_mut() {
-                        bb.unset(*source);
-                        bb.set(*dest);
-                    }
-                }
+                self.core.set_pawn_drop(false);
+                self.core.set_turn(turn.opposite());
             }
             Movement::Drop(pos, kind) => {
-                if let Some(bb) = self.occupied.as_mut() {
-                    bb.set(*pos);
-                }
-                if self.turn().is_white() {
-                    if let Some(bb) = self.white_bb.as_mut() {
-                        bb.set(*pos);
-                    }
-                }
-                if let Some(bb) = self.kind_bb[kind.index()].as_mut() {
-                    bb.set(*pos);
-                }
-                // Update bishopish, rookish
-                if *kind == Kind::Bishop {
-                    if let Some(bb) = self.bishopish.as_mut() {
-                        bb.set(*pos);
-                    }
-                } else if *kind == Kind::Rook {
-                    if let Some(bb) = self.rookish.as_mut() {
-                        bb.set(*pos);
-                    }
-                }
+                self.set(*pos, turn, *kind);
+                self.hands_mut().remove(turn, *kind);
+
+                self.core.set_pawn_drop(*kind == Kind::Pawn);
+                self.core.set_turn(turn.opposite());
             }
         }
-        self.core.do_move(movement);
     }
 
     pub fn digest(&self) -> u64 {
