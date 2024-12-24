@@ -12,6 +12,7 @@ pub struct Position {
 pub type Digest = u64;
 
 use crate::sfen;
+use std::collections::VecDeque;
 use std::fmt;
 use std::fmt::Debug;
 
@@ -30,6 +31,7 @@ use super::hands::Hands;
 use super::Movement;
 use super::PositionExt as _;
 use super::Square;
+use super::UndoMove;
 
 impl Position {
     pub fn turn(&self) -> Color {
@@ -144,6 +146,8 @@ pub struct PositionAux {
     bishopish: Option<BitBoard>,
     rookish: Option<BitBoard>,
     white_king_attack_squares: [Option<BitBoard>; NUM_KIND],
+    // col -> row -> piece
+    pieces: VecDeque<VecDeque<Option<(Color, Kind)>>>,
 }
 
 impl Debug for PositionAux {
@@ -154,8 +158,23 @@ impl Debug for PositionAux {
 
 impl PositionAux {
     pub fn new(core: Position) -> Self {
+        let mut pieces = VecDeque::new();
+        for _ in 0..9 {
+            let mut row = VecDeque::new();
+            for _ in 0..9 {
+                row.push_back(None);
+            }
+            pieces.push_back(row);
+        }
+        for pos in Square::iter() {
+            if let Some((color, kind)) = core.get(pos) {
+                pieces[pos.col()][pos.row()] = Some((color, kind));
+            }
+        }
+
         Self {
             core,
+            pieces,
             ..Default::default()
         }
     }
@@ -210,22 +229,15 @@ impl PositionAux {
     }
 
     pub(crate) fn must_get_kind(&self, pos: Square) -> Kind {
-        // TODO: consider having pos -> kind mapping
-        self.core.kind_bb().must_get(pos)
+        self.pieces[pos.col()][pos.row()].unwrap().1
     }
 
-    pub(crate) fn get_kind(&self, dest: Square) -> Option<Kind> {
-        self.core.kind_bb().get(dest)
+    pub(crate) fn get_kind(&self, pos: Square) -> Option<Kind> {
+        self.pieces[pos.col()][pos.row()].map(|(_, kind)| kind)
     }
 
     pub fn get(&mut self, pos: Square) -> Option<(Color, Kind)> {
-        if !self.occupied_bb().get(pos) {
-            return None;
-        }
-        Some((
-            Color::from_is_black(self.black_bb().get(pos)),
-            self.must_get_kind(pos),
-        ))
+        self.pieces[pos.col()][pos.row()]
     }
 
     pub fn turn(&self) -> Color {
@@ -274,7 +286,7 @@ impl PositionAux {
         self.black_king_pos.unwrap()
     }
 
-    pub fn do_move(&mut self, movement: &Movement) {
+    pub fn do_move(&mut self, movement: &Movement) -> UndoMove {
         let turn = self.turn();
 
         match movement {
@@ -299,15 +311,69 @@ impl PositionAux {
                 self.unset(*source, turn, source_kind);
                 self.set(*dest, turn, dest_kind);
 
+                let pawn_drop = self.core.pawn_drop();
+
                 self.core.set_pawn_drop(false);
                 self.core.set_turn(turn.opposite());
+
+                UndoMove::UnMove {
+                    source: *source,
+                    dest: *dest,
+                    promote: *promote,
+                    capture: capture_kind,
+                    pawn_drop,
+                }
             }
             Movement::Drop(pos, kind) => {
                 self.set(*pos, turn, *kind);
                 self.hands_mut().remove(turn, *kind);
 
+                let pawn_drop = self.core.pawn_drop();
+
                 self.core.set_pawn_drop(*kind == Kind::Pawn);
                 self.core.set_turn(turn.opposite());
+
+                UndoMove::UnDrop(*pos, pawn_drop)
+            }
+        }
+    }
+
+    pub fn undo_move(&mut self, undo: &UndoMove) {
+        match undo {
+            UndoMove::UnMove {
+                source,
+                dest,
+                promote,
+                capture,
+                pawn_drop,
+            } => {
+                let turn = self.turn().opposite();
+
+                let dest_kind = self.must_get_kind(*dest);
+                let source_kind = if *promote {
+                    dest_kind.unpromote().unwrap()
+                } else {
+                    dest_kind
+                };
+                self.unset(*dest, turn, dest_kind);
+                self.set(*source, turn, source_kind);
+                if let Some(capture) = capture {
+                    self.set(*dest, turn.opposite(), *capture);
+                    self.hands_mut().remove(turn, capture.maybe_unpromote());
+                }
+
+                self.core.set_pawn_drop(*pawn_drop);
+                self.core.set_turn(turn);
+            }
+            UndoMove::UnDrop(pos, pawn_drop) => {
+                let turn = self.turn().opposite();
+
+                let kind = self.must_get_kind(*pos);
+                self.unset(*pos, turn, kind);
+                self.hands_mut().add(turn, kind.maybe_unpromote());
+
+                self.core.set_pawn_drop(*pawn_drop);
+                self.core.set_turn(turn);
             }
         }
     }
@@ -352,6 +418,9 @@ impl PositionAux {
             }
         }
 
+        // Update pieces
+        self.pieces[pos.col()][pos.row()] = None;
+
         self.core.unset(pos, color, kind);
     }
 
@@ -387,6 +456,9 @@ impl PositionAux {
             }
         }
 
+        // Update pieces
+        self.pieces[pos.col()][pos.row()] = Some((color, kind));
+
         self.core.set(pos, color, kind);
     }
 
@@ -415,6 +487,25 @@ impl PositionAux {
 
         // Update white_king_attack_squares
         (0..NUM_KIND).for_each(|i| self.white_king_attack_squares[i] = None);
+
+        // Update pieces
+        if dir == Direction::Left {
+            let left = self.pieces.pop_back().unwrap();
+            self.pieces.push_front(left);
+        } else if dir == Direction::Right {
+            let right = self.pieces.pop_front().unwrap();
+            self.pieces.push_back(right);
+        } else {
+            for row in &mut self.pieces {
+                if dir == Direction::Down {
+                    let x = row.pop_back().unwrap();
+                    row.push_front(x);
+                } else {
+                    let x = row.pop_front().unwrap();
+                    row.push_back(x);
+                }
+            }
+        }
 
         self.core.shift(dir);
     }
