@@ -424,41 +424,45 @@ pub fn attacker(
     king_color: Color,
     early_return: bool,
 ) -> Option<Attacker> {
-    let opponent_bb = position.color_bb(king_color.opposite());
-
     let mut attacker: Option<Attacker> = None;
 
-    for attacker_kind in [
-        Kind::Pawn,
-        Kind::Lance,
-        Kind::Knight,
-        Kind::Silver,
-        Kind::Gold,
-        Kind::Bishop,
-        Kind::Rook,
-        Kind::King,
-        Kind::ProBishop,
-        Kind::ProRook,
-    ] {
-        let mut attacker_cands = if attacker_kind == Kind::Gold {
-            position.goldish()
-        } else {
-            position.kind_bb(attacker_kind)
+    let mut opponent_bb = position.color_bb(king_color.opposite());
+    let king_pos = position.must_king_pos(king_color);
+
+    let king_power_area = king_power(king_pos) & opponent_bb;
+
+    for pos in king_power_area {
+        let kind = position.must_get_kind(pos);
+        if power(king_color, king_pos, kind).get(pos) {
+            if let Some(mut attacker) = attacker.take() {
+                attacker.double_check = (pos, kind).into();
+                return Some(attacker);
+            }
+            attacker = Some(Attacker::new(pos, kind, None));
+            if early_return {
+                return attacker;
+            }
+        }
+    }
+    opponent_bb = opponent_bb.and_not(king_power_area);
+
+    for attacker_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
+        let mut attacker_cands = match attacker_kind {
+            Kind::Lance => position.kind_bb(attacker_kind),
+            Kind::Knight => position.kind_bb(attacker_kind),
+            Kind::Bishop => position.bishopish(),
+            Kind::Rook => position.rookish(),
+            _ => unreachable!(),
         } & opponent_bb;
 
         if attacker_cands.is_empty() {
             continue;
         }
-        attacker_cands &= power(
-            king_color,
-            position.must_king_pos(king_color),
-            attacker_kind,
-        );
+        attacker_cands &= power(king_color, king_pos, attacker_kind);
         if attacker_cands.is_empty() {
             continue;
         }
         if attacker_kind.is_line_piece() {
-            let king_pos = position.must_king_pos(king_color);
             attacker_cands &= reachable(position, king_color, king_pos, attacker_kind, false);
             if attacker_cands.is_empty() {
                 continue;

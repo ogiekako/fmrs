@@ -132,7 +132,7 @@ impl Position {
 }
 
 // TOOD: remove clone
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct PositionAux {
     core: Position,
     occupied: Option<BitBoard>,
@@ -140,6 +140,8 @@ pub struct PositionAux {
     kind_bb: [Option<BitBoard>; NUM_KIND],
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
+    bishopish: Option<BitBoard>,
+    rookish: Option<BitBoard>,
 }
 
 impl Debug for PositionAux {
@@ -152,11 +154,7 @@ impl PositionAux {
     pub fn new(core: Position) -> Self {
         Self {
             core,
-            occupied: None,
-            white_bb: None,
-            kind_bb: [None; 14],
-            white_king_pos: None,
-            black_king_pos: None,
+            ..Default::default()
         }
     }
 
@@ -236,12 +234,16 @@ impl PositionAux {
         self.core.kind_bb().pawn_silver_goldish()
     }
 
-    pub fn bishopish(&self) -> BitBoard {
-        self.core.kind_bb().bishopish()
+    pub fn bishopish(&mut self) -> BitBoard {
+        *self
+            .bishopish
+            .get_or_insert_with(|| self.core.kind_bb().bishopish())
     }
 
-    pub fn rookish(&self) -> BitBoard {
-        self.core.kind_bb().rookish()
+    pub fn rookish(&mut self) -> BitBoard {
+        *self
+            .rookish
+            .get_or_insert_with(|| self.core.kind_bb().rookish())
     }
 
     pub fn goldish(&self) -> BitBoard {
@@ -328,6 +330,28 @@ impl PositionAux {
                         self.white_king_pos = Some(*dest);
                     }
                 }
+
+                // Update bishopish, rookish
+                if capture_kind.map(|k| k.maybe_unpromote()) == Some(Kind::Bishop) {
+                    if let Some(bb) = self.bishopish.as_mut() {
+                        bb.unset(*dest);
+                    }
+                } else if capture_kind.map(|k| k.maybe_unpromote()) == Some(Kind::Rook) {
+                    if let Some(bb) = self.rookish.as_mut() {
+                        bb.unset(*dest);
+                    }
+                }
+                if source_kind.maybe_unpromote() == Kind::Bishop {
+                    if let Some(bb) = self.bishopish.as_mut() {
+                        bb.unset(*source);
+                        bb.set(*dest);
+                    }
+                } else if source_kind.maybe_unpromote() == Kind::Rook {
+                    if let Some(bb) = self.rookish.as_mut() {
+                        bb.unset(*source);
+                        bb.set(*dest);
+                    }
+                }
             }
             Movement::Drop(pos, kind) => {
                 if let Some(bb) = self.occupied.as_mut() {
@@ -340,6 +364,16 @@ impl PositionAux {
                 }
                 if let Some(bb) = self.kind_bb[kind.index()].as_mut() {
                     bb.set(*pos);
+                }
+                // Update bishopish, rookish
+                if *kind == Kind::Bishop {
+                    if let Some(bb) = self.bishopish.as_mut() {
+                        bb.set(*pos);
+                    }
+                } else if *kind == Kind::Rook {
+                    if let Some(bb) = self.rookish.as_mut() {
+                        bb.set(*pos);
+                    }
                 }
             }
         }
@@ -365,6 +399,13 @@ impl PositionAux {
             }
         }
 
+        // Update bishopish, rookish
+        if kind.maybe_unpromote() == Kind::Bishop {
+            self.bishopish.as_mut().map(|bb| bb.unset(pos));
+        } else if kind.maybe_unpromote() == Kind::Rook {
+            self.rookish.as_mut().map(|bb| bb.unset(pos));
+        }
+
         self.core.unset(pos, color, kind);
     }
 
@@ -381,6 +422,13 @@ impl PositionAux {
             } else {
                 self.white_king_pos = Some(pos);
             }
+        }
+
+        // Update bishopish, rookish
+        if kind.maybe_unpromote() == Kind::Bishop {
+            self.bishopish.as_mut().map(|bb| bb.set(pos));
+        } else if kind.maybe_unpromote() == Kind::Rook {
+            self.rookish.as_mut().map(|bb| bb.set(pos));
         }
 
         self.core.set(pos, color, kind);
@@ -404,6 +452,10 @@ impl PositionAux {
         self.black_king_pos
             .as_mut()
             .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
+
+        // Update bishopish, rookish
+        self.bishopish.as_mut().map(|bb| bb.shift(dir));
+        self.rookish.as_mut().map(|bb| bb.shift(dir));
 
         self.core.shift(dir);
     }
