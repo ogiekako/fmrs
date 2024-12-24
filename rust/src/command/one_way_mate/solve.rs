@@ -2,9 +2,7 @@ use fmrs_core::{
     memo::Memo,
     nohash::NoHashSet,
     piece::Color,
-    position::{
-        advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement, UndoMove,
-    },
+    position::{advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement},
 };
 
 pub fn one_way_mate_steps(
@@ -20,10 +18,10 @@ pub fn one_way_mate_steps(
             return None;
         }
     }
-    let mut undos = vec![];
-    let res = one_way_mate_steps_inner(position, movements, &mut undos);
-    while let Some(undo) = undos.pop() {
-        position.undo_move(&undo);
+    let orig = position.clone();
+    let res = one_way_mate_steps_inner(position, movements);
+    if position.digest() != orig.digest() {
+        *position = orig;
     }
     res
 }
@@ -31,7 +29,6 @@ pub fn one_way_mate_steps(
 fn one_way_mate_steps_inner(
     position: &mut PositionAux,
     movements: &mut Vec<Movement>,
-    undos: &mut Vec<UndoMove>,
 ) -> Option<usize> {
     let initial_step = if position.turn().is_black() { 1 } else { 0 };
 
@@ -59,16 +56,18 @@ fn one_way_mate_steps_inner(
                 debug_assert!(movements[movements.len() - 1].is_pawn_drop());
                 let pawn_move = movements.pop().unwrap();
 
-                undos.push(position.do_move(&pawn_move));
+                let orig = position.clone();
+                position.do_move(&pawn_move);
                 advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
                 if movements.len() != prev_len + 1 {
-                    position.undo_move(&undos.pop().unwrap());
                     return None;
                 }
-                position.undo_move(&undos.pop().unwrap());
+                *position = orig;
+            } else if movements.len() != prev_len + 1 {
+                return None;
             }
 
-            undos.push(position.do_move(&movements.last().unwrap()));
+            position.do_move(&movements.last().unwrap());
         }
 
         assert!(position.turn().is_white(), "{:?}", position);
@@ -80,7 +79,7 @@ fn one_way_mate_steps_inner(
             if !position.hands().is_empty(Color::BLACK) {
                 return None;
             }
-            return Some(step);
+            return (step as usize).into();
         }
 
         if movements.len() != prev_len + 1 {
@@ -89,7 +88,7 @@ fn one_way_mate_steps_inner(
 
         debug_assert_eq!(movements.len(), prev_len + 1);
 
-        undos.push(position.do_move(&movements.last().unwrap()));
+        position.do_move(&movements.last().unwrap());
 
         if step > 60 {
             // Avoid perpetual check
@@ -100,7 +99,7 @@ fn one_way_mate_steps_inner(
             seen_positions.insert(digest);
         }
     }
-    unreachable!()
+    unreachable!();
 }
 
 #[cfg(test)]
