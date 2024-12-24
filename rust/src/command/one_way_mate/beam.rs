@@ -78,8 +78,7 @@ pub(super) fn generate_one_way_mate_with_beam(
     unreachable!()
 }
 
-const SEARCH_DEPTH_MIN: usize = 6;
-const SEARCH_DEPTH_MAX: usize = 9;
+const SEARCH_DEPTH: usize = 7;
 const SEARCH_ITER_MULT: usize = 10000;
 const USE_MULT: usize = 1;
 const MAX_PRODUCE: [usize; 2] = [1, 1];
@@ -144,7 +143,7 @@ fn generate(
             buckets
                 .entry(problem.white_movements_digest)
                 .or_insert_with(Vec::new)
-                .push(problem);
+                .push(problem.clone());
         }
 
         let mut keys = buckets.keys().copied().collect::<Vec<_>>();
@@ -203,7 +202,7 @@ fn generate(
 
         let mut i = 0;
         while problems.len() < parallel {
-            let p = problems[i];
+            let p = problems[i].clone();
             problems.push(p);
             i += 1;
         }
@@ -212,11 +211,9 @@ fn generate(
         *seed += parallel as u64;
 
         let new_problems = problems
-            .into_par_iter()
+            .par_iter_mut()
             .enumerate()
             .map(|(i, problem)| {
-                let mut problem = problem.clone();
-
                 assert_eq!(step, problem.step);
 
                 let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
@@ -227,8 +224,6 @@ fn generate(
                 let mut new_problems = vec![];
 
                 for _ in 0..num_use {
-                    let search_depth = rng.gen_range(SEARCH_DEPTH_MIN..=SEARCH_DEPTH_MAX);
-
                     let must_step_parity = if count[0] >= MAX_PRODUCE[0] {
                         Some(1)
                     } else if count[1] >= MAX_PRODUCE[1] {
@@ -237,20 +232,18 @@ fn generate(
                         None
                     };
 
-                    match compute_better_problem(&mut rng, &problem, search_depth, must_step_parity)
+                    if let Some(new_problem) =
+                        compute_better_problem(&mut rng, problem, SEARCH_DEPTH, must_step_parity)
                     {
-                        Ok(new_problem) => {
-                            for s in problem.step + 1..=new_problem.step {
-                                count[s % 2] += 1;
-                            }
-
-                            new_problems.push(new_problem);
-
-                            if count[0] >= MAX_PRODUCE[0] && count[1] >= MAX_PRODUCE[1] {
-                                break;
-                            }
+                        for s in problem.step + 1..=new_problem.step {
+                            count[s % 2] += 1;
                         }
-                        Err(modified_problem) => problem = modified_problem,
+
+                        new_problems.push(new_problem);
+
+                        if count[0] >= MAX_PRODUCE[0] && count[1] >= MAX_PRODUCE[1] {
+                            break;
+                        }
                     }
                 }
 
@@ -269,10 +262,10 @@ fn generate(
 
 fn compute_better_problem(
     rng: &mut SmallRng,
-    problem: &Problem,
+    problem: &mut Problem,
     search_depth: usize,
     must_step_parity: Option<usize>,
-) -> Result<Problem, Problem> {
+) -> Option<Problem> {
     let mut position = problem.position.clone();
     let mut solvable_position = problem.position.clone();
     let mut solvable_position_movements = None;
@@ -282,20 +275,20 @@ fn compute_better_problem(
     let mut movements = vec![];
 
     let iteration =
-        (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log10() + 1.)).ceil() as usize;
+        (SEARCH_ITER_MULT as f64 * ((problem.step as f64 + 1.).log2() + 1.)).ceil() as usize;
 
     for _ in 0..iteration {
         if random_action(rng, true).try_apply(&mut position).is_err() {
             continue;
         }
-        assert_eq!(
+        debug_assert_eq!(
             position
                 .bitboard(Color::WHITE, Kind::King)
                 .u128()
                 .count_ones(),
             1
         );
-        assert_eq!(
+        debug_assert_eq!(
             position
                 .bitboard(Color::BLACK, Kind::King)
                 .u128()
@@ -327,14 +320,13 @@ fn compute_better_problem(
             || step >= problem.step + 2
             || Some(step % 2) == must_step_parity
         {
-            return Ok(Problem::new(position, step, &movements));
+            return Some(Problem::new(position, step, &movements));
         }
     }
-    Err(if let Some(movements) = solvable_position_movements {
-        Problem::new(solvable_position, movements.len(), &movements)
-    } else {
-        problem.clone()
-    })
+    if let Some(movements) = solvable_position_movements {
+        *problem = Problem::new(solvable_position, movements.len(), &movements);
+    }
+    None
 }
 
 fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
