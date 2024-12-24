@@ -141,9 +141,6 @@ pub struct PositionAux {
     kind_bb: [Option<BitBoard>; NUM_KIND],
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
-    bishopish: Option<BitBoard>,
-    rookish: Option<BitBoard>,
-    white_king_attack_squares: [Option<BitBoard>; NUM_KIND],
 }
 
 impl Debug for PositionAux {
@@ -237,15 +234,11 @@ impl PositionAux {
     }
 
     pub fn bishopish(&mut self) -> BitBoard {
-        *self
-            .bishopish
-            .get_or_insert_with(|| self.core.kind_bb().bishopish())
+        self.core.kind_bb().bishopish()
     }
 
     pub fn rookish(&mut self) -> BitBoard {
-        *self
-            .rookish
-            .get_or_insert_with(|| self.core.kind_bb().rookish())
+        self.core.kind_bb().rookish()
     }
 
     pub fn goldish(&self) -> BitBoard {
@@ -331,27 +324,6 @@ impl PositionAux {
             }
         }
 
-        // Update bishopish, rookish
-        if kind.maybe_unpromote() == Kind::Bishop {
-            self.bishopish.as_mut().map(|bb| bb.unset(pos));
-        } else if kind.maybe_unpromote() == Kind::Rook {
-            self.rookish.as_mut().map(|bb| bb.unset(pos));
-        }
-
-        // Update white_king_attack_squares
-        if kind == Kind::King {
-            (0..NUM_KIND).for_each(|i| self.white_king_attack_squares[i] = None);
-        } else {
-            for k in Kind::iter() {
-                if k.is_line_piece() {
-                    let r = &mut self.white_king_attack_squares[k.index()];
-                    if r.map(|bb| bb.get(pos)).unwrap_or(false) {
-                        *r = None;
-                    }
-                }
-            }
-        }
-
         self.core.unset(pos, color, kind);
     }
 
@@ -367,23 +339,6 @@ impl PositionAux {
                 self.black_king_pos = Some(Some(pos));
             } else {
                 self.white_king_pos = Some(pos);
-            }
-        }
-
-        // Update bishopish, rookish
-        if kind.maybe_unpromote() == Kind::Bishop {
-            self.bishopish.as_mut().map(|bb| bb.set(pos));
-        } else if kind.maybe_unpromote() == Kind::Rook {
-            self.rookish.as_mut().map(|bb| bb.set(pos));
-        }
-
-        // Update white_king_attack_squares
-        for k in Kind::iter() {
-            if k.is_line_piece() {
-                let r = &mut self.white_king_attack_squares[k.index()];
-                if r.map(|bb| bb.get(pos)).unwrap_or(false) {
-                    *r = None;
-                }
             }
         }
 
@@ -409,13 +364,6 @@ impl PositionAux {
             .as_mut()
             .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
 
-        // Update bishopish, rookish
-        self.bishopish.as_mut().map(|bb| bb.shift(dir));
-        self.rookish.as_mut().map(|bb| bb.shift(dir));
-
-        // Update white_king_attack_squares
-        (0..NUM_KIND).for_each(|i| self.white_king_attack_squares[i] = None);
-
         self.core.shift(dir);
     }
 
@@ -436,12 +384,8 @@ impl PositionAux {
     }
 
     pub(crate) fn white_king_attack_squares(&mut self, kind: Kind) -> BitBoard {
-        if self.white_king_attack_squares[kind.index()].is_none() {
-            let white_king_pos = self.white_king_pos();
-            self.white_king_attack_squares[kind.index()] =
-                Some(reachable_sub(self, Color::WHITE, white_king_pos, kind));
-        }
-        self.white_king_attack_squares[kind.index()].unwrap()
+        let white_king_pos = self.white_king_pos();
+        reachable_sub(self, Color::WHITE, white_king_pos, kind)
     }
 
     // TODO: remember attackers

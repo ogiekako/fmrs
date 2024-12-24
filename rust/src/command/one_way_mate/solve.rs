@@ -18,9 +18,9 @@ pub fn one_way_mate_steps(
             return None;
         }
     }
-    let orig = position.clone();
-    let res = one_way_mate_steps_inner(position, movements);
-    if position.digest() != orig.digest() {
+    let mut orig = None;
+    let res = one_way_mate_steps_inner(position, movements, &mut orig);
+    if let Some(orig) = orig {
         *position = orig;
     }
     res
@@ -29,6 +29,7 @@ pub fn one_way_mate_steps(
 fn one_way_mate_steps_inner(
     position: &mut PositionAux,
     movements: &mut Vec<Movement>,
+    orig: &mut Option<PositionAux>,
 ) -> Option<usize> {
     let initial_step = if position.turn().is_black() { 1 } else { 0 };
 
@@ -56,17 +57,18 @@ fn one_way_mate_steps_inner(
                 debug_assert!(movements[movements.len() - 1].is_pawn_drop());
                 let pawn_move = movements.pop().unwrap();
 
-                let orig = position.clone();
+                *orig = Some(position.clone());
                 position.do_move(&pawn_move);
                 advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
                 if movements.len() != prev_len + 1 {
                     return None;
                 }
-                *position = orig;
+                *position = orig.as_ref().unwrap().clone();
             } else if movements.len() != prev_len + 1 {
                 return None;
             }
 
+            orig.get_or_insert_with(|| position.clone());
             position.do_move(&movements.last().unwrap());
         }
 
@@ -88,6 +90,7 @@ fn one_way_mate_steps_inner(
 
         debug_assert_eq!(movements.len(), prev_len + 1);
 
+        orig.get_or_insert_with(|| position.clone());
         position.do_move(&movements.last().unwrap());
 
         if step > 60 {
