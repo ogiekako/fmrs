@@ -1,5 +1,5 @@
 use crate::memo::Memo;
-use crate::position::bitboard::{king_power, lion_king_power, power};
+use crate::position::bitboard::{king_power, lion_king_power, power, reachable_sub};
 use crate::position::position::PositionAux;
 use crate::position::rule::is_legal_move;
 use anyhow::Result;
@@ -106,14 +106,17 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn drops(&mut self) -> Result<()> {
+        let white_king_pos = self.position.white_king_pos();
         for kind in self.position.hands().kinds(Color::BLACK) {
-            let empty_attack_squares = self
-                .attack_squares(kind)
-                .and_not(self.position.color_bb(Color::WHITE));
+            if kind == Kind::Pawn && self.pawn_mask >> white_king_pos.col() & 1 != 0 {
+                continue;
+            }
+
+            let empty_attack_squares =
+                reachable_sub(&mut self.position, Color::WHITE, white_king_pos, kind)
+                    .and_not(self.position.occupied_bb());
+
             for pos in empty_attack_squares {
-                if kind == Kind::Pawn && self.pawn_mask >> pos.col() & 1 != 0 {
-                    continue;
-                }
                 self.maybe_add_move(Movement::Drop(pos, kind), kind)?;
             }
         }
@@ -222,7 +225,11 @@ impl<'a> Context<'a> {
                         attacker_source_kind
                     };
 
-                    let mut attack_squares = self.attack_squares(attacker_dest_kind);
+                    let mut attack_squares = self
+                        .position
+                        .white_king_attack_squares(attacker_dest_kind)
+                        .and_not(self.position.black_bb());
+
                     if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
                         attack_squares &= BitBoard::BLACK_PROMOTABLE;
                     }
@@ -355,11 +362,5 @@ impl<'a> Context<'a> {
         self.result.push(movement);
 
         Ok(())
-    }
-
-    // Squares moving to which produces a check.
-    fn attack_squares(&mut self, kind: Kind) -> BitBoard {
-        let king_pos = self.position.white_king_pos();
-        bitboard::reachable(&mut self.position, Color::WHITE, king_pos, kind, true)
     }
 }

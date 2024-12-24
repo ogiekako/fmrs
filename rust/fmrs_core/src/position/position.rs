@@ -22,6 +22,7 @@ impl fmt::Debug for Position {
 }
 
 use super::advance::attack_prevent::attacker;
+use super::bitboard::reachable_sub;
 use super::bitboard::BitBoard;
 use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
@@ -142,6 +143,7 @@ pub struct PositionAux {
     black_king_pos: Option<Option<Square>>,
     bishopish: Option<BitBoard>,
     rookish: Option<BitBoard>,
+    white_king_attack_squares: [Option<BitBoard>; NUM_KIND],
 }
 
 impl Debug for PositionAux {
@@ -336,6 +338,20 @@ impl PositionAux {
             self.rookish.as_mut().map(|bb| bb.unset(pos));
         }
 
+        // Update white_king_attack_squares
+        if kind == Kind::King {
+            (0..NUM_KIND).for_each(|i| self.white_king_attack_squares[i] = None);
+        } else {
+            for k in Kind::iter() {
+                if k.is_line_piece() {
+                    let r = &mut self.white_king_attack_squares[k.index()];
+                    if r.map(|bb| bb.get(pos)).unwrap_or(false) {
+                        *r = None;
+                    }
+                }
+            }
+        }
+
         self.core.unset(pos, color, kind);
     }
 
@@ -359,6 +375,16 @@ impl PositionAux {
             self.bishopish.as_mut().map(|bb| bb.set(pos));
         } else if kind.maybe_unpromote() == Kind::Rook {
             self.rookish.as_mut().map(|bb| bb.set(pos));
+        }
+
+        // Update white_king_attack_squares
+        for k in Kind::iter() {
+            if k.is_line_piece() {
+                let r = &mut self.white_king_attack_squares[k.index()];
+                if r.map(|bb| bb.get(pos)).unwrap_or(false) {
+                    *r = None;
+                }
+            }
         }
 
         self.core.set(pos, color, kind);
@@ -387,6 +413,9 @@ impl PositionAux {
         self.bishopish.as_mut().map(|bb| bb.shift(dir));
         self.rookish.as_mut().map(|bb| bb.shift(dir));
 
+        // Update white_king_attack_squares
+        (0..NUM_KIND).for_each(|i| self.white_king_attack_squares[i] = None);
+
         self.core.shift(dir);
     }
 
@@ -404,6 +433,15 @@ impl PositionAux {
         } else {
             self.white_king_pos()
         }
+    }
+
+    pub(crate) fn white_king_attack_squares(&mut self, kind: Kind) -> BitBoard {
+        if self.white_king_attack_squares[kind.index()].is_none() {
+            let white_king_pos = self.white_king_pos();
+            self.white_king_attack_squares[kind.index()] =
+                Some(reachable_sub(self, Color::WHITE, white_king_pos, kind));
+        }
+        self.white_king_attack_squares[kind.index()].unwrap()
     }
 
     // TODO: remember attackers
