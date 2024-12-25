@@ -5,6 +5,7 @@ use fmrs::one_way_mate_steps;
 use fmrs::solver::standard_solve::standard_solve;
 use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
+use fmrs_core::position::advance::attack_prevent::attacker;
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
@@ -132,8 +133,16 @@ fn bench_oneway(c: &mut Criterion) {
 }
 
 fn random_positions(rng: &mut SmallRng, len: usize) -> Vec<Position> {
+    random_positions_with_filter(rng, len, |_| true)
+}
+
+fn random_positions_with_filter<F: Fn(&mut Position) -> bool>(
+    rng: &mut SmallRng,
+    len: usize,
+    ok: F,
+) -> Vec<Position> {
     let mut positions = vec![];
-    for _ in 0..len {
+    while positions.len() < len {
         let mut position = Position::default();
 
         let hand_prob = rng.gen_range(0.0..0.7);
@@ -174,6 +183,9 @@ fn random_positions(rng: &mut SmallRng, len: usize) -> Vec<Position> {
             pieces[i] -= 1;
             remaining -= 1;
         }
+        if !ok(&mut position) {
+            continue;
+        }
         positions.push(position);
     }
     positions
@@ -210,6 +222,30 @@ fn bench_reachable(c: &mut Criterion) {
                         black_box(bb);
                     },
                 )
+            },
+        )
+    });
+}
+
+fn bench_attacker(c: &mut Criterion) {
+    let mut rng = SmallRng::seed_from_u64(202412251401);
+    let positions = random_positions_with_filter(&mut rng, 300, |position| {
+        let mut position_aux = PositionAux::new(position.clone());
+        position_aux.checked_slow(Color::WHITE)
+    });
+    let mut test_cases = vec![];
+    for position in positions {
+        test_cases.push(PositionAux::new(position));
+    }
+
+    c.bench_function("attacker", |b| {
+        b.iter_with_setup(
+            || test_cases.clone(),
+            |mut test_cases| {
+                test_cases.iter_mut().for_each(|position| {
+                    attacker(position, Color::WHITE, false).unwrap();
+                    attacker(position, Color::WHITE, true).unwrap();
+                })
             },
         )
     });
@@ -331,7 +367,7 @@ criterion_group!(
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
 );
 
 const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();

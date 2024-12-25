@@ -4,6 +4,7 @@ use crate::{
         bitboard::{
             king_then_king_or_night_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
+            reachable_sub,
         },
         checked,
         position::PositionAux,
@@ -15,7 +16,7 @@ use anyhow::Result;
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{self, power, reachable, rule::king_power, BitBoard},
+        bitboard::{self, power, rule::king_power, BitBoard},
         Movement, Position, Square,
     },
 };
@@ -448,8 +449,7 @@ pub fn attacker(
 
     for attacker_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
         let mut attacker_cands = match attacker_kind {
-            Kind::Lance => position.kind_bb(attacker_kind),
-            Kind::Knight => position.kind_bb(attacker_kind),
+            Kind::Lance | Kind::Knight => position.kind_bb(attacker_kind),
             Kind::Bishop => position.bishopish(),
             Kind::Rook => position.rookish(),
             _ => unreachable!(),
@@ -458,20 +458,14 @@ pub fn attacker(
         if attacker_cands.is_empty() {
             continue;
         }
-        attacker_cands &= power(king_color, king_pos, attacker_kind);
+        attacker_cands &= reachable_sub(position, king_color, king_pos, attacker_kind);
         if attacker_cands.is_empty() {
             continue;
         }
-        if attacker_kind.is_line_piece() {
-            attacker_cands &= reachable(position, king_color, king_pos, attacker_kind, false);
-            if attacker_cands.is_empty() {
-                continue;
-            }
-        }
         for attacker_pos in attacker_cands {
-            if let Some(mut attacker) = attacker.take() {
-                attacker.double_check = (attacker_pos, attacker_kind).into();
-                return Some(attacker);
+            if let Some(a) = attacker.as_mut() {
+                a.double_check = (attacker_pos, attacker_kind).into();
+                return attacker;
             }
             attacker = Some(Attacker::new(attacker_pos, attacker_kind, None));
             if early_return {
