@@ -141,9 +141,7 @@ pub struct PositionAux {
     kind_bb: [BitBoard; NUM_KIND],
     white_king_pos: Square,
     black_king_pos: Option<Square>,
-    // aux data (updated in update_aux)
-    bishopish: BitBoard,
-    rookish: BitBoard,
+    // aux data
 }
 
 impl Debug for PositionAux {
@@ -156,15 +154,11 @@ impl PositionAux {
     pub fn new(core: Position) -> Self {
         let mut res = Self::default();
         *res.core.hands_mut() = core.hands();
-
-        let mut updater = res.updater();
         for pos in Square::iter() {
             if let Some((color, kind)) = core.get(pos) {
-                updater.set(pos, color, kind);
+                res.set(pos, color, kind);
             }
         }
-        updater.commit();
-
         res
     }
 
@@ -234,11 +228,11 @@ impl PositionAux {
     }
 
     pub fn bishopish(&mut self) -> BitBoard {
-        self.bishopish
+        self.core.kind_bb.bishopish()
     }
 
     pub fn rookish(&mut self) -> BitBoard {
-        self.rookish
+        self.core.kind_bb.rookish()
     }
 
     pub fn goldish(&self) -> BitBoard {
@@ -280,24 +274,17 @@ impl PositionAux {
                     source_kind
                 };
                 if let Some(capture_kind) = capture_kind {
+                    self.unset(*dest, turn.opposite(), capture_kind);
                     self.hands_mut().add(turn, capture_kind.maybe_unpromote());
                 }
-
-                let mut updater = self.updater();
-                if let Some(capture_kind) = capture_kind {
-                    updater.unset(*dest, turn.opposite(), capture_kind);
-                }
-                updater.unset(*source, turn, source_kind);
-                updater.set(*dest, turn, dest_kind);
-                updater.commit();
+                self.unset(*source, turn, source_kind);
+                self.set(*dest, turn, dest_kind);
 
                 self.core.set_pawn_drop(false);
                 self.core.set_turn(turn.opposite());
             }
             Movement::Drop(pos, kind) => {
                 self.set(*pos, turn, *kind);
-                self.update_aux();
-
                 self.hands_mut().remove(turn, *kind);
 
                 self.core.set_pawn_drop(*kind == Kind::Pawn);
@@ -310,11 +297,7 @@ impl PositionAux {
         self.core.digest()
     }
 
-    pub fn updater(&mut self) -> PositionUpdater {
-        PositionUpdater::new(self)
-    }
-
-    fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
+    pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
         self.occupied.unset(pos);
         if color.is_white() {
             self.white_bb.unset(pos);
@@ -328,7 +311,7 @@ impl PositionAux {
         self.core.unset(pos, color, kind);
     }
 
-    fn set(&mut self, pos: Square, color: Color, kind: Kind) {
+    pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
         self.occupied.set(pos);
         if color.is_white() {
             self.white_bb.set(pos);
@@ -344,11 +327,6 @@ impl PositionAux {
         }
 
         self.core.set(pos, color, kind);
-    }
-
-    fn update_aux(&mut self) {
-        self.bishopish = self.kind_bb[Kind::Bishop.index()] | self.kind_bb[Kind::ProBishop.index()];
-        self.rookish = self.kind_bb[Kind::Rook.index()] | self.kind_bb[Kind::ProRook.index()];
     }
 
     pub fn hands_mut(&mut self) -> &mut Hands {
@@ -371,7 +349,6 @@ impl PositionAux {
             }
         }
         *self = res;
-        self.update_aux();
     }
 
     pub(crate) fn must_king_pos(&mut self, king_color: Color) -> Square {
@@ -400,54 +377,6 @@ impl PositionAux {
     }
 
     // TODO: remember attackers
-}
-
-pub struct PositionUpdater<'a> {
-    position: &'a mut PositionAux,
-    ops: Vec<PositionUpdate>,
-}
-
-impl<'a> PositionUpdater<'a> {
-    fn new(position: &'a mut PositionAux) -> Self {
-        Self {
-            position,
-            ops: vec![],
-        }
-    }
-
-    pub fn set(&mut self, pos: Square, color: Color, kind: Kind) -> &mut Self {
-        self.ops.push(PositionUpdate::set(pos, color, kind));
-        self
-    }
-
-    pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) -> &mut Self {
-        self.ops.push(PositionUpdate::unset(pos, color, kind));
-        self
-    }
-
-    pub fn commit(&mut self) {
-        for op in self.ops.iter() {
-            match op {
-                &PositionUpdate::Set(pos, color, kind) => self.position.set(pos, color, kind),
-                &PositionUpdate::Unset(pos, color, kind) => self.position.unset(pos, color, kind),
-            }
-        }
-        self.position.update_aux();
-    }
-}
-
-enum PositionUpdate {
-    Set(Square, Color, Kind),
-    Unset(Square, Color, Kind),
-}
-
-impl PositionUpdate {
-    fn set(pos: Square, color: Color, kind: Kind) -> Self {
-        Self::Set(pos, color, kind)
-    }
-    fn unset(pos: Square, color: Color, kind: Kind) -> Self {
-        Self::Unset(pos, color, kind)
-    }
 }
 
 #[cfg(test)]

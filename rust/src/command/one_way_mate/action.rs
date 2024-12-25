@@ -26,11 +26,8 @@ impl Action {
                     if position.get(to).is_some() {
                         bail!("to is not empty");
                     }
-                    position
-                        .updater()
-                        .unset(from, color, kind)
-                        .set(to, color, kind)
-                        .commit();
+                    position.unset(from, color, kind);
+                    position.set(to, color, kind);
                     Ok(Action::Move(to, from))
                 } else {
                     bail!("from is empty");
@@ -43,27 +40,18 @@ impl Action {
                 match (position.get(a), position.get(b)) {
                     (None, None) => bail!("both are None"),
                     (None, Some((b_color, b_kind))) => {
-                        position
-                            .updater()
-                            .unset(b, b_color, b_kind)
-                            .set(a, b_color, b_kind)
-                            .commit();
+                        position.unset(b, b_color, b_kind);
+                        position.set(a, b_color, b_kind);
                     }
                     (Some((a_color, a_kind)), None) => {
-                        position
-                            .updater()
-                            .unset(a, a_color, a_kind)
-                            .set(b, a_color, a_kind)
-                            .commit();
+                        position.unset(a, a_color, a_kind);
+                        position.set(b, a_color, a_kind);
                     }
                     (Some((a_color, a_kind)), Some((b_color, b_kind))) => {
-                        position
-                            .updater()
-                            .unset(a, a_color, a_kind)
-                            .unset(b, b_color, b_kind)
-                            .set(a, b_color, b_kind)
-                            .set(b, a_color, a_kind)
-                            .commit();
+                        position.unset(a, a_color, a_kind);
+                        position.unset(b, b_color, b_kind);
+                        position.set(a, b_color, b_kind);
+                        position.set(b, a_color, a_kind);
                     }
                 }
                 Ok(Action::Swap(a, b))
@@ -81,7 +69,7 @@ impl Action {
                     bail!("no piece in hand");
                 }
                 hands.remove(hand_color, hand_kind);
-                position.updater().set(pos, color, kind).commit();
+                position.set(pos, color, kind);
                 Ok(Action::ToHand(pos, hand_color))
             }
             Action::ToHand(pos, hand_color) => {
@@ -91,7 +79,7 @@ impl Action {
                     }
                     let hand_kind = kind.maybe_unpromote();
                     position.hands_mut().add(hand_color, hand_kind);
-                    position.updater().unset(pos, color, kind).commit();
+                    position.unset(pos, color, kind);
                     Ok(Action::FromHand(hand_color, pos, color, kind))
                 } else {
                     bail!("from is empty");
