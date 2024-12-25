@@ -2,7 +2,7 @@ use crate::{
     memo::Memo,
     position::{
         bitboard::{
-            king_then_king_or_night_power, lance_reachable,
+            king_then_king_or_night_power, knight_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
             reachable_sub,
         },
@@ -430,29 +430,38 @@ pub fn attacker(
     let mut opponent_bb = position.color_bb(king_color.opposite());
     let king_pos = position.must_king_pos(king_color);
 
-    let king_power_area = king_power(king_pos) & opponent_bb;
+    let king_power_area = (king_power(king_pos) | knight_power(king_color, king_pos)) & opponent_bb;
 
     for pos in king_power_area {
         let kind = position.must_get_kind(pos);
         if power(king_color, king_pos, kind).get(pos) {
-            if let Some(mut attacker) = attacker.take() {
-                attacker.double_check = (pos, kind).into();
-                return Some(attacker);
-            }
-            attacker = Some(Attacker::new(pos, kind, None));
-            if early_return {
+            if update_attacker(&mut attacker, pos, kind, early_return) {
                 return attacker;
             }
         }
     }
     opponent_bb = opponent_bb.and_not(king_power_area);
 
-    for attacker_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
-        let mut attacker_cands = match attacker_kind {
-            Kind::Lance | Kind::Knight => position.kind_bb(attacker_kind),
-            Kind::Bishop => position.bishopish(),
-            Kind::Rook => position.rookish(),
-            _ => unreachable!(),
+    // Lance
+    let attacking_lances =
+        lance_reachable(position.occupied_bb(), king_color, king_pos) & opponent_bb;
+    if !attacking_lances.is_empty() {
+        let attacker_pos = attacking_lances.singleton();
+        let kind = position.must_get_kind(attacker_pos);
+        if matches!(kind, Kind::Lance | Kind::Rook | Kind::ProRook) {
+            if update_attacker(&mut attacker, attacker_pos, kind, early_return) {
+                return attacker;
+            }
+        }
+
+        opponent_bb.unset(attacker_pos);
+    }
+
+    for attacker_kind in [Kind::Rook, Kind::Bishop] {
+        let mut attacker_cands = if attacker_kind == Kind::Bishop {
+            position.bishopish()
+        } else {
+            position.rookish()
         } & opponent_bb;
 
         if attacker_cands.is_empty() {
@@ -463,15 +472,26 @@ pub fn attacker(
             continue;
         }
         for attacker_pos in attacker_cands {
-            if let Some(a) = attacker.as_mut() {
-                a.double_check = (attacker_pos, attacker_kind).into();
-                return attacker;
-            }
-            attacker = Some(Attacker::new(attacker_pos, attacker_kind, None));
-            if early_return {
+            if update_attacker(&mut attacker, attacker_pos, attacker_kind, early_return) {
                 return attacker;
             }
         }
     }
+
     attacker
+}
+
+fn update_attacker(
+    attacker: &mut Option<Attacker>,
+    pos: Square,
+    kind: Kind,
+    early_return: bool,
+) -> bool {
+    if let Some(a) = attacker {
+        a.double_check = (pos, kind).into();
+        true
+    } else {
+        *attacker = Some(Attacker::new(pos, kind, None));
+        early_return
+    }
 }

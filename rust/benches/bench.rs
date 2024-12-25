@@ -243,8 +243,8 @@ fn bench_attacker(c: &mut Criterion) {
             || test_cases.clone(),
             |mut test_cases| {
                 test_cases.iter_mut().for_each(|position| {
-                    attacker(position, Color::WHITE, false).unwrap();
-                    attacker(position, Color::WHITE, true).unwrap();
+                    attacker(position, Color::WHITE, false);
+                    attacker(position, Color::WHITE, true);
                 })
             },
         )
@@ -293,9 +293,9 @@ fn bench_solve97(c: &mut Criterion) {
     let mut times = vec![];
     for _ in 0..n_samples {
         let start = std::time::Instant::now();
-        let solutions = standard_solve(position.clone(), 1).unwrap();
-        assert_eq!(1, solutions.len());
-        assert_eq!(97, solutions[0].len());
+        let solutions = standard_solve(position.clone(), 1);
+        debug_assert_eq!(1, solutions.as_ref().unwrap().len());
+        debug_assert_eq!(97, solutions.as_ref().unwrap()[0].len());
 
         times.push(start.elapsed());
     }

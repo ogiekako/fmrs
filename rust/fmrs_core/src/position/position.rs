@@ -234,11 +234,11 @@ impl PositionAux {
     }
 
     pub fn bishopish(&mut self) -> BitBoard {
-        self.kind_bb(Kind::Bishop) | self.kind_bb(Kind::ProBishop)
+        self.core.kind_bb.bishopish()
     }
 
     pub fn rookish(&mut self) -> BitBoard {
-        self.kind_bb(Kind::Rook) | self.kind_bb(Kind::ProRook)
+        self.core.kind_bb.rookish()
     }
 
     pub fn goldish(&self) -> BitBoard {
