@@ -456,8 +456,8 @@ pub fn attacker(
         opponent_bb.unset(attacker_pos);
     }
 
-    for attacker_kind in [Kind::Rook, Kind::Bishop] {
-        let mut attacker_cands = if attacker_kind == Kind::Bishop {
+    for bishop in [false, true] {
+        let mut attacker_cands = if bishop {
             position.bishopish()
         } else {
             position.rookish()
@@ -466,7 +466,7 @@ pub fn attacker(
         if attacker_cands.is_empty() {
             continue;
         }
-        attacker_cands &= if attacker_kind == Kind::Bishop {
+        attacker_cands &= if bishop {
             bishop_reachable(position.occupied_bb(), king_pos)
         } else {
             rook_reachable(position.occupied_bb(), king_pos)
@@ -475,7 +475,12 @@ pub fn attacker(
             continue;
         }
         for attacker_pos in attacker_cands {
-            if update_attacker(&mut attacker, attacker_pos, attacker_kind, early_return) {
+            if update_attacker(
+                &mut attacker,
+                attacker_pos,
+                position.must_get_kind(attacker_pos),
+                early_return,
+            ) {
                 return attacker;
             }
         }
