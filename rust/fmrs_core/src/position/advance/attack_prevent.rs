@@ -4,7 +4,6 @@ use crate::{
         bitboard::{
             king_then_king_or_night_power, knight_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
-            reachable_sub,
         },
         checked,
         position::PositionAux,
@@ -467,7 +466,11 @@ pub fn attacker(
         if attacker_cands.is_empty() {
             continue;
         }
-        attacker_cands &= reachable_sub(position, king_color, king_pos, attacker_kind);
+        attacker_cands &= if attacker_kind == Kind::Bishop {
+            bishop_reachable(position.occupied_bb(), king_pos)
+        } else {
+            rook_reachable(position.occupied_bb(), king_pos)
+        };
         if attacker_cands.is_empty() {
             continue;
         }
