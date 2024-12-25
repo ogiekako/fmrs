@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1735112383803,
+  "lastUpdate": 1735115444207,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -14897,6 +14897,102 @@ window.BENCHMARK_DATA = {
             "name": "bench_1461",
             "value": 20611,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "5c2f8d1fc9dc46018294c47e354262316501e607",
+          "message": "Revert \"Add bishopish and rookish as aux data, update bench to construct aux\"\n\nThis reverts commit 080bcc9227c0e0e842bd3f8d6b17131db721edff.",
+          "timestamp": "2024-12-25T17:24:42+09:00",
+          "tree_id": "0facd7acbfe39bba11b8dad86c18ff7a650a07c7",
+          "url": "https://github.com/ogiekako/fmrs/commit/5c2f8d1fc9dc46018294c47e354262316501e607"
+        },
+        "date": 1735115443257,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 4109,
+            "range": "± 127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 6741,
+            "range": "± 138",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 704,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 4128,
+            "range": "± 503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 18162,
+            "range": "± 299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1736,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4989,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1492317,
+            "range": "± 1929",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13323,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30555,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3162,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18524,
+            "range": "± 24",
             "unit": "ns/iter"
           }
         ]
