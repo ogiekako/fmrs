@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1735109492814,
+  "lastUpdate": 1735111665751,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -14704,6 +14704,102 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_1461",
             "value": 18227,
+            "range": "± 5",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "080bcc9227c0e0e842bd3f8d6b17131db721edff",
+          "message": "Add bishopish and rookish as aux data, update bench to construct aux",
+          "timestamp": "2024-12-25T16:22:35+09:00",
+          "tree_id": "3b5a2d8246cd922c6fd02e953ee3f4e44e083c0c",
+          "url": "https://github.com/ogiekako/fmrs/commit/080bcc9227c0e0e842bd3f8d6b17131db721edff"
+        },
+        "date": 1735111664815,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 3786,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 5618,
+            "range": "± 113",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 335,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 3942,
+            "range": "± 482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 21056,
+            "range": "± 252",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1684,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4554,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1547708,
+            "range": "± 531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13703,
+            "range": "± 96",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30769,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3391,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20032,
             "range": "± 5",
             "unit": "ns/iter"
           }
