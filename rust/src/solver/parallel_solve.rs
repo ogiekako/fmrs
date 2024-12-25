@@ -2,7 +2,9 @@ use std::sync::{Arc, Mutex};
 
 use fmrs_core::memo::Memo;
 
-use fmrs_core::position::{advance::advance, Digest, Position, PositionExt};
+use fmrs_core::position::advance::advance::advance_aux;
+use fmrs_core::position::position::PositionAux;
+use fmrs_core::position::{Digest, Position};
 
 use fmrs_core::solve::{reconstruct_solutions, Solution};
 
@@ -15,7 +17,7 @@ pub(super) fn parallel_solve(
     let mut memo = Memo::default();
     memo.insert(position.digest(), step);
     let memo_next = Memo::default();
-    let all_positions = vec![position];
+    let all_positions = vec![PositionAux::new(position)];
 
     let task = Task::new(
         all_positions,
@@ -41,7 +43,7 @@ lazy_static::lazy_static! {
 }
 
 struct Task {
-    all_positions: Vec<Position>,
+    all_positions: Vec<PositionAux>,
     memo: Memo,
     memo_next: Memo,
     mate_in: Arc<Mutex<Option<u32>>>,
@@ -52,7 +54,7 @@ struct Task {
 
 impl Task {
     fn new(
-        all_positions: Vec<Position>,
+        all_positions: Vec<PositionAux>,
         memo: Memo,
         memo_next: Memo,
         mate_in: Arc<Mutex<Option<u32>>>,
@@ -152,7 +154,7 @@ impl Task {
             }
 
             while let Some(mut position) = self.all_positions.pop() {
-                let is_mate = advance(
+                let is_mate = advance_aux(
                     &mut position,
                     &mut self.memo_next,
                     step + 1,
@@ -195,7 +197,7 @@ impl Task {
                 let mut res = vec![];
                 for mate_position in mate_positions {
                     res.append(&mut reconstruct_solutions(
-                        &mate_position,
+                        &mate_position.core(),
                         &self.memo_next,
                         &self.memo,
                         self.solutions_upto - res.len(),

@@ -57,13 +57,14 @@ fn one_way_mate_steps_inner(
                 debug_assert!(movements[movements.len() - 1].is_pawn_drop());
                 let pawn_move = movements.pop().unwrap();
 
-                *orig = Some(position.clone());
+                orig.get_or_insert_with(|| position.clone());
+                let prev = position.clone();
                 position.do_move(&pawn_move);
                 advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
                 if movements.len() != prev_len + 1 {
                     return None;
                 }
-                *position = orig.as_ref().unwrap().clone();
+                *position = prev;
             } else if movements.len() != prev_len + 1 {
                 return None;
             }

@@ -323,7 +323,10 @@ fn compute_better_problem(
             return Some(Problem::new(position, step, &movements));
         }
     }
-    if let Some(movements) = solvable_position_movements {
+    if let Some(mut movements) = solvable_position_movements {
+        while movements.len() > problem.step {
+            solvable_position.do_move(&movements.remove(0));
+        }
         *problem = Problem::new(solvable_position, movements.len(), &movements);
     }
     None

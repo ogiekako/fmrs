@@ -388,6 +388,10 @@ impl PositionAux {
         reachable_sub(self, Color::WHITE, white_king_pos, kind)
     }
 
+    pub fn core(&self) -> &Position {
+        &self.core
+    }
+
     // TODO: remember attackers
 }
 
