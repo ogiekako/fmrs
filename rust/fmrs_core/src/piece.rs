@@ -67,6 +67,21 @@ pub enum Kind {
              // 14
 }
 
+pub const KIND_PAWN: usize = 0;
+pub const KIND_LANCE: usize = 1;
+pub const KIND_KNIGHT: usize = 2;
+pub const KIND_SILVER: usize = 3;
+pub const KIND_GOLD: usize = 4;
+pub const KIND_BISHOP: usize = 5;
+pub const KIND_ROOK: usize = 6;
+pub const KIND_KING: usize = 7;
+pub const KIND_PRO_PAWN: usize = 8;
+pub const KIND_PRO_LANCE: usize = 9;
+pub const KIND_PRO_KNIGHT: usize = 10;
+pub const KIND_PRO_SILVER: usize = 11;
+pub const KIND_PRO_BISHOP: usize = 12;
+pub const KIND_PRO_ROOK: usize = 13;
+
 const LINE_PIECE_MASK: usize = 1 << Lance.index()
     | 1 << Bishop.index()
     | 1 << Rook.index()
