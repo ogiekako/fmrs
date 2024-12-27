@@ -109,23 +109,10 @@ impl<'a> Context<'a> {
                 &mut undo_moves,
             );
             for undo_move in undo_moves.iter() {
-                let digest = position.undo_digest(undo_move);
+                let mut prev_position = position.clone();
+                let movement = prev_position.undo_move(undo_move);
 
-                debug_assert_eq!(
-                    digest,
-                    {
-                        let mut p = position.clone();
-                        p.undo_move(&undo_move);
-                        p.digest()
-                    },
-                    "{:?} {:?}",
-                    position,
-                    undo_move
-                );
-
-                if memo_previous.get(&digest) == Some(&(step - 1)) {
-                    let mut prev_position = position.clone();
-                    let movement = prev_position.undo_move(&undo_move);
+                if memo_previous.get(&prev_position.digest()) == Some(&(step - 1)) {
                     queue.push_back((
                         prev_position,
                         step - 1,
