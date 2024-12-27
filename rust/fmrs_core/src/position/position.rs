@@ -26,9 +26,6 @@ use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
 use super::hands::Hands;
 use super::zobrist::zobrist;
-use super::zobrist::zobrist_hand;
-use super::zobrist::zobrist_pawn_drop;
-use super::zobrist::zobrist_turn;
 use super::Movement;
 use super::PositionExt as _;
 use super::Square;
@@ -38,32 +35,19 @@ impl Position {
         self.hands.turn()
     }
     pub fn set_turn(&mut self, c: Color) {
-        if c != self.turn() {
-            self.digest ^= zobrist_turn();
-        }
         self.hands.set_turn(c);
     }
     pub fn hands(&self) -> Hands {
         self.hands
     }
+    pub fn hands_mut(&mut self) -> &mut Hands {
+        &mut self.hands
+    }
     pub fn pawn_drop(&self) -> bool {
         self.hands.pawn_drop()
     }
     pub fn set_pawn_drop(&mut self, x: bool) {
-        if x != self.hands.pawn_drop() {
-            self.digest ^= zobrist_pawn_drop();
-        }
         self.hands.set_pawn_drop(x)
-    }
-    pub fn hand_add(&mut self, c: Color, k: Kind) {
-        let n = self.hands().count(c, k);
-        self.hands.add(c, k);
-        self.digest ^= zobrist_hand(c, k, n) ^ zobrist_hand(c, k, n + 1);
-    }
-    pub fn hand_remove(&mut self, c: Color, k: Kind) {
-        let n = self.hands().count(c, k);
-        self.hands.remove(c, k);
-        self.digest ^= zobrist_hand(c, k, n) ^ zobrist_hand(c, k, n - 1);
     }
 
     pub fn black(&self) -> BitBoard {
@@ -123,18 +107,6 @@ impl Position {
         for pos in self.kind_bb.occupied() {
             self.digest ^= self.hash_at(pos);
         }
-        if Hands::default().turn() != self.turn() {
-            self.digest ^= zobrist_turn();
-        }
-        if Hands::default().pawn_drop() != self.pawn_drop() {
-            self.digest ^= zobrist_pawn_drop();
-        }
-        for c in Color::iter() {
-            for k in KINDS[0..NUM_HAND_KIND].iter() {
-                let n = self.hands().count(c, *k);
-                self.digest ^= zobrist_hand(c, *k, n);
-            }
-        }
     }
 
     pub(super) fn hash_at(&self, pos: Square) -> u64 {
@@ -162,8 +134,9 @@ impl Position {
         ColorBitBoard::new(black, white, occupied)
     }
 
+    // #[inline(never)]
     pub fn digest(&self) -> u64 {
-        self.digest
+        self.digest ^ self.hands.x
     }
 }
 
@@ -314,7 +287,7 @@ impl PositionAux {
                 };
                 if let Some(capture_kind) = capture_kind {
                     self.unset(*dest, turn.opposite(), capture_kind);
-                    self.core.hand_add(turn, capture_kind.maybe_unpromote());
+                    self.hands_mut().add(turn, capture_kind.maybe_unpromote());
                 }
                 self.unset(*source, turn, source_kind);
                 self.set(*dest, turn, dest_kind);
@@ -324,7 +297,7 @@ impl PositionAux {
             }
             Movement::Drop(pos, kind) => {
                 self.set(*pos, turn, *kind);
-                self.core.hand_remove(turn, *kind);
+                self.hands_mut().remove(turn, *kind);
 
                 self.core.set_pawn_drop(*kind == Kind::Pawn);
                 self.core.set_turn(turn.opposite());
@@ -370,6 +343,10 @@ impl PositionAux {
         self.core.set(pos, color, kind);
     }
 
+    pub fn hands_mut(&mut self) -> &mut Hands {
+        self.core.hands_mut()
+    }
+
     pub fn set_turn(&mut self, color: Color) {
         self.core.set_turn(color);
     }
@@ -408,13 +385,6 @@ impl PositionAux {
 
     pub fn core(&self) -> &Position {
         &self.core
-    }
-
-    pub fn hand_add(&mut self, color: Color, kind: Kind) {
-        self.core.hand_add(color, kind);
-    }
-    pub fn hand_remove(&mut self, color: Color, kind: Kind) {
-        self.core.hand_remove(color, kind);
     }
 
     // TODO: remember attackers

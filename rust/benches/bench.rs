@@ -158,7 +158,7 @@ fn random_positions_with_filter<F: Fn(&mut Position) -> bool>(
             let k = Kind::from_index(i);
 
             if rng.gen_bool(hand_prob) && k.is_hand_piece() {
-                position.hand_add(c, k);
+                position.hands_mut().add(c, k);
                 pieces[i] -= 1;
                 remaining -= 1;
                 continue;

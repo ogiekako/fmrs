@@ -63,11 +63,12 @@ impl Action {
                 if position.get(pos).is_some() {
                     bail!("to is not empty");
                 }
+                let hands = position.hands_mut();
                 let hand_kind = kind.maybe_unpromote();
-                if !position.hands().has(hand_color, hand_kind) {
+                if !hands.has(hand_color, hand_kind) {
                     bail!("no piece in hand");
                 }
-                position.hand_remove(hand_color, hand_kind);
+                hands.remove(hand_color, hand_kind);
                 position.set(pos, color, kind);
                 Ok(Action::ToHand(pos, hand_color))
             }
@@ -77,7 +78,7 @@ impl Action {
                         bail!("cannot take king");
                     }
                     let hand_kind = kind.maybe_unpromote();
-                    position.hand_add(hand_color, hand_kind);
+                    position.hands_mut().add(hand_color, hand_kind);
                     position.unset(pos, color, kind);
                     Ok(Action::FromHand(hand_color, pos, color, kind))
                 } else {
@@ -107,11 +108,11 @@ impl Action {
                     bail!("cannot take king");
                 }
                 let hand_kind = kind.maybe_unpromote();
-                if !position.hands().has(color, hand_kind) {
+                if !position.hands_mut().has(color, hand_kind) {
                     bail!("no piece in hand");
                 }
-                position.hand_remove(color, hand_kind);
-                position.hand_add(color.opposite(), hand_kind);
+                position.hands_mut().remove(color, hand_kind);
+                position.hands_mut().add(color.opposite(), hand_kind);
                 Ok(Action::HandToHand(color.opposite(), hand_kind))
             }
         }
