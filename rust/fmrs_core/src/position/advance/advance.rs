@@ -8,7 +8,7 @@ use super::{black, white, AdvanceOptions};
 
 pub fn advance<M: MemoTrait>(
     position: &Position,
-    memo: &M,
+    memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
@@ -24,7 +24,7 @@ pub fn advance<M: MemoTrait>(
 
 pub fn advance_aux<M: MemoTrait>(
     position: &mut PositionAux,
-    memo: &M,
+    memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
@@ -90,7 +90,7 @@ mod tests {
             let mut got = vec![];
             super::advance(
                 &mut position,
-                &Memo::default().as_mut(),
+                &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
                 &mut got,

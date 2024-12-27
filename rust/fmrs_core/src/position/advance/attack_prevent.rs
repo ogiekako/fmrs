@@ -29,7 +29,7 @@ use super::{
 // #[inline(never)]
 pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
     position: &'a mut PositionAux,
-    memo: &'a M,
+    memo: &'a mut M,
     next_step: u16,
     should_return_check: bool,
     options: &'a AdvanceOptions,
@@ -58,7 +58,7 @@ struct Context<'a, M: MemoTrait> {
     next_step: u16,
     should_return_check: bool,
     // Mutable fields
-    memo: &'a M,
+    memo: &'a mut M,
     result: &'a mut Vec<Movement>,
     is_mate: bool,
     num_branches_without_pawn_drop: usize,
@@ -70,7 +70,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     // #[inline(never)]
     fn new(
         position: &'a mut PositionAux,
-        memo: &'a M,
+        memo: &'a mut M,
         next_step: u16,
         should_return_check: bool,
         options: &'a AdvanceOptions,

@@ -1,4 +1,4 @@
-use std::io::Write as _;
+use std::time::Instant;
 
 use fmrs_core::memo::{DashMemo, MemoTrait};
 
@@ -13,17 +13,16 @@ pub(super) fn parallel_solve(
     position: Position,
     _progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
+    start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
     let mut memo = DashMemo::default();
-    memo.contains_or_insert(position.digest(), 0);
+    memo.as_mut().contains_or_insert(position.digest(), 0);
     let mut memo_next = DashMemo::default();
 
     let mut positions = vec![position];
     let mut next_positions = vec![];
 
     for step in 1.. {
-        std::io::stderr().flush().unwrap();
-
         if positions.is_empty() {
             return Ok(vec![]);
         }
@@ -33,7 +32,7 @@ pub(super) fn parallel_solve(
                 let mut movements = vec![];
                 let is_mate = advance_aux(
                     &mut PositionAux::new(position.clone()),
-                    &memo_next,
+                    &mut memo_next.as_mut(),
                     step,
                     &Default::default(),
                     &mut movements,
@@ -57,12 +56,16 @@ pub(super) fn parallel_solve(
             .collect::<Vec<_>>();
 
         if !mate_positions.is_empty() {
+            if let Some(start) = start {
+                eprintln!("found mate in {}: {:.1?}", step - 1, start.elapsed());
+            }
+
             let mut res = vec![];
             for mate_position in mate_positions.iter() {
                 res.append(&mut reconstruct_solutions(
                     mate_position,
-                    &memo_next,
-                    &memo,
+                    &mut memo_next.as_mut(),
+                    &mut memo.as_mut(),
                     solutions_upto - res.len(),
                 ));
             }

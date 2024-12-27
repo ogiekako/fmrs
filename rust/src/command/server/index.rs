@@ -53,6 +53,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
             problem.clone(),
             Some(10),
             Algorithm::Standard,
+            None,
         ) {
             Ok(solutions) => {
                 SolveResponse::Solved(fmrs_core::converter::convert(&problem, &solutions))

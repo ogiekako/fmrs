@@ -27,7 +27,7 @@ pub fn solve(algorithm: Algorithm, sfen_or_file: Option<String>) -> anyhow::Resu
     )
     .map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
-    let answer = solver::solve(position.clone(), Some(10), algorithm)
+    let answer = solver::solve(position.clone(), Some(10), algorithm, None)
         .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if answer.is_empty() {

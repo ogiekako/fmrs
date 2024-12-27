@@ -22,6 +22,9 @@ enum Action {
         cmd: BenchCommand,
         #[arg(long, default_value = "./problems/forest-06-10_97.sfen")]
         file: String,
+        #[arg(long, default_value = "standard")]
+        #[clap(value_enum)]
+        algo: Algorithm,
     },
     Solve {
         #[clap(value_enum)]
@@ -51,7 +54,7 @@ pub async fn do_main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
-        Action::Bench { cmd, file } => command::bench(cmd, &file)?,
+        Action::Bench { cmd, file, algo } => command::bench(cmd, algo, &file)?,
         Action::Solve {
             algorithm,
             sfen_or_file,

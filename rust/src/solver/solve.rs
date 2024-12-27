@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::solver::parallel_solve;
 use crate::solver::standard_solve;
 use fmrs_core::piece::*;
@@ -22,9 +24,10 @@ pub fn solve(
     board: Position,
     solution_upto: Option<usize>,
     algorithm: Algorithm,
+    start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
     let (tx, _rx) = futures::channel::mpsc::unbounded();
-    solve_with_progress(tx, board, solution_upto, algorithm)
+    solve_with_progress(tx, board, solution_upto, algorithm, start)
 }
 
 pub fn solve_with_progress(
@@ -32,6 +35,7 @@ pub fn solve_with_progress(
     position: Position,
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
+    start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
     if position.turn() != Color::BLACK {
         anyhow::bail!("The turn should be from black");
@@ -47,7 +51,9 @@ pub fn solve_with_progress(
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
-        Algorithm::Parallel => parallel_solve::parallel_solve(position, progress, solutions_upto),
+        Algorithm::Parallel => {
+            parallel_solve::parallel_solve(position, progress, solutions_upto, start)
+        }
         Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto),
     }
 }
@@ -156,7 +162,7 @@ mod tests {
                         .collect();
 
                 eprintln!("Solving {:?} (algo={:?})", board, algorithm);
-                let got = solve(board, None, algorithm).unwrap();
+                let got = solve(board, None, algorithm,None).unwrap();
 
                 assert_eq!(got, want);
             }
@@ -177,7 +183,7 @@ mod tests {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(sfen).unwrap();
                 eprintln!("solving {}", sfen);
-                let got = solve(board.clone(), None, algorithm).unwrap();
+                let got = solve(board.clone(), None, algorithm, None).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
             }
@@ -190,7 +196,7 @@ mod tests {
             for algorithm in Algorithm::iter() {
                 eprintln!("solving {} {:?}", sfen, algorithm);
                 let board = sfen::decode_position(sfen).unwrap();
-                let got = solve(board.clone(), None, algorithm).unwrap();
+                let got = solve(board.clone(), None, algorithm, None).unwrap();
                 assert_eq!(got.len(), 2);
             }
         }
