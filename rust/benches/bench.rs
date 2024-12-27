@@ -4,7 +4,7 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fmrs::one_way_mate_steps;
 use fmrs::solver::standard_solve::standard_solve;
 use fmrs_core::memo::Memo;
-use fmrs_core::piece::{Color, Kind};
+use fmrs_core::piece::{Color, Kind, COLOR_BLACK, COLOR_WHITE};
 use fmrs_core::position::advance::attack_prevent::attacker;
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
@@ -243,8 +243,8 @@ fn bench_attacker(c: &mut Criterion) {
             || test_cases.clone(),
             |mut test_cases| {
                 test_cases.iter_mut().for_each(|position| {
-                    attacker(position, Color::WHITE, false);
-                    attacker(position, Color::WHITE, true);
+                    attacker::<COLOR_BLACK>(position, Color::WHITE, false);
+                    attacker::<COLOR_BLACK>(position, Color::WHITE, true);
                 })
             },
         )
@@ -260,7 +260,9 @@ fn bench_pinned300(c: &mut Criterion) {
         let king_color: Color = rng.gen();
 
         let mut position_aux = PositionAux::new(position.clone());
-        if checked(&mut position_aux, king_color) {
+        if king_color == Color::BLACK && checked::<COLOR_WHITE>(&mut position_aux, king_color)
+            || king_color == Color::WHITE && checked::<COLOR_BLACK>(&mut position_aux, king_color)
+        {
             continue;
         }
 
@@ -279,7 +281,28 @@ fn bench_pinned300(c: &mut Criterion) {
                 test_cases
                     .iter_mut()
                     .for_each(|(position, king_color, blocker_color)| {
-                        let pinned = pinned(position, *king_color, *blocker_color);
+                        let pinned = match (*king_color, *blocker_color) {
+                            (Color::BLACK, Color::WHITE) => pinned::<COLOR_WHITE, COLOR_WHITE>(
+                                position,
+                                *king_color,
+                                *blocker_color,
+                            ),
+                            (Color::WHITE, Color::BLACK) => pinned::<COLOR_BLACK, COLOR_BLACK>(
+                                position,
+                                *king_color,
+                                *blocker_color,
+                            ),
+                            (Color::WHITE, Color::WHITE) => pinned::<COLOR_BLACK, COLOR_WHITE>(
+                                position,
+                                *king_color,
+                                *blocker_color,
+                            ),
+                            (Color::BLACK, Color::BLACK) => pinned::<COLOR_WHITE, COLOR_BLACK>(
+                                position,
+                                *king_color,
+                                *blocker_color,
+                            ),
+                        };
                         black_box(pinned);
                     });
             },
