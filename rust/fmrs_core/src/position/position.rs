@@ -168,12 +168,12 @@ impl PositionAux {
         position
     }
 
-    pub fn kind_bb<const KIND: usize>(&mut self) -> BitBoard {
-        self.kind_bb[KIND]
+    pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
+        self.kind_bb[kind.index()]
     }
 
-    pub fn bitboard<const KIND: usize>(&mut self, color: Color) -> BitBoard {
-        self.kind_bb::<KIND>() & self.color_bb(color)
+    pub fn bitboard(&mut self, color: Color, kind: Kind) -> BitBoard {
+        self.kind_bb(kind) & self.color_bb(color)
     }
 
     pub fn occupied_bb(&mut self) -> BitBoard {
@@ -184,11 +184,11 @@ impl PositionAux {
         self.core.black()
     }
 
-    pub fn white_bb(&self) -> BitBoard {
+    pub fn white_bb(&mut self) -> BitBoard {
         self.white_bb
     }
 
-    pub fn color_bb(&self, color: Color) -> BitBoard {
+    pub fn color_bb(&mut self, color: Color) -> BitBoard {
         if color.is_black() {
             self.core.black()
         } else {

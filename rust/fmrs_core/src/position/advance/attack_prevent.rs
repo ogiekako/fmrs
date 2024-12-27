@@ -1,6 +1,5 @@
 use crate::{
     memo::Memo,
-    piece::{KIND_KNIGHT, KIND_LANCE, KIND_PAWN},
     position::{
         bitboard::{
             king_then_king_or_night_power, knight_power, lance_reachable,
@@ -108,7 +107,7 @@ impl<'a> Context<'a> {
     fn pawn_mask(&mut self) -> usize {
         *self.pawn_mask.get_or_insert_with(|| {
             let mut mask = Default::default();
-            for pos in self.position.bitboard::<KIND_PAWN>(self.position.turn()) {
+            for pos in self.position.bitboard(self.position.turn(), Kind::Pawn) {
                 mask |= 1 << pos.col()
             }
             mask
@@ -175,7 +174,7 @@ impl<'a> Context<'a> {
             }
         }
 
-        let lances = self.position.bitboard::<KIND_LANCE>(attacker_color);
+        let lances = self.position.bitboard(attacker_color, Kind::Lance);
         let bishipish = self.position.bishopish() & attacker_color_bb;
         let rookish = self.position.rookish() & attacker_color_bb;
 
@@ -263,13 +262,15 @@ impl<'a> Context<'a> {
         }
 
         for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
-            let on_board = match leap_kind {
-                Kind::Lance => self.position.kind_bb::<KIND_LANCE>(),
-                Kind::Knight => self.position.kind_bb::<KIND_KNIGHT>(),
-                Kind::Bishop => self.position.bishopish(),
-                Kind::Rook => self.position.rookish(),
-                _ => unreachable!(),
-            } & self.position.color_bb(self.position.turn());
+            let on_board = {
+                let raw_pieces = self.position.bitboard(self.position.turn(), leap_kind);
+                let promoted_kind = leap_kind.promote().unwrap();
+                if promoted_kind.is_line_piece() {
+                    raw_pieces | self.position.bitboard(self.position.turn(), promoted_kind)
+                } else {
+                    raw_pieces
+                }
+            };
             if on_board.is_empty() {
                 continue;
             }

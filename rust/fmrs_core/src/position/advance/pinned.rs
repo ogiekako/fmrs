@@ -1,5 +1,5 @@
 use crate::{
-    piece::{Color, KIND_LANCE},
+    piece::{Color, Kind},
     position::{
         bitboard::{bishop_power, lance_power, magic, reachable, rook_power, BitBoard},
         position::PositionAux,
@@ -135,7 +135,7 @@ fn lance_pinned(
 ) {
     let attacker_color = king_color.opposite();
 
-    let lances = position.bitboard::<KIND_LANCE>(attacker_color);
+    let lances = position.bitboard(attacker_color, Kind::Lance);
     if lances.is_empty() {
         return;
     }

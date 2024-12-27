@@ -4,10 +4,7 @@ use crate::position::position::PositionAux;
 use crate::position::rule::is_legal_move;
 use anyhow::Result;
 
-use crate::piece::{
-    Color, Kind, KIND_BISHOP, KIND_KNIGHT, KIND_LANCE, KIND_PAWN, KIND_PRO_BISHOP, KIND_PRO_ROOK,
-    KIND_ROOK,
-};
+use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
@@ -67,7 +64,7 @@ impl<'a> Context<'a> {
 
         let pawn_mask = {
             let mut mask = Default::default();
-            for pos in position.bitboard::<KIND_PAWN>(Color::BLACK) {
+            for pos in position.bitboard(Color::BLACK, Kind::Pawn) {
                 mask |= 1 << pos.col()
             }
             mask
@@ -129,12 +126,7 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn direct_attack_moves(&mut self) -> Result<()> {
         self.non_leap_piece_direct_attack()?;
-        self.leap_piece_direct_attack::<KIND_LANCE>()?;
-        self.leap_piece_direct_attack::<KIND_KNIGHT>()?;
-        self.leap_piece_direct_attack::<KIND_BISHOP>()?;
-        self.leap_piece_direct_attack::<KIND_PRO_BISHOP>()?;
-        self.leap_piece_direct_attack::<KIND_ROOK>()?;
-        self.leap_piece_direct_attack::<KIND_PRO_ROOK>()?;
+        self.leap_piece_direct_attack()?;
 
         Ok(())
     }
@@ -197,56 +189,64 @@ impl<'a> Context<'a> {
     }
 
     // #[inline(never)]
-    fn leap_piece_direct_attack<const KIND: usize>(&mut self) -> Result<()> {
-        let attackers = self.position.bitboard::<KIND>(Color::BLACK);
-        if attackers.is_empty() {
-            return Ok(());
-        }
+    fn leap_piece_direct_attack(&mut self) -> Result<()> {
+        for attacker_source_kind in [
+            Kind::Lance,
+            Kind::Knight,
+            Kind::Bishop,
+            Kind::Rook,
+            Kind::ProBishop,
+            Kind::ProRook,
+        ] {
+            let attackers = self.position.bitboard(Color::BLACK, attacker_source_kind);
+            if attackers.is_empty() {
+                continue;
+            }
 
-        let attacker_source_kind = Kind::from_index(KIND);
-
-        for attacker_pos in attackers {
-            let attacker_reachable = self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
-                bitboard::reachable(
-                    &mut self.position,
-                    Color::BLACK,
-                    attacker_pos,
-                    attacker_source_kind,
-                    false,
-                )
-            });
-
-            for promote in [false, true] {
-                let attacker_dest_kind = if promote {
-                    let Some(k) = attacker_source_kind.promote() else {
-                        continue;
-                    };
-                    k
-                } else {
-                    attacker_source_kind
-                };
-
-                let mut attack_squares = self
-                    .position
-                    .white_king_attack_squares(attacker_dest_kind)
-                    .and_not(self.position.black_bb());
-
-                if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
-                    attack_squares &= BitBoard::BLACK_PROMOTABLE;
-                }
-
-                for dest in attacker_reachable & attack_squares {
-                    let capture_kind = self.position.get_kind(dest);
-                    self.maybe_add_move(
-                        Movement::move_with_hint(
+            for attacker_pos in attackers {
+                let attacker_reachable =
+                    self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
+                        bitboard::reachable(
+                            &mut self.position,
+                            Color::BLACK,
                             attacker_pos,
                             attacker_source_kind,
-                            dest,
-                            promote,
-                            capture_kind,
-                        ),
-                        attacker_source_kind,
-                    )?;
+                            false,
+                        )
+                    });
+
+                for promote in [false, true] {
+                    let attacker_dest_kind = if promote {
+                        let Some(k) = attacker_source_kind.promote() else {
+                            continue;
+                        };
+                        k
+                    } else {
+                        attacker_source_kind
+                    };
+
+                    let mut attack_squares = self
+                        .position
+                        .white_king_attack_squares(attacker_dest_kind)
+                        .and_not(self.position.black_bb());
+
+                    if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
+                        attack_squares &= BitBoard::BLACK_PROMOTABLE;
+                    }
+
+                    for dest in attacker_reachable & attack_squares {
+                        let capture_kind = self.position.get_kind(dest);
+                        self.maybe_add_move(
+                            Movement::move_with_hint(
+                                attacker_pos,
+                                attacker_source_kind,
+                                dest,
+                                promote,
+                                capture_kind,
+                            ),
+                            attacker_source_kind,
+                        )?;
+                    }
                 }
             }
         }

@@ -7,7 +7,7 @@ use std::{
 };
 
 use fmrs_core::{
-    piece::{Color, KIND_KING},
+    piece::{Color, Kind},
     position::{position::PositionAux, Movement, Position},
 };
 use log::{debug, info};
@@ -283,14 +283,14 @@ fn compute_better_problem(
         }
         debug_assert_eq!(
             position
-                .bitboard::<KIND_KING>(Color::WHITE)
+                .bitboard(Color::WHITE, Kind::King)
                 .u128()
                 .count_ones(),
             1
         );
         debug_assert_eq!(
             position
-                .bitboard::<KIND_KING>(Color::BLACK)
+                .bitboard(Color::BLACK, Kind::King)
                 .u128()
                 .count_ones(),
             1
