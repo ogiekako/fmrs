@@ -10,7 +10,7 @@ use super::AdvanceOptions;
 
 pub(super) fn advance<'a, M: MemoTrait>(
     position: &'a mut PositionAux,
-    memo: &mut M,
+    memo: &M,
     next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,

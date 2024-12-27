@@ -25,7 +25,7 @@ impl StandardSolver {
     pub fn new(position: Position, solutions_upto: usize) -> Self {
         let step = 0;
         let current = vec![position];
-        let mut memo = Memo::default();
+        let memo = Memo::default();
         memo.contains_or_insert(current[0].digest(), step);
         Self {
             solutions_upto,

@@ -17,7 +17,7 @@ use super::{common, AdvanceOptions};
 
 pub(super) fn advance<'a, M: MemoTrait>(
     position: &'a mut PositionAux,
-    memo: &mut M,
+    memo: &M,
     next_step: u16,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
@@ -38,7 +38,7 @@ struct Context<'a, M: MemoTrait> {
     options: &'a AdvanceOptions,
 
     // Mutable fields
-    memo: &'a mut M,
+    memo: &'a M,
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
 }
@@ -46,7 +46,7 @@ struct Context<'a, M: MemoTrait> {
 impl<'a, M: MemoTrait> Context<'a, M> {
     fn new(
         position: &'a mut PositionAux,
-        memo: &'a mut M,
+        memo: &'a M,
         next_step: u16,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,

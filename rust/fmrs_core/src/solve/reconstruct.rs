@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-use crate::memo::{Memo, MemoTrait};
+use crate::memo::MemoTrait;
 use crate::nohash::NoHashMap;
 
 use crate::position::position::PositionAux;
@@ -9,14 +9,14 @@ use crate::position::{previous, Movement, Position, PositionExt};
 
 use super::Solution;
 
-pub fn reconstruct_solutions(
+pub fn reconstruct_solutions<M: MemoTrait>(
     mate: &Position,
-    memo_black_turn: &Memo,
-    memo_white_turn: &Memo,
+    memo_black_turn: &M,
+    memo_white_turn: &M,
     solutions_upto: usize,
 ) -> Vec<Solution> {
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
-    let step = *memo_white_turn.get(&mate.digest()).unwrap();
+    let step = memo_white_turn.get(&mate.digest()).unwrap();
     let ctx = Context::new(memo_black_turn, memo_white_turn, step, solutions_upto);
     ctx.reconstruct_bfs(mate)
 }
@@ -50,17 +50,17 @@ impl MovementList {
     }
 }
 
-struct Context<'a> {
-    memo_black_turn: &'a Memo,
-    memo_white_turn: &'a Memo,
+struct Context<'a, M: MemoTrait> {
+    memo_black_turn: &'a M,
+    memo_white_turn: &'a M,
     mate_in: u16,
     solutions_upto: usize,
 }
 
-impl<'a> Context<'a> {
+impl<'a, M: MemoTrait> Context<'a, M> {
     fn new(
-        memo_black_turn: &'a Memo,
-        memo_white_turn: &'a Memo,
+        memo_black_turn: &'a M,
+        memo_white_turn: &'a M,
         mate_in: u16,
         solutions_upto: usize,
     ) -> Self {
@@ -123,7 +123,7 @@ impl<'a> Context<'a> {
                     undo_move
                 );
 
-                if memo_previous.get(&digest) == Some(&(step - 1)) {
+                if memo_previous.get(&digest) == Some(step - 1) {
                     let mut prev_position = position.clone();
                     let movement = prev_position.undo_move(&undo_move);
                     queue.push_back((
