@@ -22,7 +22,7 @@ fn bench_black_advance(c: &mut Criterion) {
     let mut memo = Memo::default();
     advance(
         &mut black_position,
-        &memo.as_mut(),
+        &mut memo,
         1,
         &AdvanceOptions::default(),
         &mut result,
@@ -34,7 +34,7 @@ fn bench_black_advance(c: &mut Criterion) {
             let mut memo = Memo::default();
             advance(
                 &mut black_position,
-                &memo.as_mut(),
+                &mut memo,
                 1,
                 &AdvanceOptions::default(),
                 &mut result,
@@ -56,7 +56,7 @@ fn bench_white_advance(c: &mut Criterion) {
 
     advance(
         &mut white_positions[0],
-        &memo.as_mut(),
+        &mut memo,
         1,
         &AdvanceOptions::default(),
         &mut result,
@@ -67,7 +67,7 @@ fn bench_white_advance(c: &mut Criterion) {
             for white_position in white_positions.iter_mut() {
                 advance(
                     black_box(white_position),
-                    &Memo::default().as_mut(),
+                    &mut Memo::default(),
                     1,
                     &AdvanceOptions::default(),
                     black_box(&mut result),
@@ -87,7 +87,7 @@ fn bench_black_pinned(c: &mut Criterion) {
         b.iter(|| {
             advance(
                 black_box(&mut black_position),
-                &Memo::default().as_mut(),
+                &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
                 black_box(&mut result),
@@ -104,7 +104,7 @@ fn bench_solve3(c: &mut Criterion) {
         b.iter(|| {
             advance(
                 black_box(&mut position),
-                &Memo::default().as_mut(),
+                &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
                 black_box(&mut result),
@@ -322,7 +322,7 @@ fn bench_heavy_problem(
     let mut times = vec![];
     for _ in 0..n_samples {
         let start = std::time::Instant::now();
-        let solutions = solve(position.clone(), 1.into(), algo).unwrap();
+        let solutions = solve(position.clone(), 1.into(), algo, None).unwrap();
         assert_eq!(1, solutions.len());
         assert_eq!(steps, solutions[0].len());
 
