@@ -6,17 +6,11 @@ impl Color {
     pub const WHITE: Color = Color(true);
 }
 
-pub const COLOR_BLACK: bool = false;
-pub const COLOR_WHITE: bool = true;
-
 use rand::prelude::Distribution;
 
 impl Color {
     pub fn index(&self) -> usize {
         self.0 as usize
-    }
-    pub fn bool(&self) -> bool {
-        self.0
     }
     pub fn iter() -> impl Iterator<Item = Color> {
         [Color::BLACK, Color::WHITE].iter().copied()

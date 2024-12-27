@@ -176,7 +176,7 @@ mod tests {
         ] {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(sfen).unwrap();
-                eprintln!("solving {:?}", board);
+                eprintln!("solving {}", sfen);
                 let got = solve(board.clone(), None, algorithm).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);

@@ -5,8 +5,8 @@ use crate::position::rule::is_legal_move;
 use anyhow::Result;
 
 use crate::piece::{
-    Color, Kind, COLOR_BLACK, COLOR_WHITE, KIND_BISHOP, KIND_KNIGHT, KIND_LANCE, KIND_PAWN,
-    KIND_PRO_BISHOP, KIND_PRO_ROOK, KIND_ROOK,
+    Color, Kind, KIND_BISHOP, KIND_KNIGHT, KIND_LANCE, KIND_PAWN, KIND_PRO_BISHOP, KIND_PRO_ROOK,
+    KIND_ROOK,
 };
 
 use crate::position::{
@@ -57,12 +57,12 @@ impl<'a> Context<'a> {
         let attacker = position
             .black_king_pos()
             .is_some()
-            .then(|| attacker::<COLOR_WHITE>(position, Color::BLACK, false))
+            .then(|| attacker(position, Color::BLACK, false))
             .flatten();
         let pinned = position
             .black_king_pos()
             .is_some()
-            .then(|| pinned::<COLOR_WHITE, COLOR_BLACK>(position, Color::BLACK, Color::BLACK))
+            .then(|| pinned(position, Color::BLACK, Color::BLACK))
             .unwrap_or_else(Pinned::default);
 
         let pawn_mask = {
@@ -88,7 +88,7 @@ impl<'a> Context<'a> {
 
     fn advance(&mut self) -> Result<()> {
         if let Some(attacker) = &self.attacker {
-            attack_preventing_movements::<COLOR_BLACK, COLOR_WHITE>(
+            attack_preventing_movements(
                 &mut self.position,
                 self.memo,
                 self.next_step,
@@ -255,8 +255,7 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
-        let blockers =
-            pinned::<COLOR_BLACK, COLOR_BLACK>(&mut self.position, Color::WHITE, Color::BLACK);
+        let blockers = pinned(&mut self.position, Color::WHITE, Color::BLACK);
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
@@ -321,7 +320,7 @@ impl<'a> Context<'a> {
         let mut new_position = None;
 
         if kind == Kind::King
-            && common::checked::<COLOR_WHITE>(
+            && common::checked(
                 &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 Color::BLACK,
             )
@@ -331,7 +330,7 @@ impl<'a> Context<'a> {
 
         debug_assert!(
             {
-                !common::checked::<COLOR_WHITE>(
+                !common::checked(
                     &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                     Color::BLACK,
                 )
