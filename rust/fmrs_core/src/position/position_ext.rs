@@ -1,4 +1,4 @@
-use crate::piece::Kind;
+use crate::{piece::Kind, position::zobrist::zobrist};
 
 use super::{Movement, Position, Square};
 
@@ -17,6 +17,7 @@ pub enum UndoMove {
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement);
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
+    fn moved_digest(&self, m: &Movement) -> u64;
     // fn checked_slow(&self, c: Color) -> bool;
     // fn attacker_slow(&self, c: Color) -> Option<Attacker>;
 }
@@ -106,6 +107,58 @@ impl PositionExt for Position {
                     capture_kind_hint: None,
                     source_kind_hint: None,
                 }
+            }
+        }
+    }
+
+    fn moved_digest(&self, m: &Movement) -> u64 {
+        match *m {
+            Movement::Drop(pos, k) => {
+                let mut h = self.hands();
+                h.remove(self.turn(), k);
+                h.set_pawn_drop(k == Kind::Pawn);
+                h.set_turn(self.turn().opposite());
+
+                h.x ^ self.digest ^ zobrist(self.turn(), pos, k)
+            }
+            Movement::Move {
+                source,
+                source_kind_hint,
+                dest,
+                promote,
+                capture_kind_hint,
+            } => {
+                let kind = if let Some(kind) = source_kind_hint {
+                    kind
+                } else {
+                    self.kind_bb().must_get(source)
+                };
+                let dest_kind = if promote {
+                    kind.promote().unwrap()
+                } else {
+                    kind
+                };
+
+                let capture = if let Some(capture) = capture_kind_hint {
+                    capture
+                } else {
+                    self.kind_bb().get(dest)
+                };
+
+                let mut h = self.hands();
+                h.set_pawn_drop(false);
+                h.set_turn(self.turn().opposite());
+                if let Some(capture) = capture {
+                    h.add(self.turn(), capture.maybe_unpromote());
+                }
+
+                let mut digest = h.x ^ self.digest;
+                digest ^= zobrist(self.turn(), source, kind);
+                digest ^= zobrist(self.turn(), dest, dest_kind);
+                if let Some(capture) = capture {
+                    digest ^= zobrist(self.turn().opposite(), dest, capture);
+                }
+                digest
             }
         }
     }

@@ -4,7 +4,7 @@ use fmrs_core::memo::Memo;
 
 use fmrs_core::position::advance::advance::advance_aux;
 use fmrs_core::position::position::PositionAux;
-use fmrs_core::position::{Digest, Position};
+use fmrs_core::position::Position;
 
 use fmrs_core::solve::{reconstruct_solutions, Solution};
 
@@ -79,7 +79,7 @@ impl Task {
             return 0;
         }
         let memo_size = (self.memo.len() + self.memo_next.len())
-            * (std::mem::size_of::<Digest>() + std::mem::size_of::<usize>())
+            * (std::mem::size_of::<u64>() + std::mem::size_of::<usize>())
             * 2;
         (available_memory - queue_size) / memo_size
     }

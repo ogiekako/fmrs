@@ -6,6 +6,7 @@ pub mod position;
 mod position_ext;
 mod previous;
 mod rule;
+pub mod zobrist;
 
 pub use advance::checked;
 pub use advance::AdvanceOptions;
@@ -13,7 +14,6 @@ pub use bitboard::BitBoard;
 pub use bitboard::Square;
 pub use hands::Hands;
 pub use movement::Movement;
-pub use position::Digest;
 pub use position::Position;
 pub use position_ext::PositionExt;
 pub use position_ext::UndoMove;

@@ -16,7 +16,7 @@ use crate::{
     piece::{Color, Kind},
     position::{
         bitboard::{self, power, rule::king_power, BitBoard},
-        Movement, Position, Square,
+        Movement, Square,
     },
 };
 
@@ -313,29 +313,21 @@ impl<'a> Context<'a> {
 
 // Helper methods
 impl<'a> Context<'a> {
-    fn update<'b>(
-        &self,
-        new_position: &'b mut Option<Position>,
-        movement: &Movement,
-    ) -> &'b Position {
-        new_position.get_or_insert_with(|| self.position.moved(movement))
-    }
-
     fn maybe_add_move<'b>(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
-        let mut new_position = None;
-
         // TODO: check the second attacker
         if !is_king_move && self.attacker.double_check.is_some() {
-            let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
+            let mut np = self.position.clone();
+            np.do_move(&movement);
             if checked(&mut np, self.position.turn()) {
                 return Ok(());
             }
         }
 
         if self.should_return_check {
-            let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
+            let mut np = self.position.clone();
+            np.do_move(&movement);
             if !checked(&mut np, self.position.turn().opposite()) {
                 return Ok(());
             }
@@ -349,20 +341,24 @@ impl<'a> Context<'a> {
         }
 
         debug_assert!(
-            !common::checked(
-                &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
-                self.position.turn(),
-            ),
+            {
+                let mut np = self.position.clone();
+                np.do_move(&movement);
+                !common::checked(&mut np, self.position.turn())
+            },
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.position.turn(),
             self.position,
             movement,
-            new_position.as_ref().unwrap()
+            {
+                let mut np = self.position.clone();
+                np.do_move(&movement);
+                np
+            }
         );
 
         if !self.options.no_memo {
-            self.update(&mut new_position, &movement);
-            let digest = new_position.as_ref().unwrap().digest();
+            let digest = self.position.moved_digest(&movement);
 
             let mut contains = true;
             self.memo.entry(digest).or_insert_with(|| {

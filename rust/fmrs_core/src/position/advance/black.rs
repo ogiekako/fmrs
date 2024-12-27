@@ -8,7 +8,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
-    Movement, Position,
+    Movement,
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
@@ -308,35 +308,27 @@ impl<'a> Context<'a> {
 
 // Helper
 impl<'a> Context<'a> {
-    fn update<'b>(
-        &self,
-        new_position: &'b mut Option<Position>,
-        movement: &'b Movement,
-    ) -> &'b Position {
-        new_position.get_or_insert_with(|| self.position.moved(movement))
-    }
-
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
-        let mut new_position = None;
-
-        if kind == Kind::King
-            && common::checked(
-                &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
-                Color::BLACK,
-            )
-        {
-            return Ok(());
+        if kind == Kind::King {
+            let mut np = self.position.clone();
+            np.do_move(&movement);
+            if common::checked(&mut np, Color::BLACK) {
+                return Ok(());
+            }
         }
 
         debug_assert!(
             {
-                !common::checked(
-                    &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
-                    Color::BLACK,
-                )
+                let mut np = self.position.clone();
+                np.do_move(&movement);
+                !common::checked(&mut np, Color::BLACK)
             },
             "Black king checked: {:?}",
-            new_position.as_ref().unwrap()
+            {
+                let mut np = self.position.clone();
+                np.do_move(&movement);
+                np
+            }
         );
 
         if !movement.is_pawn_drop() {
@@ -346,7 +338,7 @@ impl<'a> Context<'a> {
         }
 
         if !self.options.no_memo {
-            let digest = self.update(&mut new_position, &movement).digest();
+            let digest = self.position.moved_digest(&movement);
 
             let mut contains = true;
             self.memo.entry(digest).or_insert_with(|| {

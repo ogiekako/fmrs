@@ -3,13 +3,11 @@ use crate::piece::*;
 
 #[derive(Clone, PartialEq, Eq, Ord, PartialOrd, Default)]
 pub struct Position {
-    black_bb: BitBoard,    // 16 bytes
-    kind_bb: KindBitBoard, // 64 bytes
-    hands: Hands,          // 8 bytes
-    _padding: u64,         // 8 bytes
+    black_bb: BitBoard,     // 16 bytes
+    kind_bb: KindBitBoard,  // 64 bytes
+    hands: Hands,           // 8 bytes
+    pub(super) digest: u64, // 8 bytes
 }
-
-pub type Digest = u64;
 
 use crate::sfen;
 use std::fmt;
@@ -27,6 +25,7 @@ use super::bitboard::BitBoard;
 use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
 use super::hands::Hands;
+use super::zobrist::zobrist;
 use super::Movement;
 use super::PositionExt as _;
 use super::Square;
@@ -83,9 +82,13 @@ impl Position {
             self.black_bb.set(pos);
         }
         self.kind_bb.set(pos, k);
+
+        self.digest ^= self.hash_at(pos);
     }
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), Some((c, k)));
+
+        self.digest ^= self.hash_at(pos);
 
         if c.is_black() {
             self.black_bb.unset(pos);
@@ -100,6 +103,20 @@ impl Position {
     pub fn shift(&mut self, dir: Direction) {
         self.black_bb.shift(dir);
         self.kind_bb.shift(dir);
+        self.digest = 0;
+        for pos in self.kind_bb.occupied() {
+            self.digest ^= self.hash_at(pos);
+        }
+    }
+
+    pub(super) fn hash_at(&self, pos: Square) -> u64 {
+        let color = if self.black_bb.get(pos) {
+            Color::BLACK
+        } else {
+            Color::WHITE
+        };
+        let kind = self.kind_bb.must_get(pos);
+        zobrist(color, pos, kind)
     }
 
     pub fn sfen(&self) -> String {
@@ -118,17 +135,8 @@ impl Position {
     }
 
     // #[inline(never)]
-    pub fn digest(&self) -> Digest {
-        xxhash_rust::xxh3::xxh3_64(self.as_bytes())
-    }
-
-    fn as_bytes(&self) -> &[u8] {
-        unsafe {
-            std::slice::from_raw_parts(
-                self as *const Position as *const u8,
-                std::mem::size_of::<Position>(),
-            )
-        }
+    pub fn digest(&self) -> u64 {
+        self.digest ^ self.hands.x
     }
 }
 
@@ -157,10 +165,8 @@ impl PositionAux {
         }
     }
 
-    pub fn moved(&self, movement: &Movement) -> Position {
-        let mut position = self.core.clone();
-        position.do_move(movement);
-        position
+    pub fn moved_digest(&self, movement: &Movement) -> u64 {
+        self.core.moved_digest(movement)
     }
 
     pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
