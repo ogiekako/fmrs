@@ -1,17 +1,15 @@
 use rand::{distributions::Standard, prelude::Distribution};
 
-type SquareType = usize;
-
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Square {
-    x: SquareType,
+    x: u8,
 }
 
 impl Square {
     pub const fn new(col: usize, row: usize) -> Self {
         debug_assert!(col < 9 && row < 9);
         Self {
-            x: (col * 9 + row) as SquareType,
+            x: (col * 9 + row) as u8,
         }
     }
     pub const fn col(self) -> usize {
@@ -28,7 +26,7 @@ impl Square {
     }
     pub const fn from_index(x: usize) -> Self {
         debug_assert!(x < 81);
-        Self { x: x as SquareType }
+        Self { x: x as u8 }
     }
 
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
