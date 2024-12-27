@@ -26,7 +26,7 @@ impl StandardSolver {
         let step = 0;
         let current = vec![position];
         let mut memo = Memo::default();
-        memo.insert(current[0].digest(), step);
+        memo.contains_or_insert(current[0].digest(), step);
         Self {
             solutions_upto,
             step,

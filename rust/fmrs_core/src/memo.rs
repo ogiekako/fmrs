@@ -1,5 +1,3 @@
-use std::collections::hash_map::Entry;
-
 use crate::nohash::NoHashMap;
 
 #[derive(Debug, Clone)]
@@ -21,8 +19,13 @@ impl Memo {
     }
 
     #[inline]
-    pub fn insert(&mut self, digest: u64, step: u32) {
-        self.steps.insert(digest, step);
+    pub fn contains_or_insert(&mut self, digest: u64, step: u32) -> bool {
+        let mut contains = true;
+        self.steps.entry(digest).or_insert_with(|| {
+            contains = false;
+            step
+        });
+        contains
     }
 
     #[inline]
@@ -33,10 +36,5 @@ impl Memo {
     #[inline]
     pub fn len(&self) -> usize {
         self.steps.len()
-    }
-
-    #[inline]
-    pub fn entry(&mut self, digest: u64) -> Entry<'_, u64, u32> {
-        self.steps.entry(digest)
     }
 }

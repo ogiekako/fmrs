@@ -340,13 +340,7 @@ impl<'a> Context<'a> {
         if !self.options.no_memo {
             let digest = self.position.moved_digest(&movement);
 
-            let mut contains = true;
-            self.memo.entry(digest).or_insert_with(|| {
-                contains = false;
-                self.next_step
-            });
-
-            if contains {
+            if self.memo.contains_or_insert(digest, self.next_step) {
                 return Ok(());
             }
         }

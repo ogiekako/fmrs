@@ -15,7 +15,7 @@ pub(super) fn parallel_solve(
 ) -> anyhow::Result<Vec<Solution>> {
     let step = 0;
     let mut memo = Memo::default();
-    memo.insert(position.digest(), step);
+    memo.contains_or_insert(position.digest(), step);
     let memo_next = Memo::default();
     let all_positions = vec![PositionAux::new(position)];
 
