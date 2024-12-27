@@ -1,7 +1,7 @@
-use crate::{memo::Memo, position::advance::advance::advance_aux};
+use crate::memo::Memo;
 
-use crate::position::position::PositionAux;
-use crate::position::Position;
+use crate::position::advance::advance;
+use crate::position::{Position, PositionExt};
 
 use super::{reconstruct_solutions, Solution};
 use log::info;
@@ -9,7 +9,7 @@ use log::info;
 pub struct StandardSolver {
     solutions_upto: usize,
     step: u32,
-    current: Vec<PositionAux>,
+    current: Vec<Position>,
     memo: Memo,
     memo_next: Memo,
 }
@@ -24,7 +24,7 @@ pub enum SolverStatus {
 impl StandardSolver {
     pub fn new(position: Position, solutions_upto: usize) -> Self {
         let step = 0;
-        let current = vec![PositionAux::new(position)];
+        let current = vec![position];
         let mut memo = Memo::default();
         memo.insert(current[0].digest(), step);
         Self {
@@ -44,7 +44,7 @@ impl StandardSolver {
         let mut movements = vec![];
 
         while let Some(mut position) = self.current.pop() {
-            let is_mate = advance_aux(
+            let is_mate = advance(
                 &mut position,
                 &mut self.memo_next,
                 self.step,
@@ -66,7 +66,7 @@ impl StandardSolver {
             let mut res = vec![];
             for mate_position in mate_positions.iter() {
                 res.append(&mut reconstruct_solutions(
-                    mate_position.core(),
+                    mate_position,
                     &self.memo_next,
                     &self.memo,
                     self.solutions_upto - res.len(),

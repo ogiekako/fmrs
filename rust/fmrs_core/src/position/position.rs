@@ -136,12 +136,11 @@ impl Position {
 #[derive(Clone, Default)]
 pub struct PositionAux {
     core: Position,
-    occupied: BitBoard,
-    white_bb: BitBoard,
-    kind_bb: [BitBoard; NUM_KIND],
-    white_king_pos: Square,
-    black_king_pos: Option<Square>,
-    // aux data
+    occupied: Option<BitBoard>,
+    white_bb: Option<BitBoard>,
+    kind_bb: [Option<BitBoard>; NUM_KIND],
+    white_king_pos: Option<Square>,
+    black_king_pos: Option<Option<Square>>,
 }
 
 impl Debug for PositionAux {
@@ -152,14 +151,10 @@ impl Debug for PositionAux {
 
 impl PositionAux {
     pub fn new(core: Position) -> Self {
-        let mut res = Self::default();
-        *res.core.hands_mut() = core.hands();
-        for pos in Square::iter() {
-            if let Some((color, kind)) = core.get(pos) {
-                res.set(pos, color, kind);
-            }
+        Self {
+            core,
+            ..Default::default()
         }
-        res
     }
 
     pub fn moved(&self, movement: &Movement) -> Position {
@@ -169,7 +164,7 @@ impl PositionAux {
     }
 
     pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
-        self.kind_bb[kind.index()]
+        *self.kind_bb[kind.index()].get_or_insert_with(|| self.core.kind_bb().bitboard(kind))
     }
 
     pub fn bitboard(&mut self, color: Color, kind: Kind) -> BitBoard {
@@ -177,7 +172,9 @@ impl PositionAux {
     }
 
     pub fn occupied_bb(&mut self) -> BitBoard {
-        self.occupied
+        *self
+            .occupied
+            .get_or_insert_with(|| self.core.kind_bb().occupied())
     }
 
     pub fn black_bb(&self) -> BitBoard {
@@ -185,7 +182,11 @@ impl PositionAux {
     }
 
     pub fn white_bb(&mut self) -> BitBoard {
-        self.white_bb
+        if self.white_bb.is_none() {
+            let occupied = self.occupied_bb();
+            self.white_bb = Some(occupied.and_not(self.black_bb()));
+        }
+        self.white_bb.unwrap()
     }
 
     pub fn color_bb(&mut self, color: Color) -> BitBoard {
@@ -194,6 +195,11 @@ impl PositionAux {
         } else {
             self.white_bb()
         }
+    }
+
+    pub fn color_bitboard(&mut self) -> ColorBitBoard {
+        // Consider avoiding the clone
+        ColorBitBoard::new(self.black_bb(), self.white_bb(), self.occupied_bb())
     }
 
     pub fn hands(&self) -> Hands {
@@ -248,11 +254,17 @@ impl PositionAux {
     }
 
     pub fn white_king_pos(&mut self) -> Square {
-        self.white_king_pos
+        if self.white_king_pos.is_none() {
+            self.white_king_pos = Some((self.kind_bb(Kind::King) & self.white_bb()).singleton());
+        }
+        self.white_king_pos.unwrap()
     }
 
     pub fn black_king_pos(&mut self) -> Option<Square> {
-        self.black_king_pos
+        if self.black_king_pos.is_none() {
+            self.black_king_pos = Some((self.kind_bb(Kind::King) & self.black_bb()).next());
+        }
+        self.black_king_pos.unwrap()
     }
 
     pub fn do_move(&mut self, movement: &Movement) {
@@ -298,31 +310,35 @@ impl PositionAux {
     }
 
     pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
-        self.occupied.unset(pos);
+        self.occupied.as_mut().map(|bb| bb.unset(pos));
         if color.is_white() {
-            self.white_bb.unset(pos);
+            self.white_bb.as_mut().map(|bb| bb.unset(pos));
         }
-        self.kind_bb[kind.index()].unset(pos);
+        self.kind_bb[kind.index()].as_mut().map(|bb| bb.unset(pos));
 
-        if kind == Kind::King && color == Color::BLACK {
-            self.black_king_pos = None;
+        if kind == Kind::King {
+            if color.is_black() {
+                self.black_king_pos = None;
+            } else {
+                self.white_king_pos = None;
+            }
         }
 
         self.core.unset(pos, color, kind);
     }
 
     pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
-        self.occupied.set(pos);
+        self.occupied.as_mut().map(|bb| bb.set(pos));
         if color.is_white() {
-            self.white_bb.set(pos);
+            self.white_bb.as_mut().map(|bb| bb.set(pos));
         }
-        self.kind_bb[kind.index()].set(pos);
+        self.kind_bb[kind.index()].as_mut().map(|bb| bb.set(pos));
 
         if kind == Kind::King {
             if color.is_black() {
-                self.black_king_pos = Some(pos);
+                self.black_king_pos = Some(Some(pos));
             } else {
-                self.white_king_pos = pos;
+                self.white_king_pos = Some(pos);
             }
         }
 
@@ -338,17 +354,17 @@ impl PositionAux {
     }
 
     pub fn shift(&mut self, dir: Direction) {
-        // TODO: consider using more efficient algorithm
-        let mut res = Self::default();
-        *res.hands_mut() = self.hands();
-        for pos in Square::iter() {
-            if let Some((color, kind)) = self.get(pos) {
-                let mut new_pos = pos;
-                new_pos.shift(dir);
-                res.set(new_pos, color, kind);
-            }
+        self.occupied.as_mut().map(|bb| bb.shift(dir));
+        self.white_bb.as_mut().map(|bb| bb.shift(dir));
+        for bb in &mut self.kind_bb {
+            bb.as_mut().map(|bb| bb.shift(dir));
         }
-        *self = res;
+        self.white_king_pos.as_mut().map(|pos| pos.shift(dir));
+        self.black_king_pos
+            .as_mut()
+            .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
+
+        self.core.shift(dir);
     }
 
     pub(crate) fn must_king_pos(&mut self, king_color: Color) -> Square {
