@@ -313,6 +313,23 @@ impl<'a> Context<'a> {
 
 // Helper methods
 impl<'a> Context<'a> {
+    // #[inline(never)]
+    fn is_return_check(&self, movement: &Movement) -> bool {
+        let mut np = self.position.clone();
+        np.do_move(movement);
+        checked(&mut np, self.position.turn().opposite())
+    }
+
+    // #[inline(never)]
+    fn insert_digest(&mut self, digest: u64) -> bool {
+        let mut contains = true;
+        self.memo.entry(digest).or_insert_with(|| {
+            contains = false;
+            self.next_step
+        });
+        contains
+    }
+
     fn maybe_add_move<'b>(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
@@ -326,9 +343,7 @@ impl<'a> Context<'a> {
         }
 
         if self.should_return_check {
-            let mut np = self.position.clone();
-            np.do_move(&movement);
-            if !checked(&mut np, self.position.turn().opposite()) {
+            if !self.is_return_check(&movement) {
                 return Ok(());
             }
         }
@@ -360,13 +375,7 @@ impl<'a> Context<'a> {
         if !self.options.no_memo {
             let digest = self.position.moved_digest(&movement);
 
-            let mut contains = true;
-            self.memo.entry(digest).or_insert_with(|| {
-                contains = false;
-                self.next_step
-            });
-
-            if contains {
+            if self.insert_digest(digest) {
                 // Already seen during search on other branches.
                 return Ok(());
             }

@@ -202,11 +202,6 @@ impl PositionAux {
         }
     }
 
-    pub fn color_bitboard(&mut self) -> ColorBitBoard {
-        // Consider avoiding the clone
-        ColorBitBoard::new(self.black_bb(), self.white_bb(), self.occupied_bb())
-    }
-
     pub fn hands(&self) -> Hands {
         self.core.hands()
     }
