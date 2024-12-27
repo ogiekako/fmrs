@@ -8,7 +8,7 @@ use log::info;
 
 pub struct StandardSolver {
     solutions_upto: usize,
-    step: u32,
+    step: u16,
     current: Vec<Position>,
     memo: Memo,
     memo_next: Memo,

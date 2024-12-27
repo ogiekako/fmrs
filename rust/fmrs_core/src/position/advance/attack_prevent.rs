@@ -30,7 +30,7 @@ use super::{
 pub(super) fn attack_preventing_movements<'a>(
     position: &'a mut PositionAux,
     memo: &'a mut Memo,
-    next_step: u32,
+    next_step: u16,
     should_return_check: bool,
     options: &'a AdvanceOptions,
     attacker_hint: Option<Attacker>,
@@ -55,7 +55,7 @@ struct Context<'a> {
     pinned: Pinned,
     attacker: Attacker,
     pawn_mask: Option<usize>,
-    next_step: u32,
+    next_step: u16,
     should_return_check: bool,
     // Mutable fields
     memo: &'a mut Memo,
@@ -71,7 +71,7 @@ impl<'a> Context<'a> {
     fn new(
         position: &'a mut PositionAux,
         memo: &'a mut Memo,
-        next_step: u32,
+        next_step: u16,
         should_return_check: bool,
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,

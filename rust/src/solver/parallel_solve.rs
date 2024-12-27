@@ -46,7 +46,7 @@ struct Task {
     all_positions: Vec<PositionAux>,
     memo: Memo,
     memo_next: Memo,
-    mate_in: Arc<Mutex<Option<u32>>>,
+    mate_in: Arc<Mutex<Option<u16>>>,
     solutions_upto: usize,
     active_thread_count: Arc<Mutex<usize>>,
     generation: usize,
@@ -57,7 +57,7 @@ impl Task {
         all_positions: Vec<PositionAux>,
         memo: Memo,
         memo_next: Memo,
-        mate_in: Arc<Mutex<Option<u32>>>,
+        mate_in: Arc<Mutex<Option<u16>>>,
         solutions_upto: usize,
         active_thread_count: Arc<Mutex<usize>>,
         generation: usize,
@@ -84,7 +84,7 @@ impl Task {
         (available_memory - queue_size) / memo_size
     }
 
-    fn solve(mut self, start_step: u32) -> anyhow::Result<Vec<Solution>> {
+    fn solve(mut self, start_step: u16) -> anyhow::Result<Vec<Solution>> {
         let mut mate_positions = vec![];
         let mut all_next_positions = vec![];
         let mut movements = vec![];
@@ -148,7 +148,7 @@ impl Task {
                     .collect());
             }
 
-            let mate_bound = self.mate_in.lock().unwrap().unwrap_or(u32::MAX);
+            let mate_bound = self.mate_in.lock().unwrap().unwrap_or(u16::MAX);
             if step > mate_bound {
                 return Ok(vec![]);
             }

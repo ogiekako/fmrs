@@ -9,7 +9,7 @@ use super::{black, white, AdvanceOptions};
 pub fn advance(
     position: &Position,
     memo: &mut Memo,
-    next_step: u32,
+    next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* is legal mate */ bool> {
@@ -25,7 +25,7 @@ pub fn advance(
 pub fn advance_aux(
     position: &mut PositionAux,
     memo: &mut Memo,
-    next_step: u32,
+    next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* is legal mate */ bool> {

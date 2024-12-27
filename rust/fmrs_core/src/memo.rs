@@ -2,7 +2,7 @@ use crate::nohash::NoHashMap;
 
 #[derive(Debug, Clone)]
 pub struct Memo {
-    steps: NoHashMap<u32>,
+    steps: NoHashMap<u16>,
 }
 
 impl Default for Memo {
@@ -19,7 +19,7 @@ impl Memo {
     }
 
     #[inline]
-    pub fn contains_or_insert(&mut self, digest: u64, step: u32) -> bool {
+    pub fn contains_or_insert(&mut self, digest: u64, step: u16) -> bool {
         let mut contains = true;
         self.steps.entry(digest).or_insert_with(|| {
             contains = false;
@@ -29,7 +29,7 @@ impl Memo {
     }
 
     #[inline]
-    pub fn get(&self, digest: &u64) -> Option<&u32> {
+    pub fn get(&self, digest: &u64) -> Option<&u16> {
         self.steps.get(digest)
     }
 

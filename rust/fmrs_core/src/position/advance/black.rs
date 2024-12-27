@@ -18,7 +18,7 @@ use super::{common, AdvanceOptions};
 pub(super) fn advance<'a>(
     position: &'a mut PositionAux,
     memo: &mut Memo,
-    next_step: u32,
+    next_step: u16,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
 ) -> anyhow::Result<()> {
@@ -31,7 +31,7 @@ pub(super) fn advance<'a>(
 struct Context<'a> {
     // Immutable fields
     position: &'a mut PositionAux,
-    next_step: u32,
+    next_step: u16,
     attacker: Option<Attacker>,
     pinned: Pinned,
     pawn_mask: usize,
@@ -47,7 +47,7 @@ impl<'a> Context<'a> {
     fn new(
         position: &'a mut PositionAux,
         memo: &'a mut Memo,
-        next_step: u32,
+        next_step: u16,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {

@@ -22,7 +22,7 @@ pub fn reconstruct_solutions(
 struct Context<'a> {
     memo_black_turn: &'a Memo,
     memo_white_turn: &'a Memo,
-    mate_in: u32,
+    mate_in: u16,
     solutions_upto: usize,
 }
 
@@ -30,7 +30,7 @@ impl<'a> Context<'a> {
     fn new(
         memo_black_turn: &'a Memo,
         memo_white_turn: &'a Memo,
-        mate_in: u32,
+        mate_in: u16,
         solutions_upto: usize,
     ) -> Self {
         Self {

@@ -18,7 +18,7 @@ pub struct Solver {
 
 #[wasm_bindgen]
 impl Solver {
-    pub fn new(problem_sfen: String, solutions_upto: u32) -> Self {
+    pub fn new(problem_sfen: String, solutions_upto: u16) -> Self {
         set_panic_hook();
 
         let position = sfen::decode_position(&problem_sfen).unwrap();
@@ -67,7 +67,7 @@ impl Solver {
     pub fn solutions_json(&self) -> JsonResponse {
         let jkf = converter::convert(&self.initial_position, &self.solutions);
         JsonResponse {
-            solutions: self.solutions.len() as u32,
+            solutions: self.solutions.len() as u16,
             jkf: serde_json::to_string(&jkf).unwrap(),
         }
     }

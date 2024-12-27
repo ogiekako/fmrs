@@ -11,7 +11,7 @@ use super::AdvanceOptions;
 pub(super) fn advance<'a>(
     position: &'a mut PositionAux,
     memo: &mut Memo,
-    next_step: u32,
+    next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* legal mate */ bool> {
