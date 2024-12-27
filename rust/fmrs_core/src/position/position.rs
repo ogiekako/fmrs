@@ -146,7 +146,6 @@ pub struct PositionAux {
     core: Position,
     occupied: Option<BitBoard>,
     white_bb: Option<BitBoard>,
-    kind_bb: [Option<BitBoard>; NUM_KIND],
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
 }
@@ -170,7 +169,7 @@ impl PositionAux {
     }
 
     pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
-        *self.kind_bb[kind.index()].get_or_insert_with(|| self.core.kind_bb().bitboard(kind))
+        self.core.kind_bb().bitboard(kind)
     }
 
     pub fn bitboard(&mut self, color: Color, kind: Kind) -> BitBoard {
@@ -320,7 +319,6 @@ impl PositionAux {
         if color.is_white() {
             self.white_bb.as_mut().map(|bb| bb.unset(pos));
         }
-        self.kind_bb[kind.index()].as_mut().map(|bb| bb.unset(pos));
 
         if kind == Kind::King {
             if color.is_black() {
@@ -338,7 +336,6 @@ impl PositionAux {
         if color.is_white() {
             self.white_bb.as_mut().map(|bb| bb.set(pos));
         }
-        self.kind_bb[kind.index()].as_mut().map(|bb| bb.set(pos));
 
         if kind == Kind::King {
             if color.is_black() {
@@ -362,9 +359,6 @@ impl PositionAux {
     pub fn shift(&mut self, dir: Direction) {
         self.occupied.as_mut().map(|bb| bb.shift(dir));
         self.white_bb.as_mut().map(|bb| bb.shift(dir));
-        for bb in &mut self.kind_bb {
-            bb.as_mut().map(|bb| bb.shift(dir));
-        }
         self.white_king_pos.as_mut().map(|pos| pos.shift(dir));
         self.black_king_pos
             .as_mut()

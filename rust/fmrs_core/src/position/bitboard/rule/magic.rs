@@ -49,6 +49,14 @@ fn one_to_eight(bb: BitBoard) -> u64 {
     (bb.u128() >> 9) as u64
 }
 
+pub fn init_magic() {
+    let b = bishop_reachable(BitBoard::default(), Square::new(0, 0))
+        | probishop_reachable(BitBoard::default(), Square::new(0, 0))
+        | rook_reachable(BitBoard::default(), Square::new(0, 0))
+        | prorook_reachable(BitBoard::default(), Square::new(0, 0));
+    assert_eq!(b.get(Square::new(0, 0)), false);
+}
+
 lazy_static! {
     static ref BISHOP_MAGIC: Vec<Magic> = {
         let mut res = vec![];
