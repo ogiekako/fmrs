@@ -1,44 +1,39 @@
-use std::cell::RefCell;
-
 use crate::piece::{Color, Kind};
 
 use super::{
-    bitboard::{self, ColorBitBoard},
+    bitboard::{self},
     position::PositionAux,
-    rule, Position, Square, UndoMove,
+    rule, Square, UndoMove,
 };
 
-pub fn previous(position: Position, allow_drop_pawn: bool) -> Vec<UndoMove> {
-    let ctx = Context::new(position, allow_drop_pawn);
+pub fn previous(position: &mut PositionAux, allow_drop_pawn: bool, movements: &mut Vec<UndoMove>) {
+    let mut ctx = Context::new(position, allow_drop_pawn, movements);
     ctx.previous();
-    debug_assert!(
-        ctx.result.borrow().len() <= 1 || ctx.result.borrow()[0] != ctx.result.borrow()[1]
-    );
-    ctx.result.take()
 }
 
-struct Context {
-    position: Position,
-    color_bb: ColorBitBoard,
+struct Context<'a> {
+    position: &'a mut PositionAux,
     allow_drop_pawn: bool,
     turn: Color,
-    result: RefCell<Vec<UndoMove>>,
+    movements: &'a mut Vec<UndoMove>,
 }
 
-impl Context {
-    fn new(position: Position, allow_drop_pawn: bool) -> Self {
+impl<'a> Context<'a> {
+    fn new(
+        position: &'a mut PositionAux,
+        allow_drop_pawn: bool,
+        movements: &'a mut Vec<UndoMove>,
+    ) -> Self {
         let turn = position.turn();
-        let color_bb = position.color_bb();
         Self {
             position,
-            color_bb,
             allow_drop_pawn,
             turn,
-            result: vec![].into(),
+            movements,
         }
     }
 
-    fn previous(&self) {
+    fn previous(&mut self) {
         for kind in Kind::iter() {
             let dests = self.position.bitboard(self.turn.opposite(), kind);
             for dest in dests {
@@ -48,7 +43,7 @@ impl Context {
         }
     }
 
-    fn add_undo_moves_to(&self, dest: Square, kind: Kind, was_pawn_drop: bool) {
+    fn add_undo_moves_to(&mut self, dest: Square, kind: Kind, was_pawn_drop: bool) {
         if self.position.pawn_drop() {
             if kind != Kind::Pawn || !self.allow_drop_pawn {
                 return;
@@ -65,9 +60,9 @@ impl Context {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let mut position = PositionAux::new(self.position.clone());
-            let sources = bitboard::reachable(&mut position, self.turn, dest, prev_kind, false)
-                .and_not(self.color_bb.both());
+            let sources =
+                bitboard::reachable(&mut self.position, self.turn, dest, prev_kind, false)
+                    .and_not(self.position.occupied_bb());
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,
@@ -100,8 +95,8 @@ impl Context {
 }
 
 // Helper methods
-impl Context {
-    fn maybe_add_undo_move(&self, movement: UndoMove) {
+impl<'a> Context<'a> {
+    fn maybe_add_undo_move(&mut self, movement: UndoMove) {
         if let UndoMove::UnMove {
             source: from,
             dest: to,
@@ -118,6 +113,6 @@ impl Context {
                 return;
             }
         }
-        self.result.borrow_mut().push(movement);
+        self.movements.push(movement);
     }
 }

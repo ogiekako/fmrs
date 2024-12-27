@@ -1,9 +1,11 @@
 use std::collections::VecDeque;
+use std::rc::Rc;
 
 use crate::memo::Memo;
 use crate::nohash::NoHashMap;
 
-use crate::position::{previous, Position, PositionExt};
+use crate::position::position::PositionAux;
+use crate::position::{previous, Movement, Position, PositionExt};
 
 use super::Solution;
 
@@ -17,6 +19,32 @@ pub fn reconstruct_solutions(
     let step = *memo_white_turn.get(&mate.digest()).unwrap();
     let ctx = Context::new(memo_black_turn, memo_white_turn, step, solutions_upto);
     ctx.reconstruct_bfs(mate)
+}
+
+enum MovementList {
+    Nil,
+    Cons {
+        cur: Movement,
+        cdr: Rc<MovementList>,
+    },
+}
+
+impl MovementList {
+    fn nil() -> Rc<Self> {
+        Self::Nil.into()
+    }
+    fn cons(cur: Movement, cdr: Rc<Self>) -> Rc<Self> {
+        Self::Cons { cur, cdr }.into()
+    }
+    fn vec(&self, v: &mut Vec<Movement>) {
+        match self {
+            Self::Nil => {}
+            Self::Cons { cur, cdr } => {
+                v.push(cur.clone());
+                cdr.vec(v);
+            }
+        }
+    }
 }
 
 struct Context<'a> {
@@ -43,15 +71,19 @@ impl<'a> Context<'a> {
 
     fn reconstruct_bfs(&self, mate_position: &Position) -> Vec<Solution> {
         let mut position_visit_count = NoHashMap::default();
-        let mut queue = VecDeque::new();
-        queue.push_back((mate_position.clone(), self.mate_in, vec![]));
+        let mut queue: VecDeque<(Position, u16, Rc<MovementList>)> = VecDeque::new();
+        queue.push_back((mate_position.clone(), self.mate_in, MovementList::nil()));
         let mut res = vec![];
-        while let Some((mut position, step, mut solution_rev)) = queue.pop_front() {
+
+        let mut undo_moves = vec![];
+        while let Some((position, step, following_movements)) = queue.pop_front() {
             if res.len() >= self.solutions_upto {
                 break;
             }
             if step == 0 {
-                res.push(solution_rev.into_iter().rev().collect::<Vec<_>>());
+                let mut movements = vec![];
+                following_movements.vec(&mut movements);
+                res.push(movements);
                 continue;
             }
             {
@@ -69,42 +101,36 @@ impl<'a> Context<'a> {
                 self.memo_black_turn
             };
 
-            #[cfg(debug_assertions)]
-            let mut positions: std::collections::HashMap<u64, Position> =
-                std::collections::HashMap::new();
+            undo_moves.clear();
+            previous(
+                &mut PositionAux::new(position.clone()),
+                step < self.mate_in,
+                &mut undo_moves,
+            );
+            for undo_move in undo_moves.iter() {
+                let digest = position.undo_digest(undo_move);
 
-            for undo_move in previous(position.clone(), step < self.mate_in) {
-                let movement = position.undo_move(&undo_move);
+                debug_assert_eq!(
+                    digest,
+                    {
+                        let mut p = position.clone();
+                        p.undo_move(&undo_move);
+                        p.digest()
+                    },
+                    "{:?} {:?}",
+                    position,
+                    undo_move
+                );
 
-                #[cfg(debug_assertions)]
-                {
-                    debug_assert!(
-                        !positions.contains_key(&position.digest()),
-                        "{:?} {:?} {} {} {}",
-                        positions.get(&position.digest()).unwrap(),
-                        position,
-                        positions.get(&position.digest()).unwrap() == &position,
-                        position.digest(),
-                        positions.get(&position.digest()).as_ref().unwrap().digest(),
-                    );
-                    positions.insert(position.digest(), position.clone());
-                    pretty_assertions::assert_eq!(
-                        position,
-                        {
-                            let sfen = position.sfen();
-                            Position::from_sfen(&sfen).unwrap()
-                        },
-                        "{:?}",
-                        position
-                    );
+                if memo_previous.get(&digest) == Some(&(step - 1)) {
+                    let mut prev_position = position.clone();
+                    let movement = prev_position.undo_move(&undo_move);
+                    queue.push_back((
+                        prev_position,
+                        step - 1,
+                        MovementList::cons(movement, following_movements.clone()),
+                    ));
                 }
-
-                if memo_previous.get(&position.digest()) == Some(&(step - 1)) {
-                    solution_rev.push(movement);
-                    queue.push_back((position.clone(), step - 1, solution_rev.clone())); // TODO: avoid O(n^2) operation
-                    solution_rev.pop().unwrap();
-                }
-                position.do_move(&movement);
             }
         }
         res
