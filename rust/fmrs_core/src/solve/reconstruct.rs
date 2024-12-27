@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-use crate::memo::Memo;
+use crate::memo::{Memo, MemoTrait};
 use crate::nohash::NoHashMap;
 
 use crate::position::position::PositionAux;

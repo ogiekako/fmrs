@@ -1,4 +1,4 @@
-use crate::memo::Memo;
+use crate::memo::MemoTrait;
 
 use crate::piece::Color;
 
@@ -8,9 +8,9 @@ use crate::position::Movement;
 
 use super::AdvanceOptions;
 
-pub(super) fn advance<'a>(
+pub(super) fn advance<'a, M: MemoTrait>(
     position: &'a mut PositionAux,
-    memo: &mut Memo,
+    memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,

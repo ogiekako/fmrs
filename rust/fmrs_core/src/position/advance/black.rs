@@ -1,4 +1,4 @@
-use crate::memo::Memo;
+use crate::memo::MemoTrait;
 use crate::position::bitboard::{king_power, lion_king_power, power, reachable_sub};
 use crate::position::position::PositionAux;
 use crate::position::rule::is_legal_move;
@@ -15,9 +15,9 @@ use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
 use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
-pub(super) fn advance<'a>(
+pub(super) fn advance<'a, M: MemoTrait>(
     position: &'a mut PositionAux,
-    memo: &mut Memo,
+    memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
@@ -28,7 +28,7 @@ pub(super) fn advance<'a>(
     Ok(())
 }
 
-struct Context<'a> {
+struct Context<'a, M: MemoTrait> {
     // Immutable fields
     position: &'a mut PositionAux,
     next_step: u16,
@@ -38,15 +38,15 @@ struct Context<'a> {
     options: &'a AdvanceOptions,
 
     // Mutable fields
-    memo: &'a mut Memo,
+    memo: &'a mut M,
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
 }
 
-impl<'a> Context<'a> {
+impl<'a, M: MemoTrait> Context<'a, M> {
     fn new(
         position: &'a mut PositionAux,
-        memo: &'a mut Memo,
+        memo: &'a mut M,
         next_step: u16,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
@@ -307,7 +307,7 @@ impl<'a> Context<'a> {
 }
 
 // Helper
-impl<'a> Context<'a> {
+impl<'a, M: MemoTrait> Context<'a, M> {
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         if kind == Kind::King {
             let mut np = self.position.clone();

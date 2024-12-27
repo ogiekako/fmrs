@@ -1,4 +1,4 @@
-use crate::memo::Memo;
+use crate::memo::MemoTrait;
 use crate::position::position::PositionAux;
 use crate::position::Movement;
 
@@ -6,9 +6,9 @@ use crate::position::Position;
 
 use super::{black, white, AdvanceOptions};
 
-pub fn advance(
+pub fn advance<M: MemoTrait>(
     position: &Position,
-    memo: &mut Memo,
+    memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
@@ -22,9 +22,9 @@ pub fn advance(
     }
 }
 
-pub fn advance_aux(
+pub fn advance_aux<M: MemoTrait>(
     position: &mut PositionAux,
-    memo: &mut Memo,
+    memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,

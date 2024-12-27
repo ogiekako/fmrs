@@ -1,5 +1,5 @@
 use crate::{
-    memo::Memo,
+    memo::MemoTrait,
     position::{
         bitboard::{
             king_then_king_or_night_power, knight_power, lance_reachable,
@@ -27,9 +27,9 @@ use super::{
 };
 
 // #[inline(never)]
-pub(super) fn attack_preventing_movements<'a>(
+pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
     position: &'a mut PositionAux,
-    memo: &'a mut Memo,
+    memo: &'a mut M,
     next_step: u16,
     should_return_check: bool,
     options: &'a AdvanceOptions,
@@ -49,7 +49,7 @@ pub(super) fn attack_preventing_movements<'a>(
     Ok(ctx.is_mate && !position.pawn_drop())
 }
 
-struct Context<'a> {
+struct Context<'a, M: MemoTrait> {
     position: &'a mut PositionAux,
     occupied_without_king: BitBoard,
     pinned: Pinned,
@@ -58,7 +58,7 @@ struct Context<'a> {
     next_step: u16,
     should_return_check: bool,
     // Mutable fields
-    memo: &'a mut Memo,
+    memo: &'a mut M,
     result: &'a mut Vec<Movement>,
     is_mate: bool,
     num_branches_without_pawn_drop: usize,
@@ -66,11 +66,11 @@ struct Context<'a> {
     options: &'a AdvanceOptions,
 }
 
-impl<'a> Context<'a> {
+impl<'a, M: MemoTrait> Context<'a, M> {
     // #[inline(never)]
     fn new(
         position: &'a mut PositionAux,
-        memo: &'a mut Memo,
+        memo: &'a mut M,
         next_step: u16,
         should_return_check: bool,
         options: &'a AdvanceOptions,
@@ -312,7 +312,7 @@ impl<'a> Context<'a> {
 }
 
 // Helper methods
-impl<'a> Context<'a> {
+impl<'a, M: MemoTrait> Context<'a, M> {
     // #[inline(never)]
     fn is_return_check(&self, movement: &Movement) -> bool {
         let mut np = self.position.clone();

@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use fmrs_core::memo::Memo;
+use fmrs_core::memo::{Memo, MemoTrait};
 
 use fmrs_core::position::advance::advance::advance_aux;
 use fmrs_core::position::position::PositionAux;
@@ -162,9 +162,6 @@ impl Task {
                     &mut movements,
                 )?;
 
-                // if step < mate_bound {
-                //     all_next_positions.append(&mut new_next_positions);
-                // }
                 if is_mate {
                     mate_positions.push(position);
 

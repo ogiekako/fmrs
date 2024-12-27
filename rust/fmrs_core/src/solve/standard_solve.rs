@@ -1,4 +1,4 @@
-use crate::memo::Memo;
+use crate::memo::{Memo, MemoTrait};
 
 use crate::position::advance::advance;
 use crate::position::{Position, PositionExt};
