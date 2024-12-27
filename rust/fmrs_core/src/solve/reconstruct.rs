@@ -36,12 +36,15 @@ impl MovementList {
     fn cons(cur: Movement, cdr: Rc<Self>) -> Rc<Self> {
         Self::Cons { cur, cdr }.into()
     }
-    fn vec(&self, v: &mut Vec<Movement>) {
-        match self {
-            Self::Nil => {}
-            Self::Cons { cur, cdr } => {
-                v.push(cur.clone());
-                cdr.vec(v);
+    fn vec(mut self: &Rc<Self>) -> Vec<Movement> {
+        let mut res = vec![];
+        loop {
+            match self.as_ref() {
+                Self::Nil => return res,
+                Self::Cons { cur, cdr } => {
+                    res.push(cur.clone());
+                    self = cdr;
+                }
             }
         }
     }
@@ -81,9 +84,7 @@ impl<'a> Context<'a> {
                 break;
             }
             if step == 0 {
-                let mut movements = vec![];
-                following_movements.vec(&mut movements);
-                res.push(movements);
+                res.push(following_movements.vec());
                 continue;
             }
             {
