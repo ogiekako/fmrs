@@ -90,7 +90,7 @@ mod tests {
             let mut got = vec![];
             super::advance(
                 &mut position,
-                &Memo::default(),
+                &Memo::default().as_mut(),
                 1,
                 &AdvanceOptions::default(),
                 &mut got,

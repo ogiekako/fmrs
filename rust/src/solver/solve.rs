@@ -5,7 +5,7 @@ use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::Position;
 use fmrs_core::solve::Solution;
 
-#[derive(Debug, Clone, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
     Standard,
     Parallel,

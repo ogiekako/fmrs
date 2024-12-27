@@ -3,6 +3,7 @@ use std::time::Duration;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fmrs::one_way_mate_steps;
 use fmrs::solver::standard_solve::standard_solve;
+use fmrs::solver::{solve, Algorithm};
 use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
 use fmrs_core::position::advance::attack_prevent::attacker;
@@ -21,7 +22,7 @@ fn bench_black_advance(c: &mut Criterion) {
     let mut memo = Memo::default();
     advance(
         &mut black_position,
-        &mut memo,
+        &memo.as_mut(),
         1,
         &AdvanceOptions::default(),
         &mut result,
@@ -33,7 +34,7 @@ fn bench_black_advance(c: &mut Criterion) {
             let mut memo = Memo::default();
             advance(
                 &mut black_position,
-                &mut memo,
+                &memo.as_mut(),
                 1,
                 &AdvanceOptions::default(),
                 &mut result,
@@ -55,7 +56,7 @@ fn bench_white_advance(c: &mut Criterion) {
 
     advance(
         &mut white_positions[0],
-        &mut memo,
+        &memo.as_mut(),
         1,
         &AdvanceOptions::default(),
         &mut result,
@@ -66,7 +67,7 @@ fn bench_white_advance(c: &mut Criterion) {
             for white_position in white_positions.iter_mut() {
                 advance(
                     black_box(white_position),
-                    &mut Memo::default(),
+                    &Memo::default().as_mut(),
                     1,
                     &AdvanceOptions::default(),
                     black_box(&mut result),
@@ -86,7 +87,7 @@ fn bench_black_pinned(c: &mut Criterion) {
         b.iter(|| {
             advance(
                 black_box(&mut black_position),
-                &mut Memo::default(),
+                &Memo::default().as_mut(),
                 1,
                 &AdvanceOptions::default(),
                 black_box(&mut result),
@@ -103,7 +104,7 @@ fn bench_solve3(c: &mut Criterion) {
         b.iter(|| {
             advance(
                 black_box(&mut position),
-                &mut Memo::default(),
+                &Memo::default().as_mut(),
                 1,
                 &AdvanceOptions::default(),
                 black_box(&mut result),
@@ -309,12 +310,19 @@ fn bench_solve97(c: &mut Criterion) {
     });
 }
 
-fn bench_heavy_problem(c: &mut Criterion, name: &str, sfen: &str, steps: usize, n_samples: usize) {
+fn bench_heavy_problem(
+    c: &mut Criterion,
+    name: &str,
+    sfen: &str,
+    steps: usize,
+    n_samples: usize,
+    algo: Algorithm,
+) {
     let position = decode_position(sfen).unwrap();
     let mut times = vec![];
     for _ in 0..n_samples {
         let start = std::time::Instant::now();
-        let solutions = standard_solve(position.clone(), 1).unwrap();
+        let solutions = solve(position.clone(), 1.into(), algo).unwrap();
         assert_eq!(1, solutions.len());
         assert_eq!(steps, solutions[0].len());
 
@@ -338,6 +346,7 @@ fn bench_jugemu(c: &mut Criterion) {
         include_str!("../problems/jugemu_gentei_kai_36603.sfen"),
         36603,
         1,
+        Algorithm::Standard,
     );
 }
 
@@ -348,6 +357,7 @@ fn bench_1461(c: &mut Criterion) {
         include_str!("../problems/morishige_1461.sfen"),
         1461,
         1,
+        Algorithm::Standard,
     );
 }
 
@@ -358,6 +368,18 @@ fn bench_1965(c: &mut Criterion) {
         include_str!("../problems/morishige_1965.sfen"),
         1965,
         2,
+        Algorithm::Standard,
+    );
+}
+
+fn bench_bataco(c: &mut Criterion) {
+    bench_heavy_problem(
+        c,
+        "bench_bataco",
+        include_str!("../problems/bataco_4247.sfen"),
+        4247,
+        1,
+        Algorithm::Parallel,
     );
 }
 
@@ -382,7 +404,7 @@ fn bench_extra() {
 criterion_group!(
     name = bench_extra_inner;
     config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
-    targets = bench_jugemu, bench_1965, bench_1461,
+    targets = bench_jugemu, bench_1965, bench_1461, bench_bataco,
 );
 
 criterion_main!(benches, bench_extra);

@@ -16,6 +16,16 @@ pub struct Memo {
     steps: RefCell<NoHashMap<u16>>,
 }
 
+pub struct MemoMut<'a> {
+    inner: &'a mut Memo,
+}
+
+impl Memo {
+    pub fn as_mut<'a>(&'a mut self) -> MemoMut<'a> {
+        MemoMut { inner: self }
+    }
+}
+
 impl Default for Memo {
     fn default() -> Self {
         let steps = NoHashMap::default().into();
@@ -23,30 +33,34 @@ impl Default for Memo {
     }
 }
 
-impl MemoTrait for Memo {
+impl<'a> MemoTrait for MemoMut<'a> {
     #[inline]
     fn contains_key(&self, digest: &u64) -> bool {
-        self.steps.borrow_mut().contains_key(digest)
+        self.inner.steps.borrow_mut().contains_key(digest)
     }
 
     #[inline]
     fn contains_or_insert(&self, digest: u64, step: u16) -> bool {
         let mut contains = true;
-        self.steps.borrow_mut().entry(digest).or_insert_with(|| {
-            contains = false;
-            step
-        });
+        self.inner
+            .steps
+            .borrow_mut()
+            .entry(digest)
+            .or_insert_with(|| {
+                contains = false;
+                step
+            });
         contains
     }
 
     #[inline]
     fn get(&self, digest: &u64) -> Option<u16> {
-        self.steps.borrow().get(digest).cloned()
+        self.inner.steps.borrow().get(digest).cloned()
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.steps.borrow().len()
+        self.inner.steps.borrow().len()
     }
 }
 

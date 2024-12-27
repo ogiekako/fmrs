@@ -25,8 +25,8 @@ impl StandardSolver {
     pub fn new(position: Position, solutions_upto: usize) -> Self {
         let step = 0;
         let current = vec![position];
-        let memo = Memo::default();
-        memo.contains_or_insert(current[0].digest(), step);
+        let mut memo = Memo::default();
+        memo.as_mut().contains_or_insert(current[0].digest(), step);
         Self {
             solutions_upto,
             step,
@@ -46,7 +46,7 @@ impl StandardSolver {
         while let Some(mut position) = self.current.pop() {
             let is_mate = advance(
                 &mut position,
-                &mut self.memo_next,
+                &self.memo_next.as_mut(),
                 self.step,
                 &Default::default(),
                 &mut movements,
@@ -67,8 +67,8 @@ impl StandardSolver {
             for mate_position in mate_positions.iter() {
                 res.append(&mut reconstruct_solutions(
                     mate_position,
-                    &self.memo_next,
-                    &self.memo,
+                    &self.memo_next.as_mut(),
+                    &self.memo.as_mut(),
                     self.solutions_upto - res.len(),
                 ))
             }
@@ -78,7 +78,7 @@ impl StandardSolver {
             info!(
                 "Found {} solutions searching {} positions",
                 res.len(),
-                self.memo.len() + self.memo_next.len(),
+                self.memo.as_mut().len() + self.memo_next.as_mut().len(),
             );
             return Ok(SolverStatus::Mate(res));
         }
