@@ -191,22 +191,16 @@ impl Task {
         {
             *self.active_thread_count.lock().unwrap() -= 1;
         }
-        let res = std::thread::Builder::new()
-            .stack_size(512 * 1024 * 1024)
-            .spawn(move || {
-                let mut res = vec![];
-                for mate_position in mate_positions {
-                    res.append(&mut reconstruct_solutions(
-                        &mate_position.core(),
-                        &self.memo_next,
-                        &self.memo,
-                        self.solutions_upto - res.len(),
-                    ));
-                }
-                res
-            })?
-            .join()
-            .unwrap();
+
+        let mut res = vec![];
+        for mate_position in mate_positions {
+            res.append(&mut reconstruct_solutions(
+                &mate_position.core(),
+                &self.memo_next,
+                &self.memo,
+                self.solutions_upto - res.len(),
+            ));
+        }
         Ok(res)
     }
 }
