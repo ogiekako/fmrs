@@ -365,7 +365,11 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         if !self.options.no_memo {
             let digest = self.position.moved_digest(&movement);
 
-            if self.memo.contains_or_insert(digest, self.next_step) {
+            if self.options.no_insertion {
+                if self.memo.contains_key(&digest) {
+                    return Ok(());
+                }
+            } else if self.memo.contains_or_insert(digest, self.next_step) {
                 // Already seen during search on other branches.
                 return Ok(());
             }

@@ -5,6 +5,8 @@ pub struct AdvanceOptions {
     pub no_memo: bool,
     // Set 1 for one-way mate. Pawn drop is added regardless of the value.
     pub max_allowed_branches: Option<usize>,
+
+    pub no_insertion: bool,
 }
 
 impl AdvanceOptions {

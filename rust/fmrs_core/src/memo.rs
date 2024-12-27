@@ -48,32 +48,31 @@ impl<'a> MemoTrait for Memo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DashMemo {
     steps: DashMap<u64, u16, BuildNoHasher>,
 }
 
-impl Default for DashMemo {
-    fn default() -> Self {
-        let steps = DashMap::default();
-        DashMemo { steps }
+impl DashMemo {
+    pub fn insert(&mut self, digest: u64, step: u16) {
+        self.steps.insert(digest, step);
     }
 }
 
 pub struct DashMemoMut<'a> {
-    steps: &'a DashMap<u64, u16, BuildNoHasher>,
+    inner: &'a DashMemo,
 }
 
 impl MemoTrait for DashMemoMut<'_> {
     #[inline]
     fn contains_key(&self, digest: &u64) -> bool {
-        self.steps.contains_key(digest)
+        self.inner.steps.contains_key(digest)
     }
 
     #[inline]
     fn contains_or_insert(&mut self, digest: u64, step: u16) -> bool {
         let mut contains = true;
-        self.steps.entry(digest).or_insert_with(|| {
+        self.inner.steps.entry(digest).or_insert_with(|| {
             contains = false;
             step
         });
@@ -82,17 +81,17 @@ impl MemoTrait for DashMemoMut<'_> {
 
     #[inline]
     fn get(&self, digest: &u64) -> Option<u16> {
-        self.steps.get(digest).map(|v| *v)
+        self.inner.steps.get(digest).map(|v| *v)
     }
 
     #[inline]
     fn len(&self) -> usize {
-        self.steps.len()
+        self.inner.steps.len()
     }
 }
 
 impl DashMemo {
     pub fn as_mut(&self) -> DashMemoMut {
-        DashMemoMut { steps: &self.steps }
+        DashMemoMut { inner: self }
     }
 }

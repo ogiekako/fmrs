@@ -36,6 +36,7 @@ fn one_way_mate_steps_inner(
     let options = AdvanceOptions {
         max_allowed_branches: Some(1),
         no_memo: true,
+        ..Default::default()
     };
 
     let mut seen_positions = NoHashSet::default();

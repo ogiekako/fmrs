@@ -18,7 +18,7 @@ log = "*"
 env_logger = "*"
 pretty_assertions = "*"
 xxhash-rust = { version = "*", features = ["xxh3"] }
-dashmap = "6.1.0"
+dashmap = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"
