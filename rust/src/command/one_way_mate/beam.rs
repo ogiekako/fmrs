@@ -348,7 +348,7 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
                     },
                 )
             }
-            40..=41 => return Action::Shift(rng.gen()), // heavy
+            40..=47 => return Action::Shift(rng.gen()),
             50..=54 => return Action::ChangeTurn,
             60..=60 => return Action::HandToHand(rng.gen(), rng.gen()),
             _ => (),
