@@ -57,6 +57,8 @@ fn bishop_pinned<const THEM: bool, const BLOCKER: bool>(
     blocker_color: Color,
     res: &mut Vec<(Square, BitBoard)>,
 ) {
+    let attacker_color = king_color.opposite();
+
     let power_from_king = bishop_power(position.must_king_pos(king_color));
     let mut potential_attackers =
         position.bishopish() & position.color_bb::<THEM>() & power_from_king;
@@ -95,6 +97,8 @@ fn rook_pinned<const THEM: bool, const BLOCKER: bool>(
     blocker_color: Color,
     res: &mut Vec<(Square, BitBoard)>,
 ) {
+    let attacker_color = king_color.opposite();
+
     let power_from_king = rook_power(position.must_king_pos(king_color));
     let mut potential_attackers =
         position.rookish() & position.color_bb::<THEM>() & power_from_king;
