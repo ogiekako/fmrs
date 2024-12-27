@@ -154,7 +154,7 @@ export class JsonResponse {
      */
     solutions() {
         const ret = wasm.jsonresponse_solutions(this.__wbg_ptr);
-        return ret >>> 0;
+        return ret;
     }
     /**
      * @returns {string}
