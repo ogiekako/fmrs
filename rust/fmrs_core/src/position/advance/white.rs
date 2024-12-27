@@ -1,6 +1,6 @@
 use crate::memo::Memo;
 
-use crate::piece::Color;
+use crate::piece::{Color, COLOR_BLACK, COLOR_WHITE};
 
 use crate::position::advance::attack_prevent::attack_preventing_movements;
 use crate::position::position::PositionAux;
@@ -16,5 +16,7 @@ pub(super) fn advance<'a>(
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* legal mate */ bool> {
     debug_assert_eq!(position.turn(), Color::WHITE);
-    attack_preventing_movements(position, memo, next_step, false, options, None, result)
+    attack_preventing_movements::<COLOR_WHITE, COLOR_BLACK>(
+        position, memo, next_step, false, options, None, result,
+    )
 }

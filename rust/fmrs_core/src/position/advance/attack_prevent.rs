@@ -28,7 +28,7 @@ use super::{
 };
 
 // #[inline(never)]
-pub(super) fn attack_preventing_movements<'a>(
+pub(super) fn attack_preventing_movements<'a, const US: bool, const THEM: bool>(
     position: &'a mut PositionAux,
     memo: &'a mut Memo,
     next_step: u32,
@@ -37,7 +37,7 @@ pub(super) fn attack_preventing_movements<'a>(
     attacker_hint: Option<Attacker>,
     result: &'a mut Vec<Movement>,
 ) -> Result</* is legal mate */ bool> {
-    let mut ctx = Context::new(
+    let mut ctx: Context<US, THEM> = Context::new(
         position,
         memo,
         next_step,
@@ -50,7 +50,7 @@ pub(super) fn attack_preventing_movements<'a>(
     Ok(ctx.is_mate && !position.pawn_drop())
 }
 
-struct Context<'a> {
+struct Context<'a, const US: bool, const THEM: bool> {
     position: &'a mut PositionAux,
     occupied_without_king: BitBoard,
     pinned: Pinned,
@@ -67,7 +67,7 @@ struct Context<'a> {
     options: &'a AdvanceOptions,
 }
 
-impl<'a> Context<'a> {
+impl<'a, const US: bool, const THEM: bool> Context<'a, US, THEM> {
     // #[inline(never)]
     fn new(
         position: &'a mut PositionAux,
@@ -81,10 +81,10 @@ impl<'a> Context<'a> {
         let turn = position.turn();
         let attacker = match attacker_hint {
             Some(attacker) => attacker,
-            None => attacker(position, turn, false)
+            None => attacker::<THEM>(position, turn, false)
                 .ok_or_else(|| anyhow::anyhow!("No attacker found"))?,
         };
-        let pinned = pinned(position, turn, turn);
+        let pinned = pinned::<THEM, US>(position, turn, turn);
 
         let mut occupied_without_king = position.occupied_bb();
         occupied_without_king.unset(position.must_king_pos(turn));
@@ -147,10 +147,10 @@ impl<'a> Context<'a> {
     fn king_move(&mut self) -> Result<()> {
         let king_color = self.position.turn();
         let attacker_color = king_color.opposite();
-        let attacker_color_bb = self.position.color_bb(attacker_color);
+        let attacker_color_bb = self.position.color_bb::<THEM>();
 
-        let mut king_reachable = king_power(self.position.must_turn_king_pos())
-            .and_not(self.position.color_bb(king_color));
+        let mut king_reachable =
+            king_power(self.position.must_turn_king_pos()).and_not(self.position.color_bb::<US>());
         if king_reachable.is_empty() {
             return Ok(());
         }
@@ -229,7 +229,7 @@ impl<'a> Context<'a> {
         };
 
         // Move
-        let around_dest = king_power(dest) & self.position.color_bb(self.position.turn());
+        let around_dest = king_power(dest) & self.position.color_bb::<US>();
         for source_pos in around_dest {
             let source_kind = self.position.must_get_kind(source_pos);
             if source_kind == Kind::King {
@@ -269,7 +269,7 @@ impl<'a> Context<'a> {
                 Kind::Bishop => self.position.bishopish(),
                 Kind::Rook => self.position.rookish(),
                 _ => unreachable!(),
-            } & self.position.color_bb(self.position.turn());
+            } & self.position.color_bb::<US>();
             if on_board.is_empty() {
                 continue;
             }
@@ -311,7 +311,7 @@ impl<'a> Context<'a> {
 }
 
 // Helper methods
-impl<'a> Context<'a> {
+impl<'a, const US: bool, const THEM: bool> Context<'a, US, THEM> {
     fn update<'b>(
         &self,
         new_position: &'b mut Option<Position>,
@@ -328,14 +328,14 @@ impl<'a> Context<'a> {
         // TODO: check the second attacker
         if !is_king_move && self.attacker.double_check.is_some() {
             let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
-            if checked(&mut np, self.position.turn()) {
+            if checked::<THEM>(&mut np, self.position.turn()) {
                 return Ok(());
             }
         }
 
         if self.should_return_check {
             let mut np = PositionAux::new(self.update(&mut new_position, &movement).clone());
-            if !checked(&mut np, self.position.turn().opposite()) {
+            if !checked::<US>(&mut np, self.position.turn().opposite()) {
                 return Ok(());
             }
         }
@@ -348,7 +348,7 @@ impl<'a> Context<'a> {
         }
 
         debug_assert!(
-            !common::checked(
+            !common::checked::<THEM>(
                 &mut PositionAux::new(self.update(&mut new_position, &movement).clone()),
                 self.position.turn(),
             ),
@@ -418,14 +418,14 @@ impl Attacker {
     }
 }
 
-pub fn attacker(
+pub fn attacker<const THEM: bool>(
     position: &mut PositionAux,
     king_color: Color,
     early_return: bool,
 ) -> Option<Attacker> {
     let mut attacker: Option<Attacker> = None;
 
-    let mut opponent_bb = position.color_bb(king_color.opposite());
+    let mut opponent_bb = position.color_bb::<THEM>();
     let king_pos = position.must_king_pos(king_color);
 
     let king_power_area = (king_power(king_pos) | knight_power(king_color, king_pos)) & opponent_bb;

@@ -173,7 +173,7 @@ impl PositionAux {
     }
 
     pub fn bitboard<const KIND: usize>(&mut self, color: Color) -> BitBoard {
-        self.kind_bb::<KIND>() & self.color_bb(color)
+        self.kind_bb::<KIND>() & self.color_bb_dyn(color)
     }
 
     pub fn occupied_bb(&mut self) -> BitBoard {
@@ -188,8 +188,16 @@ impl PositionAux {
         self.white_bb
     }
 
-    pub fn color_bb(&self, color: Color) -> BitBoard {
+    pub fn color_bb_dyn(&self, color: Color) -> BitBoard {
         if color.is_black() {
+            self.core.black()
+        } else {
+            self.white_bb()
+        }
+    }
+
+    pub fn color_bb<const COLOR: bool>(&self) -> BitBoard {
+        if COLOR == COLOR_BLACK {
             self.core.black()
         } else {
             self.white_bb()
@@ -244,7 +252,11 @@ impl PositionAux {
     }
 
     pub fn checked_slow(&mut self, king_color: Color) -> bool {
-        attacker(self, king_color, true).is_some()
+        if king_color.is_black() {
+            attacker::<COLOR_WHITE>(self, king_color, true).is_some()
+        } else {
+            attacker::<COLOR_BLACK>(self, king_color, true).is_some()
+        }
     }
 
     pub fn white_king_pos(&mut self) -> Square {
