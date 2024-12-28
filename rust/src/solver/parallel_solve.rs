@@ -9,7 +9,6 @@ use fmrs_core::position::{Position, PositionExt as _};
 
 use fmrs_core::solve::{reconstruct_solutions, Solution};
 use log::debug;
-use rayon::iter::Either;
 use rayon::prelude::*;
 
 pub(super) fn parallel_solve(
@@ -22,12 +21,15 @@ pub(super) fn parallel_solve(
     memo.insert(position.digest(), 0);
     let mut memo_next = DashMemo::default();
 
-    let mut positions = vec![position];
-
     let mate_positions: Mutex<Vec<Position>> = Mutex::new(vec![]);
 
-    for step in 0.. {
-        if start.is_some() && step % 5 == 0 {
+    let mut positions = vec![position];
+
+    next_positions(&mate_positions, &memo_next, &mut positions, 0);
+    std::mem::swap(&mut memo, &mut memo_next);
+
+    for step in (1..).step_by(2) {
+        if start.is_some() && step % 75 == 0 {
             debug!(
                 "{}: {} ({:.1?})",
                 step,
@@ -40,32 +42,13 @@ pub(super) fn parallel_solve(
             return Ok(vec![]);
         }
 
-        positions = positions
-            .into_par_iter()
-            .map(|position| {
-                let mut movements = vec![];
-                let is_mate = advance_aux(
-                    &mut PositionAux::new(position.clone()),
-                    &mut memo_next.as_mut(),
-                    step + 1,
-                    &Default::default(),
-                    &mut movements,
-                )
-                .unwrap();
-
-                if is_mate {
-                    mate_positions.lock().unwrap().push(position);
-                    return Either::Left(std::iter::empty());
-                } else {
-                    Either::Right(movements.into_iter().map(move |m| {
-                        let mut np = position.clone();
-                        np.do_move(&m);
-                        np
-                    }))
-                }
-            })
-            .flatten_iter()
-            .collect();
+        next_next_positions(
+            &mate_positions,
+            &mut memo,
+            &mut memo_next,
+            &mut positions,
+            step,
+        );
 
         if !mate_positions.lock().unwrap().is_empty() {
             if let Some(start) = start {
@@ -84,8 +67,86 @@ pub(super) fn parallel_solve(
             res.sort();
             return Ok(res);
         }
-
-        std::mem::swap(&mut memo, &mut memo_next);
     }
     unreachable!()
+}
+
+fn next_next_positions(
+    mate_positions: &Mutex<Vec<Position>>,
+    memo: &mut DashMemo,
+    memo_next: &mut DashMemo,
+    positions: &mut Vec<Position>,
+    step: u16,
+) {
+    *positions = positions
+        .into_par_iter()
+        .flat_map_iter(|position| {
+            let mut movements = vec![];
+            let is_mate = advance_aux(
+                &mut PositionAux::new(position.clone()),
+                &mut memo_next.as_mut(),
+                step + 1,
+                &Default::default(),
+                &mut movements,
+            )
+            .unwrap();
+
+            if is_mate {
+                mate_positions.lock().unwrap().push(position.clone());
+            }
+
+            movements.into_iter().flat_map(|m| {
+                let mut np = position.clone();
+                np.do_move(&m);
+
+                let mut movements = vec![];
+                advance_aux(
+                    &mut PositionAux::new(np.clone()),
+                    &mut memo.as_mut(),
+                    step + 2,
+                    &Default::default(),
+                    &mut movements,
+                )
+                .unwrap();
+
+                movements.into_iter().map(move |m| {
+                    let mut np = np.clone();
+                    np.do_move(&m);
+                    np
+                })
+            })
+        })
+        .collect()
+}
+
+fn next_positions(
+    mate_positions: &Mutex<Vec<Position>>,
+    memo_next: &DashMemo,
+    positions: &mut Vec<Position>,
+    step: u16,
+) {
+    *positions = positions
+        .into_par_iter()
+        .flat_map_iter(|position| {
+            let mut movements = vec![];
+            let is_mate = advance_aux(
+                &mut PositionAux::new(position.clone()),
+                &mut memo_next.as_mut(),
+                step + 1,
+                &Default::default(),
+                &mut movements,
+            )
+            .unwrap();
+
+            if is_mate {
+                mate_positions.lock().unwrap().push(position.clone());
+            }
+
+            movements.into_iter().map(move |m| {
+                let mut np = position.clone();
+                np.do_move(&m);
+                np
+            })
+        })
+        .collect()
 }
