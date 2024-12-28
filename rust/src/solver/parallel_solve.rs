@@ -93,6 +93,8 @@ fn next_next_positions(
 
             if is_mate {
                 mate_positions.lock().unwrap().push(position.clone());
+            } else if !mate_positions.lock().unwrap().is_empty() {
+                movements.clear();
             }
 
             movements.into_iter().flat_map(|m| {
