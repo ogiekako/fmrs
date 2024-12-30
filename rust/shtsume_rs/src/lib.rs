@@ -17,9 +17,7 @@ pub fn solve(sfen: &str) -> anyhow::Result<Option<u16>> {
         _ => bail!("unknown error"),
     }
 
-    let size = ffi::TBASE_SIZE_DEFAULT as u64 * ffi::MCARDS_PER_MBYTE as u64 - 1;
-
-    let mut tbase = Tbase::create(size);
+    let mut tbase = Tbase::default();
     let mut tdata = Tdata::default();
 
     search(&sdata, &mut tdata, &mut tbase);

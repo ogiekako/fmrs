@@ -3,19 +3,16 @@ use std::path::{self, PathBuf};
 fn main() {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
-    let shtusme_source = path::absolute("../../shtsume/source")
-        .unwrap()
-        .canonicalize()
-        .unwrap();
+    let shtsume_source = path::absolute("../../shtsume/source").unwrap();
 
-    let (headers, sources): (Vec<_>, Vec<_>) = std::fs::read_dir(&shtusme_source)
+    let (headers, sources): (Vec<_>, Vec<_>) = std::fs::read_dir(&shtsume_source)
         .unwrap()
         .map(|e| e.unwrap().path())
         .partition(|f| f.extension() == Some("h".as_ref()));
 
     bindgen::Builder::default()
         .headers(headers.iter().map(|p| p.to_str().unwrap()))
-        .allowlist_file(format!("{}.*", shtusme_source.to_str().unwrap()))
+        .allowlist_file(format!("{}.*", shtsume_source.to_str().unwrap()))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .derive_default(true)
         .generate()
@@ -50,7 +47,7 @@ fn main() {
         .flag("-std=c11")
         .flag("-Wall")
         .flag("-O3")
-        .flag(format!("-I{}", shtusme_source.to_str().unwrap()))
+        .flag(format!("-I{}", shtsume_source.to_str().unwrap()))
         .warnings(false)
         .cargo_warnings(false)
         .compile("shtsume");
