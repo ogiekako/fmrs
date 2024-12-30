@@ -1,4 +1,7 @@
-use std::ffi::CString;
+use std::{
+    ffi::CString,
+    sync::{Mutex, MutexGuard},
+};
 
 mod inner {
     #![allow(non_upper_case_globals, non_camel_case_types, non_snake_case, unused)]
@@ -11,7 +14,6 @@ pub use inner::*;
 extern "C" {
     fn shtsume_main(argc: i32, argv: *const *const u8);
     fn srand(seed: u32);
-    pub fn time(seed: *mut i32) -> i32;
 }
 
 pub fn do_main(argv: &[&str]) {
@@ -23,18 +25,44 @@ pub fn do_main(argv: &[&str]) {
         .iter_mut()
         .map(|s| s.as_ptr() as *const u8)
         .collect::<Vec<_>>();
+
+    let _g = GLOBAL_MUX.lock().unwrap();
     unsafe {
         shtsume_main(ptrs.len() as i32, ptrs.as_ptr());
     }
 }
 
-pub fn init(seed: u32) {
-    unsafe {
-        create_seed();
-        init_distance();
-        init_bpos();
-        init_effect();
-        srand(seed);
+pub struct Global {
+    _g: MutexGuard<'static, ()>,
+}
+
+pub static GLOBAL_MUX: Mutex<()> = Mutex::new(());
+
+impl Global {
+    pub fn init() -> Global {
+        let _g = GLOBAL_MUX.lock().unwrap();
+
+        const ONCE: std::sync::Once = std::sync::Once::new();
+        ONCE.call_once(|| unsafe {
+            create_seed();
+            init_distance();
+            init_bpos();
+            init_effect();
+            srand(0);
+        });
+
+        Global { _g }
+    }
+}
+
+impl Drop for Global {
+    fn drop(&mut self) {
+        unsafe {
+            initialize_tbase(g_tbase);
+            init_mtt(g_mtt);
+            mlist_free_stack();
+            mvlist_free_stack();
+        }
     }
 }
 
