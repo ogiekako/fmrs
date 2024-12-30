@@ -1,0 +1,3 @@
+[submodule "shtsume"]
+	path = shtsume
+	url = https://github.com/hkijin/shtsume

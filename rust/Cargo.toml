@@ -15,7 +15,7 @@ name = "fmrs"
 bench = false
 
 [workspace]
-members = ["wasm", "fmrs_core"]
+members = ["wasm", "fmrs_core", "shtsume_rs"]
 
 [dependencies]
 fmrs_core = { path = "./fmrs_core" }
