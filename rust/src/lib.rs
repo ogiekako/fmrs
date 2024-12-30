@@ -46,6 +46,9 @@ enum Action {
     FromImage {
         url: String,
     },
+    DirectMate {
+        sfen_or_file: String,
+    },
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
@@ -67,6 +70,13 @@ pub async fn do_main() -> anyhow::Result<()> {
             goal,
         } => command::one_way_mate(algorithm, seed, parallel, goal)?,
         Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
+        Action::DirectMate { sfen_or_file } => {
+            command::direct_mate(&if sfen_or_file.ends_with(".sfen") {
+                std::fs::read_to_string(sfen_or_file)?
+            } else {
+                sfen_or_file
+            })?;
+        }
     }
     Ok(())
 }

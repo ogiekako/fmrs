@@ -9,6 +9,31 @@ pub trait MemoTrait {
     fn len(&self) -> usize;
 }
 
+#[derive(Debug, Default)]
+pub struct MemoStub;
+
+impl MemoTrait for MemoStub {
+    #[inline]
+    fn contains_key(&self, _digest: &u64) -> bool {
+        unimplemented!()
+    }
+
+    #[inline]
+    fn contains_or_insert(&mut self, _digest: u64, _step: u16) -> bool {
+        unimplemented!()
+    }
+
+    #[inline]
+    fn get(&self, _digest: &u64) -> Option<u16> {
+        unimplemented!()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        unimplemented!()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Memo {
     steps: NoHashMap<u16>,
