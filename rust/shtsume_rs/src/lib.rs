@@ -1,16 +1,13 @@
 use anyhow::bail;
+use ffi::{sdata::Sdata, search::search, ssdata::Ssdata, tbase::Tbase, tdata::Tdata};
 
 pub mod ffi;
 
 pub fn solve(sfen: &str) -> anyhow::Result<Option<u16>> {
-    let _g = ffi::Global::init();
+    let _g = ffi::Global::init(20241231);
 
-    unsafe {
-        ffi::g_time_limit = ffi::TM_INFINATE;
-    }
-
-    let ssdata = ffi::Ssdata::from_sfen(sfen);
-    let mut sdata = ffi::Sdata::from_ssdata(&ssdata);
+    let ssdata = Ssdata::from_sfen(sfen);
+    let mut sdata = Sdata::from_ssdata(&ssdata);
 
     match sdata.is_illegal() as u32 {
         0 => (),
@@ -22,10 +19,10 @@ pub fn solve(sfen: &str) -> anyhow::Result<Option<u16>> {
 
     let size = ffi::TBASE_SIZE_DEFAULT as u64 * ffi::MCARDS_PER_MBYTE as u64 - 1;
 
-    let mut tbase = ffi::Tbase::create(size);
-    let mut tdata = ffi::Tdata::default();
+    let mut tbase = Tbase::create(size);
+    let mut tdata = Tdata::default();
 
-    ffi::search(&sdata, &mut tdata, &mut tbase);
+    search(&sdata, &mut tdata, &mut tbase);
 
     Ok(if tdata.pn() == 0 {
         Some(tdata.sh())
