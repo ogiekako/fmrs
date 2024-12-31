@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Run benchmark
         run: cd rust && env FMRS_ENABLE_EXTRA_BENCH=1 cargo bench -- --output-format bencher | tee output.txt
 
