@@ -19,6 +19,7 @@ members = ["wasm", "fmrs_core", "shtsume_rs"]
 
 [dependencies]
 fmrs_core = { path = "./fmrs_core" }
+shtsume_rs = { path = "./shtsume_rs" }
 lazy_static = "*"
 
 serde = { version = "*", features = ["derive"] }

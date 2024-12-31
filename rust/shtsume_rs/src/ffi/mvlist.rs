@@ -8,7 +8,7 @@ impl Mvlist {
         Self(inner)
     }
 
-    fn iter(&self) -> MvlistItemIter {
+    pub fn iter(&self) -> MvlistItemIter {
         MvlistItemIter(self.0)
     }
 }

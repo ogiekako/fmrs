@@ -15,6 +15,10 @@ use fmrs_core::sfen::decode_position;
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
+use shtsume_rs::ffi::mvlist::generate_check;
+use shtsume_rs::ffi::sdata::Sdata;
+use shtsume_rs::ffi::ssdata::Ssdata;
+use shtsume_rs::ffi::tbase::Tbase;
 
 fn bench_black_advance(c: &mut Criterion) {
     let mut black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
@@ -29,8 +33,8 @@ fn bench_black_advance(c: &mut Criterion) {
     )
     .unwrap();
     c.bench_function("black_advance", |b| {
-        result.clear();
         b.iter(|| {
+            result.clear();
             let mut memo = Memo::default();
             advance(
                 &mut black_position,
@@ -40,6 +44,26 @@ fn bench_black_advance(c: &mut Criterion) {
                 &mut result,
             )
             .unwrap();
+            assert_eq!(result.len(), 66);
+        })
+    });
+}
+
+fn bench_black_advance_shtsume(c: &mut Criterion) {
+    let _g = shtsume_rs::ffi::Global::init(0);
+
+    let ssdata = Ssdata::from_sfen(include_str!("../problems/ofm-139_5.sfen"));
+    let mut tbase = Tbase::default();
+
+    let mut sdata = Sdata::from_ssdata(&ssdata);
+    assert_eq!(sdata.is_illegal(), 0);
+
+    c.bench_function("black_advance_shtsume", |b| {
+        b.iter(|| {
+            let sdata = Sdata::from_ssdata(&ssdata);
+            let list = generate_check(&sdata, &mut tbase);
+            let count = list.iter().map(|item| item.mlist().count()).sum::<usize>();
+            assert_eq!(count, 66);
         })
     });
 }
@@ -389,7 +413,7 @@ criterion_group!(
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
+    targets = bench_black_advance, bench_black_advance_shtsume, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
 );
 
 const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
