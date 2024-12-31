@@ -5,12 +5,36 @@ use crate::memo::MemoTrait;
 use crate::nohash::NoHashMap;
 
 use crate::position::position::PositionAux;
-use crate::position::{previous, Movement, Position, PositionExt};
+use crate::position::{previous, Movement, Position, PositionExt, UndoMove};
 
 use super::Solution;
 
-pub fn reconstruct_solutions<M: MemoTrait>(
-    mate: &Position,
+pub trait PositionTrait: Clone {
+    fn digest(&self) -> u64;
+    fn undo_digest(&self, undo_move: &UndoMove) -> u64;
+    fn undone(&self, undo_move: &UndoMove) -> Self;
+    fn to_position(&self) -> Position;
+}
+
+impl PositionTrait for Position {
+    fn digest(&self) -> u64 {
+        self.digest()
+    }
+    fn undo_digest(&self, undo_move: &UndoMove) -> u64 {
+        PositionExt::undo_digest(self, undo_move)
+    }
+    fn undone(&self, undo_move: &UndoMove) -> Self {
+        let mut p = self.clone();
+        p.undo_move(undo_move);
+        p
+    }
+    fn to_position(&self) -> Position {
+        self.clone()
+    }
+}
+
+pub fn reconstruct_solutions<M: MemoTrait, P: PositionTrait>(
+    mate: &P,
     memo_black_turn: &M,
     memo_white_turn: &M,
     solutions_upto: usize,
@@ -21,6 +45,7 @@ pub fn reconstruct_solutions<M: MemoTrait>(
     ctx.reconstruct_bfs(mate)
 }
 
+#[derive(Debug)]
 enum MovementList {
     Nil,
     Cons {
@@ -72,9 +97,9 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         }
     }
 
-    fn reconstruct_bfs(&self, mate_position: &Position) -> Vec<Solution> {
+    fn reconstruct_bfs<P: PositionTrait>(&self, mate_position: &P) -> Vec<Solution> {
         let mut position_visit_count = NoHashMap::default();
-        let mut queue: VecDeque<(Position, u16, Rc<MovementList>)> = VecDeque::new();
+        let mut queue: VecDeque<(P, u16, Rc<MovementList>)> = VecDeque::new();
         queue.push_back((mate_position.clone(), self.mate_in, MovementList::nil()));
         let mut res = vec![];
 
@@ -104,30 +129,19 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
             undo_moves.clear();
             previous(
-                &mut PositionAux::new(position.clone()),
+                &mut PositionAux::new(position.to_position()),
                 step < self.mate_in,
                 &mut undo_moves,
             );
+
             for undo_move in undo_moves.iter() {
                 let digest = position.undo_digest(undo_move);
 
-                debug_assert_eq!(
-                    digest,
-                    {
-                        let mut p = position.clone();
-                        p.undo_move(&undo_move);
-                        p.digest()
-                    },
-                    "{:?} {:?}",
-                    position,
-                    undo_move
-                );
-
                 if memo_previous.get(&digest) == Some(step - 1) {
-                    let mut prev_position = position.clone();
+                    let mut prev_position = position.to_position();
                     let movement = prev_position.undo_move(&undo_move);
                     queue.push_back((
-                        prev_position,
+                        position.undone(undo_move),
                         step - 1,
                         MovementList::cons(movement, following_movements.clone()),
                     ));

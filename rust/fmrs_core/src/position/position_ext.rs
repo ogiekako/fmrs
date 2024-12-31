@@ -14,6 +14,15 @@ pub enum UndoMove {
     },
 }
 
+impl UndoMove {
+    pub fn was_pawn_drop(&self) -> bool {
+        match self {
+            UndoMove::UnDrop(_, was_pawn_drop) => *was_pawn_drop,
+            UndoMove::UnMove { pawn_drop, .. } => *pawn_drop,
+        }
+    }
+}
+
 pub trait PositionExt {
     fn do_move(&mut self, m: &Movement);
     fn undo_move(&mut self, m: &UndoMove) -> Movement;

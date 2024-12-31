@@ -51,7 +51,7 @@ fn bench_black_advance(c: &mut Criterion) {
 }
 
 fn bench_black_advance_shtsume(c: &mut Criterion) {
-    let _g = shtsume_rs::ffi::Global::init(0);
+    let _g = shtsume_rs::ffi::Global::init(0, None);
 
     let ssdata = Ssdata::from_sfen(include_str!("../problems/ofm-139_5.sfen"));
     let mut tbase = Tbase::default();
@@ -112,7 +112,7 @@ fn bench_white_advance_shtsume(c: &mut Criterion) {
         ("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs1+pN1 w GSgsnlp 1", 9),
     ];
 
-    let _g = Global::init(0);
+    let _g = Global::init(0, None);
 
     let mut tbase = Tbase::default();
 

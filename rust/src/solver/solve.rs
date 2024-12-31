@@ -1,22 +1,25 @@
 use std::time::Instant;
 
 use crate::solver::parallel_solve;
+use crate::solver::shtsume_solve;
 use crate::solver::standard_solve;
 use fmrs_core::piece::*;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::Position;
 use fmrs_core::solve::Solution;
+use shtsume_rs::ffi::ssdata::Ssdata;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
     Standard,
     Parallel,
+    Shtsume,
 }
 
 impl Algorithm {
     #[cfg(test)]
     fn iter() -> impl Iterator<Item = Algorithm> {
-        [Algorithm::Standard, Algorithm::Parallel].into_iter()
+        [Algorithm::Standard, Algorithm::Parallel, Algorithm::Shtsume].into_iter()
     }
 }
 
@@ -55,6 +58,10 @@ pub fn solve_with_progress(
             parallel_solve::parallel_solve(position, progress, solutions_upto, start)
         }
         Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto),
+        Algorithm::Shtsume => {
+            let ssdata = Ssdata::from_sfen(&position.sfen());
+            shtsume_solve::shtsume_solve(&ssdata, solutions_upto)
+        }
     }
 }
 
@@ -162,7 +169,8 @@ mod tests {
                         .collect();
 
                 eprintln!("Solving {:?} (algo={:?})", board, algorithm);
-                let got = solve(board, None, algorithm,None).unwrap();
+                let mut got = solve(board, None, algorithm,None).unwrap();
+                got.sort();
 
                 assert_eq!(got, want);
             }

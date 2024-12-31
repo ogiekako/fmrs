@@ -4,7 +4,7 @@ use ffi::{sdata::Sdata, search::search, ssdata::Ssdata, tbase::Tbase, tdata::Tda
 pub mod ffi;
 
 pub fn solve(sfen: &str) -> anyhow::Result<Option<u16>> {
-    let _g = ffi::Global::init(20241231);
+    let _g = ffi::Global::init(0, None);
 
     let ssdata = Ssdata::from_sfen(sfen);
     let mut sdata = Sdata::from_ssdata(&ssdata);

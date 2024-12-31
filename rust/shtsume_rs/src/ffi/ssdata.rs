@@ -1,8 +1,9 @@
 use std::ffi::CString;
 
-use super::{sfen_to_ssdata, ssdata_t};
+use super::{komainf::Komainf, mkey::Mkey, sfen_to_ssdata, ssdata_t};
 
 #[derive(Debug, Clone)]
+#[repr(C)]
 pub struct Ssdata(pub(super) ssdata_t);
 
 impl Ssdata {
@@ -21,5 +22,17 @@ impl Ssdata {
             sfen_to_ssdata(sfen.as_ptr() as *mut i8, &mut ssdata.0);
         }
         ssdata
+    }
+
+    pub fn board(&self) -> &[Komainf; 81] {
+        unsafe { std::mem::transmute(&self.0.board) }
+    }
+
+    pub fn mkey(&self) -> &[Mkey; 3] {
+        unsafe { std::mem::transmute(&self.0.mkey) }
+    }
+
+    pub fn turn(&self) -> u8 {
+        self.0.turn
     }
 }

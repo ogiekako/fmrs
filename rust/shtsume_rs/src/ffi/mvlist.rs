@@ -11,6 +11,10 @@ impl Mvlist {
     pub fn iter(&self) -> MvlistItemIter {
         MvlistItemIter(self.0)
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_null()
+    }
 }
 
 impl Drop for Mvlist {
@@ -61,7 +65,7 @@ mod tests {
 
     #[test]
     fn test_generate_check() {
-        let _g = Global::init(0);
+        let _g = Global::init(0, None);
 
         let ssdata = Ssdata::from_sfen("4k4/9/4P4/9/9/9/9/9/9 b G2r2b3g4s4n4l17p");
         let sdata = Sdata::from_ssdata(&ssdata);
@@ -77,7 +81,7 @@ mod tests {
 
     #[test]
     fn test_generate_evasion() {
-        let _g = Global::init(0);
+        let _g = Global::init(0, None);
 
         for (sfen, want) in [
             ("7pk/7l1/8L/7N1/9/9/9/9/9 w 2r2b4g4s3n2l17p", 7),

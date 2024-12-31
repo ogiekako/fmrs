@@ -1,3 +1,5 @@
+pub mod komainf;
+pub mod mkey;
 pub mod mlist;
 pub mod move_;
 pub mod mtt;
@@ -24,6 +26,12 @@ pub use inner::ILL_POS;
 pub use inner::MCARDS_PER_MBYTE;
 pub use inner::NIFU;
 pub use inner::TBASE_SIZE_DEFAULT;
+pub use inner::TP_ALLMOVE;
+pub use inner::TP_NONE;
+pub use inner::TP_ZKEY;
+
+use sdata::Sdata;
+use tbase::Tbase;
 
 #[link(name = "shtsume")]
 extern "C" {
@@ -48,6 +56,10 @@ pub fn do_main(argv: &[&str]) {
     }
 }
 
+pub fn tsume_print(sdata: &Sdata, tbase: &Tbase, flag: u32) {
+    unsafe { inner::tsume_print(&sdata.0, tbase.0, flag) };
+}
+
 static GLOBAL_MUX: Mutex<()> = Mutex::new(());
 
 pub struct Global {
@@ -55,17 +67,21 @@ pub struct Global {
 }
 
 impl Global {
-    pub fn init(seed: u32) -> Global {
+    pub fn init(seed: u32, time_limit: Option<i32>) -> Global {
         let _g = GLOBAL_MUX.lock().unwrap();
 
         static ONCE: Once = Once::new();
-        ONCE.call_once(|| unsafe {
-            create_seed();
-            init_distance();
-            init_bpos();
-            init_effect();
-            srand(seed);
-        });
+
+        unsafe {
+            ONCE.call_once(|| {
+                create_seed();
+                init_distance();
+                init_bpos();
+                init_effect();
+                srand(seed);
+            });
+            g_time_limit = time_limit.unwrap_or(TM_INFINATE);
+        }
 
         Global { _g }
     }

@@ -1,6 +1,7 @@
 use super::tdata_t;
 
 #[derive(Debug, Clone, Default)]
+#[repr(C)]
 pub struct Tdata(pub(super) tdata_t);
 
 impl Tdata {

@@ -1,4 +1,4 @@
-mod reconstruct;
+pub mod reconstruct;
 mod standard_solve;
 use crate::position::Movement;
 
