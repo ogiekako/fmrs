@@ -50,6 +50,10 @@ pub fn generate_check(sdata: &Sdata, tbase: &mut Tbase) -> Mvlist {
     Mvlist::new(unsafe { super::generate_check(&sdata.0, tbase.0) })
 }
 
+pub fn generate_evasion(sdata: &Sdata, tbase: &mut Tbase, allow_mudaai: bool) -> Mvlist {
+    Mvlist::new(unsafe { super::generate_evasion2(&sdata.0, tbase.0, allow_mudaai) })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,5 +73,27 @@ mod tests {
             count += item.mlist().count();
         }
         assert_eq!(count, 2 + 5);
+    }
+
+    #[test]
+    fn test_generate_evasion() {
+        let _g = Global::init(0);
+
+        for (sfen, want) in [
+            ("7pk/7l1/8L/7N1/9/9/9/9/9 w 2r2b4g4s3n2l17p", 7),
+            ("9/9/9/9/4k4/3PL4/9/9/9 w 2r2b4g4s4n3l17p", 6),
+            ("RBG6/SSG6/8b/9/9/9/1Gn4l1/SG3s3/k7R w 3n3l18p", 11),
+        ] {
+            let ssdata = Ssdata::from_sfen(sfen);
+            let sdata = Sdata::from_ssdata(&ssdata);
+            let mut tbase = Tbase::default();
+            let mvlist = generate_evasion(&sdata, &mut tbase, true);
+
+            let mut got = 0;
+            for item in mvlist.iter() {
+                got += item.mlist().count();
+            }
+            assert_eq!(got, want);
+        }
     }
 }
