@@ -15,7 +15,7 @@ export type Selected =
   | {
       ty: "hand";
       color: Color;
-      kind: Kind;
+      kind: Kind | undefined;
     }
   | {
       ty: "board";

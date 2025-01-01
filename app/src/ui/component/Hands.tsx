@@ -5,7 +5,7 @@ const RAW_KINDS: Array<model.Kind> = ["P", "L", "N", "S", "G", "B", "R"];
 
 export default function Hands(props: {
   hands: model.Hands;
-  selected: model.Kind | undefined;
+  selected: model.Kind | "" | undefined;
   onClick: (kind: model.Kind | undefined) => void;
 }) {
   let nothing = true;
@@ -24,19 +24,23 @@ export default function Hands(props: {
         >
           <Kind kind={k} selected={props.selected === k} />
           {n}
-        </span>,
+        </span>
       );
     }
   }
-  const res = nothing ? <span>なし</span> : <>{pieces}</>;
-  return (
-    <div
-      onClick={(_e) => props.onClick(undefined)}
-      style={{ fontSize: "1.5em" }}
+  const res = nothing ? (
+    <span
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onClick(undefined);
+      }}
     >
-      {res}
-    </div>
+      <Kind kind={""} selected={props.selected === ""} />
+    </span>
+  ) : (
+    <>{pieces}</>
   );
+  return <div style={{ fontSize: "1.5em" }}>{res}</div>;
 }
 
 const MAPPING: { [k in model.Kind]: string } = {
@@ -50,8 +54,8 @@ const MAPPING: { [k in model.Kind]: string } = {
   K: "王",
 };
 
-function Kind(props: { kind: model.Kind; selected: boolean }) {
-  let letter = MAPPING[props.kind];
+function Kind(props: { kind: model.Kind | ""; selected: boolean }) {
+  let letter = props.kind == "" ? "なし" : MAPPING[props.kind];
   return (
     <span
       style={{ backgroundColor: props.selected ? SELECTED_COLOR : "white" }}

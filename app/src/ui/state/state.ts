@@ -14,13 +14,13 @@ export function newState(): types.State {
       [model.decodeSfen("4k4/9/9/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1"), "単玉のみ"],
       [
         model.decodeSfen(
-          "1K1R1r1S1/L1+P1l1L+NB/4lg1N1/1nbs2g1P/1gpn1g1P1/1Pk1s1P2/3P1P3/4+p4/P1s1P4 b 2P5p",
+          "1K1R1r1S1/L1+P1l1L+NB/4lg1N1/1nbs2g1P/1gpn1g1P1/1Pk1s1P2/3P1P3/4+p4/P1s1P4 b 2P5p"
         ),
         "加藤徹「寿限無」完全限定化案（森茂・橋本孝治・浦壁和彦による）",
       ],
       [
         model.decodeSfen(
-          "5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1",
+          "5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1"
         ),
         "森茂「龍の顎」",
       ],
@@ -70,15 +70,12 @@ export function reduce(original: types.State, event: types.Event): types.State {
 
 function handleClick(
   original: types.State,
-  event: types.ClickBoardEvent | types.ClickHandEvent,
+  event: types.ClickBoardEvent | types.ClickHandEvent
 ): types.State {
   const mutableState = cloneState(original);
   maybeClearSolveResponse(mutableState);
   if (!original.selected) {
     if (event.ty === "click-hand") {
-      if (event.kind === undefined) {
-        return mutableState;
-      }
       mutableState.selected = {
         ty: "hand",
         color: event.color,
@@ -99,10 +96,12 @@ function handleClick(
 
   if (event.ty === "click-hand") {
     if (original.selected.ty === "hand") {
-      mutableState.position.hands[original.selected.color][
-        original.selected.kind
-      ]--;
-      mutableState.position.hands[event.color][original.selected.kind]++;
+      if (original.selected.kind) {
+        mutableState.position.hands[original.selected.color][
+          original.selected.kind
+        ]--;
+        mutableState.position.hands[event.color][original.selected.kind]++;
+      }
       return mutableState;
     }
     const p =
@@ -121,14 +120,16 @@ function handleClick(
   const target = original.position.board[event.pos[0]][event.pos[1]];
   if (!target) {
     if (original.selected.ty === "hand") {
-      mutableState.position.hands[original.selected.color][
-        original.selected.kind
-      ]--;
-      mutableState.position.board[event.pos[0]][event.pos[1]] = {
-        color: "black",
-        kind: original.selected.kind,
-        promoted: false,
-      };
+      if (original.selected.kind) {
+        mutableState.position.hands[original.selected.color][
+          original.selected.kind
+        ]--;
+        mutableState.position.board[event.pos[0]][event.pos[1]] = {
+          color: "black",
+          kind: original.selected.kind,
+          promoted: false,
+        };
+      }
       return mutableState;
     }
     mutableState.position.board[event.pos[0]][event.pos[1]] =
@@ -145,14 +146,16 @@ function handleClick(
   }
   if (original.selected.ty === "hand") {
     mutableState.position.hands[original.selected.color][target.kind]++;
-    mutableState.position.hands[original.selected.color][
-      original.selected.kind
-    ]--;
-    mutableState.position.board[event.pos[0]][event.pos[1]] = {
-      color: "black",
-      kind: original.selected.kind,
-      promoted: false,
-    };
+    if (original.selected.kind) {
+      mutableState.position.hands[original.selected.color][
+        original.selected.kind
+      ]--;
+      mutableState.position.board[event.pos[0]][event.pos[1]] = {
+        color: "black",
+        kind: original.selected.kind,
+        promoted: false,
+      };
+    }
     return mutableState;
   }
   const from =
@@ -170,7 +173,7 @@ function handleClick(
 
 function handleRightClick(
   original: types.State,
-  pos: [number, number],
+  pos: [number, number]
 ): types.State {
   const mutableState = cloneState(original);
   maybeClearSolveResponse(mutableState);

@@ -16,9 +16,9 @@ export default function Position(props: {
     if (props.selected.ty === "board") {
       boardSelected = props.selected.pos;
     } else if (props.selected.color === "white") {
-      whiteHandSelected = props.selected.kind;
+      whiteHandSelected = props.selected.kind ?? ("" as const);
     } else {
-      blackHandSelected = props.selected.kind;
+      blackHandSelected = props.selected.kind ?? ("" as const);
     }
   }
 
