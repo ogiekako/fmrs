@@ -39,6 +39,12 @@ pub struct Memo {
     steps: NoHashMap<u16>,
 }
 
+impl Memo {
+    pub fn clear(&mut self) {
+        self.steps.clear();
+    }
+}
+
 impl Default for Memo {
     fn default() -> Self {
         let steps = NoHashMap::default().into();

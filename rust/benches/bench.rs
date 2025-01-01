@@ -36,7 +36,7 @@ fn bench_black_advance(c: &mut Criterion) {
     c.bench_function("black_advance", |b| {
         b.iter(|| {
             result.clear();
-            let mut memo = Memo::default();
+            memo.clear();
             advance(
                 &mut black_position,
                 &mut memo,
@@ -91,9 +91,10 @@ fn bench_white_advance(c: &mut Criterion) {
         b.iter(|| {
             for (white_position, want) in white_positions.iter_mut() {
                 result.clear();
+                memo.clear();
                 advance(
                     black_box(white_position),
-                    &mut Memo::default(),
+                    &mut memo,
                     1,
                     &AdvanceOptions::default(),
                     black_box(&mut result),

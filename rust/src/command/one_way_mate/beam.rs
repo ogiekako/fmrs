@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
     hash::{Hash as _, Hasher as _},
-    io::Write as _,
     time::Instant,
     usize,
 };
@@ -33,9 +32,6 @@ pub(super) fn generate_one_way_mate_with_beam(
 
     let mut best_problems: Vec<Problem> = vec![];
     for i in 0.. {
-        eprint!(".");
-        std::io::stderr().flush().unwrap();
-
         if (i + 1) % 10 == 0 {
             info!(
                 "best = {} #seen = {} iter = {} ({:.1?} iter/{:.1?})",

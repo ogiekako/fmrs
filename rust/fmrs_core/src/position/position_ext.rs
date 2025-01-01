@@ -28,8 +28,6 @@ pub trait PositionExt {
     fn undo_move(&mut self, m: &UndoMove) -> Movement;
     fn moved_digest(&self, m: &Movement) -> u64;
     fn undo_digest(&self, m: &UndoMove) -> u64;
-    // fn checked_slow(&self, c: Color) -> bool;
-    // fn attacker_slow(&self, c: Color) -> Option<Attacker>;
 }
 
 impl PositionExt for Position {
@@ -216,17 +214,6 @@ impl PositionExt for Position {
             }
         }
     }
-
-    // fn checked_slow(&self, c: Color) -> bool {
-    //     let mut position = PositionAux::new(self);
-    //     checked(&mut position, c, None)
-    // }
-
-    // fn attacker_slow(&self, c: Color) -> Option<Attacker> {
-    //     let king_pos = self.bitboard(c, Kind::King).next()?;
-    //     let mut position = PositionAux::new(self);
-    //     attacker(&mut position, c, king_pos, false)
-    // }
 }
 
 #[cfg(test)]
