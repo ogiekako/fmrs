@@ -73,6 +73,10 @@ export type Event =
   | {
       ty: "set-solve-response";
       response: SolveResponse | undefined;
+    }
+  | {
+      ty: "key-down";
+      key: string;
     };
 
 export type Dispatcher = (event: Event) => void;

@@ -26,6 +26,6 @@ export function fullHands(): Hands {
     G: 4,
     B: 2,
     R: 2,
-    K: 2,
+    K: 0,
   };
 }

@@ -2,7 +2,6 @@ import { Button, Spinner } from "react-bootstrap";
 import * as model from "../../model";
 import * as types from "../types";
 import * as solve from "../../solve";
-import { solveServer } from "../../solve/server_solver";
 import SolveResponse from "./SolveResponse";
 
 const USE_WASM = true;
@@ -46,7 +45,7 @@ export default function SolveButton(props: {
                 props.position,
                 solutionLimit,
                 cancelToken,
-                onStep,
+                onStep
               );
               if (response) {
                 props.dispatch({

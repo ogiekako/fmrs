@@ -22,7 +22,7 @@ export default function Board(props: {
             row === props.selected[0] &&
             col === props.selected[1]
           }
-        />,
+        />
       );
     }
     board.push(<tr key={row}>{rowPieces}</tr>);

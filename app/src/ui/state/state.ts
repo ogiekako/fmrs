@@ -2,6 +2,8 @@ import { cloneState } from "../clone";
 import * as types from "../types";
 import * as position from "./position";
 import * as model from "../../model";
+import { KINDS } from "../../model";
+import { oppositeColor as colorOpposite } from "../../model/color";
 
 export function newState(): types.State {
   const initialPosition = position.create();
@@ -29,181 +31,475 @@ export function newState(): types.State {
   };
 }
 
-export function reduce(original: types.State, event: types.Event): types.State {
+export function reduce(orig: types.State, event: types.Event): types.State {
   if (
-    original.solving &&
+    orig.solving &&
     event.ty !== "set-solving" &&
     event.ty !== "set-solve-response"
   ) {
-    return original;
+    return orig;
   }
-  let mutableState;
+  let state;
   switch (event.ty) {
     case "click-board":
     case "click-hand":
-      return handleClick(original, event);
+      return handleClick(orig, event);
     case "right-click-board":
-      return handleRightClick(original, event.pos);
+      return handleRightClick(orig, event.pos);
     case "set-position":
-      mutableState = cloneState(original);
-      mutableState.position = event.position;
-      mutableState.selected = undefined;
-      maybeClearSolveResponse(mutableState);
-      return mutableState;
+      state = cloneState(orig);
+      state.position = event.position;
+      state.selected = undefined;
+      maybeClearSolveResponse(state);
+      return state;
     case "set-solving":
-      mutableState = cloneState(original);
-      mutableState.solving = event.solving;
+      state = cloneState(orig);
+      state.solving = event.solving;
       if (event.solving) {
-        maybeClearSolveResponse(mutableState);
+        maybeClearSolveResponse(state);
       }
-      return mutableState;
+      return state;
     case "set-problems":
-      mutableState = cloneState(original);
-      mutableState.problems = event.problems;
-      return mutableState;
+      state = cloneState(orig);
+      state.problems = event.problems;
+      return state;
     case "set-solve-response":
-      mutableState = cloneState(original);
-      mutableState.solveResponse = event.response;
-      return mutableState;
+      state = cloneState(orig);
+      state.solveResponse = event.response;
+      return state;
+    case "key-down":
+      return handleKeyDown(orig, event.key);
   }
 }
 
 function handleClick(
-  original: types.State,
+  orig: types.State,
   event: types.ClickBoardEvent | types.ClickHandEvent
 ): types.State {
-  const mutableState = cloneState(original);
-  maybeClearSolveResponse(mutableState);
-  if (!original.selected) {
+  const state = cloneState(orig);
+  maybeClearSolveResponse(state);
+  if (!orig.selected) {
     if (event.ty === "click-hand") {
-      mutableState.selected = {
+      state.selected = {
         ty: "hand",
         color: event.color,
         kind: event.kind,
       };
-      return mutableState;
+      return state;
     }
-    if (original.position.board[event.pos[0]][event.pos[1]]) {
-      mutableState.selected = {
-        ty: "board",
-        pos: event.pos,
-      };
-    }
-    return mutableState;
+    state.selected = {
+      ty: "board",
+      pos: event.pos,
+    };
+    return state;
   }
 
-  mutableState.selected = undefined;
+  state.selected = undefined;
 
   if (event.ty === "click-hand") {
-    if (original.selected.ty === "hand") {
-      if (original.selected.kind) {
-        mutableState.position.hands[original.selected.color][
-          original.selected.kind
-        ]--;
-        mutableState.position.hands[event.color][original.selected.kind]++;
+    if (orig.selected.ty === "hand") {
+      if (orig.selected.kind) {
+        state.position.hands[orig.selected.color][orig.selected.kind]--;
+        state.position.hands[event.color][orig.selected.kind]++;
       }
-      return mutableState;
+      return state;
     }
-    const p =
-      mutableState.position.board[original.selected.pos[0]][
-        original.selected.pos[1]
-      ];
-    if (p && p.kind !== "K") {
-      mutableState.position.hands[event.color][p.kind]++;
-      mutableState.position.board[original.selected.pos[0]][
-        original.selected.pos[1]
-      ] = undefined;
+    const p = state.position.board[orig.selected.pos[0]][orig.selected.pos[1]];
+    if (p) {
+      const color = p.kind === "K" ? "white" : event.color;
+      state.position.hands[color][p.kind]++;
+      state.position.board[orig.selected.pos[0]][orig.selected.pos[1]] =
+        undefined;
     }
-    return mutableState;
+    return state;
   }
 
-  const target = original.position.board[event.pos[0]][event.pos[1]];
+  const target = orig.position.board[event.pos[0]][event.pos[1]];
   if (!target) {
-    if (original.selected.ty === "hand") {
-      if (original.selected.kind) {
-        mutableState.position.hands[original.selected.color][
-          original.selected.kind
-        ]--;
-        mutableState.position.board[event.pos[0]][event.pos[1]] = {
+    if (orig.selected.ty === "hand") {
+      if (orig.selected.kind) {
+        state.position.hands[orig.selected.color][orig.selected.kind]--;
+        state.position.board[event.pos[0]][event.pos[1]] = {
           color: "black",
-          kind: original.selected.kind,
+          kind: orig.selected.kind,
           promoted: false,
         };
       }
-      return mutableState;
+      return state;
     }
-    mutableState.position.board[event.pos[0]][event.pos[1]] =
-      original.position.board[original.selected.pos[0]][
-        original.selected.pos[1]
-      ];
-    mutableState.position.board[original.selected.pos[0]][
-      original.selected.pos[1]
-    ] = undefined;
-    return mutableState;
+    state.position.board[event.pos[0]][event.pos[1]] =
+      orig.position.board[orig.selected.pos[0]][orig.selected.pos[1]];
+    state.position.board[orig.selected.pos[0]][orig.selected.pos[1]] =
+      undefined;
+    return state;
   }
   if (target.kind === "K") {
-    return mutableState;
+    return state;
   }
-  if (original.selected.ty === "hand") {
-    mutableState.position.hands[original.selected.color][target.kind]++;
-    if (original.selected.kind) {
-      mutableState.position.hands[original.selected.color][
-        original.selected.kind
-      ]--;
-      mutableState.position.board[event.pos[0]][event.pos[1]] = {
+  if (orig.selected.ty === "hand") {
+    state.position.hands[orig.selected.color][target.kind]++;
+    if (orig.selected.kind) {
+      state.position.hands[orig.selected.color][orig.selected.kind]--;
+      state.position.board[event.pos[0]][event.pos[1]] = {
         color: "black",
-        kind: original.selected.kind,
+        kind: orig.selected.kind,
         promoted: false,
       };
     }
-    return mutableState;
+    return state;
   }
-  const from =
-    original.position.board[original.selected.pos[0]][original.selected.pos[1]];
+  const from = orig.position.board[orig.selected.pos[0]][orig.selected.pos[1]];
   if (!from) {
-    return mutableState;
+    return state;
   }
-  mutableState.position.hands[from.color][target.kind]++;
-  mutableState.position.board[event.pos[0]][event.pos[1]] = from;
-  mutableState.position.board[original.selected.pos[0]][
-    original.selected.pos[1]
-  ] = undefined;
-  return mutableState;
+  state.position.hands[from.color][target.kind]++;
+  state.position.board[event.pos[0]][event.pos[1]] = from;
+  state.position.board[orig.selected.pos[0]][orig.selected.pos[1]] = undefined;
+  return state;
 }
 
 function handleRightClick(
-  original: types.State,
+  orig: types.State,
   pos: [number, number]
 ): types.State {
-  const mutableState = cloneState(original);
-  maybeClearSolveResponse(mutableState);
-  const mutablePiece = mutableState.position.board[pos[0]][pos[1]];
+  const state = cloneState(orig);
+  maybeClearSolveResponse(state);
+  const mutablePiece = state.position.board[pos[0]][pos[1]];
   if (!mutablePiece) {
-    return mutableState;
+    return state;
   }
-  if (mutablePiece.kind === "K") {
-    return mutableState;
-  }
-  if (mutablePiece.kind === "G") {
+  if (mutablePiece.kind === "G" || mutablePiece.kind === "K") {
     mutablePiece.color = mutablePiece.color === "black" ? "white" : "black";
-    return mutableState;
+    return state;
   }
   if (!mutablePiece.promoted) {
     mutablePiece.promoted = true;
-    return mutableState;
+    return state;
   }
   mutablePiece.color = mutablePiece.color === "black" ? "white" : "black";
   mutablePiece.promoted = false;
-  return mutableState;
+  return state;
 }
 
-function maybeClearSolveResponse(mutableState: types.State) {
-  if (
-    !mutableState.solveResponse ||
-    mutableState.solveResponse.ty !== "solved"
-  ) {
-    mutableState.solveResponse = undefined;
+function maybeClearSolveResponse(state: types.State) {
+  if (!state.solveResponse || state.solveResponse.ty !== "solved") {
+    state.solveResponse = undefined;
     return;
   }
-  mutableState.solveResponse.response.solutions = 0;
+  state.solveResponse.response.solutions = 0;
+}
+
+type Direction = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
+
+function nextSelection(
+  hands: { [c in model.Color]: model.Hands },
+  selected: types.Selected | undefined,
+  direction: Direction
+): types.Selected | undefined {
+  if (!selected) {
+    return {
+      ty: "board",
+      pos: [4, 4],
+    };
+  }
+  switch (selected.ty) {
+    case "hand":
+      switch (direction) {
+        case "ArrowUp":
+          if (selected.color === "white") {
+            return selected;
+          } else {
+            return { ty: "board", pos: [8, 4] };
+          }
+        case "ArrowDown":
+          if (selected.color === "black") {
+            return selected;
+          } else {
+            return { ty: "board", pos: [0, 4] };
+          }
+        case "ArrowLeft":
+          return {
+            ty: "hand",
+            color: "white",
+            kind:
+              selected.kind &&
+              nextKind(hands[selected.color], selected.kind, "left", false),
+          };
+        case "ArrowRight":
+          return {
+            ty: "hand",
+            color: "white",
+            kind:
+              selected.kind &&
+              nextKind(hands[selected.color], selected.kind, "right", false),
+          };
+      }
+    case "board":
+      const pos: [number, number] = [...selected.pos];
+      switch (direction) {
+        case "ArrowUp":
+          pos[0]--;
+          break;
+        case "ArrowDown":
+          pos[0]++;
+          break;
+        case "ArrowLeft":
+          pos[1] = Math.min(8, pos[1] + 1);
+          break;
+        case "ArrowRight":
+          pos[1] = Math.max(0, pos[1] - 1);
+          break;
+      }
+      if (pos[0] < 0) {
+        return { ty: "hand", color: "white", kind: firstKind(hands["white"]) };
+      } else if (pos[0] > 8) {
+        return { ty: "hand", color: "black", kind: firstKind(hands["black"]) };
+      }
+      return { ty: "board", pos };
+  }
+}
+
+function nextKind(
+  hands: model.Hands,
+  kind: model.Kind,
+  direction: "left" | "right",
+  searchNonZero: boolean
+): model.Kind | undefined {
+  const index = KINDS.indexOf(kind);
+  const mult = direction == "left" ? -1 : 1;
+
+  for (let i = searchNonZero ? 0 : 1; i < KINDS.length; i++) {
+    let j = index + i * mult;
+    if (j < 0) {
+      if (!searchNonZero) break;
+      j = index - j;
+    } else if (j >= KINDS.length) {
+      if (!searchNonZero) break;
+      j = index - (j - (KINDS.length - 1));
+    }
+    if (hands[KINDS[j]] > 0) {
+      return KINDS[j];
+    }
+  }
+  return hands[kind] > 0 ? kind : undefined;
+}
+
+function firstKind(hands: model.Hands) {
+  return nextKind(hands, "P", "right", true);
+}
+
+function handleKeyDown(orig: types.State, key: string) {
+  const state = cloneState(orig);
+
+  if (key.startsWith("Arrow")) {
+    state.selected = nextSelection(
+      orig.position.hands,
+      orig.selected,
+      key as Direction
+    );
+    return state;
+  }
+
+  if (!state.selected) return orig;
+
+  if (state.selected.ty == "hand") {
+    if (key == " " || key == "-") {
+      if (!state.selected.kind) return state;
+      tryMove(
+        state,
+        {
+          ty: "hand",
+          color: state.selected.color,
+          kind: state.selected.kind,
+        },
+        {
+          ty: "hand",
+          color: colorOpposite(state.selected.color),
+        }
+      );
+    } else if (key == "+") {
+      if (!state.selected.kind) return state;
+      tryMove(
+        state,
+        {
+          ty: "hand",
+          color: colorOpposite(state.selected.color),
+          kind: state.selected.kind,
+        },
+        {
+          ty: "hand",
+          color: state.selected.color,
+        }
+      );
+    } else {
+      const piece = keyToPiece(key);
+      if (piece) {
+        tryMove(
+          state,
+          {
+            ty: "hand",
+            color: colorOpposite(state.selected.color),
+            kind: piece.kind,
+          },
+          {
+            ty: "hand",
+            color: state.selected.color,
+          }
+        );
+      }
+    }
+    return state;
+  }
+
+  if (key == " ") {
+    tryMove(
+      state,
+      {
+        ty: "board",
+        pos: state.selected.pos,
+      },
+      {
+        ty: "hand",
+        color: "white",
+      }
+    );
+    return state;
+  }
+
+  const piece = keyToPiece(key);
+  if (!piece) return state;
+
+  tryMove(
+    state,
+    {
+      ty: "hand",
+      color: "white",
+      kind: piece.kind,
+    },
+    {
+      ty: "board",
+      pos: state.selected.pos,
+      color: piece.color,
+      promoted: piece.promoted,
+    }
+  );
+  return state;
+}
+
+function keyToPiece(key: string) {
+  let upper = key.toUpperCase();
+  const color = key == upper ? ("white" as const) : ("black" as const);
+  const kind = (
+    {
+      Q: ["K", false],
+      A: ["R", false],
+      S: ["B", false],
+      D: ["G", false],
+      F: ["S", false],
+      G: ["N", false],
+      H: ["L", false],
+      J: ["P", false],
+      Z: ["R", true],
+      X: ["B", true],
+      C: ["S", true],
+      V: ["N", true],
+      B: ["L", true],
+      N: ["P", true],
+    } as const
+  )[upper];
+
+  if (!kind) {
+    return undefined;
+  }
+
+  return {
+    color,
+    kind: kind[0],
+    promoted: kind[1],
+  };
+}
+
+type Source =
+  | {
+      ty: "hand";
+      color: model.Color;
+      kind: model.Kind;
+    }
+  | {
+      ty: "board";
+      pos: [number, number];
+    };
+
+type Dest =
+  | {
+      ty: "hand";
+      color: model.Color;
+    }
+  | {
+      ty: "board";
+      pos: [number, number];
+      color: model.Color;
+      promoted: boolean;
+    };
+
+function tryMove(state: types.State, from: Source, to: Dest) {
+  if (from.ty === "hand") {
+    if (from.kind === "K") return;
+    if (to.ty === "hand") {
+      if (from.color === to.color) return;
+      if (state.position.hands[from.color][from.kind] === 0) return;
+      state.position.hands[from.color][from.kind]--;
+      state.position.hands[to.color][from.kind]++;
+    } else {
+      const source = state.position.board[to.pos[0]][to.pos[1]];
+      if (
+        source?.kind !== from.kind &&
+        state.position.hands[from.color][from.kind] === 0
+      ) {
+        return;
+      }
+
+      state.position.board[to.pos[0]][to.pos[1]] = {
+        color: to.color,
+        kind: from.kind,
+        promoted: to.promoted,
+      };
+      state.position.hands[from.color][from.kind]--;
+      if (source) {
+        state.position.hands[from.color][source.kind]++;
+      }
+    }
+  } else {
+    const source = state.position.board[from.pos[0]][from.pos[1]];
+    if (!source) return;
+    if (to.ty === "hand") {
+      state.position.board[from.pos[0]][from.pos[1]] = undefined;
+      state.position.hands[to.color][source.kind]++;
+    } else {
+      if (from.pos[0] === to.pos[0] && from.pos[1] === to.pos[1]) {
+        state.position.board[from.pos[0]][from.pos[1]] = {
+          color: to.color,
+          kind: source.kind,
+          promoted: to.promoted,
+        };
+      } else {
+        const dest = state.position.board[to.pos[0]][to.pos[1]];
+        state.position.board[to.pos[0]][to.pos[1]] = source;
+        if (dest) {
+          state.position.hands[source.color][dest.kind]++;
+        }
+      }
+    }
+  }
+
+  // Update selected.
+  if (!state.selected) return;
+  if (state.selected.ty === "hand") {
+    state.selected.kind = nextKind(
+      state.position.hands[state.selected.color],
+      state.selected.kind ?? "P",
+      "left",
+      true
+    );
+  }
 }

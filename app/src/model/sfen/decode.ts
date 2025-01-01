@@ -4,6 +4,13 @@ export function decodeSfen(sfen: string): Position {
   const [boardStr, , handsStr] = sfen.split(" ");
   const board = decodeBoard(boardStr);
   const hands = decodeHands(handsStr);
+
+  let remainingKings = 2;
+  for (const row of board) {
+    remainingKings -= row.filter((piece) => piece?.kind === "K").length;
+  }
+  hands.white["K"] += Math.max(0, remainingKings);
+
   return {
     board,
     hands,

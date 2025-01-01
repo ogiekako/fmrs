@@ -1,8 +1,6 @@
 import { SELECTED_COLOR } from "../constants";
 import * as model from "../../model";
 
-const RAW_KINDS: Array<model.Kind> = ["P", "L", "N", "S", "G", "B", "R"];
-
 export default function Hands(props: {
   hands: model.Hands;
   selected: model.Kind | "" | undefined;
@@ -10,7 +8,7 @@ export default function Hands(props: {
 }) {
   let nothing = true;
   const pieces = [];
-  for (const k of RAW_KINDS) {
+  for (const k of model.KINDS) {
     const n = props.hands[k];
     if (n) {
       nothing = false;
@@ -51,7 +49,7 @@ const MAPPING: { [k in model.Kind]: string } = {
   G: "金",
   B: "角",
   R: "飛",
-  K: "王",
+  K: "玉",
 };
 
 function Kind(props: { kind: model.Kind | ""; selected: boolean }) {

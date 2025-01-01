@@ -23,7 +23,18 @@ export default function Position(props: {
   }
 
   return (
-    <div className={props.disabled ? "text-muted" : ""}>
+    <div
+      style={{ outline: "none" }}
+      tabIndex={0}
+      className={props.disabled ? "text-muted" : ""}
+      onKeyDown={(e) => {
+        e.preventDefault();
+        props.dispatch({
+          ty: "key-down",
+          key: e.key,
+        });
+      }}
+    >
       <Hands
         hands={props.position.hands["white"]}
         selected={whiteHandSelected}
