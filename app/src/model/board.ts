@@ -6,5 +6,5 @@ import { Piece } from ".";
 export type Board = (Piece | undefined)[][];
 
 export function emptyBoard(): Board {
-    return new Array(9).fill(null).map(() => new Array(9));
+  return new Array(9).fill(null).map(() => new Array(9));
 }

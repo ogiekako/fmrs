@@ -1,0 +1,5 @@
+node_modules
+docs
+rust
+shtsume
+package-lock.json
