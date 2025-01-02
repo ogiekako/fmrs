@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::jkf::{self, JsonKifFormat};
+use crate::piece::{KINDS, NUM_HAND_KIND};
 use crate::solve::Solution;
 use crate::{
     piece::{Color, Kind},
@@ -63,7 +64,7 @@ fn hands(hands: Hands) -> Vec<BTreeMap<jkf::RawKind, usize>> {
     let mut res = vec![];
     for color in [Color::BLACK, Color::WHITE] {
         let mut map = BTreeMap::default();
-        for k in hands.kinds(color) {
+        for k in KINDS[0..NUM_HAND_KIND].iter().copied() {
             map.insert(raw_kind(k).unwrap(), hands.count(color, k));
         }
         res.push(map);

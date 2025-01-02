@@ -5,9 +5,17 @@ import Position from "./Position";
 import Problems from "./Problems";
 import Sfen from "./Sfen";
 import SolveButton from "./SolveButton";
+import { encodeSfen } from "../../model";
 
 export function Editor(props: {}) {
   const [state, dispatch] = useReducer(reduce, newState());
+
+  const sfen = encodeSfen(state.position);
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("sfen") !== sfen) {
+    url.searchParams.set("sfen", sfen);
+    window.history.replaceState(null, "", url);
+  }
 
   return (
     <div>

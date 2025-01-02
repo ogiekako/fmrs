@@ -7,7 +7,10 @@ import { colorOpposite } from "../../model/color";
 import { PRESET_PROBLEMS } from "../../problem";
 
 export function newState(): types.State {
-  const initialPosition = position.create();
+  const url = new URL(window.location.href);
+  const sfen = url.searchParams.get("sfen");
+
+  const initialPosition = sfen ? model.decodeSfen(sfen) : position.create();
   return {
     position: initialPosition,
     selected: undefined,
