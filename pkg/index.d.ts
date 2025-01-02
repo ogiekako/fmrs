@@ -5,7 +5,7 @@ export class JsonResponse {
   private constructor();
   free(): void;
   solutions(): number;
-  jkf(): string;
+  kif(): string;
 }
 export class Solver {
   private constructor();

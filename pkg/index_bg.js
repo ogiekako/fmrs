@@ -159,13 +159,13 @@ export class JsonResponse {
     /**
      * @returns {string}
      */
-    jkf() {
+    kif() {
         let deferred1_0;
         let deferred1_1;
         try {
             const ptr = this.__destroy_into_raw();
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
-            wasm.jsonresponse_jkf(retptr, ptr);
+            wasm.jsonresponse_kif(retptr, ptr);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
             var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
             deferred1_0 = r0;
