@@ -73,6 +73,18 @@ impl MovementList {
             }
         }
     }
+
+    fn drop_iteratively(mut self) {
+        loop {
+            match self {
+                MovementList::Nil => break,
+                MovementList::Cons { cdr, .. } => match Rc::try_unwrap(cdr) {
+                    Ok(next_list) => self = next_list,
+                    Err(_) => break,
+                },
+            }
+        }
+    }
 }
 
 struct Context<'a, M: MemoTrait> {
@@ -110,6 +122,9 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             }
             if step == 0 {
                 res.push(following_movements.vec());
+                Rc::try_unwrap(following_movements)
+                    .unwrap()
+                    .drop_iteratively();
                 continue;
             }
             {
