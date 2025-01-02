@@ -52,7 +52,7 @@ impl Default for Memo {
     }
 }
 
-impl<'a> MemoTrait for Memo {
+impl MemoTrait for Memo {
     #[inline]
     fn contains_key(&self, digest: &u64) -> bool {
         self.steps.contains_key(digest)

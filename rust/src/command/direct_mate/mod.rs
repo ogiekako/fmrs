@@ -243,7 +243,7 @@ impl Graph {
     }
 
     fn update_value(&mut self, turn: usize, i: usize) {
-        assert!(self.nodes[turn][i].expanded.is_some());
+        debug_assert!(self.nodes[turn][i].expanded.is_some());
 
         let values = self.nodes[turn][i]
             .neighbors

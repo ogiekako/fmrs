@@ -157,7 +157,7 @@ fn generate(
                 let p = weight / sum_weight;
                 let u: f64 = rng.gen();
                 let reservoir = u.powf(1.0 / p);
-                assert!(reservoir.is_finite(), "{} {}", weight, sum_weight);
+                debug_assert!(reservoir.is_finite(), "{} {}", weight, sum_weight);
                 (k, reservoir)
             })
             .collect::<Vec<_>>();
@@ -210,7 +210,7 @@ fn generate(
             .par_iter_mut()
             .enumerate()
             .map(|(i, problem)| {
-                assert_eq!(step, problem.step);
+                debug_assert_eq!(step, problem.step);
 
                 let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
 

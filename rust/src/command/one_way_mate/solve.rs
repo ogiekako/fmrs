@@ -1,5 +1,5 @@
 use fmrs_core::{
-    memo::Memo,
+    memo::MemoStub,
     nohash::NoHashSet,
     piece::Color,
     position::{advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement},
@@ -41,7 +41,7 @@ fn one_way_mate_steps_inner(
 
     let mut seen_positions = NoHashSet::default();
 
-    let mut unused_memo = Memo::default();
+    let mut unused_memo = MemoStub::default();
 
     for step in (initial_step..).step_by(2) {
         if step > 0 {

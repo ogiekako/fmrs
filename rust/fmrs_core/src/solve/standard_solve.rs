@@ -72,7 +72,7 @@ impl StandardSolver {
                     self.solutions_upto - res.len(),
                 ))
             }
-            assert_ne!(res.len(), 0, "{:?}", mate_positions);
+            debug_assert_ne!(res.len(), 0, "{:?}", mate_positions);
 
             res.sort();
             info!(
