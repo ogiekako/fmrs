@@ -27,7 +27,7 @@ export type Solving = {
   step: number;
 };
 
-export type SolveResponse =
+export type SolveResponse = { millis: number } & (
   | {
       ty: "solved";
       response: solve.Response;
@@ -38,7 +38,8 @@ export type SolveResponse =
   | {
       ty: "error";
       message: string;
-    };
+    }
+);
 
 export type ClickHandEvent = {
   ty: "click-hand";

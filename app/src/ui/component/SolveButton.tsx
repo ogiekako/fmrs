@@ -40,6 +40,7 @@ export default function SolveButton(props: {
                 solving: { cancelToken, step },
               });
             };
+            const start = new Date();
             try {
               const response = await solve.solve(
                 props.position,
@@ -47,22 +48,33 @@ export default function SolveButton(props: {
                 cancelToken,
                 onStep
               );
+              const millis = new Date().getTime() - start.getTime();
               if (response) {
                 props.dispatch({
                   ty: "set-solve-response",
-                  response: { ty: "solved", response },
+                  response: {
+                    ty: "solved",
+                    response,
+                    millis,
+                  },
                 });
               } else if (!cancelToken.isCanceled()) {
                 props.dispatch({
                   ty: "set-solve-response",
-                  response: { ty: "no-solution" },
+                  response: { ty: "no-solution", millis },
                 });
               }
             } catch (e: any) {
+              const millis = new Date().getTime() - start.getTime();
+
               console.error(e);
               props.dispatch({
                 ty: "set-solve-response",
-                response: { ty: "error", message: (e as Error).message },
+                response: {
+                  ty: "error",
+                  message: (e as Error).message,
+                  millis,
+                },
               });
             } finally {
               props.dispatch({ ty: "set-solving", solving: undefined });

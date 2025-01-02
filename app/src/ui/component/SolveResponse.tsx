@@ -5,33 +5,43 @@ export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;
   solutionLimit: number;
 }) {
-  switch (props.solveResponse.ty) {
-    case "error":
-      return <div>Internal error: {props.solveResponse.message}</div>;
-    case "no-solution":
-      return <div>No solution</div>;
-    case "solved":
-      return (
-        <>
-          <SolutionCount
-            count={props.solveResponse.response.solutions}
-            limit={props.solutionLimit}
-          />
-          <Solution jkf={props.solveResponse.response.jkf} />
-        </>
-      );
-  }
+  const message = getMessage(props.solveResponse, props.solutionLimit);
+
+  const text = message ? (
+    <div>
+      {message} ({(props.solveResponse.millis / 1000).toFixed(1)}s)
+    </div>
+  ) : (
+    <div></div>
+  );
+
+  return props.solveResponse.ty === "solved" ? (
+    <div>
+      {text}
+      <Solution jkf={props.solveResponse.response.jkf} />
+    </div>
+  ) : (
+    text
+  );
 }
 
-function SolutionCount(props: { count: number; limit: number }) {
-  if (!props.count) {
-    return <div></div>;
-  }
-  if (props.count > props.limit) {
-    return <div>More than {props.limit} solutions found</div>;
-  } else if (props.count > 1) {
-    return <div>{props.count} solutions found</div>;
-  } else {
-    return <div>{props.count} solution found</div>;
+function getMessage(r: types.SolveResponse, limit: number) {
+  switch (r.ty) {
+    case "error":
+      return `Internal error: ${r.message}`;
+    case "no-solution":
+      return "No solution";
+    case "solved":
+      const count = r.response.solutions;
+      if (!count) {
+        return "";
+      }
+      if (count > limit) {
+        return `More than ${limit} solutions found`;
+      } else if (count > 1) {
+        return `${count} solutions found`;
+      } else {
+        return `${count} solution found`;
+      }
   }
 }

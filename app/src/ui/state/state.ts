@@ -3,7 +3,8 @@ import * as types from "../types";
 import * as position from "./position";
 import * as model from "../../model";
 import { KINDS } from "../../model";
-import { oppositeColor as colorOpposite } from "../../model/color";
+import { colorOpposite } from "../../model/color";
+import { PRESET_PROBLEMS } from "../../problem";
 
 export function newState(): types.State {
   const initialPosition = position.create();
@@ -11,22 +12,10 @@ export function newState(): types.State {
     position: initialPosition,
     selected: undefined,
     solving: undefined,
-    problems: [
-      [initialPosition, "双玉のみ"],
-      [model.decodeSfen("4k4/9/9/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1"), "単玉のみ"],
-      [
-        model.decodeSfen(
-          "1K1R1r1S1/L1+P1l1L+NB/4lg1N1/1nbs2g1P/1gpn1g1P1/1Pk1s1P2/3P1P3/4+p4/P1s1P4 b 2P5p"
-        ),
-        "加藤徹「寿限無」完全限定化案（森茂・橋本孝治・浦壁和彦による）",
-      ],
-      [
-        model.decodeSfen(
-          "5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p b NP 1"
-        ),
-        "森茂「龍の顎」",
-      ],
-    ],
+    problems: PRESET_PROBLEMS.map(([sfen, name]) => [
+      model.decodeSfen(sfen),
+      name,
+    ]),
     solveResponse: undefined,
   };
 }

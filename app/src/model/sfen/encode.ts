@@ -9,7 +9,7 @@ export function encodeSfen(position: Position): string {
   if (!hands) {
     hands = "-";
   }
-  return [board, turn, hands].join(" ");
+  return [board, turn, hands].join(" ") + " 1";
 }
 
 function encodeBoard(b: Board): string {
