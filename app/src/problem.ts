@@ -6,7 +6,7 @@ export const PRESET_PROBLEMS = [
     "森茂「龍の顎」 12555手",
   ],
   [
-    "l6ss/1KB1r2bL/1GL3ss1/k1l3p1P/1nnn1p1P1/Pn2p1P2/2PP1P3/1P2P4/9 b r3g6p",
+    "l5bgg/1KB1r2sL/1GL3sr1/k1LG1sp1P/1nnNsp1P1/Pn2p1P2/2PP1P3/1P2P4/9 b 6p 1",
     "加藤徹「寿限無」 19447手",
   ],
   [
