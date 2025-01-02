@@ -12,7 +12,7 @@ export default function SolveButton(props: {
   solveResponse: types.SolveResponse | undefined;
   dispatch: types.Dispatcher;
 }) {
-  const solutionLimit = 10;
+  const solutionLimit = 5;
   const buttonText = props.solving ? "Cancel" : "Solve";
   const buttonVariant = props.solving ? "danger" : "primary";
   return (

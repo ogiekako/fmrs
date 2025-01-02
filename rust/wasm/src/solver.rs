@@ -65,10 +65,10 @@ impl Solver {
 
     // jkf format
     pub fn solutions_json(&self) -> JsonResponse {
-        let jkf = converter::convert(&self.initial_position, &self.solutions);
+        let kif = converter::convert_to_kif(&self.initial_position, &self.solutions);
         JsonResponse {
             solutions: self.solutions.len() as u16,
-            jkf: serde_json::to_string(&jkf).unwrap(),
+            kif,
         }
     }
 }

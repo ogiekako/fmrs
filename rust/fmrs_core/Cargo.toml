@@ -19,6 +19,7 @@ env_logger = "*"
 pretty_assertions = "*"
 xxhash-rust = { version = "*", features = ["xxh3"] }
 dashmap = "*"
+shogi-kifu-converter = "0.2.2"
 
 [dev-dependencies]
 pretty_assertions = "*"

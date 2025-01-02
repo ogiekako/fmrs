@@ -1,5 +1,5 @@
 use actix_web::{get, post, App, HttpRequest, HttpResponse, HttpServer};
-use fmrs_core::{jkf::JsonKifFormat, sfen};
+use fmrs_core::{jkf::JsonKifuFormat, sfen};
 use futures::StreamExt;
 use serde::Serialize;
 
@@ -33,7 +33,7 @@ fn static_file(name: &str) -> Result<actix_files::NamedFile, actix_web::Error> {
 enum SolveResponse {
     Error(String),
     Progress(usize),
-    Solved(JsonKifFormat),
+    Solved(JsonKifuFormat),
 }
 
 // Returns line delimited json stream

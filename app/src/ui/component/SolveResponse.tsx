@@ -18,7 +18,7 @@ export default function SolveResponse(props: {
   return props.solveResponse.ty === "solved" ? (
     <div>
       {text}
-      <Solution jkf={props.solveResponse.response.jkf} />
+      <Solution kif={props.solveResponse.response.kif} />
     </div>
   ) : (
     text

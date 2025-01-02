@@ -25,14 +25,14 @@ export async function isServerAvailable(): Promise<boolean> {
 
 export type Response = {
   solutions: number;
-  jkf: string;
+  kif: string;
 };
 
 export async function solve(
   position: model.Position,
   n: number,
   cancelToken: CancellationToken,
-  onStep: (step: number) => void,
+  onStep: (step: number) => void
 ): Promise<Response | undefined> {
   // TODO: use server when available
   return await solveWasm(model.encodeSfen(position), n, cancelToken, onStep);

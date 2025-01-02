@@ -1,138 +1,20 @@
 // https://github.com/na2hiro/json-kifu-format
 
-use std::collections::BTreeMap;
-
-use serde::{Deserialize, Serialize};
-use serde_repr::{Deserialize_repr, Serialize_repr};
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct JsonKifFormat {
-    pub header: BTreeMap<String, String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub initial: Option<Initial>,
-    pub moves: Vec<MoveFormat>,
-}
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct Initial {
-    pub preset: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<StateFormat>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
-pub struct StateFormat {
-    pub color: Color,
-    pub board: Vec<Vec<Piece>>,
-    pub hands: Vec<BTreeMap<RawKind, usize>>,
-}
-
-#[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Eq, PartialEq, Debug)]
-#[repr(u8)]
-pub enum Color {
-    Black = 0,
-    White = 1,
-}
-
-#[derive(Default, Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
-
-pub struct Piece {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<Color>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub kind: Option<Kind>,
-}
-
-#[derive(Serialize, Deserialize, Hash, Clone, Copy, Eq, PartialEq, Debug, PartialOrd, Ord)]
-
-pub enum RawKind {
-    FU,
-    KY,
-    KE,
-    GI,
-    KI,
-    KA,
-    HI,
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, Eq, PartialEq, Debug)]
-
-pub enum Kind {
-    FU,
-    KY,
-    KE,
-    GI,
-    KI,
-    KA,
-    HI,
-    OU,
-    TO,
-    NY,
-    NK,
-    NG,
-    UM,
-    RY,
-}
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
-
-pub struct MoveFormat {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub comments: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub r#move: Option<MoveMoveFormat>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub time: Option<Time>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub special: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub forks: Option<Vec<Vec<MoveFormat>>>,
-}
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
-
-pub struct Time {
-    pub now: TimeFormat,
-    pub total: TimeFormat,
-}
-
-#[derive(Default, Serialize, Deserialize, PartialEq, Eq, Debug)]
-
-pub struct TimeFormat {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub h: Option<usize>,
-    pub m: usize,
-    pub s: usize,
-}
-
-#[derive(Serialize, Deserialize, Eq, PartialEq, Debug)]
-
-pub struct MoveMoveFormat {
-    pub color: Color,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<PlaceFormat>,
-    pub to: PlaceFormat,
-    pub piece: Kind,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub same: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub promote: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub capture: Option<Kind>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub relative: Option<String>,
-}
-
-#[derive(Default, Serialize, Deserialize, Eq, PartialEq, Debug)]
-
-pub struct PlaceFormat {
-    pub x: usize,
-    pub y: usize,
-}
+pub type JsonKifuFormat = shogi_kifu_converter::jkf::JsonKifuFormat;
+pub type MoveFormat = shogi_kifu_converter::jkf::MoveFormat;
+pub type Color = shogi_kifu_converter::jkf::Color;
+pub type Kind = shogi_kifu_converter::jkf::Kind;
+pub type Initial = shogi_kifu_converter::jkf::Initial;
+pub type Piece = shogi_kifu_converter::jkf::Piece;
+pub type Preset = shogi_kifu_converter::jkf::Preset;
+pub type StateFormat = shogi_kifu_converter::jkf::StateFormat;
+pub type PlaceFormat = shogi_kifu_converter::jkf::PlaceFormat;
+pub type MoveMoveFormat = shogi_kifu_converter::jkf::MoveMoveFormat;
+pub type Hand = shogi_kifu_converter::jkf::Hand;
 
 #[cfg(test)]
 mod tests {
-    use super::JsonKifFormat;
+    use super::*;
 
     #[test]
     fn serde() {
@@ -142,6 +24,7 @@ mod tests {
                   "先手": "na2hiro",
                   "後手": "うひょ"
                 },
+                "initial": null,
                 "moves": [
                   {},
                   {"move":{"from":{"x":7,"y":7},"to":{"x":7,"y":6},"color":0,"piece":"FU"}},
@@ -155,6 +38,7 @@ mod tests {
               }"#,
             r#"{
                 "header": {},
+                "initial": null,
                 "moves": [
                   {"comments":["分岐の例"]},
                   {"move":{"from":{"x":7,"y":7},"to":{"x":7,"y":6},"color":0,"piece":"FU"}},
@@ -210,7 +94,7 @@ mod tests {
                 ]
               }"#,
         ] {
-            let jkf: JsonKifFormat = serde_json::from_str(data).unwrap();
+            let jkf: JsonKifuFormat = serde_json::from_str(data).unwrap();
             let serialized = serde_json::to_string(&jkf).unwrap();
 
             let want: serde_json::Value = serde_json::from_str(data).unwrap();

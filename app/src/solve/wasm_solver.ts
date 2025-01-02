@@ -8,18 +8,18 @@ export async function solveWasm(
   sfen: string,
   n: number,
   cancel: CancellationToken,
-  onStep: (step: number) => void,
+  onStep: (step: number) => void
 ): Promise<Response | undefined> {
   const solver = Solver.new(sfen, n + 1);
   const response = await solveWasmInner(solver, cancel, onStep);
   solver.free();
-  return response && { solutions: response.solutions(), jkf: response.jkf() };
+  return response && { solutions: response.solutions(), kif: response.kif() };
 }
 
 async function solveWasmInner(
   solver: Solver,
   cancel: CancellationToken,
-  onStep: (step: number) => void,
+  onStep: (step: number) => void
 ): Promise<JsonResponse | undefined> {
   let step = 0;
   let nextAwaitStep = nextAwait(step);

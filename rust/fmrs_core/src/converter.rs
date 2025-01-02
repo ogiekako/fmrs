@@ -1,7 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
-use crate::jkf::{self, JsonKifFormat};
-use crate::piece::{KINDS, NUM_HAND_KIND};
+use shogi_kifu_converter::converter::ToKif as _;
+
+use crate::jkf::{self, JsonKifuFormat};
 use crate::solve::Solution;
 use crate::{
     piece::{Color, Kind},
@@ -41,33 +42,16 @@ fn piece(c: Color, k: Kind) -> jkf::Piece {
     }
 }
 
-fn raw_kind(kind: Kind) -> Option<jkf::RawKind> {
-    Some(match kind {
-        Kind::Pawn => jkf::RawKind::FU,
-        Kind::Lance => jkf::RawKind::KY,
-        Kind::Knight => jkf::RawKind::KE,
-        Kind::Silver => jkf::RawKind::GI,
-        Kind::Gold => jkf::RawKind::KI,
-        Kind::Bishop => jkf::RawKind::KA,
-        Kind::Rook => jkf::RawKind::HI,
-        Kind::King => panic!("BUG"),
-        Kind::ProPawn => panic!("BUG"),
-        Kind::ProLance => panic!("BUG"),
-        Kind::ProKnight => panic!("BUG"),
-        Kind::ProSilver => panic!("BUG"),
-        Kind::ProBishop => panic!("BUG"),
-        Kind::ProRook => panic!("BUG"),
-    })
-}
-
-fn hands(hands: Hands) -> Vec<BTreeMap<jkf::RawKind, usize>> {
-    let mut res = vec![];
+fn hands(hands: Hands) -> [jkf::Hand; 2] {
+    let mut res: [jkf::Hand; 2] = Default::default();
     for color in [Color::BLACK, Color::WHITE] {
-        let mut map = BTreeMap::default();
-        for k in KINDS[0..NUM_HAND_KIND].iter().copied() {
-            map.insert(raw_kind(k).unwrap(), hands.count(color, k));
-        }
-        res.push(map);
+        res[color.index()].FU = hands.count(color, Kind::Pawn) as u8;
+        res[color.index()].KY = hands.count(color, Kind::Lance) as u8;
+        res[color.index()].KE = hands.count(color, Kind::Knight) as u8;
+        res[color.index()].GI = hands.count(color, Kind::Silver) as u8;
+        res[color.index()].KI = hands.count(color, Kind::Gold) as u8;
+        res[color.index()].KA = hands.count(color, Kind::Bishop) as u8;
+        res[color.index()].HI = hands.count(color, Kind::Rook) as u8;
     }
     res
 }
@@ -75,7 +59,7 @@ fn hands(hands: Hands) -> Vec<BTreeMap<jkf::RawKind, usize>> {
 fn initial(position: &Position) -> jkf::Initial {
     let color = jkf::Color::Black;
     let board = {
-        let mut board = vec![vec![jkf::Piece::default(); 9]; 9];
+        let mut board = [[jkf::Piece::default(); 9]; 9];
         for col in 0..9 {
             for row in 0..9 {
                 if let Some((color, kind)) = position.get(Square::new(col, row)) {
@@ -87,7 +71,7 @@ fn initial(position: &Position) -> jkf::Initial {
     };
     let hands = hands(position.hands());
     jkf::Initial {
-        preset: "OTHER".to_string(),
+        preset: jkf::Preset::PresetOther,
         data: Some(jkf::StateFormat {
             color,
             board,
@@ -97,15 +81,15 @@ fn initial(position: &Position) -> jkf::Initial {
 }
 
 fn place_format(pos: Square) -> jkf::PlaceFormat {
-    let x = pos.col() + 1;
-    let y = pos.row() + 1;
+    let x = pos.col() as u8 + 1;
+    let y = pos.row() as u8 + 1;
     jkf::PlaceFormat { x, y }
 }
 
 fn tail_move_format(move_move_format: jkf::MoveMoveFormat) -> jkf::MoveFormat {
     jkf::MoveFormat {
         comments: None,
-        r#move: Some(move_move_format),
+        move_: Some(move_move_format),
         time: None,
         special: None,
         forks: None,
@@ -161,7 +145,7 @@ fn update_move_format(
             i += 1;
             continue;
         }
-        if move_format[i].r#move.as_ref() == Some(&move_move_format) {
+        if move_format[i].move_.as_ref() == Some(&move_move_format) {
             i += 1;
             continue;
         }
@@ -170,7 +154,7 @@ fn update_move_format(
         let mut fork_index: Option<usize> = None;
         for forks in move_format[i].forks.iter() {
             for (j, fork) in forks.iter().enumerate() {
-                if fork[0].r#move.as_ref() == Some(&move_move_format) {
+                if fork[0].move_.as_ref() == Some(&move_move_format) {
                     fork_index = Some(j);
                     break;
                 }
@@ -199,8 +183,8 @@ fn update_move_format(
     }
 }
 
-pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
-    let header = BTreeMap::default();
+pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifuFormat {
+    let header = HashMap::default();
     let initial = Some(initial(position));
     let moves = {
         let mut moves = vec![];
@@ -210,16 +194,21 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifFormat {
         let move0 = jkf::MoveFormat::default();
         vec![move0].into_iter().chain(moves.into_iter()).collect()
     };
-    JsonKifFormat {
+    JsonKifuFormat {
         header,
         initial,
         moves,
     }
 }
 
+pub fn convert_to_kif(position: &Position, solutions: &[Solution]) -> String {
+    let jkf = convert(position, solutions);
+    jkf.to_kif_owned()
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::jkf::JsonKifFormat;
+    use crate::jkf::JsonKifuFormat;
     use crate::solve::{Solution, SolverStatus};
     use crate::{position::Position, solve::StandardSolver};
 
@@ -227,19 +216,19 @@ mod tests {
     fn convert() {
         for (want, problem) in [
             (
-                r#"{"header":{},"initial":{"preset":"OTHER","data":{"color":0,"board":[[{},{},{},{},{},{},{},{},{}],[{"color":1,"kind":"OU"},{},{"color":0,"kind":"FU"},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}]],"hands":[{"KI":1},{"KA":2,"HI":2,"KY":4,"FU":17,"KE":4,"GI":4,"KI":3}]}},"moves":[{},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]}"#,
+                r#"{"header":{},"initial":{"preset":"OTHER","data":{"color":0,"board":[[{},{},{},{},{},{},{},{},{}],[{"color":1,"kind":"OU"},{},{"color":0,"kind":"FU"},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}]],"hands":[{"FU":0,"KY":0,"KE":0,"GI":0,"KI":1,"KA":0,"HI":0},{"FU":17,"KY":4,"KE":4,"GI":4,"KI":3,"KA":2,"HI":2}]}},"moves":[{},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]}"#,
                 "7k1/9/7P1/9/9/9/9/9/9 b G2r2b3g4s4n4l17p 1",
             ),
             (
-                r#"{"header":{},"initial":{"preset":"OTHER","data":{"color":0,"board":[[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{"color":1,"kind":"OU"},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}]],"hands":[{"KE":1,"KI":1},{"FU":18,"KY":4,"KE":3,"GI":4,"KI":3,"KA":2,"HI":2}]}},"moves":[{},{"move":{"color":0,"to":{"x":4,"y":4},"piece":"KE"},"forks":[[{"move":{"color":0,"to":{"x":6,"y":4},"piece":"KE"}},{"move":{"color":1,"from":{"x":5,"y":2},"to":{"x":5,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":5,"y":2},"piece":"KI"}}]]},{"move":{"color":1,"from":{"x":5,"y":2},"to":{"x":5,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":5,"y":2},"piece":"KI"}}]}"#,
+                r#"{"header":{},"initial":{"preset":"OTHER","data":{"color":0,"board":[[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{"color":1,"kind":"OU"},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}]],"hands":[{"FU":0,"KY":0,"KE":1,"GI":0,"KI":1,"KA":0,"HI":0},{"FU":18,"KY":4,"KE":3,"GI":4,"KI":3,"KA":2,"HI":2}]}},"moves":[{},{"move":{"color":0,"to":{"x":4,"y":4},"piece":"KE"},"forks":[[{"move":{"color":0,"to":{"x":6,"y":4},"piece":"KE"}},{"move":{"color":1,"from":{"x":5,"y":2},"to":{"x":5,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":5,"y":2},"piece":"KI"}}]]},{"move":{"color":1,"from":{"x":5,"y":2},"to":{"x":5,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":5,"y":2},"piece":"KI"}}]}"#,
                 "9/4k4/9/9/9/9/9/9/9 b GN2r2b3g4s3n4l18p 1",
             ),
             (
-                r#"{"header":{},"initial":{"preset":"OTHER","data":{"color":0,"board":[[{},{},{},{},{},{},{},{},{}],[{},{"color":1,"kind":"OU"},{},{},{},{},{},{},{}],[{"color":1,"kind":"KY"},{"color":1,"kind":"KY"},{"color":1,"kind":"KY"},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}]],"hands":[{"KE":1,"KI":1},{"FU":18,"KY":1,"KE":3,"GI":4,"KI":3,"KA":2,"HI":2}]}},"moves":[{}, {"move":{"color":0,"to":{"x":1,"y":4},"piece":"KE"},"forks":[[{"move":{"color":0,"to":{"x":3,"y":4},"piece":"KE"}},{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":1,"y":1},"piece":"OU"},"forks":[[{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":2,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]]},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]]},{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":1,"y":1},"piece":"OU"},"forks":[[{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":2,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]]},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]}"#,
+                r#"{"header":{},"initial":{"preset":"OTHER","data":{"color":0,"board":[[{},{},{},{},{},{},{},{},{}],[{},{"color":1,"kind":"OU"},{},{},{},{},{},{},{}],[{"color":1,"kind":"KY"},{"color":1,"kind":"KY"},{"color":1,"kind":"KY"},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}],[{},{},{},{},{},{},{},{},{}]],"hands":[{"FU":0,"KY":0,"KE":1,"GI":0,"KI":1,"KA":0,"HI":0},{"FU":18,"KY":1,"KE":3,"GI":4,"KI":3,"KA":2,"HI":2}]}},"moves":[{}, {"move":{"color":0,"to":{"x":1,"y":4},"piece":"KE"},"forks":[[{"move":{"color":0,"to":{"x":3,"y":4},"piece":"KE"}},{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":1,"y":1},"piece":"OU"},"forks":[[{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":2,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]]},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]]},{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":1,"y":1},"piece":"OU"},"forks":[[{"move":{"color":1,"from":{"x":2,"y":2},"to":{"x":2,"y":1},"piece":"OU"}},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]]},{"move":{"color":0,"to":{"x":2,"y":2},"piece":"KI"}}]}"#,
                 "6l2/6lk1/6l2/9/9/9/9/9/9 b GN2r2b3g4s3nl18p 1",
             ),
         ] {
-            let want: JsonKifFormat = serde_json::from_str(want).unwrap();
+            let want: JsonKifuFormat = serde_json::from_str(want).unwrap();
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
             let problem = crate::sfen::decode_position(problem).unwrap();
