@@ -1,6 +1,2 @@
-export const KINDS: Kind[] = ["P", "L", "N", "S", "G", "B", "R", "K"];
+export const KINDS: Kind[] = ["R", "B", "G", "S", "N", "L", "P", "K"];
 export type Kind = "P" | "L" | "N" | "S" | "G" | "B" | "R" | "K";
-
-export function kindCanPromote(kind: Kind): boolean {
-  return kind !== "G" && kind !== "K";
-}

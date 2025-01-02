@@ -14,6 +14,7 @@ export default function Hands(props: {
       nothing = false;
       pieces.push(
         <span
+          className={k == "K" ? "ps-2" : ""}
           key={k}
           onClick={(e) => {
             e.stopPropagation();
