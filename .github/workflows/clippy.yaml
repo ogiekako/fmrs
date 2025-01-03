@@ -19,7 +19,4 @@ jobs:
           submodules: true
 
       - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
       - run: cargo clippy

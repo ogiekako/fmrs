@@ -31,9 +31,6 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
 
       - name: test
         run: cargo test --workspace --no-fail-fast
