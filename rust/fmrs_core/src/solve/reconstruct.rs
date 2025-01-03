@@ -39,6 +39,9 @@ pub fn reconstruct_solutions<M: MemoTrait, P: PositionTrait>(
     memo_white_turn: &M,
     solutions_upto: usize,
 ) -> Vec<Solution> {
+    if solutions_upto == 0 {
+        return vec![];
+    }
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
     let step = memo_white_turn.get(&mate.digest()).unwrap();
     let ctx = Context::new(memo_black_turn, memo_white_turn, step, solutions_upto);
