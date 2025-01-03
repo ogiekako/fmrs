@@ -34,7 +34,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Run benchmark
         run: env FMRS_ENABLE_EXTRA_BENCH=1 cargo bench -- --output-format bencher | tee output.txt

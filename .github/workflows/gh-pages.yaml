@@ -14,8 +14,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v2
       - name: Set up Rust
-        # TODO: update to https://github.com/dtolnay/rust-toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Install & Build
