@@ -6,7 +6,7 @@ use fmrs_core::{
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{response::JsonResponse, utils::set_panic_hook};
+use crate::{log, utils::set_panic_hook};
 
 pub trait SolverTrait {
     fn advance(&mut self) -> anyhow::Result<SolverStatus>;
@@ -117,4 +117,10 @@ fn convert_solutions_to_sfen(solutions: &[Solution]) -> Vec<String> {
         res.push(moves.join(" "));
     }
     res
+}
+
+impl Drop for Solver {
+    fn drop(&mut self) {
+        log("Solver dropped");
+    }
 }

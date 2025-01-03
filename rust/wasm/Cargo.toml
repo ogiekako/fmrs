@@ -12,7 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 fmrs_core = { path = "../fmrs_core" }
-wasm-bindgen = "0.2.63"
+wasm-bindgen = "*"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -20,9 +20,8 @@ wasm-bindgen = "0.2.63"
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.6", optional = true }
 
-nohash-hasher = "0.2.0"
-anyhow = "1.0.58"
-serde_json = "1.0.82"
+anyhow = "*"
+serde_json = "*"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

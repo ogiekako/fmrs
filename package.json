@@ -18,7 +18,7 @@
   },
   "scripts": {
     "serve": "webpack serve --mode development",
-    "serve-production": "webpack serve --mode production",
+    "serve-prod": "webpack serve --mode production",
     "build": "webpack --mode production"
   },
   "eslintConfig": {

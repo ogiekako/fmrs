@@ -1,5 +1,5 @@
 import { CancellationToken, Response } from ".";
-import { Algorithm, JsonResponse, Solver } from "../../../docs/pkg";
+import { Algorithm, Solver } from "../../../docs/pkg";
 
 /**
  * @returns solutions or undefined if solution is not found.
