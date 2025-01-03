@@ -1,4 +1,4 @@
-# Shogi Helpmate Solver
+# [Shogi Helpmate Solver](https://ogiekako.github.io/fmrs)
 
 Rustで書かれた、[協力詰]（ばか詰）専用のソルバー
 
@@ -14,6 +14,7 @@ https://ogiekako.github.io/fmrs にアクセスします。
 - キーボードによる操作も可能。[FM]と同じキー割当を採用しています。
 - Solveボタンを押すと解図がはじまります。
 - 簡易的な作問補助として、「＋」ボタンを押すことで、現在の局面に名前をつけることができます。リロードすると消滅するので注意してください。
+- URL自体が盤面を表しているため、問題の共有が容易です。
 
 [FM]: http://www.dokidoki.ne.jp/home2/takuji/FM.html
 
