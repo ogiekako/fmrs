@@ -13,7 +13,7 @@ pub fn solve(algorithm: Algorithm, sfen_or_file: Option<String>) -> anyhow::Resu
                 }
             }
             None => {
-                eprintln!("Enter SFEN (hint: https://sfenreader.appspot.com/ja/create_board.html)");
+                eprintln!("Enter SFEN (hint: https://ogiekako.github.io/fmrs)");
                 eprint!("> ");
 
                 let mut s = "".to_string();

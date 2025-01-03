@@ -209,7 +209,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
 
 pub fn sfen_to_image_url(sfen: &str) -> String {
     format!(
-        "http://sfenreader.appspot.com/sfen?sfen={}",
+        "https://ogiekako.github.io/fmrs/?sfen={}",
         utf8_percent_encode(sfen, NON_ALPHANUMERIC)
     )
 }
@@ -406,7 +406,7 @@ pub mod tests {
         let s = percent_encoding::utf8_percent_encode(sfen, FLAGMENT);
         let s = format!("{}", s);
         let t = percent_encoding::utf8_percent_encode(&s, FLAGMENT);
-        format!("http://sfenreader.appspot.com/sfen?sfen={}%201", t)
+        format!("https://ogiekako.github.io/fmrs/?sfen={}%201", t)
     }
 
     pub fn encode_position_url(board: &Position) -> String {
@@ -417,7 +417,7 @@ pub mod tests {
     // The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
     pub const RYUO: &str =
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
-    // http://sfenreader.appspot.com/sfen?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
+    // https://ogiekako.github.io/fmrs/?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
 
     #[test]
     fn test_encode_position_url() {
@@ -425,10 +425,10 @@ pub mod tests {
 
         let board = decode_position(START).unwrap();
         assert_eq!(encode_position_url(&board),
-    "http://sfenreader.appspot.com/sfen?sfen=lnsgkgsnl%252F1r5b1%252Fppppppppp%252F9%252F9%252F9%252FPPPPPPPPP%252F1B5R1%252FLNSGKGSNL%2520b%2520-%201");
+    "https://ogiekako.github.io/fmrs/?sfen=lnsgkgsnl%252F1r5b1%252Fppppppppp%252F9%252F9%252F9%252FPPPPPPPPP%252F1B5R1%252FLNSGKGSNL%2520b%2520-%201");
 
         let board = decode_position(RYUO).unwrap();
         assert_eq!(encode_position_url(&board),
-    "http://sfenreader.appspot.com/sfen?sfen=8l%252F1l%252BR2P3%252Fp2pBG1pp%252Fkps1p4%252FNn1P2G2%252FP1P1P2PP%252F1PS6%252F1KSG3%252Br1%252FLN2%252Bp3L%2520w%2520Sbgn3p%201")
+    "https://ogiekako.github.io/fmrs/?sfen=8l%252F1l%252BR2P3%252Fp2pBG1pp%252Fkps1p4%252FNn1P2G2%252FP1P1P2PP%252F1PS6%252F1KSG3%252Br1%252FLN2%252Bp3L%2520w%2520Sbgn3p%201")
     }
 }
