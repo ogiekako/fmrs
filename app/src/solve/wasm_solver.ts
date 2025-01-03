@@ -1,5 +1,5 @@
 import { CancellationToken, Response } from ".";
-import { JsonResponse, Solver } from "../../../docs/pkg";
+import { Algorithm, JsonResponse, Solver } from "../../../docs/pkg";
 
 /**
  * @returns solutions or undefined if solution is not found.
@@ -10,9 +10,16 @@ export async function solveWasm(
   cancel: CancellationToken,
   onStep: (step: number) => void
 ): Promise<Response | undefined> {
-  const solver = Solver.new(sfen, n + 1);
-  const response = await solveWasmInner(solver, cancel, onStep);
-  solver.free();
+  const solver = Solver.new(sfen, n + 1, Algorithm.Standard);
+  let response;
+  try {
+    response = await solveWasmInner(solver, cancel, onStep);
+  } catch (e) {
+    console.error(e);
+    throw e;
+  } finally {
+    solver.free();
+  }
   return response && { solutions: response.solutions(), kif: response.kif() };
 }
 
@@ -24,12 +31,15 @@ async function solveWasmInner(
   let step = 0;
   let nextAwaitStep = nextAwait(step);
   while (!cancel.isCanceled()) {
-    const error = solver.advance();
-    if (error) {
-      console.error(error);
-      throw new Error(error);
+    let delta;
+    try {
+      delta = solver.advance();
+    } catch (e) {
+      console.error(e);
+      throw e;
     }
-    onStep(++step);
+    step += delta;
+    onStep(step);
     if (solver.no_solution()) {
       return undefined;
     }

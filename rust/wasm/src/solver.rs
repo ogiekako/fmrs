@@ -8,45 +8,61 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 use crate::{response::JsonResponse, utils::set_panic_hook};
 
+pub trait SolverTrait {
+    fn advance(&mut self) -> anyhow::Result<SolverStatus>;
+}
+
+impl SolverTrait for StandardSolver {
+    fn advance(&mut self) -> anyhow::Result<SolverStatus> {
+        StandardSolver::advance(self)
+    }
+}
+
 #[wasm_bindgen]
 pub struct Solver {
     initial_position: Position,
-    inner: StandardSolver,
+    inner: Box<dyn SolverTrait>,
     no_solution: bool,
     solutions: Vec<Solution>,
 }
 
 #[wasm_bindgen]
+pub enum Algorithm {
+    Standard,
+    Parallel,
+}
+
+#[wasm_bindgen]
 impl Solver {
-    pub fn new(problem_sfen: String, solutions_upto: u16) -> Self {
+    pub fn new(problem_sfen: String, solutions_upto: u16, algo: Algorithm) -> Self {
         set_panic_hook();
 
         let position = sfen::decode_position(&problem_sfen).unwrap();
         Self {
             initial_position: position.clone(),
-            inner: StandardSolver::new(position, solutions_upto as usize),
+            inner: Box::new(StandardSolver::new(position, solutions_upto as usize)),
             no_solution: false,
             solutions: vec![],
         }
     }
 
     /// Returns non-empty string in case of an error.
-    pub fn advance(&mut self) -> String {
+    pub fn advance(&mut self) -> Result<u32, String> {
         if self.no_solution || !self.solutions.is_empty() {
-            return "already finished".to_string();
+            return Err("already finished".to_string());
         }
         let status = match self.inner.advance() {
             Ok(x) => x,
-            Err(x) => return x.to_string(),
+            Err(x) => return Err(x.to_string()),
         };
         match status {
-            SolverStatus::Intermediate => (),
+            SolverStatus::Intermediate(delta) => return Ok(delta),
             SolverStatus::Mate(solutions) => {
                 self.solutions = solutions;
             }
             SolverStatus::NoSolution => self.no_solution = true,
         }
-        "".to_string()
+        Ok(0)
     }
 
     pub fn no_solution(&self) -> bool {

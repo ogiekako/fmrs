@@ -16,7 +16,7 @@ pub struct StandardSolver {
 
 #[derive(PartialEq, Eq)]
 pub enum SolverStatus {
-    Intermediate,
+    Intermediate(u32),
     Mate(Vec<Solution>),
     NoSolution,
 }
@@ -88,6 +88,6 @@ impl StandardSolver {
 
         std::mem::swap(&mut self.memo, &mut self.memo_next);
         std::mem::swap(&mut self.current, &mut all_next_positions);
-        Ok(SolverStatus::Intermediate)
+        Ok(SolverStatus::Intermediate(1))
     }
 }
