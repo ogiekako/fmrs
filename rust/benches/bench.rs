@@ -22,11 +22,11 @@ use shtsume_rs::ffi::tbase::Tbase;
 use shtsume_rs::ffi::Global;
 
 fn bench_black_advance(c: &mut Criterion) {
-    let mut black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
+    let black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
     let mut result = vec![];
     let mut memo = Memo::default();
     advance(
-        &mut black_position,
+        &black_position,
         &mut memo,
         1,
         &AdvanceOptions::default(),
@@ -38,7 +38,7 @@ fn bench_black_advance(c: &mut Criterion) {
             result.clear();
             memo.clear();
             advance(
-                &mut black_position,
+                &black_position,
                 &mut memo,
                 1,
                 &AdvanceOptions::default(),
@@ -80,7 +80,7 @@ fn bench_white_advance(c: &mut Criterion) {
     let mut memo = Memo::default();
 
     advance(
-        &mut white_positions[0].0,
+        &white_positions[0].0,
         &mut memo,
         1,
         &AdvanceOptions::default(),
@@ -137,14 +137,14 @@ fn bench_white_advance_shtsume(c: &mut Criterion) {
 }
 
 fn bench_black_pinned(c: &mut Criterion) {
-    let mut black_position =
+    let black_position =
         decode_position("8l/l1SS1PGP1/1PPNP1Pp1/R1g5k/9/2s1gnbsP/3nN4/1lg3l2/K2+B2r2 b 8P2p 1")
             .unwrap();
     let mut result = vec![];
     c.bench_function("black_pinned", |b| {
         b.iter(|| {
             advance(
-                black_box(&mut black_position),
+                black_box(&black_position),
                 &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
@@ -156,12 +156,12 @@ fn bench_black_pinned(c: &mut Criterion) {
 }
 
 fn bench_solve3(c: &mut Criterion) {
-    let mut position = decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap();
+    let position = decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap();
     let mut result = vec![];
     c.bench_function("solve3", |b| {
         b.iter(|| {
             advance(
-                black_box(&mut position),
+                black_box(&position),
                 &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
