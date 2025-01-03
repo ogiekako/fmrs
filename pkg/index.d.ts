@@ -1,25 +1,24 @@
 /* tslint:disable */
 /* eslint-disable */
 export function greet(): void;
-export class JsonResponse {
-  private constructor();
-  free(): void;
-  solutions(): number;
-  kif(): string;
+export enum Algorithm {
+  Standard = 0,
+  Parallel = 1,
 }
 export class Solver {
   private constructor();
   free(): void;
-  static new(problem_sfen: string, solutions_upto: number): Solver;
+  static new(problem_sfen: string, solutions_upto: number, algo: Algorithm): Solver;
   /**
    * Returns non-empty string in case of an error.
    */
-  advance(): string;
+  advance(): number;
   no_solution(): boolean;
   solutions_found(): boolean;
   /**
    * Newline-delimited sfen moves
    */
   solutions_sfen(): string;
-  solutions_json(): JsonResponse;
+  solutions_kif(): string;
+  solutions_count(): number;
 }
