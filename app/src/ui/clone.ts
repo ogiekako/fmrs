@@ -7,13 +7,12 @@ export function cloneState(state: types.State): types.State {
     selected: cloneSelected(state.selected),
     solving: state.solving && Object.assign({}, state.solving),
     problems: cloneProblems(state.problems),
-    solveResponse:
-      state.solveResponse && Object.assign({}, state.solveResponse),
+    solveResponse: state.solveResponse && Object.freeze(state.solveResponse),
   };
 }
 
 function cloneSelected(
-  selected: types.Selected | undefined,
+  selected: types.Selected | undefined
 ): types.Selected | undefined {
   if (!selected) {
     return undefined;
@@ -31,7 +30,7 @@ function cloneSelected(
 }
 
 function cloneProblems(
-  problems: Array<[model.Position, string]>,
+  problems: Array<[model.Position, string]>
 ): Array<[model.Position, string]> {
   return problems.map(([position, name]) => [
     model.clonePosition(position),

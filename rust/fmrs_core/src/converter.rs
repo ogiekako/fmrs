@@ -248,7 +248,7 @@ mod tests {
         loop {
             let status = solver.advance()?;
             match status {
-                SolverStatus::Intermediate => continue,
+                SolverStatus::Intermediate(_) => continue,
                 SolverStatus::Mate(solutions) => return Ok(solutions),
                 SolverStatus::NoSolution => return Ok(vec![]),
             }

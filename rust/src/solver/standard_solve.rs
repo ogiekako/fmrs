@@ -8,7 +8,7 @@ pub fn standard_solve(position: Position, solutions_upto: usize) -> anyhow::Resu
     loop {
         let status = solver.advance()?;
         match status {
-            SolverStatus::Intermediate => continue,
+            SolverStatus::Intermediate(_) => continue,
             SolverStatus::Mate(solutions) => return Ok(solutions),
             SolverStatus::NoSolution => return Ok(vec![]),
         }

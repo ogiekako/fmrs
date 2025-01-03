@@ -1,5 +1,6 @@
 pub mod reconstruct;
 mod standard_solve;
+pub mod parallel_solve;
 use crate::position::Movement;
 
 pub type Solution = Vec<Movement>;

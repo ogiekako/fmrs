@@ -88,6 +88,6 @@ impl StandardSolver {
 
         std::mem::swap(&mut self.memo, &mut self.memo_next);
         std::mem::swap(&mut self.current, &mut all_next_positions);
-        Ok(SolverStatus::Intermediate(1))
+        Ok(SolverStatus::Intermediate(self.step as u32))
     }
 }

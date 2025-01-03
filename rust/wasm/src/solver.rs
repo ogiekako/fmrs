@@ -2,7 +2,7 @@ use fmrs_core::{
     converter,
     position::Position,
     sfen,
-    solve::{Solution, SolverStatus, StandardSolver},
+    solve::{parallel_solve::ParallelSolver, Solution, SolverStatus, StandardSolver},
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -18,6 +18,12 @@ impl SolverTrait for StandardSolver {
     }
 }
 
+impl SolverTrait for ParallelSolver {
+    fn advance(&mut self) -> anyhow::Result<SolverStatus> {
+        ParallelSolver::advance(self)
+    }
+}
+
 #[wasm_bindgen]
 pub struct Solver {
     initial_position: Position,
@@ -26,6 +32,7 @@ pub struct Solver {
     solutions: Vec<Solution>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[wasm_bindgen]
 pub enum Algorithm {
     Standard,
@@ -38,9 +45,21 @@ impl Solver {
         set_panic_hook();
 
         let position = sfen::decode_position(&problem_sfen).unwrap();
+
+        let inner: Box<dyn SolverTrait> = match algo {
+            Algorithm::Standard => Box::new(StandardSolver::new(
+                position.clone(),
+                solutions_upto as usize,
+            )),
+            Algorithm::Parallel => Box::new(ParallelSolver::new(
+                position.clone(),
+                solutions_upto as usize,
+            )),
+        };
+
         Self {
-            initial_position: position.clone(),
-            inner: Box::new(StandardSolver::new(position, solutions_upto as usize)),
+            initial_position: position,
+            inner,
             no_solution: false,
             solutions: vec![],
         }
@@ -56,7 +75,7 @@ impl Solver {
             Err(x) => return Err(x.to_string()),
         };
         match status {
-            SolverStatus::Intermediate(delta) => return Ok(delta),
+            SolverStatus::Intermediate(step) => return Ok(step),
             SolverStatus::Mate(solutions) => {
                 self.solutions = solutions;
             }
@@ -79,13 +98,12 @@ impl Solver {
         solutions_sfen.join("\n")
     }
 
-    // jkf format
-    pub fn solutions_json(&self) -> JsonResponse {
-        let kif = converter::convert_to_kif(&self.initial_position, &self.solutions);
-        JsonResponse {
-            solutions: self.solutions.len() as u16,
-            kif,
-        }
+    pub fn solutions_kif(&self) -> String {
+        converter::convert_to_kif(&self.initial_position, &self.solutions)
+    }
+
+    pub fn solutions_count(&self) -> u32 {
+        self.solutions.len() as u32
     }
 }
 

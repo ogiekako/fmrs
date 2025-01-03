@@ -11,40 +11,39 @@ export async function solveWasm(
   onStep: (step: number) => void
 ): Promise<Response | undefined> {
   const solver = Solver.new(sfen, n + 1, Algorithm.Standard);
-  let response;
   try {
-    response = await solveWasmInner(solver, cancel, onStep);
+    return await solveWasmInner(solver, cancel, onStep);
   } catch (e) {
     console.error(e);
     throw e;
   } finally {
     solver.free();
   }
-  return response && { solutions: response.solutions(), kif: response.kif() };
 }
 
 async function solveWasmInner(
   solver: Solver,
   cancel: CancellationToken,
   onStep: (step: number) => void
-): Promise<JsonResponse | undefined> {
+): Promise<Response | undefined> {
   let step = 0;
   let nextAwaitStep = nextAwait(step);
   while (!cancel.isCanceled()) {
-    let delta;
     try {
-      delta = solver.advance();
+      step = solver.advance();
     } catch (e) {
       console.error(e);
       throw e;
     }
-    step += delta;
     onStep(step);
     if (solver.no_solution()) {
       return undefined;
     }
     if (solver.solutions_found()) {
-      return solver.solutions_json();
+      return {
+        solutions: solver.solutions_count(),
+        kif: solver.solutions_kif(),
+      };
     }
     if (step >= nextAwaitStep) {
       await new Promise((resolve) => setTimeout(resolve, 0));
