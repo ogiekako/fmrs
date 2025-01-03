@@ -66,9 +66,7 @@ impl Position {
         &self.kind_bb
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
-        let Some(kind) = self.kind_bb.get(pos) else {
-            return None;
-        };
+        let kind = self.kind_bb.get(pos)?;
         Some(if self.black().get(pos) {
             (Color::BLACK, kind)
         } else {
@@ -310,9 +308,13 @@ impl PositionAux {
     }
 
     pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
-        self.occupied.as_mut().map(|bb| bb.unset(pos));
+        if let Some(bb) = self.occupied.as_mut() {
+            bb.unset(pos)
+        }
         if color.is_white() {
-            self.white_bb.as_mut().map(|bb| bb.unset(pos));
+            if let Some(bb) = self.white_bb.as_mut() {
+                bb.unset(pos)
+            }
         }
 
         if kind == Kind::King {
@@ -327,9 +329,13 @@ impl PositionAux {
     }
 
     pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
-        self.occupied.as_mut().map(|bb| bb.set(pos));
+        if let Some(bb) = self.occupied.as_mut() {
+            bb.set(pos)
+        }
         if color.is_white() {
-            self.white_bb.as_mut().map(|bb| bb.set(pos));
+            if let Some(bb) = self.white_bb.as_mut() {
+                bb.set(pos)
+            }
         }
 
         if kind == Kind::King {
@@ -352,9 +358,15 @@ impl PositionAux {
     }
 
     pub fn shift(&mut self, dir: Direction) {
-        self.occupied.as_mut().map(|bb| bb.shift(dir));
-        self.white_bb.as_mut().map(|bb| bb.shift(dir));
-        self.white_king_pos.as_mut().map(|pos| pos.shift(dir));
+        if let Some(bb) = self.occupied.as_mut() {
+            bb.shift(dir)
+        }
+        if let Some(bb) = self.white_bb.as_mut() {
+            bb.shift(dir)
+        }
+        if let Some(pos) = self.white_king_pos.as_mut() {
+            pos.shift(dir)
+        }
         self.black_king_pos
             .as_mut()
             .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));

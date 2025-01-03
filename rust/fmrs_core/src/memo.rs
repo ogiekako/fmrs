@@ -7,6 +7,9 @@ pub trait MemoTrait {
     fn contains_or_insert(&mut self, digest: u64, step: u16) -> bool;
     fn get(&self, digest: &u64) -> Option<u16>;
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Debug, Default)]
@@ -47,7 +50,7 @@ impl Memo {
 
 impl Default for Memo {
     fn default() -> Self {
-        let steps = NoHashMap::default().into();
+        let steps = NoHashMap::default();
         Memo { steps }
     }
 }

@@ -47,7 +47,7 @@ fn is_valid_magic(magic: &MagicCore, targets: &[Vec<u64>]) -> bool {
     for (i, ts) in targets.iter().enumerate() {
         for target in ts {
             let j = magic.index(*target) as usize;
-            if mapping[j] != None && mapping[j] != Some(i as u64) {
+            if mapping[j].is_some() && mapping[j] != Some(i as u64) {
                 return false;
             }
             mapping[j] = Some(i as u64)

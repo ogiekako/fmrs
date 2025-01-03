@@ -9,12 +9,10 @@ pub struct Ssdata(pub(super) ssdata_t);
 impl Ssdata {
     pub fn from_sfen(sfen: &str) -> Self {
         let n = sfen.split(" ").count();
-        let sfen = if n < 3 {
-            panic!("Invalid SFEN: {}", sfen)
-        } else if n == 3 {
-            CString::new(format!("{} 1", sfen)).unwrap()
-        } else {
-            CString::new(sfen).unwrap()
+        let sfen = match n {
+            ..3 => panic!("Invalid SFEN: {}", sfen),
+            3 => CString::new(format!("{} 1", sfen)).unwrap(),
+            _ => CString::new(sfen).unwrap(),
         };
 
         let mut ssdata = Ssdata(ssdata_t::default());

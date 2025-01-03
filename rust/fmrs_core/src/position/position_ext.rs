@@ -81,15 +81,15 @@ impl PositionExt for Position {
         use UndoMove::*;
         let prev_turn = self.turn().opposite();
         self.set_turn(prev_turn);
-        match token {
-            &UnDrop(pos, pawn_drop) => {
+        match *token {
+            UnDrop(pos, pawn_drop) => {
                 let k = self.kind_bb().must_get(pos);
                 self.unset(pos, prev_turn, k);
                 self.hands_mut().add(prev_turn, k.maybe_unpromote());
                 self.set_pawn_drop(pawn_drop);
                 Movement::Drop(pos, k.maybe_unpromote())
             }
-            &UnMove {
+            UnMove {
                 source: from,
                 dest: to,
                 promote,

@@ -54,7 +54,7 @@ pub fn init_magic() {
         | probishop_reachable(BitBoard::default(), Square::new(0, 0))
         | rook_reachable(BitBoard::default(), Square::new(0, 0))
         | prorook_reachable(BitBoard::default(), Square::new(0, 0));
-    assert_eq!(b.get(Square::new(0, 0)), false);
+    assert!(!b.get(Square::new(0, 0)));
 }
 
 lazy_static! {

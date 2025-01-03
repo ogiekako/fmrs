@@ -246,7 +246,7 @@ lazy_static! {
 }
 
 fn run(dir: (isize, isize)) -> impl Iterator<Item = (isize, isize)> {
-    (1..9).into_iter().map(move |i| (dir.0 * i, dir.1 * i))
+    (1..9).map(move |i| (dir.0 * i, dir.1 * i))
 }
 
 fn powers(black_shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {

@@ -8,8 +8,8 @@ use crate::position::Movement;
 
 use super::AdvanceOptions;
 
-pub(super) fn advance<'a, M: MemoTrait>(
-    position: &'a mut PositionAux,
+pub(super) fn advance<M: MemoTrait>(
+    position: &mut PositionAux,
     memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,

@@ -120,7 +120,7 @@ impl Nodes {
     }
 
     fn index_of(&self, digest: &u64) -> Option<usize> {
-        self.ids.get(&digest).copied()
+        self.ids.get(digest).copied()
     }
 }
 
@@ -177,7 +177,7 @@ impl Graph {
             // TODO: check drop pawn mate from white.
             advance(
                 &self.nodes[turn][i].position,
-                &mut MemoStub::default(),
+                &mut MemoStub,
                 1,
                 &AdvanceOptions {
                     no_memo: true,

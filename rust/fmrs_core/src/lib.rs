@@ -1,15 +1,16 @@
+#![allow(clippy::needless_range_loop, clippy::module_inception)]
 #[macro_use]
 extern crate lazy_static;
 
 pub mod converter;
 pub mod direction;
 pub mod jkf;
+pub mod memo;
 pub mod nohash;
 pub mod piece;
 pub mod position;
 pub mod sfen;
 pub mod solve;
-pub mod memo;
 
 #[cfg(test)]
 mod tests {

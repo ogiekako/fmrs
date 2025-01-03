@@ -33,7 +33,7 @@ fn static_file(name: &str) -> Result<actix_files::NamedFile, actix_web::Error> {
 enum SolveResponse {
     Error(String),
     Progress(usize),
-    Solved(JsonKifuFormat),
+    Solved(Box<JsonKifuFormat>),
 }
 
 // Returns line delimited json stream
@@ -56,7 +56,7 @@ async fn solve(body_sfen: String) -> HttpResponse {
             None,
         ) {
             Ok(solutions) => {
-                SolveResponse::Solved(fmrs_core::converter::convert(&problem, &solutions))
+                SolveResponse::Solved(fmrs_core::converter::convert(&problem, &solutions).into())
             }
             Err(e) => SolveResponse::Error(e.to_string()),
         };

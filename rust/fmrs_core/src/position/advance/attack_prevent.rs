@@ -312,7 +312,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 }
 
 // Helper methods
-impl<'a, M: MemoTrait> Context<'a, M> {
+impl<M: MemoTrait> Context<'_, M> {
     // #[inline(never)]
     fn is_return_check(&self, movement: &Movement) -> bool {
         let mut np = self.position.clone();
@@ -320,7 +320,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         checked(&mut np, self.position.turn().opposite())
     }
 
-    fn maybe_add_move<'b>(&mut self, movement: Movement, kind: Kind) -> Result<()> {
+    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         let is_king_move = kind == Kind::King;
 
         // TODO: check the second attacker
@@ -332,10 +332,8 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             }
         }
 
-        if self.should_return_check {
-            if !self.is_return_check(&movement) {
-                return Ok(());
-            }
+        if self.should_return_check && !self.is_return_check(&movement) {
+            return Ok(());
         }
 
         self.is_mate = false;
@@ -432,10 +430,10 @@ pub fn attacker(
 
     for pos in king_power_area {
         let kind = position.must_get_kind(pos);
-        if power(king_color, king_pos, kind).get(pos) {
-            if update_attacker(&mut attacker, pos, kind, early_return) {
-                return attacker;
-            }
+        if power(king_color, king_pos, kind).get(pos)
+            && update_attacker(&mut attacker, pos, kind, early_return)
+        {
+            return attacker;
         }
     }
     opponent_bb = opponent_bb.and_not(king_power_area);
@@ -446,10 +444,10 @@ pub fn attacker(
     if !attacking_lances.is_empty() {
         let attacker_pos = attacking_lances.singleton();
         let kind = position.must_get_kind(attacker_pos);
-        if matches!(kind, Kind::Lance | Kind::Rook | Kind::ProRook) {
-            if update_attacker(&mut attacker, attacker_pos, kind, early_return) {
-                return attacker;
-            }
+        if matches!(kind, Kind::Lance | Kind::Rook | Kind::ProRook)
+            && update_attacker(&mut attacker, attacker_pos, kind, early_return)
+        {
+            return attacker;
         }
 
         opponent_bb.unset(attacker_pos);

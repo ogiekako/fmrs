@@ -61,7 +61,7 @@ impl<'a> Context<'a> {
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
             let sources =
-                bitboard::reachable(&mut self.position, self.turn, dest, prev_kind, false)
+                bitboard::reachable(self.position, self.turn, dest, prev_kind, false)
                     .and_not(self.position.occupied_bb());
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
@@ -95,7 +95,7 @@ impl<'a> Context<'a> {
 }
 
 // Helper methods
-impl<'a> Context<'a> {
+impl Context<'_> {
     fn maybe_add_undo_move(&mut self, movement: UndoMove) {
         if let UndoMove::UnMove {
             source: from,

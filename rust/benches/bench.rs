@@ -128,7 +128,7 @@ fn bench_white_advance_shtsume(c: &mut Criterion) {
     c.bench_function("white_advance_shtsume", |b| {
         b.iter(|| {
             for (ssdata, want) in data.iter() {
-                let sdata = Sdata::from_ssdata(&ssdata);
+                let sdata = Sdata::from_ssdata(ssdata);
                 let res = generate_evasion(&sdata, &mut tbase, true);
                 assert_eq!(res.iter().map(|i| i.mlist().count()).sum::<usize>(), *want);
             }
@@ -205,7 +205,7 @@ fn random_positions_with_filter<F: Fn(&mut Position) -> bool>(
         let mut position = Position::default();
 
         let hand_prob = rng.gen_range(0.0..0.7);
-        let mut pieces = vec![18, 4, 4, 4, 4, 2, 2, 2];
+        let mut pieces = [18, 4, 4, 4, 4, 2, 2, 2];
         let mut remaining = 40;
         let mut put_king_color = None;
         while remaining > 0 {

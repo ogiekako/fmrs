@@ -32,7 +32,7 @@ const AREA: [u64; 2 * 8] = {
     let mut i = 0;
     while i < 7 {
         res[i] = (1 << SHIFTS[i + 1]) - (1 << SHIFTS[i]);
-        res[i + 8] = (1 << SHIFTS[i + 9] - 1) - (1 << SHIFTS[i + 8]);
+        res[i + 8] = (1 << (SHIFTS[i + 9] - 1)) - (1 << SHIFTS[i + 8]);
         i += 1;
     }
     res

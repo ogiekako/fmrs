@@ -13,10 +13,8 @@ pub fn one_way_mate_steps(
         if position.checked_slow(Color::WHITE) {
             return None;
         }
-    } else {
-        if position.checked_slow(Color::BLACK) {
-            return None;
-        }
+    } else if position.checked_slow(Color::BLACK) {
+        return None;
     }
     let mut orig = None;
     let res = one_way_mate_steps_inner(position, movements, &mut orig);
@@ -41,7 +39,7 @@ fn one_way_mate_steps_inner(
 
     let mut seen_positions = NoHashSet::default();
 
-    let mut unused_memo = MemoStub::default();
+    let mut unused_memo = MemoStub;
 
     for step in (initial_step..).step_by(2) {
         if step > 0 {
@@ -71,7 +69,7 @@ fn one_way_mate_steps_inner(
             }
 
             orig.get_or_insert_with(|| position.clone());
-            position.do_move(&movements.last().unwrap());
+            position.do_move(movements.last().unwrap());
         }
 
         assert!(position.turn().is_white(), "{:?}", position);
@@ -93,7 +91,7 @@ fn one_way_mate_steps_inner(
         debug_assert_eq!(movements.len(), prev_len + 1);
 
         orig.get_or_insert_with(|| position.clone());
-        position.do_move(&movements.last().unwrap());
+        position.do_move(movements.last().unwrap());
 
         if step > 60 {
             // Avoid perpetual check

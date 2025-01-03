@@ -2,7 +2,6 @@ use std::{
     collections::{BTreeMap, HashMap},
     hash::{Hash as _, Hasher as _},
     time::Instant,
-    usize,
 };
 
 use fmrs_core::{
@@ -46,7 +45,7 @@ pub(super) fn generate_one_way_mate_with_beam(
         let problems = generate(
             &mut seed,
             parallel,
-            best_problems.get(0).cloned(),
+            best_problems.first().cloned(),
             &start_time,
             &mut seen_stats,
         );
@@ -397,7 +396,7 @@ impl Problem {
 
         let mut hasher = FxHasher::default();
         movements
-            .into_iter()
+            .iter()
             .enumerate()
             .filter(|(i, _)| i % 2 == step % 2)
             .for_each(|(_, m)| m.hash(&mut hasher));

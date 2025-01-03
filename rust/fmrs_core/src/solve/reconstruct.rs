@@ -67,7 +67,7 @@ impl MovementList {
             match self.as_ref() {
                 Self::Nil => return res,
                 Self::Cons { cur, cdr } => {
-                    res.push(cur.clone());
+                    res.push(*cur);
                     self = cdr;
                 }
             }
@@ -159,7 +159,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
                 if memo_previous.get(&digest) == Some(step - 1) {
                     let mut prev_position = position.to_position();
-                    let movement = prev_position.undo_move(&undo_move);
+                    let movement = prev_position.undo_move(undo_move);
                     queue.push_back((
                         position.undone(undo_move),
                         step - 1,

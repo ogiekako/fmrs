@@ -192,7 +192,7 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifuFormat {
             update_move_format(&mut moves, position.clone(), solution);
         }
         let move0 = jkf::MoveFormat::default();
-        vec![move0].into_iter().chain(moves.into_iter()).collect()
+        vec![move0].into_iter().chain(moves).collect()
     };
     JsonKifuFormat {
         header,

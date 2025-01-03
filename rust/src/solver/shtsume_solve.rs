@@ -37,7 +37,7 @@ pub fn shtsume_solve(ssdata: &Ssdata, solutions_upto: usize) -> anyhow::Result<V
         }
 
         for sdata in black_sdata.iter() {
-            let moves = generate_check(&sdata, &mut tbase);
+            let moves = generate_check(sdata, &mut tbase);
 
             for mv in moves.iter().flat_map(|i| i.mlist()) {
                 let mut np = sdata.clone();
@@ -130,7 +130,7 @@ fn ssdata_to_position(ssdata: &Ssdata) -> Position {
         add(c, Kind::Rook, m.hi());
     }
 
-    for (i, &k) in ssdata.board().into_iter().enumerate() {
+    for (i, &k) in ssdata.board().iter().enumerate() {
         if k == Komainf::SPC {
             continue;
         }

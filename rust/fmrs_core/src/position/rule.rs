@@ -13,9 +13,9 @@ const PROMOTABLE_MASKS: [BitBoard; 2] = [
 
 pub(super) fn promotable(pos: Square, c: Color) -> bool {
     if c.is_black() {
-        return PROMOTABLE_MASKS[0].get(pos);
+        PROMOTABLE_MASKS[0].get(pos)
     } else {
-        return PROMOTABLE_MASKS[1].get(pos);
+        PROMOTABLE_MASKS[1].get(pos)
     }
 }
 

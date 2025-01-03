@@ -67,7 +67,7 @@ impl Ord for Movement {
             ) => source1
                 .cmp(source2)
                 .then_with(|| dest1.cmp(dest2))
-                .then_with(|| promote1.cmp(&promote2)),
+                .then_with(|| promote1.cmp(promote2)),
             (Movement::Drop(_, _), Movement::Move { .. }) => std::cmp::Ordering::Less,
             (Movement::Move { .. }, Movement::Drop(_, _)) => std::cmp::Ordering::Greater,
         }

@@ -64,8 +64,8 @@ impl ParallelSolver {
             for mate_position in mate_positions {
                 res.append(&mut reconstruct_solutions(
                     mate_position,
-                    &mut self.memo_next.as_mut(),
-                    &mut self.memo.as_mut(),
+                    &self.memo_next.as_mut(),
+                    &self.memo.as_mut(),
                     self.solutions_upto - res.len(),
                 ));
             }

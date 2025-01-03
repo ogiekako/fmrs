@@ -15,8 +15,8 @@ use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
 use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
-pub(super) fn advance<'a, M: MemoTrait>(
-    position: &'a mut PositionAux,
+pub(super) fn advance<M: MemoTrait>(
+    position: &mut PositionAux,
     memo: &mut M,
     next_step: u16,
     options: &AdvanceOptions,
@@ -86,7 +86,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     fn advance(&mut self) -> Result<()> {
         if let Some(attacker) = &self.attacker {
             attack_preventing_movements(
-                &mut self.position,
+                self.position,
                 self.memo,
                 self.next_step,
                 true,
@@ -113,7 +113,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             }
 
             let empty_attack_squares =
-                reachable_sub(&mut self.position, Color::WHITE, white_king_pos, kind)
+                reachable_sub(self.position, Color::WHITE, white_king_pos, kind)
                     .and_not(self.position.occupied_bb());
 
             for pos in empty_attack_squares {
@@ -207,7 +207,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 let attacker_reachable =
                     self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
                         bitboard::reachable(
-                            &mut self.position,
+                            self.position,
                             Color::BLACK,
                             attacker_pos,
                             attacker_source_kind,
@@ -255,12 +255,12 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
-        let blockers = pinned(&mut self.position, Color::WHITE, Color::BLACK);
+        let blockers = pinned(self.position, Color::WHITE, Color::BLACK);
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
             let mut blocker_dest_cands = bitboard::reachable(
-                &mut self.position,
+                self.position,
                 Color::BLACK,
                 blocker_pos,
                 blocker_kind,
@@ -307,7 +307,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 }
 
 // Helper
-impl<'a, M: MemoTrait> Context<'a, M> {
+impl<M: MemoTrait> Context<'_, M> {
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         if kind == Kind::King {
             let mut np = self.position.clone();

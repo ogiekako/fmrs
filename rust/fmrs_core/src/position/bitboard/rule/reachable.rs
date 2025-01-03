@@ -80,14 +80,14 @@ pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoar
                 return BitBoard::default();
             }
             let occ = (occ | UPPER) & ((1 << p) - 1);
-            (1 << p) - (1 << u64::BITS - 1 - occ.leading_zeros())
+            (1 << p) - (1 << (u64::BITS - 1 - occ.leading_zeros()))
         }
         Color::WHITE => {
             if LOWER >> p & 1 != 0 {
                 return BitBoard::default();
             }
             let occ = occ | LOWER;
-            occ ^ occ - (1 << p + 1)
+            occ ^ (occ - (1 << (p + 1)))
         }
     };
     if shift {

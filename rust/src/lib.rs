@@ -1,5 +1,4 @@
-#![allow(clippy::needless_range_loop)]
-#![allow(clippy::module_inception)]
+#![allow(clippy::needless_range_loop, clippy::module_inception)]
 
 use clap::{Parser, Subcommand};
 pub use command::one_way_mate_steps;
