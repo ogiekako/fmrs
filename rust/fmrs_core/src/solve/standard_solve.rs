@@ -64,8 +64,8 @@ impl StandardSolver {
             for mate_position in self.mate_positions.iter() {
                 res.append(&mut reconstruct_solutions(
                     mate_position,
-                    &mut self.memo_next,
-                    &mut self.memo,
+                    &self.memo_next,
+                    &self.memo,
                     self.solutions_upto - res.len(),
                 ));
             }
@@ -91,7 +91,7 @@ fn next_positions(
     step: u16,
 ) {
     *positions = positions
-        .into_iter()
+        .iter()
         .flat_map(|position| {
             let mut movements = vec![];
             let is_mate = advance_aux(
