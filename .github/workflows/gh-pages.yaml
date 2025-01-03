@@ -21,6 +21,7 @@ jobs:
         run: |
           npm i
           npm run build
+          rm ./docs/.gitignore
           rm ./docs/pkg/.gitignore
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.7.2
