@@ -62,11 +62,11 @@ cargoコマンドが存在しない場合は https://rustup.rs からインス�
 
 ---
 
-# Developer info
+## Developer info
 
 - Benchmark https://ogiekako.github.io/fmrs/dev/bench/index.html
 
-## Web
+### Web
 
 Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) and run
 `npm run serve` or `npm run serve -- --port $PORT`
