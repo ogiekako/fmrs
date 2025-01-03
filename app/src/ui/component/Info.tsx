@@ -1,30 +1,16 @@
-import OverlayTrigger from "react-bootstrap/OverlayTrigger";
-import Tooltip from "react-bootstrap/Tooltip";
 import { BsInfoCircle } from "react-icons/bs";
 
 export default function Info() {
-  const renderTooltip = (props: any) => (
-    <Tooltip {...props}>
-      <ul className="list-group" style={{ textAlign: "left" }}>
-        <li>Left click: select and put</li>
-        <li style={{ whiteSpace: "nowrap" }}>
-          Right click: change orientation
-        </li>
-      </ul>
-    </Tooltip>
-  );
-
   return (
     <div>
-      <OverlayTrigger
-        placement="right"
-        delay={{ show: 100, hide: 100 }}
-        overlay={renderTooltip}
+      <a
+        href="https://github.com/ogiekako/fmrs?tab=readme-ov-file#%E4%BD%BF%E3%81%84%E6%96%B9"
+        target="_blank"
       >
         <div>
-          <BsInfoCircle />
+          <BsInfoCircle className="text-secondary" />
         </div>
-      </OverlayTrigger>
+      </a>
     </div>
   );
 }

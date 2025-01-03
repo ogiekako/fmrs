@@ -1,8 +1,8 @@
-# 高速な協力詰ソルバー
+# Shogi Helpmate Solver
 
-Rust で書かれた、[協力詰]（ばか詰）専用のソルバー
+Rustで書かれた、[協力詰]（ばか詰）専用のソルバー
 
-![help mate solver image](image.png)
+![helpmate solver image](image.png)
 
 [協力詰]: https://ja.wikipedia.org/wiki/%E8%A9%B0%E5%B0%86%E6%A3%8B#%E3%83%95%E3%82%A7%E3%82%A2%E3%83%AA%E3%83%BC%E8%A9%B0%E5%B0%86%E6%A3%8B
 
@@ -12,14 +12,14 @@ https://ogiekako.github.io/fmrs にアクセスします。
 
 - 左クリックで駒移動、右クリックで成、向きの変更
 - キーボードによる操作も可能。[FM]と同じキー割当を採用しています。
-- Solve ボタンを押すと解図がはじまります。
+- Solveボタンを押すと解図がはじまります。
 - 簡易的な作問補助として、「＋」ボタンを押すことで、現在の局面に名前をつけることができます。リロードすると消滅するので注意してください。
 
 [FM]: http://www.dokidoki.ne.jp/home2/takuji/FM.html
 
-## FM との違い
+## FMとの違い
 
-- FM はさまざまなルールをサポートしていますが、本ソルバーは協力詰専用です。
+- FMはさまざまなルールをサポートしていますが、本ソルバーは協力詰専用です。
 - 高速な解図が特徴で、例えば[寿限無]19447手を約5秒で解きます。
 - 非標準駒数やフェアリー駒（石など）のサポートはありません。
 
@@ -55,7 +55,7 @@ cd fmrs/rust
 cargo run -r solve standard '8k/9/9/8N/4b4/9/9/9/9 b RGrb3g4s3n4l18p 1'
 ```
 
-cargo コマンドが存在しない場合は https://rustup.rs からインストールしてください
+cargoコマンドが存在しない場合は https://rustup.rs からインストールしてください
 
 [SFEN]: https://en.wikipedia.org/wiki/Shogi_notation#SFEN
 
