@@ -16,10 +16,6 @@ jobs:
       - name: Set up Rust
         # TODO: update to https://github.com/dtolnay/rust-toolchain
         uses: actions-rs/toolchain@v1
-        with:
-          # https://github.com/webpack/webpack/issues/15566#issuecomment-2421667784
-          toolchain: 1.81.0
-          default: true
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Install & Build
