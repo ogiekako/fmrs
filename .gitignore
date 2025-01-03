@@ -1,2 +1,3 @@
 /node_modules
 cachegrind.out.*
+package-lock.json
