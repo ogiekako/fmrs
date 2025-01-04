@@ -2,6 +2,7 @@ import * as model from "../../model";
 import Board from "./Board";
 import Hands from "./Hands";
 import * as types from "../types";
+import { Shifter } from "./Shifter";
 
 export default function Position(props: {
   position: model.Position;
@@ -42,12 +43,16 @@ export default function Position(props: {
           props.dispatch({ ty: "click-hand", color: "white", kind })
         }
       />
-      <Board
-        pieces={props.position.board}
-        selected={boardSelected}
-        onClick={(pos) => props.dispatch({ ty: "click-board", pos })}
-        onRightClick={(pos) => props.dispatch({ ty: "right-click-board", pos })}
-      />
+      <Shifter dispatch={props.dispatch}>
+        <Board
+          pieces={props.position.board}
+          selected={boardSelected}
+          onClick={(pos) => props.dispatch({ ty: "click-board", pos })}
+          onRightClick={(pos) =>
+            props.dispatch({ ty: "right-click-board", pos })
+          }
+        />
+      </Shifter>
       <Hands
         hands={props.position.hands["black"]}
         selected={blackHandSelected}

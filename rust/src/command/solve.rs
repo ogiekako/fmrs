@@ -28,7 +28,7 @@ pub fn solve(algorithm: Algorithm, sfen_or_file_or_url: Option<String>) -> anyho
                 let mut input = "".to_string();
                 std::io::stdin().read_line(&mut input)?;
 
-                let s = parse_input(&input.trim())?;
+                let s = parse_input(input.trim())?;
 
                 print!("position {} moves", s);
                 s

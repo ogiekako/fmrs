@@ -4,8 +4,6 @@ import * as types from "../types";
 import * as solve from "../../solve";
 import SolveResponse from "./SolveResponse";
 
-const USE_WASM = true;
-
 export default function SolveButton(props: {
   position: model.Position;
   solving: types.Solving | undefined;

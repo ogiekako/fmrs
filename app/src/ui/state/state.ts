@@ -66,6 +66,8 @@ export function reduce(orig: types.State, event: types.Event): types.State {
       state = cloneState(orig);
       state.solutionLimit = event.n;
       return state;
+    case "shift":
+      return shifted(orig, event.dir);
   }
 }
 
@@ -511,4 +513,26 @@ function tryMove(state: types.State, from: Source, to: Dest) {
       true
     );
   }
+}
+
+function shifted(orig: types.State, dir: "up" | "down" | "left" | "right") {
+  const state = cloneState(orig);
+  for (let i = 0; i < 9; i++) {
+    for (let j = 0; j < 9; j++) {
+      const piece = orig.position.board[i][j];
+      let [ni, nj] = {
+        up: [i - 1, j],
+        down: [i + 1, j],
+        left: [i, j + 1],
+        right: [i, j - 1],
+      }[dir];
+      if (ni < 0) ni += 9;
+      if (ni >= 9) ni -= 9;
+      if (nj < 0) nj += 9;
+      if (nj >= 9) nj -= 9;
+
+      state.position.board[ni][nj] = piece;
+    }
+  }
+  return state;
 }

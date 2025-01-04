@@ -83,6 +83,10 @@ export type Event =
   | {
       ty: "set-solution-limit";
       n: number;
+    }
+  | {
+      ty: "shift";
+      dir: "up" | "down" | "left" | "right";
     };
 
 export type Dispatcher = (event: Event) => void;
