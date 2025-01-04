@@ -1,23 +1,34 @@
 use fmrs_core::{position::PositionExt, sfen};
+use url::Url;
 
 use crate::solver::{self, Algorithm};
 
-pub fn solve(algorithm: Algorithm, sfen_or_file: Option<String>) -> anyhow::Result<()> {
+fn parse_input(sfen_or_file_or_url: &str) -> anyhow::Result<String> {
+    Ok(match sfen_or_file_or_url {
+        x if x.ends_with(".sfen") => std::fs::read_to_string(x)?,
+        x if x.starts_with("http") => {
+            let url = Url::parse(x)?;
+            url.query_pairs()
+                .find(|(k, _)| k == "sfen")
+                .map(|(_, v)| v.to_string())
+                .ok_or_else(|| anyhow::anyhow!("no sfen query parameter"))?
+        }
+        _ => sfen_or_file_or_url.to_string(),
+    })
+}
+
+pub fn solve(algorithm: Algorithm, sfen_or_file_or_url: Option<String>) -> anyhow::Result<()> {
     let position = sfen::decode_position(
-        match sfen_or_file {
-            Some(sfen_or_file) => {
-                if sfen_or_file.ends_with(".sfen") {
-                    std::fs::read_to_string(sfen_or_file)?
-                } else {
-                    sfen_or_file
-                }
-            }
+        match sfen_or_file_or_url {
+            Some(x) => parse_input(&x)?,
             None => {
                 eprintln!("Enter SFEN (hint: https://ogiekako.github.io/fmrs)");
                 eprint!("> ");
 
-                let mut s = "".to_string();
-                std::io::stdin().read_line(&mut s)?;
+                let mut input = "".to_string();
+                std::io::stdin().read_line(&mut input)?;
+
+                let s = parse_input(&input.trim())?;
 
                 print!("position {} moves", s);
                 s
