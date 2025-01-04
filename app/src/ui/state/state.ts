@@ -20,6 +20,7 @@ export function newState(): types.State {
       name,
     ]),
     solveResponse: undefined,
+    solutionLimit: 5,
   };
 }
 
@@ -61,6 +62,10 @@ export function reduce(orig: types.State, event: types.Event): types.State {
       return state;
     case "key-down":
       return handleKeyDown(orig, event.key);
+    case "set-solution-limit":
+      state = cloneState(orig);
+      state.solutionLimit = event.n;
+      return state;
   }
 }
 

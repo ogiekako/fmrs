@@ -8,6 +8,7 @@ export function cloneState(state: types.State): types.State {
     solving: state.solving && Object.assign({}, state.solving),
     problems: cloneProblems(state.problems),
     solveResponse: state.solveResponse && Object.freeze(state.solveResponse),
+    solutionLimit: state.solutionLimit,
   };
 }
 

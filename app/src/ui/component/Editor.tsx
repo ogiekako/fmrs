@@ -47,6 +47,7 @@ export function Editor(props: {}) {
         position={state.position}
         solving={state.solving}
         solveResponse={state.solveResponse}
+        solutionLimit={state.solutionLimit}
         dispatch={dispatch}
       />
     </div>

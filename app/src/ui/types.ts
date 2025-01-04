@@ -7,6 +7,7 @@ export type State = {
   solving: Solving | undefined;
   problems: Array<Problem>;
   solveResponse: SolveResponse | undefined;
+  solutionLimit: number;
 };
 
 export type Problem = [Position, /* name */ string];
@@ -78,6 +79,10 @@ export type Event =
   | {
       ty: "key-down";
       key: string;
+    }
+  | {
+      ty: "set-solution-limit";
+      n: number;
     };
 
 export type Dispatcher = (event: Event) => void;
