@@ -73,7 +73,7 @@ impl ParallelSolver {
                     self.solutions_upto - res.len(),
                 ));
             }
-            res.sort();
+            res.sort_by(|a, b| a.0.cmp(&b.0));
             return Ok(SolverStatus::Mate(res));
         }
         self.step += 2;

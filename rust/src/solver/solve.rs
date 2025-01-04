@@ -55,7 +55,7 @@ pub fn solve_with_progress(
         Algorithm::Parallel => {
             parallel_solve::parallel_solve(position, progress, solutions_upto, start)
         }
-        Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto),
+        Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto, false),
         Algorithm::Shtsume => {
             let ssdata = Ssdata::from_sfen(&position.sfen());
             shtsume_solve::shtsume_solve(&ssdata, solutions_upto)
@@ -68,8 +68,8 @@ mod tests {
     use solve::Algorithm;
 
     use crate::solver::solve;
+    use fmrs_core::position::Movement;
     use fmrs_core::sfen;
-    use fmrs_core::{position::Movement, solve::Solution};
 
     #[test]
     fn test_solve() {
@@ -160,14 +160,14 @@ mod tests {
         ] {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(tc.0).expect("Failed to parse");
-                let want: Vec<Solution> =
+                let want: Vec<Vec<Movement>> =
                     tc.1.clone()
                         .into_iter()
                         .map(|x| sfen::decode_moves(x).unwrap())
                         .collect();
 
                 eprintln!("Solving {:?} (algo={:?})", board, algorithm);
-                let mut got = solve(board, None, algorithm,None).unwrap();
+                let mut got = solve(board, None, algorithm,None).unwrap().into_iter().map(|x| x.0).collect::<Vec<_>>();
                 got.sort();
 
                 assert_eq!(got, want);
@@ -189,7 +189,11 @@ mod tests {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(sfen).unwrap();
                 eprintln!("solving {}", sfen);
-                let got = solve(board.clone(), None, algorithm, None).unwrap();
+                let got = solve(board.clone(), None, algorithm, None)
+                    .unwrap()
+                    .into_iter()
+                    .map(|x| x.0)
+                    .collect::<Vec<_>>();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
             }

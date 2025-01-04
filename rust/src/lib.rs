@@ -2,8 +2,9 @@
 
 use clap::{Parser, Subcommand};
 pub use command::one_way_mate_steps;
-use command::{bench::BenchCommand, OneWayMateGenerator};
-use fmrs_core::sfen;
+use command::{
+    batch::Criteria, batch_square::batch_square, bench::BenchCommand, OneWayMateGenerator,
+};
 use solver::Algorithm;
 
 mod command;
@@ -42,9 +43,12 @@ enum Action {
         #[arg(long)]
         goal: Option<usize>,
     },
-    FromImage {
-        url: String,
+    Batch {
+        file: Option<String>,
+        #[arg(long, default_value = "max-unique")]
+        criteria: Criteria,
     },
+    BatchSquare,
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
@@ -65,7 +69,15 @@ pub async fn do_main() -> anyhow::Result<()> {
             parallel,
             goal,
         } => command::one_way_mate(algorithm, seed, parallel, goal)?,
-        Action::FromImage { url } => println!("{}", sfen::from_image_url(&url)?),
+        Action::Batch { file, criteria } => {
+            let ans = command::batch(file, criteria)?;
+            for (mut position, solution) in ans {
+                println!("{} {}", solution.0.len(), position.sfen());
+            }
+        }
+        Action::BatchSquare => {
+            batch_square()?;
+        }
     }
     Ok(())
 }

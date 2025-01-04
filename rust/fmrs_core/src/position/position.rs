@@ -419,7 +419,7 @@ impl PositionAux {
         &self.core
     }
 
-    pub(crate) fn set_stone(&mut self, stone: BitBoard) {
+    pub fn set_stone(&mut self, stone: BitBoard) {
         self.stone = Some(stone);
     }
 
@@ -447,8 +447,11 @@ impl PositionAux {
         self.stone.as_ref().map_or(false, |stone| stone.get(pos))
     }
 
-    pub(crate) fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
-        self.core.undo_move(token)
+    pub fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
+        let mut core = self.core.clone();
+        let movement = core.undo_move(token);
+        *self = Self::new(core);
+        movement
     }
 
     // TODO: remember attackers

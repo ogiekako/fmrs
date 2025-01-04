@@ -6,8 +6,9 @@ use fmrs_core::{
 pub fn standard_solve(
     position: PositionAux,
     solutions_upto: usize,
+    silent: bool,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut solver = StandardSolver::new(position, solutions_upto);
+    let mut solver = StandardSolver::new(position, solutions_upto, silent);
     loop {
         let status = solver.advance()?;
         match status {

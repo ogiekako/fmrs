@@ -349,9 +349,9 @@ fn bench_solve97(c: &mut Criterion) {
     let mut times = vec![];
     for _ in 0..n_samples {
         let start = std::time::Instant::now();
-        let solutions = standard_solve(position.clone(), 1);
+        let solutions = standard_solve(position.clone(), 1, true);
         debug_assert_eq!(1, solutions.as_ref().unwrap().len());
-        debug_assert_eq!(97, solutions.as_ref().unwrap()[0].len());
+        debug_assert_eq!(97, solutions.as_ref().unwrap()[0].0.len());
 
         times.push(start.elapsed());
     }
@@ -379,7 +379,7 @@ fn bench_heavy_problem(
         let start = std::time::Instant::now();
         let solutions = solve(position.clone(), 1.into(), algo, None).unwrap();
         assert_eq!(1, solutions.len());
-        assert_eq!(steps, solutions[0].len());
+        assert_eq!(steps, solutions[0].0.len());
 
         times.push(start.elapsed());
         assert!(times[0] > Duration::from_millis(100));

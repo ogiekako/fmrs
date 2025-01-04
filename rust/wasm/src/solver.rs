@@ -50,6 +50,7 @@ impl Solver {
             Algorithm::Standard => Box::new(StandardSolver::new(
                 position.clone(),
                 solutions_upto as usize,
+                true,
             )),
             Algorithm::Parallel => Box::new(ParallelSolver::new(
                 position.clone(),
@@ -111,7 +112,7 @@ fn convert_solutions_to_sfen(solutions: &[Solution]) -> Vec<String> {
     let mut res = vec![];
     for solution in solutions {
         let mut moves = vec![];
-        for movement in solution {
+        for movement in solution.0.iter() {
             moves.push(sfen::encode_move(movement))
         }
         res.push(moves.join(" "));

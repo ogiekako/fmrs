@@ -1,7 +1,7 @@
 use fmrs_core::{
     memo::{Memo, MemoTrait},
     piece::{Color, Kind},
-    position::{BitBoard, Position, PositionExt, Square},
+    position::{position::PositionAux, BitBoard, Position, Square},
     solve::{reconstruct::PositionTrait, reconstruct_solutions, Solution},
 };
 use shtsume_rs::ffi::{
@@ -185,12 +185,12 @@ impl PositionTrait for SdataPosition {
         digest(&self.inner, self.pawn_drop)
     }
 
-    fn to_position(&self) -> Position {
+    fn to_position(&self) -> PositionAux {
         let mut position = ssdata_to_position(self.inner.core());
         if self.pawn_drop {
             position.set_pawn_drop(true);
         }
-        position
+        PositionAux::new(position)
     }
 
     fn undo_digest(&self, undo_move: &fmrs_core::position::UndoMove) -> u64 {

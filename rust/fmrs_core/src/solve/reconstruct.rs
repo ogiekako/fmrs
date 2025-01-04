@@ -5,7 +5,7 @@ use crate::memo::MemoTrait;
 use crate::nohash::NoHashMap;
 
 use crate::position::position::PositionAux;
-use crate::position::{previous, BitBoard, Movement, Position, PositionExt, UndoMove};
+use crate::position::{previous, BitBoard, Movement, PositionExt, UndoMove};
 
 use super::Solution;
 
@@ -13,7 +13,7 @@ pub trait PositionTrait: Clone {
     fn digest(&self) -> u64;
     fn undo_digest(&self, undo_move: &UndoMove) -> u64;
     fn undone(&self, undo_move: &UndoMove) -> Self;
-    fn to_position(&self) -> Position;
+    fn to_position(&self) -> PositionAux;
     fn stone(&self) -> Option<BitBoard>;
 }
 
@@ -29,8 +29,8 @@ impl PositionTrait for PositionAux {
         p.undo_move(undo_move);
         p
     }
-    fn to_position(&self) -> Position {
-        self.core().clone()
+    fn to_position(&self) -> PositionAux {
+        self.clone()
     }
     fn stone(&self) -> Option<BitBoard> {
         *self.stone()
@@ -136,7 +136,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 break;
             }
             if step == 0 {
-                res.push(following_movements.vec());
+                res.push((following_movements.vec(), mate_position.to_position()));
                 continue;
             }
             {
@@ -156,11 +156,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
             undo_moves.clear();
 
-            let mut position_aux = PositionAux::new(position.to_position());
-            if let Some(stone) = position.stone() {
-                position_aux.set_stone(stone);
-            }
-
+            let mut position_aux = position.to_position();
             previous(&mut position_aux, step < self.mate_in, &mut undo_moves);
 
             for undo_move in undo_moves.iter() {

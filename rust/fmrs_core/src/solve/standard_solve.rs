@@ -8,6 +8,7 @@ use super::{reconstruct_solutions, Solution};
 use log::info;
 
 pub struct StandardSolver {
+    initial_position: PositionAux,
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
@@ -15,6 +16,7 @@ pub struct StandardSolver {
     memo: Memo,
     memo_next: Memo,
     stone: Option<BitBoard>,
+    silent: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -25,7 +27,9 @@ pub enum SolverStatus {
 }
 
 impl StandardSolver {
-    pub fn new(position: PositionAux, solutions_upto: usize) -> Self {
+    pub fn new(position: PositionAux, solutions_upto: usize, silent: bool) -> Self {
+        let initial_position = position.clone();
+
         let mut memo = Memo::default();
         memo.contains_or_insert(position.digest(), 0);
         let mut memo_next = Memo::default();
@@ -45,6 +49,7 @@ impl StandardSolver {
         std::mem::swap(&mut memo, &mut memo_next);
 
         Self {
+            initial_position,
             solutions_upto,
             step: 1,
             positions,
@@ -52,6 +57,7 @@ impl StandardSolver {
             memo,
             memo_next,
             stone,
+            silent,
         }
     }
 
@@ -72,20 +78,32 @@ impl StandardSolver {
         if !self.mate_positions.is_empty() {
             let mut res = vec![];
             for mate_position in self.mate_positions.iter() {
-                res.append(&mut reconstruct_solutions(
-                    mate_position,
-                    &self.memo_next,
-                    &self.memo,
-                    self.solutions_upto - res.len(),
-                ));
+                if self.solutions_upto > res.len() {
+                    let mut sol = reconstruct_solutions(
+                        mate_position,
+                        &self.memo_next,
+                        &self.memo,
+                        self.solutions_upto - res.len(),
+                    );
+                    assert!(
+                        !sol.is_empty(),
+                        "{:?} {:?}",
+                        self.initial_position,
+                        mate_position
+                    );
+                    res.append(&mut sol);
+                }
             }
-            res.sort();
+            res.sort_by(|a, b| a.0.cmp(&b.0));
 
-            info!(
-                "Found {} solutions searching {} positions",
-                res.len(),
-                self.memo.len() + self.memo_next.len(),
-            );
+            if !self.silent {
+                info!(
+                    "Found {} solutions searching {}+{} positions",
+                    res.len(),
+                    self.memo.len(),
+                    self.memo_next.len(),
+                );
+            }
 
             return Ok(SolverStatus::Mate(res));
         }
