@@ -1,11 +1,11 @@
-import { useReducer } from "react";
+import { useEffect, useReducer } from "react";
 import { newState, reduce } from "../state/state";
 import Info from "./Info";
 import Position from "./Position";
 import Problems from "./Problems";
 import Sfen from "./Sfen";
 import SolveButton from "./SolveButton";
-import { encodeSfen } from "../../model";
+import { decodeSfen, encodeSfen } from "../../model";
 
 export function Editor(props: {}) {
   const [state, dispatch] = useReducer(reduce, newState());
@@ -14,8 +14,22 @@ export function Editor(props: {}) {
   const url = new URL(window.location.href);
   if (url.searchParams.get("sfen") !== sfen) {
     url.searchParams.set("sfen", sfen);
-    window.history.replaceState(null, "", url);
+    window.history.pushState({}, "", url);
   }
+  useEffect(() => {
+    const onPopState = () => {
+      const url = new URL(window.location.href);
+      const sfen = url.searchParams.get("sfen");
+      if (sfen) {
+        dispatch({
+          ty: "set-position",
+          position: decodeSfen(sfen),
+        });
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  });
 
   return (
     <div>
