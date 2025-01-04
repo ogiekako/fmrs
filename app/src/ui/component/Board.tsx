@@ -64,11 +64,12 @@ function Square(props: {
 }
 
 function pieceString(p: model.Piece) {
-  const letter = MAPPING[p.kind][p.promoted ? 1 : 0];
+  const color = p === "O" ? "black" : p.color;
+  const letter = p === "O" ? "⬤" : MAPPING[p.kind][p.promoted ? 1 : 0];
   return (
     <div
       style={{
-        transform: p.color === "black" ? "rotate(0)" : "rotate(180deg)",
+        transform: color === "black" ? "rotate(0)" : "rotate(180deg)",
         textAlign: "center",
       }}
     >

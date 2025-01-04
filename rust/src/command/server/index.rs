@@ -39,7 +39,7 @@ enum SolveResponse {
 // Returns line delimited json stream
 #[post("/solve")]
 async fn solve(body_sfen: String) -> HttpResponse {
-    let problem = match sfen::decode_position(&body_sfen) {
+    let mut problem = match sfen::decode_position(&body_sfen) {
         Ok(problem) => problem,
         Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
     };
@@ -55,9 +55,9 @@ async fn solve(body_sfen: String) -> HttpResponse {
             Algorithm::Standard,
             None,
         ) {
-            Ok(solutions) => {
-                SolveResponse::Solved(fmrs_core::converter::convert(&problem, &solutions).into())
-            }
+            Ok(solutions) => SolveResponse::Solved(
+                fmrs_core::converter::convert(&mut problem, &solutions).into(),
+            ),
             Err(e) => SolveResponse::Error(e.to_string()),
         };
         res_tx.unbounded_send(res).unwrap();

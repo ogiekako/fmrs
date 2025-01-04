@@ -107,7 +107,6 @@ fn one_way_mate_steps_inner(
 
 #[cfg(test)]
 mod tests {
-    use fmrs_core::position::Position;
     use rand::{rngs::SmallRng, Rng, SeedableRng};
 
     use super::*;
@@ -120,9 +119,8 @@ mod tests {
         let mut got: Vec<usize> = vec![];
         for _ in 0..3 {
             let mut sum_steps = 0;
-            let mut position = PositionAux::new(
-                Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap(),
-            );
+            let mut position =
+                PositionAux::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
 
             for _ in 0..1_000_000 {
                 let action = random_action(&mut rng);
@@ -140,12 +138,10 @@ mod tests {
 
     #[test]
     fn oneway43() {
-        let mut position = PositionAux::new(
-            Position::from_sfen(
-                "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3RK1k/P1pGP1+p1p/1PNNN3P/RL6L b -",
-            )
-            .unwrap(),
-        );
+        let mut position = PositionAux::from_sfen(
+            "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3RK1k/P1pGP1+p1p/1PNNN3P/RL6L b -",
+        )
+        .unwrap();
         assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(43));
     }
 
@@ -161,7 +157,7 @@ mod tests {
                 54,
             ),
         ] {
-            let mut position = PositionAux::new(Position::from_sfen(sfen).unwrap());
+            let mut position = PositionAux::from_sfen(sfen).unwrap();
             assert_eq!(position.turn(), Color::WHITE);
             assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(step));
         }
@@ -169,9 +165,8 @@ mod tests {
 
     #[test]
     fn test_diamond() {
-        let mut position = PositionAux::new(
-            Position::from_sfen(include_str!("../../../problems/diamond.sfen")).unwrap(),
-        );
+        let mut position =
+            PositionAux::from_sfen(include_str!("../../../problems/diamond.sfen")).unwrap();
         assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(55));
     }
 

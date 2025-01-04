@@ -6,11 +6,12 @@ use fmrs::solver::standard_solve::standard_solve;
 use fmrs::solver::{solve, Algorithm};
 use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
+use fmrs_core::position::advance::advance::advance_aux;
 use fmrs_core::position::advance::attack_prevent::attacker;
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
-use fmrs_core::position::{advance::advance, checked, AdvanceOptions, Position, Square};
+use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
 use fmrs_core::sfen::decode_position;
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
@@ -22,11 +23,11 @@ use shtsume_rs::ffi::tbase::Tbase;
 use shtsume_rs::ffi::Global;
 
 fn bench_black_advance(c: &mut Criterion) {
-    let black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
+    let mut black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
     let mut result = vec![];
     let mut memo = Memo::default();
-    advance(
-        &black_position,
+    advance_aux(
+        &mut black_position,
         &mut memo,
         1,
         &AdvanceOptions::default(),
@@ -37,8 +38,8 @@ fn bench_black_advance(c: &mut Criterion) {
         b.iter(|| {
             result.clear();
             memo.clear();
-            advance(
-                &black_position,
+            advance_aux(
+                &mut black_position,
                 &mut memo,
                 1,
                 &AdvanceOptions::default(),
@@ -79,8 +80,8 @@ fn bench_white_advance(c: &mut Criterion) {
     let mut result = vec![];
     let mut memo = Memo::default();
 
-    advance(
-        &white_positions[0].0,
+    advance_aux(
+        &mut white_positions[0].0,
         &mut memo,
         1,
         &AdvanceOptions::default(),
@@ -92,7 +93,7 @@ fn bench_white_advance(c: &mut Criterion) {
             for (white_position, want) in white_positions.iter_mut() {
                 result.clear();
                 memo.clear();
-                advance(
+                advance_aux(
                     black_box(white_position),
                     &mut memo,
                     1,
@@ -137,14 +138,14 @@ fn bench_white_advance_shtsume(c: &mut Criterion) {
 }
 
 fn bench_black_pinned(c: &mut Criterion) {
-    let black_position =
+    let mut black_position =
         decode_position("8l/l1SS1PGP1/1PPNP1Pp1/R1g5k/9/2s1gnbsP/3nN4/1lg3l2/K2+B2r2 b 8P2p 1")
             .unwrap();
     let mut result = vec![];
     c.bench_function("black_pinned", |b| {
         b.iter(|| {
-            advance(
-                black_box(&black_position),
+            advance_aux(
+                black_box(&mut black_position),
                 &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
@@ -156,12 +157,12 @@ fn bench_black_pinned(c: &mut Criterion) {
 }
 
 fn bench_solve3(c: &mut Criterion) {
-    let position = decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap();
+    let mut position = decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap();
     let mut result = vec![];
     c.bench_function("solve3", |b| {
         b.iter(|| {
-            advance(
-                black_box(&position),
+            advance_aux(
+                black_box(&mut position),
                 &mut Memo::default(),
                 1,
                 &AdvanceOptions::default(),
@@ -173,19 +174,15 @@ fn bench_solve3(c: &mut Criterion) {
 }
 
 fn bench_oneway(c: &mut Criterion) {
-    let positions = [
+    let mut positions = [
         (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap(), None),
         (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+p+B+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/2n+p+p1k1g/7s1/1K1gs2+p1 b GSgsnlp 1").unwrap(), None),
         (decode_position(include_str!("../problems/diamond.sfen")).unwrap(), Some(55)),
     ];
     c.bench_function("oneway", |b| {
         b.iter(|| {
-            positions.iter().for_each(|(position, steps)| {
-                let mut position = PositionAux::new(position.clone());
-                assert_eq!(
-                    one_way_mate_steps(black_box(&mut position), &mut vec![]),
-                    *steps
-                )
+            positions.iter_mut().for_each(|(position, steps)| {
+                assert_eq!(one_way_mate_steps(black_box(position), &mut vec![]), *steps)
             })
         })
     });

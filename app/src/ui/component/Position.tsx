@@ -30,6 +30,10 @@ export default function Position(props: {
       className={props.disabled ? "text-muted" : ""}
       onKeyDown={(e) => {
         e.preventDefault();
+        if (e.key === ".") {
+          document.getElementById("solve-button")?.click();
+          return;
+        }
         props.dispatch({
           ty: "key-down",
           key: e.key,

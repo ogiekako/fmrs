@@ -1,12 +1,12 @@
 use std::time::Instant;
 
-use fmrs_core::position::Position;
+use fmrs_core::position::position::PositionAux;
 
 use fmrs_core::solve::parallel_solve::ParallelSolver;
 use fmrs_core::solve::{Solution, SolverStatus};
 
 pub(super) fn parallel_solve(
-    position: Position,
+    position: PositionAux,
     _progress: futures::channel::mpsc::UnboundedSender<usize>,
     solutions_upto: usize,
     start: Option<Instant>,

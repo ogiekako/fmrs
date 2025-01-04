@@ -124,6 +124,39 @@ function handleClick(
     }
     return state;
   }
+  if (selectedPiece === "O") {
+    if (state.selected.ty === "hand") {
+      throw new Error("inconsistent state: stone in hand is selected");
+    }
+    switch (event.ty) {
+      case "click-hand":
+        state.selected = {
+          ty: "hand",
+          color: event.color,
+          kind: event.kind,
+        };
+        break;
+      case "click-board":
+        tryMove(
+          state,
+          {
+            ty: "board",
+            pos: state.selected.pos,
+          },
+          {
+            ty: "board",
+            pos: event.pos,
+            color: "black",
+            promoted: false,
+          }
+        );
+        break;
+      default:
+        ((_: never) => {})(event);
+    }
+    state.selected = undefined;
+    return state;
+  }
 
   const from =
     state.selected.ty === "hand"
@@ -159,6 +192,9 @@ function handleRightClick(
   maybeClearSolveResponse(state);
   const mutablePiece = state.position.board[pos[0]][pos[1]];
   if (!mutablePiece) {
+    return state;
+  }
+  if (mutablePiece === "O") {
     return state;
   }
   if (mutablePiece.kind === "G" || mutablePiece.kind === "K") {
@@ -342,7 +378,7 @@ function handleKeyDown(orig: types.State, key: string) {
       );
     } else {
       const piece = keyToPiece(key);
-      if (piece) {
+      if (piece && piece !== "O") {
         tryMove(
           state,
           {
@@ -378,25 +414,35 @@ function handleKeyDown(orig: types.State, key: string) {
   const piece = keyToPiece(key);
   if (!piece) return state;
 
-  tryMove(
-    state,
-    {
-      ty: "hand",
-      color: "white",
-      kind: piece.kind,
-    },
-    {
-      ty: "board",
-      pos: state.selected.pos,
-      color: piece.color,
-      promoted: piece.promoted,
+  if (piece === "O") {
+    const dest =
+      state.position.board[state.selected.pos[0]][state.selected.pos[1]];
+    if (dest && dest !== "O") {
+      state.position.hands["white"][dest.kind]++;
     }
-  );
+    state.position.board[state.selected.pos[0]][state.selected.pos[1]] = piece;
+  } else {
+    tryMove(
+      state,
+      {
+        ty: "hand",
+        color: "white",
+        kind: piece.kind,
+      },
+      {
+        ty: "board",
+        pos: state.selected.pos,
+        color: piece.color,
+        promoted: piece.promoted,
+      }
+    );
+  }
   return state;
 }
 
 function keyToPiece(key: string) {
   let upper = key.toUpperCase();
+  if (upper === "E") return "O" as const;
   const color = key == upper ? ("white" as const) : ("black" as const);
   const kind = (
     {
@@ -459,9 +505,13 @@ function tryMove(state: types.State, from: Source, to: Dest) {
       state.position.hands[from.color][from.kind]--;
       state.position.hands[to.color][from.kind]++;
     } else {
-      const source = state.position.board[to.pos[0]][to.pos[1]];
+      let dest = state.position.board[to.pos[0]][to.pos[1]];
+      if (dest === "O") {
+        state.position.board[to.pos[0]][to.pos[1]] = undefined;
+        dest = undefined;
+      }
       if (
-        source?.kind !== from.kind &&
+        dest?.kind !== from.kind &&
         state.position.hands[from.color][from.kind] === 0
       ) {
         return;
@@ -473,8 +523,8 @@ function tryMove(state: types.State, from: Source, to: Dest) {
         promoted: to.promoted,
       };
       state.position.hands[from.color][from.kind]--;
-      if (source) {
-        state.position.hands[from.color][source.kind]++;
+      if (dest) {
+        state.position.hands[from.color][dest.kind]++;
       }
     }
   } else {
@@ -482,9 +532,12 @@ function tryMove(state: types.State, from: Source, to: Dest) {
     if (!source) return;
     if (to.ty === "hand") {
       state.position.board[from.pos[0]][from.pos[1]] = undefined;
-      state.position.hands[to.color][source.kind]++;
+      if (source !== "O") {
+        state.position.hands[to.color][source.kind]++;
+      }
     } else {
       if (from.pos[0] === to.pos[0] && from.pos[1] === to.pos[1]) {
+        if (source === "O") return;
         state.position.board[from.pos[0]][from.pos[1]] = {
           color: to.color,
           kind: source.kind,
@@ -493,8 +546,10 @@ function tryMove(state: types.State, from: Source, to: Dest) {
       } else {
         const dest = state.position.board[to.pos[0]][to.pos[1]];
         state.position.board[to.pos[0]][to.pos[1]] = source;
-        if (dest) {
-          state.position.hands[source.color][dest.kind]++;
+        if (dest && dest !== "O") {
+          state.position.hands[source === "O" ? "white" : source.color][
+            dest.kind
+          ]++;
         }
         state.position.board[from.pos[0]][from.pos[1]] = undefined;
       }

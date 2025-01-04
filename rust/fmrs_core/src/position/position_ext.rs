@@ -220,7 +220,7 @@ impl PositionExt for Position {
 mod tests {
     use crate::{
         piece::Kind,
-        position::{Movement, PositionExt, Square},
+        position::{Movement, Square},
     };
 
     #[test]
@@ -230,7 +230,7 @@ mod tests {
             (
                 sfen::tests::START,
                 Movement::move_without_hint(Square::new(1, 6), Square::new(1, 5), false),
-                "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w -",
+                "lnsgkgsnl/1r5b1/ppppppppp/9/9/7P1/PPPPPPP1P/1B5R1/LNSGKGSNL w - 1",
             ),
             (
                 sfen::tests::RYUO,
@@ -241,13 +241,13 @@ mod tests {
                 sfen::tests::RYUO,
                 // Capture and promote.
                 Movement::move_without_hint(Square::new(7, 4), Square::new(6, 6), true),
-                "8l/1l+R2P3/p2pBG1pp/kps1p4/N2P2G2/P1P1P2PP/1P+n6/1KSG3+r1/LN2+p3L b Sbgsn3p",
+                "8l/1l+R2P3/p2pBG1pp/kps1p4/N2P2G2/P1P1P2PP/1P+n6/1KSG3+r1/LN2+p3L b Sbgsn3p 1",
             ),
         ] {
             let (board_sfen, movement, want) = (tc.0, tc.1, tc.2);
             let mut board = sfen::decode_position(board_sfen).unwrap();
             board.do_move(&movement);
-            assert_eq!(want, sfen::encode_position(&board));
+            assert_eq!(want, sfen::encode_position(&mut board));
         }
     }
 }

@@ -1,6 +1,6 @@
 use fmrs_core::{
     converter,
-    position::Position,
+    position::position::PositionAux,
     sfen,
     solve::{parallel_solve::ParallelSolver, Solution, SolverStatus, StandardSolver},
 };
@@ -26,7 +26,7 @@ impl SolverTrait for ParallelSolver {
 
 #[wasm_bindgen]
 pub struct Solver {
-    initial_position: Position,
+    initial_position: PositionAux,
     inner: Box<dyn SolverTrait>,
     no_solution: bool,
     solutions: Vec<Solution>,
@@ -98,8 +98,8 @@ impl Solver {
         solutions_sfen.join("\n")
     }
 
-    pub fn solutions_kif(&self) -> String {
-        converter::convert_to_kif(&self.initial_position, &self.solutions)
+    pub fn solutions_kif(&mut self) -> String {
+        converter::convert_to_kif(&mut self.initial_position, &self.solutions)
     }
 
     pub fn solutions_count(&self) -> u32 {

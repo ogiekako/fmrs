@@ -134,8 +134,8 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     // #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.position.white_king_pos());
-        let king_range =
-            king_power(self.position.white_king_pos()).and_not(self.position.black_bb());
+        let king_range = king_power(self.position.white_king_pos())
+            .and_not(self.position.color_bb_and_stone(Color::BLACK));
 
         let attacker_cands =
             self.position.pawn_silver_goldish() & lion_king_range & self.position.black_bb();
@@ -228,7 +228,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                     let mut attack_squares = self
                         .position
                         .white_king_attack_squares(attacker_dest_kind)
-                        .and_not(self.position.black_bb());
+                        .and_not(self.position.color_bb_and_stone(Color::BLACK));
 
                     if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
                         attack_squares &= BitBoard::BLACK_PROMOTABLE;

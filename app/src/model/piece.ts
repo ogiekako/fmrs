@@ -1,7 +1,11 @@
 import { Color, Kind } from ".";
 
-export type Piece = {
-  color: Color;
-  kind: Kind;
-  promoted: boolean;
-};
+export const STONE = "O" as const;
+
+export type Piece =
+  | {
+      color: Color;
+      kind: Kind;
+      promoted: boolean;
+    }
+  | typeof STONE;

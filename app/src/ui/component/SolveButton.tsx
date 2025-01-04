@@ -3,6 +3,7 @@ import * as model from "../../model";
 import * as types from "../types";
 import * as solve from "../../solve";
 import SolveResponse from "./SolveResponse";
+import { positionStone } from "../../model/position";
 
 export default function SolveButton(props: {
   position: model.Position;
@@ -17,6 +18,7 @@ export default function SolveButton(props: {
   const solveButtonWithProgress = (
     <div className="d-flex py-2" style={{ gap: "5px" }}>
       <Button
+        id="solve-button"
         variant={buttonVariant}
         onClick={async (event) => {
           event.currentTarget.blur();
@@ -46,6 +48,7 @@ export default function SolveButton(props: {
               cancelToken,
               onStep
             );
+            const stone = positionStone(props.position);
             const millis = new Date().getTime() - start.getTime();
             if (response) {
               props.dispatch({
@@ -53,6 +56,7 @@ export default function SolveButton(props: {
                 response: {
                   ty: "solved",
                   response,
+                  stone,
                   millis,
                 },
               });

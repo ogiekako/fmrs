@@ -2,7 +2,7 @@ use crate::memo::{Memo, MemoTrait};
 
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
-use crate::position::{Position, PositionExt};
+use crate::position::{BitBoard, Position, PositionExt};
 
 use super::{reconstruct_solutions, Solution};
 use log::info;
@@ -11,9 +11,10 @@ pub struct StandardSolver {
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
-    mate_positions: Vec<Position>,
+    mate_positions: Vec<PositionAux>,
     memo: Memo,
     memo_next: Memo,
+    stone: Option<BitBoard>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -24,16 +25,23 @@ pub enum SolverStatus {
 }
 
 impl StandardSolver {
-    pub fn new(position: Position, solutions_upto: usize) -> Self {
+    pub fn new(position: PositionAux, solutions_upto: usize) -> Self {
         let mut memo = Memo::default();
         memo.contains_or_insert(position.digest(), 0);
         let mut memo_next = Memo::default();
 
         let mut mate_positions = vec![];
 
-        let mut positions = vec![position];
+        let stone = *position.stone();
+        let mut positions = vec![position.core().clone()];
 
-        next_positions(&mut mate_positions, &mut memo_next, &mut positions, 0);
+        next_positions(
+            &mut mate_positions,
+            &mut memo_next,
+            &mut positions,
+            0,
+            &stone,
+        );
         std::mem::swap(&mut memo, &mut memo_next);
 
         Self {
@@ -43,6 +51,7 @@ impl StandardSolver {
             mate_positions,
             memo,
             memo_next,
+            stone,
         }
     }
 
@@ -57,6 +66,7 @@ impl StandardSolver {
             &mut self.memo_next,
             &mut self.positions,
             self.step,
+            &self.stone,
         );
 
         if !self.mate_positions.is_empty() {
@@ -85,17 +95,22 @@ impl StandardSolver {
 }
 
 fn next_positions(
-    mate_positions: &mut Vec<Position>,
+    mate_positions: &mut Vec<PositionAux>,
     memo_next: &mut Memo,
     positions: &mut Vec<Position>,
     step: u16,
+    stone: &Option<BitBoard>,
 ) {
     *positions = positions
         .iter()
-        .flat_map(|position| {
+        .flat_map(|core| {
+            let mut position = PositionAux::new(core.clone());
+            if let Some(stone) = stone {
+                position.set_stone(*stone);
+            }
             let mut movements = vec![];
             let is_mate = advance_aux(
-                &mut PositionAux::new(position.clone()),
+                &mut position,
                 memo_next,
                 step + 1,
                 &Default::default(),
@@ -104,11 +119,11 @@ fn next_positions(
             .unwrap();
 
             if is_mate {
-                mate_positions.push(position.clone());
+                mate_positions.push(position);
             }
 
             movements.into_iter().map(move |m| {
-                let mut np = position.clone();
+                let mut np = core.clone();
                 np.do_move(&m);
                 np
             })
@@ -117,19 +132,24 @@ fn next_positions(
 }
 
 fn next_next_positions(
-    mate_positions: &mut Vec<Position>,
+    mate_positions: &mut Vec<PositionAux>,
     memo: &mut Memo,
     memo_next: &mut Memo,
     positions: &mut Vec<Position>,
     step: u16,
+    stone: &Option<BitBoard>,
 ) {
     let mut prev = vec![];
     std::mem::swap(&mut prev, positions);
 
-    for position in prev {
+    for core in prev {
+        let mut position = PositionAux::new(core.clone());
+        if let Some(stone) = stone {
+            position.set_stone(*stone);
+        }
         let mut movements = vec![];
         let is_mate = advance_aux(
-            &mut PositionAux::new(position.clone()),
+            &mut position,
             memo_next,
             step + 1,
             &Default::default(),
@@ -138,18 +158,23 @@ fn next_next_positions(
         .unwrap();
 
         if is_mate {
-            mate_positions.push(position.clone());
+            mate_positions.push(position);
         } else if !mate_positions.is_empty() {
             movements.clear();
         }
 
         for m in movements {
-            let mut np = position.clone();
+            let mut np = core.clone();
             np.do_move(&m);
+
+            let mut position = PositionAux::new(np.clone());
+            if let Some(stone) = stone {
+                position.set_stone(*stone);
+            }
 
             let mut movements = vec![];
             advance_aux(
-                &mut PositionAux::new(np.clone()),
+                &mut position,
                 memo,
                 step + 2,
                 &Default::default(),

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-export default function Solution(props: { kif: string }) {
+export default function Solution(props: { kif: string; stone: boolean[][] }) {
   const outer = useRef<HTMLDivElement>(null);
   const id = generateId(props.kif);
 
@@ -28,7 +28,7 @@ export default function Solution(props: { kif: string }) {
       inner.style.visibility = "hidden";
 
       KifuForJS.loadString(props.kif, id).then(() => {
-        tweakKifForJs(url);
+        tweakKifForJs(url, props.stone);
         inner.style.visibility = "";
       });
     }, 200);
@@ -40,7 +40,7 @@ export default function Solution(props: { kif: string }) {
         validurl = undefined;
       }
     };
-  }, [props.kif, outer, id]);
+  }, [props.kif, props.stone, outer, id]);
   return <div ref={outer}></div>;
 }
 
@@ -52,7 +52,7 @@ function generateId(s: string): string {
   return "i" + n;
 }
 
-function tweakKifForJs(url: string) {
+function tweakKifForJs(url: string, stone: boolean[][]) {
   // Remove preset info
   const info = document.getElementsByClassName(
     "kifuforjs-info"
@@ -93,5 +93,26 @@ function tweakKifForJs(url: string) {
       a.download = "solution.kif";
       a.dispatchEvent(new MouseEvent("click"));
     });
+  }
+
+  const cells = document.getElementsByClassName("kifuforjs-cell");
+  for (let i = 0; i < cells.length; i++) {
+    const cell = cells[i] as HTMLElement;
+    const x = 8 - (i % 9);
+    const y = Math.floor(i / 9);
+    if (stone[y][x]) {
+      const div = document.createElement("div");
+      cell.style.position = "relative";
+      cell.appendChild(div);
+      const [w, h] = [cell.scrollWidth, cell.scrollHeight];
+      const r = Math.round(w * 0.85);
+      div.style.position = "absolute";
+      div.style.left = Math.round((w - r) / 2) + "px";
+      div.style.top = Math.round((h - r) / 2) + "px";
+      div.style.width = r + "px";
+      div.style.height = r + "px";
+      div.style.borderRadius = "50%";
+      div.style.backgroundColor = "black";
+    }
   }
 }

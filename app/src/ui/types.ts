@@ -32,6 +32,7 @@ export type SolveResponse = { millis: number } & (
   | {
       ty: "solved";
       response: solve.Response;
+      stone: boolean[][];
     }
   | {
       ty: "no-solution";

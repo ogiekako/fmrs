@@ -15,14 +15,13 @@ use std::fmt::Debug;
 
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sfen_url())
+        write!(f, "{}", PositionAux::new(self.clone()).sfen_url())
     }
 }
 
 use super::advance::attack_prevent::attacker;
 use super::bitboard::reachable_sub;
 use super::bitboard::BitBoard;
-use super::bitboard::ColorBitBoard;
 use super::bitboard::KindBitBoard;
 use super::hands::Hands;
 use super::zobrist::zobrist;
@@ -94,10 +93,6 @@ impl Position {
         self.kind_bb.unset(pos, k);
     }
 
-    pub fn from_sfen(s: &str) -> anyhow::Result<Self> {
-        sfen::decode_position(s)
-    }
-
     pub fn shift(&mut self, dir: Direction) {
         self.black_bb.shift(dir);
         self.kind_bb.shift(dir);
@@ -117,24 +112,13 @@ impl Position {
         zobrist(color, pos, kind)
     }
 
-    pub fn sfen(&self) -> String {
-        sfen::encode_position(self)
-    }
-
-    pub fn sfen_url(&self) -> String {
-        sfen::sfen_to_image_url(&self.sfen())
-    }
-
-    pub fn color_bb(&self) -> ColorBitBoard {
-        let occupied = self.kind_bb.occupied();
-        let black = self.black();
-        let white = occupied.and_not(black);
-        ColorBitBoard::new(black, white, occupied)
-    }
-
     // #[inline(never)]
     pub fn digest(&self) -> u64 {
         self.digest ^ self.hands.x
+    }
+
+    pub fn sfen(&self) -> String {
+        PositionAux::new(self.clone()).sfen()
     }
 }
 
@@ -146,11 +130,20 @@ pub struct PositionAux {
     white_bb: Option<BitBoard>,
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
+    stone: Option<BitBoard>,
 }
+
+impl PartialEq for PositionAux {
+    fn eq(&self, other: &Self) -> bool {
+        self.core == other.core && self.stone == other.stone
+    }
+}
+
+impl Eq for PositionAux {}
 
 impl Debug for PositionAux {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.core.sfen_url())
+        write!(f, "{}", self.clone().sfen_url())
     }
 }
 
@@ -162,11 +155,11 @@ impl PositionAux {
         }
     }
 
-    pub fn moved_digest(&self, movement: &Movement) -> u64 {
+    pub(crate) fn moved_digest(&self, movement: &Movement) -> u64 {
         self.core.moved_digest(movement)
     }
 
-    pub fn kind_bb(&mut self, kind: Kind) -> BitBoard {
+    pub(crate) fn kind_bb(&mut self, kind: Kind) -> BitBoard {
         self.core.kind_bb().bitboard(kind)
     }
 
@@ -174,25 +167,52 @@ impl PositionAux {
         self.kind_bb(kind) & self.color_bb(color)
     }
 
-    pub fn occupied_bb(&mut self) -> BitBoard {
-        *self
-            .occupied
-            .get_or_insert_with(|| self.core.kind_bb().occupied())
+    pub(crate) fn occupied_bb(&mut self) -> BitBoard {
+        if let Some(occupied) = &self.occupied {
+            return *occupied;
+        }
+        let mut res = self.core.kind_bb().occupied();
+        if let Some(stone) = self.stone() {
+            res |= *stone;
+        }
+        self.occupied = Some(res);
+        res
     }
 
-    pub fn black_bb(&self) -> BitBoard {
+    pub(crate) fn capturable_by(&mut self, color: Color) -> BitBoard {
+        if color.is_black() {
+            self.white_bb()
+        } else {
+            self.core.black()
+        }
+    }
+
+    pub(crate) fn color_bb_and_stone(&mut self, color: Color) -> BitBoard {
+        let mut res = if color.is_black() {
+            self.core.black()
+        } else {
+            self.white_bb()
+        };
+        if let Some(stone) = self.stone() {
+            res |= *stone;
+        }
+        res
+    }
+
+    pub(crate) fn black_bb(&self) -> BitBoard {
         self.core.black()
     }
 
-    pub fn white_bb(&mut self) -> BitBoard {
+    pub(crate) fn white_bb(&mut self) -> BitBoard {
         if self.white_bb.is_none() {
             let occupied = self.occupied_bb();
-            self.white_bb = Some(occupied.and_not(self.black_bb()));
+            let white_bb = occupied.and_not(self.color_bb_and_stone(Color::BLACK));
+            self.white_bb = Some(white_bb);
         }
         self.white_bb.unwrap()
     }
 
-    pub fn color_bb(&mut self, color: Color) -> BitBoard {
+    pub(crate) fn color_bb(&mut self, color: Color) -> BitBoard {
         if color.is_black() {
             self.core.black()
         } else {
@@ -214,6 +234,9 @@ impl PositionAux {
     }
 
     pub fn get(&mut self, pos: Square) -> Option<(Color, Kind)> {
+        if self.has_stone(pos) {
+            return None;
+        }
         if !self.occupied_bb().get(pos) {
             return None;
         }
@@ -227,20 +250,16 @@ impl PositionAux {
         self.core.turn()
     }
 
-    pub fn pawn_silver_goldish(&self) -> BitBoard {
+    pub(crate) fn pawn_silver_goldish(&self) -> BitBoard {
         self.core.kind_bb().pawn_silver_goldish()
     }
 
-    pub fn bishopish(&mut self) -> BitBoard {
+    pub(crate) fn bishopish(&mut self) -> BitBoard {
         self.core.kind_bb.bishopish()
     }
 
-    pub fn rookish(&mut self) -> BitBoard {
+    pub(crate) fn rookish(&mut self) -> BitBoard {
         self.core.kind_bb.rookish()
-    }
-
-    pub fn goldish(&self) -> BitBoard {
-        self.core.kind_bb().goldish()
     }
 
     pub fn pawn_drop(&self) -> bool {
@@ -251,14 +270,14 @@ impl PositionAux {
         attacker(self, king_color, true).is_some()
     }
 
-    pub fn white_king_pos(&mut self) -> Square {
+    pub(crate) fn white_king_pos(&mut self) -> Square {
         if self.white_king_pos.is_none() {
             self.white_king_pos = Some((self.kind_bb(Kind::King) & self.white_bb()).singleton());
         }
         self.white_king_pos.unwrap()
     }
 
-    pub fn black_king_pos(&mut self) -> Option<Square> {
+    pub(crate) fn black_king_pos(&mut self) -> Option<Square> {
         if self.black_king_pos.is_none() {
             self.black_king_pos = Some((self.kind_bb(Kind::King) & self.black_bb()).next());
         }
@@ -329,6 +348,7 @@ impl PositionAux {
     }
 
     pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
+        debug_assert!(!self.has_stone(pos));
         if let Some(bb) = self.occupied.as_mut() {
             bb.set(pos)
         }
@@ -395,8 +415,40 @@ impl PositionAux {
         reachable_sub(self, Color::WHITE, white_king_pos, kind)
     }
 
-    pub fn core(&self) -> &Position {
+    pub(crate) fn core(&self) -> &Position {
         &self.core
+    }
+
+    pub(crate) fn set_stone(&mut self, stone: BitBoard) {
+        self.stone = Some(stone);
+    }
+
+    pub fn from_sfen(s: &str) -> anyhow::Result<Self> {
+        sfen::decode_position(s)
+    }
+
+    pub fn sfen(&mut self) -> String {
+        sfen::encode_position(self)
+    }
+
+    pub fn sfen_url(&mut self) -> String {
+        sfen::sfen_to_image_url(&self.sfen())
+    }
+
+    pub fn set_pawn_drop(&mut self, pawn_drop: bool) {
+        self.core.set_pawn_drop(pawn_drop);
+    }
+
+    pub(crate) fn stone(&self) -> &Option<BitBoard> {
+        &self.stone
+    }
+
+    fn has_stone(&self, pos: Square) -> bool {
+        self.stone.as_ref().map_or(false, |stone| stone.get(pos))
+    }
+
+    pub(crate) fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
+        self.core.undo_move(token)
     }
 
     // TODO: remember attackers
@@ -404,7 +456,10 @@ impl PositionAux {
 
 #[cfg(test)]
 mod tests {
-    use crate::{direction::Direction, position::Square};
+    use crate::{
+        direction::Direction,
+        position::{position::PositionAux, BitBoard, Square},
+    };
 
     use super::{Color, Kind, Position};
 
@@ -433,8 +488,8 @@ mod tests {
                 "9/9/5B3/4kb3/9/5+R3/2R6/9/9 b 4g4s4n4l18p",
             ),
         ] {
-            let mut pos1 = Position::from_sfen(pos1).unwrap();
-            let mut pos2 = Position::from_sfen(pos2).unwrap();
+            let mut pos1 = PositionAux::from_sfen(pos1).unwrap();
+            let mut pos2 = PositionAux::from_sfen(pos2).unwrap();
 
             for pawn_drop1 in [true, false] {
                 for pawn_drop2 in [true, false] {
@@ -444,8 +499,14 @@ mod tests {
                     assert_ne!(pos1, pos2);
                     assert_ne!(pos1.digest(), pos2.digest(), "{:?} {:?}", pos1, pos2);
 
-                    pretty_assertions::assert_eq!(Position::from_sfen(&pos1.sfen()).unwrap(), pos1);
-                    pretty_assertions::assert_eq!(Position::from_sfen(&pos2.sfen()).unwrap(), pos2);
+                    pretty_assertions::assert_eq!(
+                        PositionAux::from_sfen(&pos1.sfen()).unwrap(),
+                        pos1
+                    );
+                    pretty_assertions::assert_eq!(
+                        PositionAux::from_sfen(&pos2.sfen()).unwrap(),
+                        pos2
+                    );
                 }
             }
         }
@@ -454,5 +515,17 @@ mod tests {
     #[test]
     fn position_size() {
         assert_eq!(std::mem::size_of::<Position>(), 96);
+    }
+
+    #[test]
+    fn test_stone() {
+        use crate::position::Position;
+
+        let mut position = PositionAux::new(Position::default());
+        let mut stone = BitBoard::default();
+        stone.set(Square::new(0, 0));
+        position.set_stone(stone);
+
+        assert_eq!(position.sfen(), "8O/9/9/9/9/9/9/9/9 b - 1");
     }
 }

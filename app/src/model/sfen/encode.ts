@@ -39,6 +39,9 @@ function encodeBoard(b: Board): string {
 }
 
 function encodePiece(p: Piece): string {
+  if (p === "O") {
+    return "O";
+  }
   let res = "";
   if (p.promoted) {
     res += "+";

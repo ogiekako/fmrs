@@ -1,6 +1,7 @@
 use anyhow::bail;
 use percent_encoding::utf8_percent_encode;
 use percent_encoding::NON_ALPHANUMERIC;
+use position::PositionAux;
 use url::Url;
 
 /// SFEN format is defined in
@@ -50,12 +51,23 @@ fn decode_hand_kind(ch: char) -> anyhow::Result<(Color, Kind)> {
     bail!("Illegal hand kind {}", ch)
 }
 
-// Encoded string doesn't include optional move count data.
-pub fn encode_position(board: &Position) -> String {
+pub fn encode_position(board: &mut PositionAux) -> String {
     let mut res = String::new();
+    let stone = *board.stone();
     for row in 0..9 {
         let mut count_empty = 0i32;
         for col in (0..9).rev() {
+            if let Some(stone) = stone {
+                if stone.get(Square::new(col, row)) {
+                    if count_empty > 0 {
+                        res.push_str(&count_empty.to_string());
+                        count_empty = 0;
+                    }
+                    res.push('O');
+                    continue;
+                }
+            }
+
             if let Some((c, k)) = board.get(Square::new(col, row)) {
                 if count_empty > 0 {
                     res.push_str(&count_empty.to_string());
@@ -107,12 +119,14 @@ pub fn encode_position(board: &Position) -> String {
     if board.pawn_drop() {
         res.push(' ');
         res.push_str(PAWN_DROP_STEP);
+    } else {
+        res.push_str(" 1");
     }
     res
 }
 
 // Ingore optional move count if any.
-pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
+pub fn decode_position(sfen: &str) -> anyhow::Result<PositionAux> {
     let v: Vec<&str> = sfen.split(' ').collect();
     if v.len() < 3 {
         bail!("Insufficient number of fields");
@@ -121,11 +135,25 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
     if rows.len() != 9 {
         bail!("There should be exactly 9 rows");
     }
-    let mut board = Position::default();
+    let mut board = PositionAux::default();
+    let mut stone = BitBoard::empty();
+
     for row in 0..9 {
         let mut col = 9isize;
         let mut promote = false;
         for ch in rows[row].chars() {
+            if ch == 'O' {
+                if promote {
+                    bail!("stone shouldn't be promoted");
+                }
+                col -= 1;
+                if col < 0 {
+                    bail!("Too long row");
+                }
+                stone.set(Square::new(col as usize, row));
+                continue;
+            }
+
             if ch == '+' {
                 if promote {
                     bail!("+ shouldn't continue twice");
@@ -170,6 +198,9 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<Position> {
         if col != 0 {
             bail!("Illegal row length");
         }
+    }
+    if !stone.is_empty() {
+        board.set_stone(stone);
     }
 
     match v[1] {
@@ -229,7 +260,7 @@ pub fn from_image_url(url: &str) -> anyhow::Result<String> {
 
 #[test]
 fn test_encode() {
-    let mut board = Position::default();
+    let mut board = PositionAux::default();
 
     board.set(Square::new(0, 0), Color::WHITE, Lance);
     board.set(Square::new(3, 1), Color::BLACK, Pawn);
@@ -275,33 +306,33 @@ fn test_encode() {
     board.set_turn(Color::WHITE);
 
     assert_eq!(
-        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
-        &encode_position(&board)
+        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1",
+        &encode_position(&mut board)
     );
 }
 
 #[test]
 fn test_decode() {
     assert_eq!(
-        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p",
+        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1",
         &encode_position(
-            &decode_position(
-                "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p"
+            &mut decode_position(
+                "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1"
             )
             .expect("Failed to decode")
         )
     );
     assert_eq!(
-        "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -",
+        "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1",
         &encode_position(
-            &decode_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -")
+            &mut decode_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1")
                 .expect("Failed to decode")
         )
     );
     assert_eq!(
-        "3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p",
+        "3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1",
         &encode_position(
-            &decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
+            &mut decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
                 .expect("Failed to decode")
         )
     );
@@ -381,13 +412,11 @@ pub fn encode_move(m: &Movement) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::{
-        piece::Kind,
-        position::Square,
-        position::{Movement, Position},
-    };
+    use url::Url;
 
-    use super::{decode_moves, decode_position, encode_position};
+    use crate::{piece::Kind, position::Movement, position::Square};
+
+    use super::{decode_moves, decode_position, encode_position, position::PositionAux};
     #[test]
     fn test_decode_moves() {
         assert_eq!(
@@ -401,34 +430,32 @@ pub mod tests {
     }
 
     extern crate percent_encoding;
-    const FLAGMENT: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC.remove(b'-');
     fn to_url(sfen: &str) -> String {
-        let s = percent_encoding::utf8_percent_encode(sfen, FLAGMENT);
-        let s = format!("{}", s);
-        let t = percent_encoding::utf8_percent_encode(&s, FLAGMENT);
-        format!("https://ogiekako.github.io/fmrs/?sfen={}%201", t)
+        let mut url = Url::parse("https://ogiekako.github.io/fmrs/").unwrap();
+        url.query_pairs_mut().append_pair("sfen", sfen);
+        url.to_string()
     }
 
-    pub fn encode_position_url(board: &Position) -> String {
+    pub fn encode_position_url(board: &mut PositionAux) -> String {
         to_url(&encode_position(board))
     }
 
-    pub const START: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b -";
+    pub const START: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
     // The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
     pub const RYUO: &str =
-        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p";
-    // https://ogiekako.github.io/fmrs/?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L%20b%20Sbgn3p%201
+        "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1";
+    // https://ogiekako.github.io/fmrs/?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L+b+Sbgn3p+1
 
     #[test]
     fn test_encode_position_url() {
         use pretty_assertions::assert_eq;
 
-        let board = decode_position(START).unwrap();
-        assert_eq!(encode_position_url(&board),
-    "https://ogiekako.github.io/fmrs/?sfen=lnsgkgsnl%252F1r5b1%252Fppppppppp%252F9%252F9%252F9%252FPPPPPPPPP%252F1B5R1%252FLNSGKGSNL%2520b%2520-%201");
+        let mut board = decode_position(START).unwrap();
+        assert_eq!(encode_position_url(&mut board),
+    "https://ogiekako.github.io/fmrs/?sfen=lnsgkgsnl%2F1r5b1%2Fppppppppp%2F9%2F9%2F9%2FPPPPPPPPP%2F1B5R1%2FLNSGKGSNL+b+-+1");
 
-        let board = decode_position(RYUO).unwrap();
-        assert_eq!(encode_position_url(&board),
-    "https://ogiekako.github.io/fmrs/?sfen=8l%252F1l%252BR2P3%252Fp2pBG1pp%252Fkps1p4%252FNn1P2G2%252FP1P1P2PP%252F1PS6%252F1KSG3%252Br1%252FLN2%252Bp3L%2520w%2520Sbgn3p%201")
+        let mut board = decode_position(RYUO).unwrap();
+        assert_eq!(encode_position_url(&mut board),
+    "https://ogiekako.github.io/fmrs/?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L+w+Sbgn3p+1")
     }
 }

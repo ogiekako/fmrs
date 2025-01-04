@@ -1,5 +1,7 @@
 use anyhow::{bail, Result};
 
+use crate::position::BitBoard;
+
 #[derive(Debug, Clone, Default)]
 pub struct AdvanceOptions {
     pub no_memo: bool,
@@ -7,6 +9,8 @@ pub struct AdvanceOptions {
     pub max_allowed_branches: Option<usize>,
 
     pub no_insertion: bool,
+
+    pub stone: Option<BitBoard>,
 }
 
 impl AdvanceOptions {

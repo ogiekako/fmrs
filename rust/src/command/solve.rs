@@ -1,4 +1,4 @@
-use fmrs_core::{position::PositionExt, sfen};
+use fmrs_core::sfen;
 use url::Url;
 
 use crate::solver::{self, Algorithm};

@@ -5,7 +5,6 @@ use crate::solver::shtsume_solve;
 use crate::solver::standard_solve;
 use fmrs_core::piece::*;
 use fmrs_core::position::position::PositionAux;
-use fmrs_core::position::Position;
 use fmrs_core::solve::Solution;
 use shtsume_rs::ffi::ssdata::Ssdata;
 
@@ -24,7 +23,7 @@ impl Algorithm {
 }
 
 pub fn solve(
-    board: Position,
+    board: PositionAux,
     solution_upto: Option<usize>,
     algorithm: Algorithm,
     start: Option<Instant>,
@@ -35,7 +34,7 @@ pub fn solve(
 
 pub fn solve_with_progress(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
-    position: Position,
+    mut position: PositionAux,
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
     start: Option<Instant>,
@@ -43,13 +42,12 @@ pub fn solve_with_progress(
     if position.turn() != Color::BLACK {
         anyhow::bail!("The turn should be from black");
     }
-    let mut position_aux = PositionAux::new(position.clone());
-    if position_aux.checked_slow(Color::WHITE) {
+    if position.checked_slow(Color::WHITE) {
         anyhow::bail!("on black's turn, white is already checked.");
     }
     debug_assert_ne!(
-        position_aux.turn() == Color::BLACK,
-        position_aux.checked_slow(Color::WHITE)
+        position.turn() == Color::BLACK,
+        position.checked_slow(Color::WHITE)
     );
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);

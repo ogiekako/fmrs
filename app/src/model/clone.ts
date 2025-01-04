@@ -12,11 +12,12 @@ export function clonePosition(position: Position): Position {
 
 function cloneBoard(board: Board): Board {
   return board.map((col) =>
-    col.map((piece) => (piece ? clonePiece(piece) : undefined)),
+    col.map((piece) => (piece ? clonePiece(piece) : undefined))
   );
 }
 
 function clonePiece(piece: Piece): Piece {
+  if (piece === "O") return piece;
   return {
     color: piece.color,
     kind: piece.kind,

@@ -15,10 +15,10 @@ pub fn reachable(
     kind: Kind,
     capture_same_color: bool,
 ) -> BitBoard {
-    let exclude = if color.is_white() == capture_same_color {
-        position.black_bb()
+    let exclude = if color.is_white() ^ capture_same_color {
+        position.color_bb_and_stone(Color::WHITE)
     } else {
-        position.white_bb()
+        position.color_bb_and_stone(Color::BLACK)
     };
     reachable_sub(position, color, pos, kind).and_not(exclude)
 }

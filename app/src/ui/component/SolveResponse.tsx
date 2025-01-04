@@ -1,5 +1,6 @@
 import * as types from "../types";
 import Solution from "./Solution";
+import * as model from "../../model";
 
 export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;
@@ -18,7 +19,10 @@ export default function SolveResponse(props: {
   return props.solveResponse.ty === "solved" ? (
     <div>
       {text}
-      <Solution kif={props.solveResponse.response.kif} />
+      <Solution
+        kif={props.solveResponse.response.kif}
+        stone={props.solveResponse.stone}
+      />
     </div>
   ) : (
     text

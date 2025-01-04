@@ -3,10 +3,11 @@ use std::collections::HashMap;
 use shogi_kifu_converter::converter::ToKif as _;
 
 use crate::jkf::{self, JsonKifuFormat};
+use crate::position::position::PositionAux;
 use crate::solve::Solution;
 use crate::{
     piece::{Color, Kind},
-    position::{Hands, Movement, Position, PositionExt, Square},
+    position::{Hands, Movement, Square},
 };
 
 fn color(color: Color) -> jkf::Color {
@@ -56,7 +57,7 @@ fn hands(hands: Hands) -> [jkf::Hand; 2] {
     res
 }
 
-fn initial(position: &Position) -> jkf::Initial {
+fn initial(position: &mut PositionAux) -> jkf::Initial {
     let color = jkf::Color::Black;
     let board = {
         let mut board = [[jkf::Piece::default(); 9]; 9];
@@ -98,7 +99,7 @@ fn tail_move_format(move_move_format: jkf::MoveMoveFormat) -> jkf::MoveFormat {
 
 fn update_move_format(
     mut move_format: &mut Vec<jkf::MoveFormat>,
-    mut position: Position,
+    mut position: PositionAux,
     solution: &Solution,
 ) {
     let mut i = 0;
@@ -183,7 +184,7 @@ fn update_move_format(
     }
 }
 
-pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifuFormat {
+pub fn convert(position: &mut PositionAux, solutions: &[Solution]) -> JsonKifuFormat {
     let header = HashMap::default();
     let initial = Some(initial(position));
     let moves = {
@@ -201,7 +202,7 @@ pub fn convert(position: &Position, solutions: &[Solution]) -> JsonKifuFormat {
     }
 }
 
-pub fn convert_to_kif(position: &Position, solutions: &[Solution]) -> String {
+pub fn convert_to_kif(position: &mut PositionAux, solutions: &[Solution]) -> String {
     let jkf = convert(position, solutions);
     jkf.to_kif_owned()
 }
@@ -209,8 +210,9 @@ pub fn convert_to_kif(position: &Position, solutions: &[Solution]) -> String {
 #[cfg(test)]
 mod tests {
     use crate::jkf::JsonKifuFormat;
+    use crate::position::position::PositionAux;
+    use crate::solve::StandardSolver;
     use crate::solve::{Solution, SolverStatus};
-    use crate::{position::Position, solve::StandardSolver};
 
     #[test]
     fn convert() {
@@ -231,19 +233,19 @@ mod tests {
             let want: JsonKifuFormat = serde_json::from_str(want).unwrap();
             let want = serde_json::to_string(&want).unwrap(); // normalize
 
-            let problem = crate::sfen::decode_position(problem).unwrap();
+            let mut problem = crate::sfen::decode_position(problem).unwrap();
 
             let mut solutions = solve(problem.clone(), 10).unwrap();
             solutions.sort();
 
-            let got = super::convert(&problem, &solutions);
+            let got = super::convert(&mut problem, &solutions);
             let got = serde_json::to_string(&got).unwrap();
             eprintln!("got = {}", got);
             pretty_assertions::assert_eq!(got, want);
         }
     }
 
-    fn solve(position: Position, solutions_upto: usize) -> anyhow::Result<Vec<Solution>> {
+    fn solve(position: PositionAux, solutions_upto: usize) -> anyhow::Result<Vec<Solution>> {
         let mut solver = StandardSolver::new(position, solutions_upto);
         loop {
             let status = solver.advance()?;

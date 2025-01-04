@@ -146,10 +146,10 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     fn king_move(&mut self) -> Result<()> {
         let king_color = self.position.turn();
         let attacker_color = king_color.opposite();
-        let attacker_color_bb = self.position.color_bb(attacker_color);
+        let attacker_color_bb = self.position.capturable_by(king_color);
 
         let mut king_reachable = king_power(self.position.must_turn_king_pos())
-            .and_not(self.position.color_bb(king_color));
+            .and_not(self.position.color_bb_and_stone(king_color));
         if king_reachable.is_empty() {
             return Ok(());
         }
@@ -228,7 +228,8 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         };
 
         // Move
-        let around_dest = king_power(dest) & self.position.color_bb(self.position.turn());
+        let around_dest =
+            king_power(dest) & self.position.capturable_by(self.position.turn().opposite());
         for source_pos in around_dest {
             let source_kind = self.position.must_get_kind(source_pos);
             if source_kind == Kind::King {
@@ -423,7 +424,7 @@ pub fn attacker(
 ) -> Option<Attacker> {
     let mut attacker: Option<Attacker> = None;
 
-    let mut opponent_bb = position.color_bb(king_color.opposite());
+    let mut opponent_bb = position.capturable_by(king_color);
     let king_pos = position.must_king_pos(king_color);
 
     let king_power_area = (king_power(king_pos) | knight_power(king_color, king_pos)) & opponent_bb;

@@ -7,7 +7,9 @@ export function decodeSfen(sfen: string): Position {
 
   let remainingKings = 2;
   for (const row of board) {
-    remainingKings -= row.filter((piece) => piece?.kind === "K").length;
+    remainingKings -= row.filter(
+      (piece) => piece != "O" && piece?.kind === "K"
+    ).length;
   }
   hands.white["K"] += Math.max(0, remainingKings);
 
@@ -49,6 +51,9 @@ function decodeRow(s: string): (Piece | undefined)[] {
 }
 
 function decodePiece(c: string, promoted: boolean): Piece {
+  if (c === "O") {
+    return "O";
+  }
   const color = "A" <= c && c <= "Z" ? "black" : "white";
   let kind: Kind;
   switch (c.toUpperCase()) {
@@ -110,6 +115,9 @@ function decodeHands(s: string): { black: Hands; white: Hands } {
       n = 1;
     }
     let piece = decodePiece(s[i], false);
+    if (piece === "O") {
+      throw new Error("stone in hand");
+    }
     if (piece.color === "black") {
       black[piece.kind] = n;
     } else {

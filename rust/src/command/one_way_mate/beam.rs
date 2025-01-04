@@ -6,7 +6,7 @@ use std::{
 
 use fmrs_core::{
     piece::{Color, Kind},
-    position::{position::PositionAux, Movement, Position},
+    position::{position::PositionAux, Movement},
 };
 use log::{debug, info};
 use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
@@ -353,8 +353,9 @@ fn random_action(rng: &mut SmallRng, allow_black_capture: bool) -> Action {
 
 fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
     // TOOD: Use more random positions
-    let initial_position =
-        Position::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1").unwrap();
+    let initial_position = PositionAux::from_sfen("4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1")
+        .unwrap()
+        .clone();
 
     let base_seed = *seed;
     *seed += count as u64;
@@ -366,7 +367,7 @@ fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
             if (i + 1) % 1000 == 0 {
                 debug!("generate_one_way_mate_positions: {}", i + 1);
             }
-            let mut position = PositionAux::new(initial_position.clone());
+            let mut position = initial_position.clone();
 
             let mut movements = vec![];
             loop {
