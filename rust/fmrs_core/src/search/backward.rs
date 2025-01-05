@@ -1,4 +1,5 @@
 use anyhow::bail;
+use log::info;
 
 use crate::{
     memo::MemoStub,
@@ -21,6 +22,13 @@ pub fn backward_search(
         if !search.advance()? {
             break;
         }
+        if search.step % 40 == 0 {
+            info!(
+                "backward step={} count={}",
+                search.step,
+                search.positions.len()
+            );
+        }
     }
 
     let mut positions = search
@@ -30,7 +38,7 @@ pub fn backward_search(
         .map(|p| PositionAux::new(p.clone(), *initial_position.stone()))
         .collect::<Vec<_>>();
 
-    if !black_position || search.step % 2 == 1 {
+    if !black_position || search.step % 2 == 1 || search.step == 0 {
         return Ok((search.step, positions));
     }
 
@@ -275,6 +283,10 @@ mod tests {
                         "9/9/9/9/9/5OOOO/5O2p/5Ok+p1/5O2R b - 1",
                     ],
                 ),
+            ),
+            (
+                "6ppp/6P2/9/9/9/5OOOO/5O2k/5O1PR/5O2P w - 1",
+                (0, vec!["6ppp/6P2/9/9/9/5OOOO/5O2k/5O1PR/5O2P w - 1"]),
             ),
         ] {
             let initial_position = PositionAux::from_sfen(sfen).unwrap();

@@ -453,6 +453,12 @@ impl PositionAux {
         self.core.undo_move(token)
     }
 
+    pub fn col_has_pawn(&mut self, color: Color, col: usize) -> bool {
+        let pawn_bb = self.bitboard(color, Kind::Pawn).u128();
+        let mask = (1 << col * 9 + 9) - (1 << col * 9);
+        pawn_bb & mask != 0
+    }
+
     // TODO: remember attackers
 }
 
