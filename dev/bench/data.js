@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1736052990880,
+  "lastUpdate": 1736062543301,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -20681,6 +20681,120 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 67761,
             "range": "± 17",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "5ce7cdea03a8129b10e8e98ef68d754436887b10",
+          "message": "Use backward search in bench-square\n\nmate in 77:\nhttps://ogiekako.github.io/fmrs/?sfen=4p1pp1%2F4PP1P1%2F9%2F9%2F9%2F3OOOOOO%2F3O2P1P%2F3O2R2%2F3Ok1%2BP2%20b%20%2D%201\n4p1pp1/4PP1P1/9/9/9/3OOOOOO/3O2P1P/3O2R2/3Ok1+P2 b - 1\nhttps://ogiekako.github.io/fmrs/?sfen=5ppp1%2F5P2P%2F9%2F9%2F9%2F3OOOOOO%2F3O3p1%2F3OR1P1k%2F3OP4%20b%20%2D%201\n5ppp1/5P2P/9/9/9/3OOOOOO/3O3p1/3OR1P1k/3OP4 b - 1\nhttps://ogiekako.github.io/fmrs/?sfen=5ppp1%2F5P2P%2F9%2F9%2F9%2F3OOOOOO%2F3OR1Pp1%2F3O4k%2F3OP4%20b%20%2D%201\n5ppp1/5P2P/9/9/9/3OOOOOO/3OR1Pp1/3O4k/3OP4 b - 1\nhttps://ogiekako.github.io/fmrs/?sfen=5ppp1%2F4P2P1%2F9%2F9%2F9%2F3OOOOOO%2F3O1p3%2F3Ok1P1R%2F3O4P%20b%20%2D%201\n5ppp1/4P2P1/9/9/9/3OOOOOO/3O1p3/3Ok1P1R/3O4P b - 1\nhttps://ogiekako.github.io/fmrs/?sfen=5ppp1%2F4P2P1%2F9%2F9%2F9%2F3OOOOOO%2F3O1pP1R%2F3Ok4%2F3O4P%20b%20%2D%201\n5ppp1/4P2P1/9/9/9/3OOOOOO/3O1pP1R/3Ok4/3O4P b - 1\nhttps://ogiekako.github.io/fmrs/?sfen=5pp1p%2F5P1PP%2F9%2F9%2F9%2F3OOOOOO%2F3OP1P2%2F3O2R2%2F3O2%2BP1k%20b%20%2D%201\n5pp1p/5P1PP/9/9/9/3OOOOOO/3OP1P2/3O2R2/3O2+P1k b - 1",
+          "timestamp": "2025-01-05T16:27:55+09:00",
+          "tree_id": "f9e7b5c40c333a064077f8a593008bcebad96f43",
+          "url": "https://github.com/ogiekako/fmrs/commit/5ce7cdea03a8129b10e8e98ef68d754436887b10"
+        },
+        "date": 1736062541787,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 1861,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_advance_shtsume",
+            "value": 1594,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3866,
+            "range": "± 102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance_shtsume",
+            "value": 4473,
+            "range": "± 186",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 480,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 3070,
+            "range": "± 1493",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26183,
+            "range": "± 164",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 2112,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 6839,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1379759,
+            "range": "± 531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13903,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28015,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3169,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16607,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 68212,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
