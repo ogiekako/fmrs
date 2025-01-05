@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use anyhow::bail;
 use log::info;
 
@@ -58,7 +60,11 @@ pub fn backward_search(
         )?;
         for m in movements.iter() {
             let digest = p.moved_digest(&m);
-            if search.prev_memo.get(&digest) == Some(&Step::Exact(search.step - 1, 1)) {
+            if search
+                .prev_memo
+                .get(&digest)
+                .map_or(false, |x| x.is_uniquely(search.step - 1))
+            {
                 let mut np = p.clone();
                 np.do_move(m);
                 black_positions.push(np);
@@ -71,8 +77,8 @@ pub fn backward_search(
 pub struct BackwardSearch {
     positions: Vec<Position>,
     prev_positions: Vec<Position>,
-    memo: NoHashMap<Step>,
-    prev_memo: NoHashMap<Step>,
+    memo: NoHashMap<StepRange>,
+    prev_memo: NoHashMap<StepRange>,
     stone: Option<BitBoard>,
     step: u16,
 }
@@ -97,7 +103,7 @@ impl BackwardSearch {
         let mut memo = NoHashMap::default();
         memo.insert(
             initial_position.digest(),
-            Step::Exact(solution.len() as u16, 1),
+            StepRange::exact(solution.len() as u16),
         );
 
         Ok(BackwardSearch {
@@ -133,7 +139,7 @@ impl BackwardSearch {
                 }
 
                 let ans = solutions(&mut pp, &mut self.prev_memo, &mut self.memo, self.step + 1);
-                if ans == Step::Exact(self.step + 1, 1) {
+                if ans.is_uniquely(self.step + 1) {
                     #[cfg(debug_assertions)]
                     {
                         let sol = standard_solve(pp.clone(), 2, true).unwrap();
@@ -172,22 +178,21 @@ impl BackwardSearch {
     }
 }
 
-const INF: u16 = u16::MAX - 1;
+const INF_START: u16 = u16::MAX - 2;
+const INF_END: u16 = u16::MAX - 1;
 
 fn solutions(
     position: &mut PositionAux,
-    memo: &mut NoHashMap<Step>,
-    next_memo: &mut NoHashMap<Step>,
+    memo: &mut NoHashMap<StepRange>,
+    next_memo: &mut NoHashMap<StepRange>,
     mate_in: u16,
-) -> Step {
-    let mut ans = Step::MoreThan(INF);
+) -> StepRange {
+    let mut ans = StepRange::unknown();
     if let Some(a) = memo.get(&position.digest()) {
-        let Step::MoreThan(step) = a else {
-            return *a;
-        };
-        if mate_in <= *step {
-            return *a;
+        if !a.needs_investigation(mate_in) {
+            return a.clone();
         }
+        ans = a.clone();
     }
 
     let mut movements = vec![];
@@ -203,55 +208,169 @@ fn solutions(
     )
     .unwrap();
 
+    let mut hint = StepRange::unknown();
     if is_mate {
-        return Step::Exact(0, 1);
+        hint = StepRange::exact(0);
     } else if movements.is_empty() {
-        return Step::MoreThan(INF);
+        hint = StepRange::unsolvable();
     } else if mate_in == 0 {
-        return Step::MoreThan(0);
+        hint = StepRange::non_zero();
     }
+    ans = ans.intersection(&hint);
+    if !ans.needs_investigation(mate_in) {
+        memo.insert(position.digest(), ans.clone());
+        return ans;
+    }
+
+    let mut res = StepRange::unsolvable();
 
     for m in movements.iter() {
         let mut np = position.clone();
         np.do_move(m);
 
-        let a = solutions(&mut np, next_memo, memo, mate_in - 1);
-        match a {
-            Step::MoreThan(x) => match ans {
-                Step::MoreThan(y) => {
-                    ans = Step::MoreThan((x + 1).min(y));
-                }
-                _ => (),
-            },
-            Step::Exact(s, m) => match ans {
-                Step::MoreThan(step) => {
-                    if s + 1 <= mate_in {
-                        ans = Step::Exact(s + 1, m);
-                    } else if s <= step {
-                        ans = Step::MoreThan(s);
-                    }
-                }
-                Step::Exact(step, n) => {
-                    if s + 1 == step {
-                        ans = Step::Exact(s + 1, (n + m).min(2));
-                    } else if s + 1 < step {
-                        ans = Step::Exact(s + 1, m);
-                    } else {
-                        // Do nothing
-                    }
-                }
-            },
+        let a = solutions(&mut np, next_memo, memo, mate_in - 1).inc();
+        debug_assert!(!a.needs_investigation(mate_in));
+
+        res.update_with_child(&a);
+
+        if res.definitely_shorter_or_non_unique(mate_in) {
+            res.shortest.start = 1;
+            res.next.start = 1;
+            break;
         }
     }
 
-    memo.insert(position.digest(), ans);
-    ans
+    res = res.intersection(&ans);
+
+    debug_assert!(
+        !res.needs_investigation(mate_in),
+        "{:?} {:?} {:?} {}",
+        res,
+        hint,
+        position,
+        mate_in
+    );
+
+    memo.insert(position.digest(), res.clone());
+    res
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Step {
-    Exact(u16, u8),
-    MoreThan(u16),
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StepRange {
+    // Second shortest solution range
+    next: Range<u16>,
+    // Shortest solution range
+    shortest: Range<u16>,
+}
+
+fn intersection(a: &Range<u16>, b: &Range<u16>) -> Range<u16> {
+    let res = a.start.max(b.start)..a.end.min(b.end);
+    if res.is_empty() {
+        Range::default()
+    } else {
+        res
+    }
+}
+
+fn definitely_shorter(r: &Range<u16>, step: u16) -> bool {
+    intersection(r, &(step..INF_END)).is_empty()
+}
+
+fn definitely_longer(r: &Range<u16>, step: u16) -> bool {
+    intersection(r, &(0..step + 1)).is_empty()
+}
+
+fn exactly(r: &Range<u16>, step: u16) -> bool {
+    r.start == step && r.end == step + 1
+}
+
+impl StepRange {
+    fn new(mut shortest: Range<u16>, mut next: Range<u16>) -> Self {
+        debug_assert!(shortest.start <= next.start);
+        debug_assert!(shortest.end <= next.end);
+
+        shortest.start = shortest.start.min(INF_START);
+        shortest.end = shortest.end.min(INF_END);
+        next.start = next.start.min(INF_START);
+        next.end = next.end.min(INF_END);
+
+        StepRange { shortest, next }
+    }
+
+    fn exact(step: u16) -> Self {
+        Self::new(step..step + 1, step + 1..INF_END)
+    }
+
+    fn unsolvable() -> Self {
+        Self::new(INF_START..INF_END, INF_START..INF_END)
+    }
+
+    fn unknown() -> Self {
+        Self::new(0..INF_END, 0..INF_END)
+    }
+
+    fn non_zero() -> Self {
+        Self::new(1..INF_END, 1..INF_END)
+    }
+
+    fn inc(&self) -> Self {
+        Self::new(
+            self.shortest.start + 1..self.shortest.end + 1,
+            self.next.start + 1..self.next.end + 1,
+        )
+    }
+
+    fn needs_investigation(&self, mate_in: u16) -> bool {
+        if definitely_shorter(&self.shortest, mate_in) {
+            return false;
+        }
+        if definitely_longer(&self.shortest, mate_in) {
+            return false;
+        }
+        if exactly(&self.shortest, mate_in) {
+            debug_assert!(!definitely_shorter(&self.next, mate_in));
+            if definitely_longer(&self.next, mate_in) {
+                return false;
+            } else if exactly(&self.next, mate_in) {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn intersection(&self, hint: &StepRange) -> StepRange {
+        Self::new(
+            intersection(&self.shortest, &hint.shortest),
+            intersection(&self.next, &hint.next),
+        )
+    }
+
+    fn update_with_child(&mut self, c: &StepRange) {
+        for &Range { start, end } in [&c.shortest, &c.next] {
+            if start < self.shortest.start {
+                self.next.start = self.shortest.start;
+                self.shortest.start = start;
+            } else if start < self.next.start {
+                self.next.start = start;
+            }
+
+            if end < self.shortest.end {
+                self.next.end = self.shortest.end;
+                self.shortest.end = end;
+            } else if end < self.next.end {
+                self.next.end = end;
+            }
+        }
+    }
+
+    fn is_uniquely(&self, step: u16) -> bool {
+        exactly(&self.shortest, step) && definitely_longer(&self.next, step)
+    }
+
+    fn definitely_shorter_or_non_unique(&self, mate_in: u16) -> bool {
+        definitely_shorter(&self.shortest, mate_in)
+            || exactly(&self.shortest, mate_in) && exactly(&self.next, mate_in)
+    }
 }
 
 #[cfg(test)]
@@ -292,7 +411,7 @@ mod tests {
             let initial_position = PositionAux::from_sfen(sfen).unwrap();
             let (step, mut positions) = backward_search(&initial_position, true).unwrap();
 
-            assert_eq!(step, want_step);
+            assert_eq!(step, want_step, "{:?}", initial_position);
 
             want_sfens.sort();
             let want_positions = want_sfens
