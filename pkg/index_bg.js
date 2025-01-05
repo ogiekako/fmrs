@@ -275,6 +275,13 @@ export class Solver {
         const ret = wasm.solver_redundant(this.__wbg_ptr);
         return ret !== 0;
     }
+    /**
+     * @returns {boolean}
+     */
+    from_white() {
+        const ret = wasm.solver_from_white(this.__wbg_ptr);
+        return ret !== 0;
+    }
 }
 
 export function __wbg_alert_23b26d9c7696891c(arg0, arg1) {

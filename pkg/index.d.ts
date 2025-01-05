@@ -29,4 +29,5 @@ export class Solver {
   solutions_kif(): string;
   solutions_count(): number;
   redundant(): boolean;
+  from_white(): boolean;
 }
