@@ -91,15 +91,16 @@ function getDataViewMemory0() {
     return cachedDataViewMemory0;
 }
 
-export function greet() {
-    wasm.greet();
-}
-
 function takeFromExternrefTable0(idx) {
     const value = wasm.__wbindgen_export_3.get(idx);
     wasm.__externref_table_dealloc(idx);
     return value;
 }
+
+export function greet() {
+    wasm.greet();
+}
+
 /**
  * @enum {0 | 1}
  */
@@ -107,6 +108,65 @@ export const Algorithm = Object.freeze({
     Standard: 0, "0": "Standard",
     Parallel: 1, "1": "Parallel",
 });
+
+const BackwardSearchFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_backwardsearch_free(ptr >>> 0, 1));
+
+export class BackwardSearch {
+
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        BackwardSearchFinalization.unregister(this);
+        return ptr;
+    }
+
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_backwardsearch_free(ptr, 0);
+    }
+    /**
+     * @param {string} sfen
+     */
+    constructor(sfen) {
+        const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.backwardsearch_new(ptr0, len0);
+        this.__wbg_ptr = ret >>> 0;
+        BackwardSearchFinalization.register(this, this.__wbg_ptr, this);
+        return this;
+    }
+    /**
+     * @returns {boolean}
+     */
+    advance() {
+        const ret = wasm.backwardsearch_advance(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {number}
+     */
+    step() {
+        const ret = wasm.backwardsearch_step(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {string}
+     */
+    sfen() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const ret = wasm.backwardsearch_sfen(this.__wbg_ptr);
+            deferred1_0 = ret[0];
+            deferred1_1 = ret[1];
+            return getStringFromWasm0(ret[0], ret[1]);
+        } finally {
+            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+        }
+    }
+}
 
 const SolverFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
@@ -207,6 +267,13 @@ export class Solver {
     solutions_count() {
         const ret = wasm.solver_solutions_count(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    redundant() {
+        const ret = wasm.solver_redundant(this.__wbg_ptr);
+        return ret !== 0;
     }
 }
 

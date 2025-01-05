@@ -5,6 +5,13 @@ export enum Algorithm {
   Standard = 0,
   Parallel = 1,
 }
+export class BackwardSearch {
+  free(): void;
+  constructor(sfen: string);
+  advance(): boolean;
+  step(): number;
+  sfen(): string;
+}
 export class Solver {
   private constructor();
   free(): void;
@@ -21,4 +28,5 @@ export class Solver {
   solutions_sfen(): string;
   solutions_kif(): string;
   solutions_count(): number;
+  redundant(): boolean;
 }
