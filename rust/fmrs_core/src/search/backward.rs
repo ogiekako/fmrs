@@ -205,7 +205,7 @@ fn solutions(
 
     for m in movements.iter() {
         let mut np = position.clone();
-        np.do_move(&m);
+        np.do_move(m);
 
         let a = solutions(&mut np, next_memo, memo, mate_in - 1);
         match a {

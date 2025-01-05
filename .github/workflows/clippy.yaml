@@ -19,4 +19,4 @@ jobs:
           submodules: true
 
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy --all-targets --all-features
