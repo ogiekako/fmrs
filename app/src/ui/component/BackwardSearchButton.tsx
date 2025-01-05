@@ -3,6 +3,7 @@ import * as model from "../../model";
 import * as types from "../types";
 import { CancellationToken } from "../../solve";
 import { backwardSearchWasm } from "../../solve/wasm_backward_search";
+import { sfenEqualsModuloColor } from "../../model/sfen/decode";
 
 export function BackwardSearchButton(props: {
   position: model.Position;
@@ -10,6 +11,7 @@ export function BackwardSearchButton(props: {
   dispatch: types.Dispatcher;
 }) {
   const sfen = model.encodeSfen(props.position);
+
   const unique =
     props.solveResponse?.ty === "solved" &&
     props.solveResponse.response.redundant === false &&
@@ -24,16 +26,25 @@ export function BackwardSearchButton(props: {
           ty: "set-solving",
           solving: { cancelToken, step: 0 },
         });
-        const newSfen = await backwardSearchWasm(sfen, cancelToken, (step) => {
-          props.dispatch({
-            ty: "set-solving",
-            solving: { cancelToken, step },
-          });
-        });
-        if (sfen === newSfen) {
-          alert("これ以上逆算できません");
-        }
+        const newSfen = await backwardSearchWasm(
+          sfen,
+          cancelToken,
+          (step, sfen) => {
+            props.dispatch({
+              ty: "set-solving",
+              solving: { cancelToken, step },
+            });
+            props.dispatch({
+              ty: "set-position",
+              position: model.decodeSfen(sfen),
+            });
+          }
+        );
         props.dispatch({ ty: "set-solving", solving: undefined });
+        if (newSfen && sfenEqualsModuloColor(sfen, newSfen)) {
+          alert("これ以上逆算できません");
+          return;
+        }
         if (newSfen) {
           props.dispatch({
             ty: "set-position",

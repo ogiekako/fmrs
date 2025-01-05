@@ -126,3 +126,9 @@ function decodeHands(s: string): { black: Hands; white: Hands } {
   }
   return { black, white };
 }
+
+export function sfenEqualsModuloColor(sfen1: string, sfen2: string): boolean {
+  const [board1, , hands1] = sfen1.split(" ");
+  const [board2, , hands2] = sfen2.split(" ");
+  return board1 === board2 && hands1 === hands2;
+}

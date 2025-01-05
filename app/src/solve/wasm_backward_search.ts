@@ -7,7 +7,7 @@ import { BackwardSearch } from "../../../docs/pkg";
 export async function backwardSearchWasm(
   sfen: string,
   cancel: CancellationToken,
-  onStep: (step: number) => void
+  onStep: (step: number, sfen: string) => void
 ): Promise<string | undefined> {
   const bs = new BackwardSearch(sfen);
 
@@ -16,7 +16,7 @@ export async function backwardSearchWasm(
       if (cancel.isCanceled()) {
         break;
       }
-      onStep(bs.step());
+      onStep(bs.step(), bs.sfen());
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     return bs.sfen();

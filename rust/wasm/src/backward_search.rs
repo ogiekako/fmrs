@@ -23,7 +23,7 @@ impl BackwardSearch {
 
     // Returns has next
     pub fn advance(&mut self) -> bool {
-        self.inner.advance().unwrap()
+        self.inner.advance_upto(10).unwrap()
     }
 
     pub fn step(&self) -> u32 {

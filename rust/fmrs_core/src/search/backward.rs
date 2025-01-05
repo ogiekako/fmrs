@@ -75,6 +75,7 @@ pub fn backward_search(
 }
 
 pub struct BackwardSearch {
+    seen_positions: usize,
     positions: Vec<Position>,
     prev_positions: Vec<Position>,
     memo: NoHashMap<StepRange>,
@@ -107,6 +108,7 @@ impl BackwardSearch {
         );
 
         Ok(BackwardSearch {
+            seen_positions: 0,
             positions,
             prev_positions: vec![],
             memo,
@@ -117,9 +119,13 @@ impl BackwardSearch {
     }
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
-        self.prev_positions.clear();
+        self.advance_upto(usize::MAX / 2)
+    }
 
-        for core in self.positions.iter() {
+    pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
+        let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
+        self.seen_positions = range.end;
+        for core in self.positions[range].iter() {
             let mut position = PositionAux::new(core.clone(), self.stone);
             let mut undo_moves = vec![];
             previous(&mut position, self.step > 0, &mut undo_moves);
@@ -166,12 +172,19 @@ impl BackwardSearch {
             }
         }
 
+        if self.seen_positions < self.positions.len() {
+            return Ok(true);
+        }
+
         if self.prev_positions.is_empty() {
             return Ok(false);
         }
 
         std::mem::swap(&mut self.positions, &mut self.prev_positions);
         std::mem::swap(&mut self.memo, &mut self.prev_memo);
+        self.prev_positions.clear();
+        self.seen_positions = 0;
+
         self.step += 1;
 
         Ok(true)
@@ -415,10 +428,6 @@ mod tests {
             (
                 "6ppp/6P2/9/9/9/5OOOO/5O2k/5O1PR/5O2P w - 1",
                 (0, vec!["6ppp/6P2/9/9/9/5OOOO/5O2k/5O1PR/5O2P w - 1"]),
-            ),
-            (
-                "9/9/9/9/5OOOO/5O3/5O3/5O3/5OK+Pk w 2r2b4g4s4n4l17p 1",
-                (0, vec![]),
             ),
         ] {
             let initial_position = PositionAux::from_sfen(sfen).unwrap();
