@@ -1,6 +1,5 @@
 import * as types from "../types";
 import Solution from "./Solution";
-import * as model from "../../model";
 
 export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;
@@ -22,6 +21,7 @@ export default function SolveResponse(props: {
       <Solution
         kif={props.solveResponse.response.kif}
         stone={props.solveResponse.stone}
+        fromWhite={props.solveResponse.response.fromWhite}
       />
     </div>
   ) : (

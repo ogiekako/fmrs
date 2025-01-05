@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 
-export default function Solution(props: { kif: string; stone: boolean[][] }) {
+export default function Solution(props: {
+  kif: string;
+  stone: boolean[][];
+  fromWhite: boolean;
+}) {
   const outer = useRef<HTMLDivElement>(null);
   const id = generateId(props.kif);
 
@@ -28,7 +32,7 @@ export default function Solution(props: { kif: string; stone: boolean[][] }) {
       inner.style.visibility = "hidden";
 
       KifuForJS.loadString(props.kif, id).then(() => {
-        tweakKifForJs(url, props.stone);
+        tweakKifForJs(url, props.stone, props.fromWhite);
         inner.style.visibility = "";
       });
     }, 200);
@@ -52,7 +56,7 @@ function generateId(s: string): string {
   return "i" + n;
 }
 
-function tweakKifForJs(url: string, stone: boolean[][]) {
+function tweakKifForJs(url: string, stone: boolean[][], fromWhite: boolean) {
   // Remove preset info
   const info = document.getElementsByClassName(
     "kifuforjs-info"
@@ -98,8 +102,8 @@ function tweakKifForJs(url: string, stone: boolean[][]) {
   const cells = document.getElementsByClassName("kifuforjs-cell");
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i] as HTMLElement;
-    const x = 8 - (i % 9);
-    const y = Math.floor(i / 9);
+    const x = fromWhite ? i % 9 : 8 - (i % 9);
+    const y = fromWhite ? 8 - Math.floor(i / 9) : Math.floor(i / 9);
     if (stone[y][x]) {
       const div = document.createElement("div");
       cell.style.position = "relative";
@@ -114,5 +118,12 @@ function tweakKifForJs(url: string, stone: boolean[][]) {
       div.style.borderRadius = "50%";
       div.style.backgroundColor = "black";
     }
+  }
+  if (fromWhite) {
+    (
+      document.getElementsByClassName(
+        "kifuforjs-control-tools"
+      )?.[0] as HTMLElement
+    ).click();
   }
 }

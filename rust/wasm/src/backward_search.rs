@@ -1,5 +1,6 @@
 use fmrs_core::{
-    position::position::PositionAux, search::backward::BackwardSearch as BackwardSearchImpl,
+    piece::Color, position::position::PositionAux,
+    search::backward::BackwardSearch as BackwardSearchImpl,
 };
 use wasm_bindgen::prelude::*;
 
@@ -12,7 +13,11 @@ pub struct BackwardSearch {
 impl BackwardSearch {
     #[wasm_bindgen(constructor)]
     pub fn new(sfen: String) -> Self {
-        let inner = BackwardSearchImpl::new(&PositionAux::from_sfen(&sfen).unwrap()).unwrap();
+        let mut position = PositionAux::from_sfen(&sfen).unwrap();
+        if position.checked_slow(Color::WHITE) {
+            position.set_turn(Color::WHITE);
+        }
+        let inner = BackwardSearchImpl::new(&position).unwrap();
         Self { inner }
     }
 

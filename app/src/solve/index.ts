@@ -28,6 +28,7 @@ export type Response = {
   solutions: number;
   kif: string;
   sfen: string;
+  fromWhite: boolean;
 };
 
 export async function solve(

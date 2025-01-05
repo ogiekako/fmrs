@@ -32,6 +32,10 @@ impl Square {
         let row = (self.row() as isize + dir.row() + 9) % 9;
         *self = Square::new(col as usize, row as usize)
     }
+
+    pub(crate) fn flipped(&self) -> Square {
+        Square::new(8 - self.col(), 8 - self.row())
+    }
 }
 
 impl std::fmt::Debug for Square {

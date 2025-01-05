@@ -134,6 +134,25 @@ impl Movement {
     pub fn is_pawn_drop(&self) -> bool {
         matches!(self, Movement::Drop(_, Kind::Pawn))
     }
+
+    pub fn flipped(&self) -> Movement {
+        match self {
+            &Movement::Drop(pos, kind) => Movement::Drop(pos.flipped(), kind),
+            &Movement::Move {
+                source,
+                source_kind_hint,
+                dest,
+                promote,
+                capture_kind_hint,
+            } => Movement::Move {
+                source: source.flipped(),
+                source_kind_hint,
+                dest: dest.flipped(),
+                promote,
+                capture_kind_hint,
+            },
+        }
+    }
 }
 
 impl std::fmt::Debug for Movement {

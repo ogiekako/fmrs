@@ -459,6 +459,25 @@ impl PositionAux {
         pawn_bb & mask != 0
     }
 
+    pub fn flipped(&mut self) -> Self {
+        let mut core = Position::default();
+        let mut stone = BitBoard::default();
+        for pos in Square::iter() {
+            if let Some((color, kind)) = self.get(pos) {
+                core.set(pos.flipped(), color.opposite(), kind);
+            }
+            if self.stone().map_or(false, |stone| stone.get(pos)) {
+                stone.set(pos.flipped());
+            }
+        }
+        core.set_turn(self.turn().opposite());
+        Self {
+            core,
+            stone: (!stone.is_empty()).then(|| stone),
+            ..Default::default()
+        }
+    }
+
     // TODO: remember attackers
 }
 

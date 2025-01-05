@@ -416,6 +416,10 @@ mod tests {
                 "6ppp/6P2/9/9/9/5OOOO/5O2k/5O1PR/5O2P w - 1",
                 (0, vec!["6ppp/6P2/9/9/9/5OOOO/5O2k/5O1PR/5O2P w - 1"]),
             ),
+            (
+                "9/9/9/9/5OOOO/5O3/5O3/5O3/5OK+Pk w 2r2b4g4s4n4l17p 1",
+                (0, vec![]),
+            ),
         ] {
             let initial_position = PositionAux::from_sfen(sfen).unwrap();
             let (step, mut positions) = backward_search(&initial_position, true).unwrap();
