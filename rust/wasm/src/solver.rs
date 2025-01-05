@@ -112,7 +112,7 @@ fn convert_solutions_to_sfen(solutions: &[Solution]) -> Vec<String> {
     let mut res = vec![];
     for solution in solutions {
         let mut moves = vec![];
-        for movement in solution.0.iter() {
+        for movement in solution.iter() {
             moves.push(sfen::encode_move(movement))
         }
         res.push(moves.join(" "));

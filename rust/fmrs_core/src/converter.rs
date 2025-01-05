@@ -103,7 +103,7 @@ fn update_move_format(
     solution: &Solution,
 ) {
     let mut i = 0;
-    for movement in solution.0.iter() {
+    for movement in solution.iter() {
         let color = color(position.turn());
         let (from, to, piece, same, promote, capture) = match movement {
             Movement::Drop(to, k) => (None, place_format(*to), kind(*k), None, None, None),
@@ -236,7 +236,7 @@ mod tests {
             let mut problem = crate::sfen::decode_position(problem).unwrap();
 
             let mut solutions = solve(problem.clone(), 10).unwrap();
-            solutions.sort_by(|a, b| a.0.cmp(&b.0));
+            solutions.sort();
 
             let got = super::convert(&mut problem, &solutions);
             let got = serde_json::to_string(&got).unwrap();

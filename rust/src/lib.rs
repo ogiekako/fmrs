@@ -3,7 +3,8 @@
 use clap::{Parser, Subcommand};
 pub use command::one_way_mate_steps;
 use command::{
-    batch::Criteria, batch_square::batch_square, bench::BenchCommand, OneWayMateGenerator,
+    backward::backward, batch::Criteria, batch_square::batch_square, bench::BenchCommand,
+    OneWayMateGenerator,
 };
 use solver::Algorithm;
 
@@ -29,7 +30,7 @@ enum Action {
     Solve {
         #[clap(value_enum)]
         algorithm: Algorithm,
-        sfen_or_file: Option<String>,
+        sfen_like: Option<String>,
     },
     Server,
     OneWayMate {
@@ -49,6 +50,9 @@ enum Action {
         criteria: Criteria,
     },
     BatchSquare,
+    Backward {
+        sfen_like: String,
+    },
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
@@ -60,8 +64,8 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::Bench { cmd, file, algo } => command::bench(cmd, algo, &file)?,
         Action::Solve {
             algorithm,
-            sfen_or_file,
-        } => command::solve(algorithm, sfen_or_file)?,
+            sfen_like,
+        } => command::solve(algorithm, sfen_like)?,
         Action::Server => command::server(1234).await?,
         Action::OneWayMate {
             algorithm,
@@ -72,12 +76,13 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::Batch { file, criteria } => {
             let ans = command::batch(file, criteria)?;
             for (mut position, solution) in ans {
-                println!("{} {}", solution.0.len(), position.sfen());
+                println!("{} {}", solution.len(), position.sfen());
             }
         }
         Action::BatchSquare => {
             batch_square()?;
         }
+        Action::Backward { sfen_like } => backward(&sfen_like)?,
     }
     Ok(())
 }

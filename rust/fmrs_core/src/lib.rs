@@ -11,6 +11,7 @@ pub mod piece;
 pub mod position;
 pub mod sfen;
 pub mod solve;
+pub mod search;
 
 #[cfg(test)]
 mod tests {

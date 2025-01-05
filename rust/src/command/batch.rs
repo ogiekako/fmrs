@@ -1,10 +1,11 @@
 use std::io::Read as _;
 
-use fmrs_core::{position::position::PositionAux, solve::Solution};
+use fmrs_core::{
+    position::position::PositionAux,
+    solve::{standard_solve::standard_solve, Solution},
+};
 use log::info;
 use rayon::prelude::*;
-
-use crate::solver::standard_solve::standard_solve;
 
 use super::parse_to_sfen;
 
@@ -45,17 +46,17 @@ pub fn batch_solve(
     let mut best = (0, "".to_string());
 
     let chunk_size = 1000;
-    for (i, chunk) in positions.chunks(chunk_size).into_iter().enumerate() {
-        let mut sol = chunk
+    for (i, chunk) in positions.chunks(chunk_size).enumerate() {
+        let mut sol: Vec<(PositionAux, Solution)> = chunk
             .to_vec()
             .into_par_iter()
             .flat_map(|position| match standard_solve(position.clone(), 2, true) {
                 Ok(mut solution) => {
                     if solution.len() != 1 {
-                        return None;
+                        None
                     } else {
                         let solution = solution.remove(0);
-                        return Some(Ok((position, solution)));
+                        Some(Ok((position, solution)))
                     }
                 }
                 Err(e) => Some(Err(e)),
@@ -63,8 +64,8 @@ pub fn batch_solve(
             .collect::<Result<Vec<_>, _>>()?;
 
         for (position, solution) in sol.iter_mut() {
-            if solution.0.len() > best.0 {
-                best = (solution.0.len(), position.sfen_url());
+            if solution.len() > best.0 {
+                best = (solution.len(), position.sfen_url());
             }
         }
         info!("{} / {} best = {} {}", i * chunk_size, len, best.0, best.1);
@@ -76,10 +77,10 @@ pub fn batch_solve(
         Criteria::MaxUnique => {
             let max_len = unique
                 .iter()
-                .map(|(_, solution)| solution.0.len())
+                .map(|(_, solution)| solution.len())
                 .max()
                 .unwrap_or(0);
-            unique.retain(|(_, solution)| solution.0.len() == max_len);
+            unique.retain(|(_, solution)| solution.len() == max_len);
             unique
         }
         Criteria::AllUnique => unique,

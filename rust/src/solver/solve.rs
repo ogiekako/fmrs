@@ -2,9 +2,9 @@ use std::time::Instant;
 
 use crate::solver::parallel_solve;
 use crate::solver::shtsume_solve;
-use crate::solver::standard_solve;
-use fmrs_core::piece::*;
+use anyhow::bail;
 use fmrs_core::position::position::PositionAux;
+use fmrs_core::solve::standard_solve::standard_solve;
 use fmrs_core::solve::Solution;
 use shtsume_rs::ffi::ssdata::Ssdata;
 
@@ -39,24 +39,24 @@ pub fn solve_with_progress(
     algorithm: Algorithm,
     start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
-    if position.turn() != Color::BLACK {
-        anyhow::bail!("The turn should be from black");
+    if position.checked_slow(position.turn().opposite()) {
+        anyhow::bail!(
+            "on {:?}'s turn, {:?} is already checked.",
+            position.turn(),
+            position.turn().opposite()
+        );
     }
-    if position.checked_slow(Color::WHITE) {
-        anyhow::bail!("on black's turn, white is already checked.");
-    }
-    debug_assert_ne!(
-        position.turn() == Color::BLACK,
-        position.checked_slow(Color::WHITE)
-    );
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
         Algorithm::Parallel => {
             parallel_solve::parallel_solve(position, progress, solutions_upto, start)
         }
-        Algorithm::Standard => standard_solve::standard_solve(position, solutions_upto, false),
+        Algorithm::Standard => standard_solve(position, solutions_upto, false),
         Algorithm::Shtsume => {
+            if position.turn().is_white() {
+                bail!("Shtsume is not implemented for white's turn");
+            }
             let ssdata = Ssdata::from_sfen(&position.sfen());
             shtsume_solve::shtsume_solve(&ssdata, solutions_upto)
         }
@@ -157,6 +157,16 @@ mod tests {
                 "9/9/9/9/7bb/1ppssssp1/K5k2/+RL1l1gg2/rL3gg1+l b 4N15P 1",
                 vec!["N*29 3829 P*38 3747 N*59 4859 P*48 4757 N*69 6869+ P*58 5767 P*68 6778 P*79 6979 8886 7877 P*78 7768 P*69 5969 7877 6867 P*68 6758 P*59 4959 6867 5857 P*58 5748 P*49 3949 5857 4847 P*48 4738 P*39 2939 4847 3837 P*38 3728 3837 3938 P*29 2817 P*18 1716 N*28 3828 1817 1627 2928 2737 G*38"]
             ),
+            (
+                // Mate in zero
+                "4pp1p1/4P2PP/9/9/9/3OOOOOO/3OR1k2/3O3+p1/3O1PP2 w - 1",
+                vec![""],
+            ),
+            (
+                // Mate in two
+                "4pp1p1/4P2PP/9/9/9/3OOOOOO/3O5/3O2k+p1/3O1PP2 w R 1",
+                vec!["3h3g R*5g"],
+            ),
         ] {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(tc.0).expect("Failed to parse");
@@ -166,8 +176,12 @@ mod tests {
                         .map(|x| sfen::decode_moves(x).unwrap())
                         .collect();
 
+                if board.turn().is_white() && algorithm == Algorithm::Shtsume {
+                    continue;
+                }
+
                 eprintln!("Solving {:?} (algo={:?})", board, algorithm);
-                let mut got = solve(board, None, algorithm,None).unwrap().into_iter().map(|x| x.0).collect::<Vec<_>>();
+                let mut got = solve(board, None, algorithm, None).unwrap();
                 got.sort();
 
                 assert_eq!(got, want);
@@ -189,11 +203,7 @@ mod tests {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(sfen).unwrap();
                 eprintln!("solving {}", sfen);
-                let got = solve(board.clone(), None, algorithm, None)
-                    .unwrap()
-                    .into_iter()
-                    .map(|x| x.0)
-                    .collect::<Vec<_>>();
+                let got = solve(board.clone(), None, algorithm, None).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
             }

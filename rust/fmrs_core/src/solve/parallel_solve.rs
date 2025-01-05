@@ -31,12 +31,23 @@ impl ParallelSolver {
         let stone = *position.stone();
         let mut positions = vec![position.core().clone()];
 
-        next_positions(&mate_positions, &memo_next, &mut positions, 0, &stone);
-        std::mem::swap(&mut memo, &mut memo_next);
+        let mut step = 0;
+
+        if position.turn().is_black() {
+            next_positions(
+                &mate_positions,
+                &mut memo_next,
+                &mut positions,
+                step,
+                &stone,
+            );
+            std::mem::swap(&mut memo, &mut memo_next);
+            step += 1;
+        }
 
         Self {
             solutions_upto,
-            step: 1,
+            step,
             positions,
             mate_positions,
             memo,
@@ -73,7 +84,7 @@ impl ParallelSolver {
                     self.solutions_upto - res.len(),
                 ));
             }
-            res.sort_by(|a, b| a.0.cmp(&b.0));
+            res.sort();
             return Ok(SolverStatus::Mate(res));
         }
         self.step += 2;
@@ -92,10 +103,7 @@ fn next_positions(
         .into_par_iter()
         .flat_map_iter(|core| {
             let mut movements = vec![];
-            let mut position = PositionAux::new(core.clone());
-            if let Some(stone) = stone {
-                position.set_stone(*stone);
-            }
+            let mut position = PositionAux::new(core.clone(), *stone);
             let is_mate = advance_aux(
                 &mut position,
                 &mut memo_next.as_mut(),
@@ -129,10 +137,7 @@ fn next_next_positions(
     *positions = positions
         .into_par_iter()
         .flat_map_iter(|core| {
-            let mut position = PositionAux::new(core.clone());
-            if let Some(stone) = stone {
-                position.set_stone(*stone);
-            }
+            let mut position = PositionAux::new(core.clone(), *stone);
             let mut movements = vec![];
             let is_mate = advance_aux(
                 &mut position,
@@ -154,8 +159,9 @@ fn next_next_positions(
                 np.do_move(&m);
 
                 let mut movements = vec![];
+                let mut nnp = PositionAux::new(np.clone(), *stone);
                 advance_aux(
-                    &mut PositionAux::new(np.clone()),
+                    &mut nnp,
                     &mut memo.as_mut(),
                     step + 2,
                     &Default::default(),

@@ -16,6 +16,7 @@ struct Context<'a> {
     allow_drop_pawn: bool,
     turn: Color,
     movements: &'a mut Vec<UndoMove>,
+    pawn_mask: usize,
 }
 
 impl<'a> Context<'a> {
@@ -25,11 +26,17 @@ impl<'a> Context<'a> {
         movements: &'a mut Vec<UndoMove>,
     ) -> Self {
         let turn = position.turn();
+        let mut pawn_mask = 0;
+        for pos in position.bitboard(position.turn(), Kind::Pawn) {
+            pawn_mask |= 1 << pos.col();
+        }
+
         Self {
             position,
             allow_drop_pawn,
             turn,
             movements,
+            pawn_mask,
         }
     }
 
@@ -60,9 +67,8 @@ impl<'a> Context<'a> {
             .into_iter()
             .filter_map(|x| x.0.map(|k| (k, x.1)));
         for (prev_kind, promote) in prev_kinds {
-            let sources =
-                bitboard::reachable(self.position, self.turn, dest, prev_kind, false)
-                    .and_not(self.position.occupied_bb());
+            let sources = bitboard::reachable(self.position, self.turn, dest, prev_kind, false)
+                .and_not(self.position.occupied_bb());
             for source in sources {
                 self.maybe_add_undo_move(UndoMove::UnMove {
                     source,
@@ -101,10 +107,16 @@ impl Context<'_> {
             source: from,
             dest: to,
             promote,
-            capture: _,
+            capture,
             pawn_drop: _,
         } = &movement
         {
+            if let Some(capture) = capture {
+                if !rule::is_legal_drop(self.position.turn(), *to, *capture, self.pawn_mask) {
+                    return;
+                }
+            }
+
             let mut kind = self.position.get(*to).unwrap().1;
             if *promote {
                 kind = kind.unpromote().unwrap();

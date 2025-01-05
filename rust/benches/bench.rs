@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use fmrs::one_way_mate_steps;
-use fmrs::solver::standard_solve::standard_solve;
 use fmrs::solver::{solve, Algorithm};
 use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
@@ -13,6 +12,7 @@ use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
 use fmrs_core::sfen::decode_position;
+use fmrs_core::solve::standard_solve::standard_solve;
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
@@ -260,7 +260,7 @@ fn bench_reachable(c: &mut Criterion) {
         };
         let capture_same_color: bool = rng.gen();
         test_cases.push((
-            PositionAux::new(position),
+            PositionAux::new(position, None),
             color,
             pos,
             kind,
@@ -286,12 +286,12 @@ fn bench_reachable(c: &mut Criterion) {
 fn bench_attacker(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(202412251401);
     let positions = random_positions_with_filter(&mut rng, 300, |position| {
-        let mut position_aux = PositionAux::new(position.clone());
+        let mut position_aux = PositionAux::new(position.clone(), None);
         position_aux.checked_slow(Color::WHITE)
     });
     let mut test_cases = vec![];
     for position in positions {
-        test_cases.push(PositionAux::new(position));
+        test_cases.push(PositionAux::new(position, None));
     }
 
     c.bench_function("attacker", |b| {
@@ -315,7 +315,7 @@ fn bench_pinned300(c: &mut Criterion) {
     for position in positions {
         let king_color: Color = rng.gen();
 
-        let mut position_aux = PositionAux::new(position.clone());
+        let mut position_aux = PositionAux::new(position.clone(), None);
         if checked(&mut position_aux, king_color) {
             continue;
         }
@@ -351,7 +351,7 @@ fn bench_solve97(c: &mut Criterion) {
         let start = std::time::Instant::now();
         let solutions = standard_solve(position.clone(), 1, true);
         debug_assert_eq!(1, solutions.as_ref().unwrap().len());
-        debug_assert_eq!(97, solutions.as_ref().unwrap()[0].0.len());
+        debug_assert_eq!(97, solutions.as_ref().unwrap()[0].len());
 
         times.push(start.elapsed());
     }
@@ -379,7 +379,7 @@ fn bench_heavy_problem(
         let start = std::time::Instant::now();
         let solutions = solve(position.clone(), 1.into(), algo, None).unwrap();
         assert_eq!(1, solutions.len());
-        assert_eq!(steps, solutions[0].0.len());
+        assert_eq!(steps, solutions[0].len());
 
         times.push(start.elapsed());
         assert!(times[0] > Duration::from_millis(100));

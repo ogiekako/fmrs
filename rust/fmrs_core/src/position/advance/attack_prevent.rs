@@ -425,7 +425,11 @@ pub fn attacker(
     let mut attacker: Option<Attacker> = None;
 
     let mut opponent_bb = position.capturable_by(king_color);
-    let king_pos = position.must_king_pos(king_color);
+    let king_pos = if king_color.is_black() {
+        position.black_king_pos()?
+    } else {
+        position.white_king_pos()
+    };
 
     let king_power_area = (king_power(king_pos) | knight_power(king_color, king_pos)) & opponent_bb;
 

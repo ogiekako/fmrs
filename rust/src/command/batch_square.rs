@@ -14,10 +14,10 @@ pub fn batch_square() -> anyhow::Result<()> {
 
     let mut solutions = batch_solve(positions, Criteria::AllUnique)?;
 
-    solutions.sort_by_key(|(_, solution)| solution.0.len());
+    solutions.sort_by_key(|(_, solution)| solution.len());
 
     for (mut position, solution) in solutions {
-        println!("{} {}", solution.0.len(), position.sfen());
+        println!("{} {}", solution.len(), position.sfen());
     }
 
     Ok(())
@@ -28,7 +28,7 @@ fn positions() -> Vec<PositionAux> {
     for h in 2..=5 {
         for w in 3..=5 {
             let area = h * w;
-            if area >= 25 || area < 9 {
+            if !(9..25).contains(&area) {
                 continue;
             }
             insert(&mut positions, h, w);

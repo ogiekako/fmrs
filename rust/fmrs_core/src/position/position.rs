@@ -15,7 +15,7 @@ use std::fmt::Debug;
 
 impl fmt::Debug for Position {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", PositionAux::new(self.clone()).sfen_url())
+        write!(f, "{}", PositionAux::new(self.clone(), None).sfen_url())
     }
 }
 
@@ -118,7 +118,7 @@ impl Position {
     }
 
     pub fn sfen(&self) -> String {
-        PositionAux::new(self.clone()).sfen()
+        PositionAux::new(self.clone(), None).sfen()
     }
 }
 
@@ -148,9 +148,10 @@ impl Debug for PositionAux {
 }
 
 impl PositionAux {
-    pub fn new(core: Position) -> Self {
+    pub fn new(core: Position, stone: Option<BitBoard>) -> Self {
         Self {
             core,
+            stone,
             ..Default::default()
         }
     }
@@ -199,11 +200,11 @@ impl PositionAux {
         res
     }
 
-    pub(crate) fn black_bb(&self) -> BitBoard {
+    pub fn black_bb(&self) -> BitBoard {
         self.core.black()
     }
 
-    pub(crate) fn white_bb(&mut self) -> BitBoard {
+    pub fn white_bb(&mut self) -> BitBoard {
         if self.white_bb.is_none() {
             let occupied = self.occupied_bb();
             let white_bb = occupied.and_not(self.color_bb_and_stone(Color::BLACK));
@@ -212,7 +213,7 @@ impl PositionAux {
         self.white_bb.unwrap()
     }
 
-    pub(crate) fn color_bb(&mut self, color: Color) -> BitBoard {
+    pub fn color_bb(&mut self, color: Color) -> BitBoard {
         if color.is_black() {
             self.core.black()
         } else {
@@ -439,7 +440,7 @@ impl PositionAux {
         self.core.set_pawn_drop(pawn_drop);
     }
 
-    pub(crate) fn stone(&self) -> &Option<BitBoard> {
+    pub fn stone(&self) -> &Option<BitBoard> {
         &self.stone
     }
 
@@ -448,10 +449,8 @@ impl PositionAux {
     }
 
     pub fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
-        let mut core = self.core.clone();
-        let movement = core.undo_move(token);
-        *self = Self::new(core);
-        movement
+        *self = Self::new(self.core.clone(), self.stone);
+        self.core.undo_move(token)
     }
 
     // TODO: remember attackers
@@ -524,7 +523,7 @@ mod tests {
     fn test_stone() {
         use crate::position::Position;
 
-        let mut position = PositionAux::new(Position::default());
+        let mut position = PositionAux::new(Position::default(), None);
         let mut stone = BitBoard::default();
         stone.set(Square::new(0, 0));
         position.set_stone(stone);

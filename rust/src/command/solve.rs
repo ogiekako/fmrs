@@ -33,12 +33,12 @@ pub fn solve(algorithm: Algorithm, sfen_or_file_or_url: Option<String>) -> anyho
         eprintln!("No solution");
         return Ok(());
     }
-    eprintln!("Solved in {} steps", answer[0].0.len());
+    eprintln!("Solved in {} steps", answer[0].len());
     if answer.len() > 1 {
         eprintln!("Multiple solutions found: showing only the first one");
     }
     let mut position = position;
-    for x in answer[0].0.iter() {
+    for x in answer[0].iter() {
         position.do_move(x);
         print!(" {}", sfen::encode_move(x));
     }

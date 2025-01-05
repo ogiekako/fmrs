@@ -20,7 +20,7 @@ pub(super) fn parallel_solve(
                 if let Some(start) = start {
                     eprintln!(
                         "found mate in {}: {:.1?}",
-                        solutions[0].0.len(),
+                        solutions[0].len(),
                         start.elapsed()
                     );
                 }
