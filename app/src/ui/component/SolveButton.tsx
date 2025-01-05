@@ -4,6 +4,7 @@ import * as types from "../types";
 import * as solve from "../../solve";
 import SolveResponse from "./SolveResponse";
 import { positionStone } from "../../model/position";
+import { BackwardSearchButton } from "./BackwardSearchButton";
 
 export default function SolveButton(props: {
   position: model.Position;
@@ -85,6 +86,11 @@ export default function SolveButton(props: {
       >
         {buttonText}
       </Button>
+      <BackwardSearchButton
+        position={props.position}
+        solveResponse={props.solveResponse}
+        dispatch={props.dispatch}
+      />
       {props.solving ? (
         <>
           <span style={{ fontSize: "0.8em" }}>

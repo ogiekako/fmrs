@@ -12,7 +12,7 @@ export async function solveWasm(
 ): Promise<Response | undefined> {
   const solver = Solver.new(sfen, n + 1, Algorithm.Standard);
   try {
-    return await solveWasmInner(solver, cancel, onStep);
+    return await solveWasmInner(solver, cancel, onStep, sfen);
   } catch (e) {
     console.error(e);
     throw e;
@@ -24,7 +24,8 @@ export async function solveWasm(
 async function solveWasmInner(
   solver: Solver,
   cancel: CancellationToken,
-  onStep: (step: number) => void
+  onStep: (step: number) => void,
+  sfen: string
 ): Promise<Response | undefined> {
   let step = 0;
   let nextAwaitStep = nextAwait(step);
@@ -41,6 +42,8 @@ async function solveWasmInner(
     }
     if (solver.solutions_found()) {
       return {
+        sfen,
+        redundant: solver.redundant(),
         solutions: solver.solutions_count(),
         kif: solver.solutions_kif(),
       };

@@ -24,8 +24,10 @@ export async function isServerAvailable(): Promise<boolean> {
 }
 
 export type Response = {
+  redundant: boolean;
   solutions: number;
   kif: string;
+  sfen: string;
 };
 
 export async function solve(

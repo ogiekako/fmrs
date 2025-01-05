@@ -1,3 +1,4 @@
+mod backward_search;
 mod solver;
 mod utils;
 

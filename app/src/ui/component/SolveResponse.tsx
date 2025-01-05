@@ -44,6 +44,8 @@ function getMessage(r: types.SolveResponse, limit: number) {
         return `More than ${limit} solutions found`;
       } else if (count > 1) {
         return `${count} solutions found`;
+      } else if (r.response.redundant) {
+        return `${count} solution found (駒余り)`;
       } else {
         return `${count} solution found`;
       }

@@ -176,6 +176,14 @@ impl BackwardSearch {
 
         Ok(true)
     }
+
+    pub fn step(&self) -> u16 {
+        self.step
+    }
+
+    pub fn positions(&self) -> (/* stone */ Option<BitBoard>, &[Position]) {
+        (self.stone, &self.positions)
+    }
 }
 
 const INF_START: u16 = u16::MAX - 2;
@@ -211,8 +219,10 @@ fn solutions(
     let mut hint = StepRange::unknown();
     if is_mate {
         hint = StepRange::exact(0);
+        assert!(!hint.needs_investigation(mate_in));
     } else if movements.is_empty() {
         hint = StepRange::unsolvable();
+        assert!(!hint.needs_investigation(mate_in));
     } else if mate_in == 0 {
         hint = StepRange::non_zero();
     }
@@ -320,8 +330,12 @@ impl StepRange {
         )
     }
 
+    fn definitely_shorter_or_non_unique(&self, step: u16) -> bool {
+        self.shortest.end <= step || self.shortest.end == step + 1 && self.next.end == step + 1
+    }
+
     fn needs_investigation(&self, mate_in: u16) -> bool {
-        if definitely_shorter(&self.shortest, mate_in) {
+        if self.definitely_shorter_or_non_unique(mate_in) {
             return false;
         }
         if definitely_longer(&self.shortest, mate_in) {
@@ -365,11 +379,6 @@ impl StepRange {
 
     fn is_uniquely(&self, step: u16) -> bool {
         exactly(&self.shortest, step) && definitely_longer(&self.next, step)
-    }
-
-    fn definitely_shorter_or_non_unique(&self, mate_in: u16) -> bool {
-        definitely_shorter(&self.shortest, mate_in)
-            || exactly(&self.shortest, mate_in) && exactly(&self.next, mate_in)
     }
 }
 

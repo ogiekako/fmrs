@@ -1,5 +1,6 @@
 use fmrs_core::{
     converter,
+    piece::Color,
     position::position::PositionAux,
     sfen,
     solve::{parallel_solve::ParallelSolver, Solution, SolverStatus, StandardSolver},
@@ -44,7 +45,10 @@ impl Solver {
     pub fn new(problem_sfen: String, solutions_upto: u16, algo: Algorithm) -> Self {
         set_panic_hook();
 
-        let position = sfen::decode_position(&problem_sfen).unwrap();
+        let mut position = sfen::decode_position(&problem_sfen).unwrap();
+        if position.checked_slow(Color::WHITE) {
+            position.set_turn(Color::WHITE);
+        }
 
         let inner: Box<dyn SolverTrait> = match algo {
             Algorithm::Standard => Box::new(StandardSolver::new(
@@ -105,6 +109,17 @@ impl Solver {
 
     pub fn solutions_count(&self) -> u32 {
         self.solutions.len() as u32
+    }
+
+    pub fn redundant(&self) -> bool {
+        if self.solutions.is_empty() {
+            return false;
+        }
+        let mut np = self.initial_position.clone();
+        for m in self.solutions[0].iter() {
+            np.do_move(m);
+        }
+        !np.hands().is_empty(Color::BLACK)
     }
 }
 
