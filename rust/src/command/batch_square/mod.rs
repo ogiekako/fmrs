@@ -17,7 +17,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     } else {
         FrameFilter {
             room_filter: RoomFilter {
-                width: vec![5],
+                width: vec![6],
                 height: 3..=5,
                 weakly_decreasing: true,
                 area: Some(16..=30),
@@ -85,7 +85,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
             best_problems.1.last().unwrap(),
         );
     }
-    eprintln!("mate in {}:", best_problems.0);
+    eprintln!("mate in {} ({}):", best_problems.0, best_problems.1.len());
     for position in best_problems.1.iter() {
         eprintln!("{}", position.sfen_url());
         println!("{}", position.sfen());
@@ -107,11 +107,13 @@ fn log_results(
     let result = RunResult {
         filter: filter.clone(),
         problems: problems
-            .iter()
-            .map(|(step, positions)| Problem {
-                step: *step as usize,
-                sfen: positions[0].sfen(),
-                url: positions[0].sfen_url(),
+            .into_iter()
+            .flat_map(|(step, positions)| {
+                positions.into_iter().map(|position| Problem {
+                    step: *step as usize,
+                    sfen: position.sfen(),
+                    url: position.sfen_url(),
+                })
             })
             .collect(),
     };

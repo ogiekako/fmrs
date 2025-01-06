@@ -120,11 +120,31 @@ impl Context<'_> {
             let mut kind = self.position.get(*to).unwrap().1;
             if *promote {
                 kind = kind.unpromote().unwrap();
+                if kind == Kind::Pawn
+                    && self
+                        .position
+                        .col_has_pawn(self.position.turn().opposite(), to.col())
+                {
+                    return;
+                }
             }
             if !rule::is_legal_move(self.position.turn().opposite(), *from, *to, kind, *promote) {
                 return;
             }
         }
         self.movements.push(movement);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::position::{position::PositionAux, previous};
+
+    #[test]
+    fn test_previous_no_double_pawn() {
+        let mut position = PositionAux::from_sfen("8p/8O/9/9/9/7O1/7O+p/7OO/9 b - 1").unwrap();
+        let mut movements = vec![];
+        previous(&mut position, false, &mut movements);
+        assert_eq!(movements.len(), 2);
     }
 }
