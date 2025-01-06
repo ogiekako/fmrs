@@ -278,8 +278,8 @@ export class Solver {
     /**
      * @returns {boolean}
      */
-    from_white() {
-        const ret = wasm.solver_from_white(this.__wbg_ptr);
+    is_from_white() {
+        const ret = wasm.solver_is_from_white(this.__wbg_ptr);
         return ret !== 0;
     }
 }
