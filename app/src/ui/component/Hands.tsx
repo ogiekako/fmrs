@@ -5,6 +5,7 @@ export default function Hands(props: {
   hands: model.Hands;
   selected: model.Kind | "" | undefined;
   onClick: (kind: model.Kind | undefined) => void;
+  pieceBox?: boolean;
 }) {
   let nothing = true;
   const pieces = [];
@@ -14,14 +15,18 @@ export default function Hands(props: {
       nothing = false;
       pieces.push(
         <span
-          className={k == "K" ? "ps-2" : ""}
+          className={props.pieceBox ? "text-secondary" : ""}
           key={k}
           onClick={(e) => {
             e.stopPropagation();
             props.onClick(k);
           }}
         >
-          <Kind kind={k} selected={props.selected === k} />
+          <Kind
+            kind={k}
+            selected={props.selected === k}
+            pieceBox={props.pieceBox}
+          />
           {n}
         </span>
       );
@@ -34,7 +39,11 @@ export default function Hands(props: {
         props.onClick(undefined);
       }}
     >
-      <Kind kind={""} selected={props.selected === ""} />
+      <Kind
+        kind={""}
+        selected={props.selected === ""}
+        pieceBox={props.pieceBox}
+      />
     </span>
   ) : (
     <>{pieces}</>
@@ -53,10 +62,15 @@ const MAPPING: { [k in model.Kind]: string } = {
   K: "玉",
 };
 
-function Kind(props: { kind: model.Kind | ""; selected: boolean }) {
+function Kind(props: {
+  kind: model.Kind | "";
+  selected: boolean;
+  pieceBox?: boolean;
+}) {
   let letter = props.kind == "" ? "なし" : MAPPING[props.kind];
   return (
     <span
+      className={props.pieceBox ? "text-secondary" : ""}
       style={{ backgroundColor: props.selected ? SELECTED_COLOR : "white" }}
     >
       {letter}

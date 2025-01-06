@@ -15,7 +15,7 @@ export type Problem = [Position, /* name */ string];
 export type Selected =
   | {
       ty: "hand";
-      color: Color;
+      color: Color | "pieceBox";
       kind: Kind | undefined;
     }
   | {
@@ -45,7 +45,7 @@ export type SolveResponse = { millis: number } & (
 
 export type ClickHandEvent = {
   ty: "click-hand";
-  color: Color;
+  color: Color | "pieceBox";
   kind: Kind | undefined;
 };
 

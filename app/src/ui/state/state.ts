@@ -3,8 +3,8 @@ import * as types from "../types";
 import * as position from "./position";
 import * as model from "../../model";
 import { KINDS } from "../../model";
-import { colorOpposite } from "../../model/color";
 import { PRESET_PROBLEMS } from "../../problem";
+import { positionPieceBox } from "../../model/position";
 
 export function newState(): types.State {
   const url = new URL(window.location.href);
@@ -94,17 +94,12 @@ function handleClick(
     return state;
   }
 
-  const selectedPiece =
+  const isSelected =
     (state.selected.ty === "board" &&
-      state.position.board[state.selected.pos[0]][state.selected.pos[1]]) ||
-    (state.selected.ty === "hand" &&
-      state.selected.kind && {
-        color: state.selected.color,
-        kind: state.selected.kind,
-        promoted: false,
-      });
+      !!state.position.board[state.selected.pos[0]][state.selected.pos[1]]) ||
+    (state.selected.ty === "hand" && !!state.selected.kind);
 
-  if (!selectedPiece) {
+  if (!isSelected) {
     switch (event.ty) {
       case "click-hand":
         state.selected = {
@@ -124,10 +119,11 @@ function handleClick(
     }
     return state;
   }
-  if (selectedPiece === "O") {
-    if (state.selected.ty === "hand") {
-      throw new Error("inconsistent state: stone in hand is selected");
-    }
+
+  if (
+    state.selected.ty === "board" &&
+    state.position.board[state.selected.pos[0]][state.selected.pos[1]] === "O"
+  ) {
     switch (event.ty) {
       case "click-hand":
         state.selected = {
@@ -162,22 +158,42 @@ function handleClick(
     state.selected.ty === "hand"
       ? {
           ty: "hand" as const,
-          color: selectedPiece.color,
-          kind: selectedPiece.kind,
+          color: state.selected.color,
+          kind: state.selected.kind!,
         }
       : {
           ty: "board" as const,
           pos: state.selected.pos,
         };
-  const to =
-    event.ty === "click-hand"
-      ? { ty: "hand" as const, color: event.color }
-      : {
-          ty: "board" as const,
+
+  let to: Dest;
+  switch (event.ty) {
+    case "click-hand":
+      to = { ty: "hand", color: event.color };
+      break;
+    case "click-board":
+      if (from.ty === "hand") {
+        to = {
+          ty: "board",
           pos: event.pos,
-          color: state.selected.ty === "hand" ? "black" : selectedPiece.color,
-          promoted: selectedPiece.promoted,
+          color: "black",
+          promoted: false,
         };
+      } else {
+        const piece = state.position.board[from.pos[0]][from.pos[1]];
+        if (!piece || piece === "O") throw new Error("BUG: unreachable");
+        to = {
+          ty: "board",
+          pos: event.pos,
+          color: piece.color,
+          promoted: piece.promoted,
+        };
+      }
+      break;
+    default:
+      ((_: never) => {})(event);
+      throw new Error("BUG: unreachable");
+  }
 
   tryMove(state, from, to);
   state.selected = undefined;
@@ -221,7 +237,7 @@ function maybeClearSolveResponse(state: types.State) {
 type Direction = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
 
 function nextSelection(
-  hands: { [c in model.Color]: model.Hands },
+  hands: { [c in model.Color | "pieceBox"]: model.Hands },
   selected: types.Selected | undefined,
   direction: Direction
 ): types.Selected | undefined {
@@ -235,8 +251,15 @@ function nextSelection(
     case "hand":
       switch (direction) {
         case "ArrowUp":
-          if (selected.color === "white") {
+          if (selected.color === "pieceBox") {
             return selected;
+          }
+          if (selected.color === "white") {
+            const kinds = KINDS.filter((k) => hands["white"][k]);
+            const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
+            const pieceBoxKinds = KINDS.filter((k) => hands["pieceBox"][k]);
+            const kind = pieceBoxKinds[Math.min(pieceBoxKinds.length - 1, i)];
+            return { ty: "hand", color: "pieceBox", kind };
           } else {
             const kinds = KINDS.filter((k) => hands["black"][k]);
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
@@ -245,6 +268,12 @@ function nextSelection(
         case "ArrowDown":
           if (selected.color === "black") {
             return selected;
+          } else if (selected.color === "pieceBox") {
+            const kinds = KINDS.filter((k) => hands["pieceBox"][k]);
+            const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
+            const whiteKinds = KINDS.filter((k) => hands["white"][k]);
+            const kind = whiteKinds[Math.min(whiteKinds.length - 1, i)];
+            return { ty: "hand", color: "white", kind };
           } else {
             const kinds = KINDS.filter((k) => hands["white"][k]);
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
@@ -338,7 +367,10 @@ function handleKeyDown(orig: types.State, key: string) {
 
   if (key.startsWith("Arrow")) {
     state.selected = nextSelection(
-      orig.position.hands,
+      {
+        ...state.position.hands,
+        pieceBox: positionPieceBox(state.position),
+      },
       orig.selected,
       key as Direction
     );
@@ -346,6 +378,12 @@ function handleKeyDown(orig: types.State, key: string) {
   }
 
   if (!state.selected) return orig;
+
+  const oppositeOrWhite = {
+    black: "white",
+    white: "black",
+    pieceBox: "white",
+  } as const;
 
   if (state.selected.ty == "hand") {
     if (key == " " || key == "-") {
@@ -359,7 +397,7 @@ function handleKeyDown(orig: types.State, key: string) {
         },
         {
           ty: "hand",
-          color: colorOpposite(state.selected.color),
+          color: oppositeOrWhite[state.selected.color],
         }
       );
     } else if (key == "+") {
@@ -368,7 +406,7 @@ function handleKeyDown(orig: types.State, key: string) {
         state,
         {
           ty: "hand",
-          color: colorOpposite(state.selected.color),
+          color: oppositeOrWhite[state.selected.color],
           kind: state.selected.kind,
         },
         {
@@ -383,7 +421,7 @@ function handleKeyDown(orig: types.State, key: string) {
           state,
           {
             ty: "hand",
-            color: colorOpposite(state.selected.color),
+            color: oppositeOrWhite[state.selected.color],
             kind: piece.kind,
           },
           {
@@ -477,7 +515,7 @@ function keyToPiece(key: string) {
 type Source =
   | {
       ty: "hand";
-      color: model.Color;
+      color: model.Color | "pieceBox";
       kind: model.Kind;
     }
   | {
@@ -488,7 +526,7 @@ type Source =
 type Dest =
   | {
       ty: "hand";
-      color: model.Color;
+      color: model.Color | "pieceBox";
     }
   | {
       ty: "board";
@@ -501,9 +539,13 @@ function tryMove(state: types.State, from: Source, to: Dest) {
   if (from.ty === "hand") {
     if (to.ty === "hand") {
       if (from.color === to.color) return;
-      if (state.position.hands[from.color][from.kind] === 0) return;
-      state.position.hands[from.color][from.kind]--;
-      state.position.hands[to.color][from.kind]++;
+      if (from.color !== "pieceBox") {
+        if (state.position.hands[from.color][from.kind] === 0) return;
+        state.position.hands[from.color][from.kind]--;
+      }
+      if (to.color !== "pieceBox") {
+        state.position.hands[to.color][from.kind]++;
+      }
     } else {
       let dest = state.position.board[to.pos[0]][to.pos[1]];
       if (dest === "O") {
@@ -512,6 +554,7 @@ function tryMove(state: types.State, from: Source, to: Dest) {
       }
       if (
         dest?.kind !== from.kind &&
+        from.color !== "pieceBox" &&
         state.position.hands[from.color][from.kind] === 0
       ) {
         return;
@@ -522,9 +565,11 @@ function tryMove(state: types.State, from: Source, to: Dest) {
         kind: from.kind,
         promoted: to.promoted,
       };
-      state.position.hands[from.color][from.kind]--;
-      if (dest) {
-        state.position.hands[from.color][dest.kind]++;
+      if (from.color !== "pieceBox") {
+        state.position.hands[from.color][from.kind]--;
+        if (dest) {
+          state.position.hands[from.color][dest.kind]++;
+        }
       }
     }
   } else {
@@ -532,7 +577,7 @@ function tryMove(state: types.State, from: Source, to: Dest) {
     if (!source) return;
     if (to.ty === "hand") {
       state.position.board[from.pos[0]][from.pos[1]] = undefined;
-      if (source !== "O") {
+      if (source !== "O" && to.color !== "pieceBox") {
         state.position.hands[to.color][source.kind]++;
       }
     } else {
@@ -555,14 +600,14 @@ function tryMove(state: types.State, from: Source, to: Dest) {
       }
     }
   }
-  state.position.hands["white"]["K"] += state.position.hands["black"]["K"];
   state.position.hands["black"]["K"] = 0;
+  state.position.hands["white"]["K"] = 0;
 
   // Update selected.
   if (!state.selected) return;
   if (state.selected.ty === "hand") {
     state.selected.kind = nextKind(
-      state.position.hands[state.selected.color],
+      getHands(state.position, state.selected.color),
       state.selected.kind ?? "P",
       "left",
       true
@@ -590,4 +635,14 @@ function shifted(orig: types.State, dir: "up" | "down" | "left" | "right") {
     }
   }
   return state;
+}
+
+function getHands(
+  position: model.Position,
+  color: model.Color | "pieceBox"
+): model.Hands {
+  if (color === "pieceBox") {
+    return positionPieceBox(position);
+  }
+  return position.hands[color];
 }

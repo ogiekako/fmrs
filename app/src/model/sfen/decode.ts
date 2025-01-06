@@ -5,14 +5,6 @@ export function decodeSfen(sfen: string): Position {
   const board = decodeBoard(boardStr);
   const hands = decodeHands(handsStr);
 
-  let remainingKings = 2;
-  for (const row of board) {
-    remainingKings -= row.filter(
-      (piece) => piece != "O" && piece?.kind === "K"
-    ).length;
-  }
-  hands.white["K"] += Math.max(0, remainingKings);
-
   return {
     board,
     hands,

@@ -364,7 +364,9 @@ impl PositionAux {
     }
 
     pub fn shift(&mut self, dir: Direction) {
-        if let Some(stone) = self.stone.as_mut() { stone.shift(dir) }
+        if let Some(stone) = self.stone.as_mut() {
+            stone.shift(dir)
+        }
         self.occupied.shift(dir);
         self.white_bb.shift(dir);
         if let Some(pos) = self.white_king_pos.as_mut() {
@@ -451,11 +453,14 @@ impl PositionAux {
             }
         }
         core.set_turn(self.turn().opposite());
-        Self {
-            core,
-            stone: (!stone.is_empty()).then_some(stone),
-            ..Default::default()
+        for k in KINDS[0..NUM_HAND_KIND].iter().copied() {
+            core.hands_mut()
+                .add_n(Color::WHITE, k, self.hands().count(Color::BLACK, k));
+            core.hands_mut()
+                .add_n(Color::BLACK, k, self.hands().count(Color::WHITE, k));
         }
+
+        Self::new(core, stone.into())
     }
 
     pub fn set_stone(&mut self, stone: BitBoard) {

@@ -42,12 +42,16 @@ pub enum Algorithm {
 
 #[wasm_bindgen]
 impl Solver {
-    pub fn new(problem_sfen: String, solutions_upto: u16, algo: Algorithm) -> Self {
+    #[wasm_bindgen(constructor)]
+    pub fn new(problem_sfen: String, solutions_upto: u16, algo: Algorithm) -> Result<Self, String> {
         set_panic_hook();
 
         let mut position = sfen::decode_position(&problem_sfen).unwrap();
         if position.checked_slow(Color::WHITE) {
             position.set_turn(Color::WHITE);
+        }
+        if position.checked_slow(position.turn().opposite()) {
+            return Err("both checked".to_string());
         }
 
         let inner: Box<dyn SolverTrait> = match algo {
@@ -62,12 +66,12 @@ impl Solver {
             )),
         };
 
-        Self {
+        Ok(Self {
             initial_position: position,
             inner,
             no_solution: false,
             solutions: vec![],
-        }
+        })
     }
 
     /// Returns non-empty string in case of an error.
@@ -147,8 +151,18 @@ fn convert_solutions_to_sfen(solutions: &[Solution]) -> Vec<String> {
     res
 }
 
-impl Drop for Solver {
-    fn drop(&mut self) {
-        log("Solver dropped");
+#[cfg(test)]
+mod tests {
+    use super::Solver;
+
+    #[test]
+    fn test_solutions_to_kif() {
+        for sfen in ["2k6/9/1R1l5/9/9/3+l5/9/9/2L1K4 b 4g3s3n 1"] {
+            let mut solver = Solver::new(sfen.into(), 1, super::Algorithm::Standard).unwrap();
+            while !solver.solutions_found() && !solver.no_solution() {
+                solver.advance().unwrap();
+            }
+            solver.solutions_kif();
+        }
     }
 }

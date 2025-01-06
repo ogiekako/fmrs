@@ -3,6 +3,8 @@ import Board from "./Board";
 import Hands from "./Hands";
 import * as types from "../types";
 import { Shifter } from "./Shifter";
+import { positionPieceBox } from "../../model/position";
+import { FloatingLabel } from "react-bootstrap";
 
 export default function Position(props: {
   position: model.Position;
@@ -13,15 +15,19 @@ export default function Position(props: {
   let boardSelected = undefined;
   let whiteHandSelected = undefined;
   let blackHandSelected = undefined;
+  let pieceBoxSelected = undefined;
   if (props.selected) {
     if (props.selected.ty === "board") {
       boardSelected = props.selected.pos;
     } else if (props.selected.color === "white") {
       whiteHandSelected = props.selected.kind ?? ("" as const);
-    } else {
+    } else if (props.selected.color === "black") {
       blackHandSelected = props.selected.kind ?? ("" as const);
+    } else {
+      pieceBoxSelected = props.selected.kind ?? ("" as const);
     }
   }
+  const pieceBox = positionPieceBox(props.position);
 
   return (
     <div
@@ -40,6 +46,31 @@ export default function Position(props: {
         });
       }}
     >
+      <div style={{ position: "relative" }}>
+        <label
+          className="text-secondary"
+          style={{
+            marginRight: "0.25em",
+            display: "flex",
+            top: "50%",
+            transform: "translateY(-50%)",
+            position: "absolute",
+            right: "100%",
+            fontSize: "0.75em",
+            width: "2em",
+          }}
+        >
+          駒箱
+        </label>
+        <Hands
+          pieceBox={true}
+          hands={pieceBox}
+          selected={pieceBoxSelected}
+          onClick={(kind) =>
+            props.dispatch({ ty: "click-hand", color: "pieceBox", kind })
+          }
+        />
+      </div>
       <Hands
         hands={props.position.hands["white"]}
         selected={whiteHandSelected}

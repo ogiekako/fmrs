@@ -10,7 +10,7 @@ export async function solveWasm(
   cancel: CancellationToken,
   onStep: (step: number) => void
 ): Promise<Response | undefined> {
-  const solver = Solver.new(sfen, n + 1, Algorithm.Standard);
+  const solver = new Solver(sfen, n + 1, Algorithm.Standard);
   try {
     return await solveWasmInner(solver, cancel, onStep, sfen);
   } catch (e) {
