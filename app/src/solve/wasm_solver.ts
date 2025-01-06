@@ -46,7 +46,7 @@ async function solveWasmInner(
         redundant: solver.redundant(),
         solutions: solver.solutions_count(),
         kif: solver.solutions_kif(),
-        fromWhite: solver.from_white(),
+        fromWhite: solver.is_from_white(),
       };
     }
     if (step >= nextAwaitStep) {

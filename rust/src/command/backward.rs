@@ -13,7 +13,7 @@ pub fn backward(sfen_like: &str) -> anyhow::Result<()> {
     let (step, positions) = backward_search(&position, true)?;
 
     eprintln!("mate in {}:", step);
-    for mut position in positions {
+    for position in positions {
         eprintln!("{}", position.sfen_url());
         println!("{}", position.sfen());
     }

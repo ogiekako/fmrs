@@ -51,7 +51,7 @@ fn decode_hand_kind(ch: char) -> anyhow::Result<(Color, Kind)> {
     bail!("Illegal hand kind {}", ch)
 }
 
-pub fn encode_position(board: &mut PositionAux) -> String {
+pub fn encode_position(board: &PositionAux) -> String {
     let mut res = String::new();
     let stone = *board.stone();
     for row in 0..9 {
@@ -307,7 +307,7 @@ fn test_encode() {
 
     assert_eq!(
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1",
-        &encode_position(&mut board)
+        &encode_position(&board)
     );
 }
 
@@ -316,7 +316,7 @@ fn test_decode() {
     assert_eq!(
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1",
         &encode_position(
-            &mut decode_position(
+            &decode_position(
                 "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1"
             )
             .expect("Failed to decode")
@@ -325,14 +325,14 @@ fn test_decode() {
     assert_eq!(
         "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1",
         &encode_position(
-            &mut decode_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1")
+            &decode_position("lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1")
                 .expect("Failed to decode")
         )
     );
     assert_eq!(
         "3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1",
         &encode_position(
-            &mut decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
+            &decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
                 .expect("Failed to decode")
         )
     );

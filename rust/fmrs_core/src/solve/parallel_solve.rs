@@ -34,13 +34,7 @@ impl ParallelSolver {
         let mut step = 0;
 
         if position.turn().is_black() {
-            next_positions(
-                &mate_positions,
-                &mut memo_next,
-                &mut positions,
-                step,
-                &stone,
-            );
+            next_positions(&mate_positions, &memo_next, &mut positions, step, &stone);
             std::mem::swap(&mut memo, &mut memo_next);
             step += 1;
         }

@@ -90,7 +90,7 @@ impl BitBoard {
     }
 
     fn col_is_empty(&self, col: usize) -> bool {
-        (self.u128() >> col * 9) & 0b111111111 == 0
+        (self.u128() >> (col * 9)) & 0b111111111 == 0
     }
 }
 
@@ -216,11 +216,11 @@ mod tests {
             vec![
                 BitBoard(4 | 1 << 64),
                 BitBoard(1 | 1 << 64),
-                BitBoard(0 | 1 << 64),
-                BitBoard(5 | 0 << 64),
-                BitBoard(4 | 0 << 64),
-                BitBoard(1 | 0 << 64),
-                BitBoard(0 | 0 << 64),
+                BitBoard(1 << 64),
+                BitBoard(5),
+                BitBoard(4),
+                BitBoard(1),
+                BitBoard(0 << 64),
                 BitBoard(5 | 1 << 64),
             ]
         );
@@ -234,7 +234,7 @@ mod tests {
         bb.set(Square::new(7, 1));
         bb.set(Square::new(8, 8));
 
-        let orig = bb.clone();
+        let orig = bb;
 
         bb.shift(Direction::Left);
         assert_eq!(
@@ -286,7 +286,7 @@ mod tests {
             "........*",
             "***.....*",
         );
-        let orig = bb.clone();
+        let orig = bb;
 
         bb.shift(Direction::Up);
         assert_eq!(

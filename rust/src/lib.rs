@@ -77,7 +77,7 @@ pub async fn do_main() -> anyhow::Result<()> {
         } => command::one_way_mate(algorithm, seed, parallel, goal)?,
         Action::Batch { file, criteria } => {
             let ans = command::batch(file, criteria)?;
-            for (mut position, solution) in ans {
+            for (position, solution) in ans {
                 println!("{} {}", solution.len(), position.sfen());
             }
         }

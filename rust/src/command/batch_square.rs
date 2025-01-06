@@ -60,10 +60,10 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
             .collect::<Vec<_>>();
 
         for (step, positions) in solutions {
-            if step > best_solutions.0 {
-                best_solutions = (step, positions);
-            } else if step == best_solutions.0 {
-                best_solutions.1.extend(positions);
+            match step.cmp(&best_solutions.0) {
+                std::cmp::Ordering::Less => continue,
+                std::cmp::Ordering::Greater => best_solutions = (step, positions),
+                std::cmp::Ordering::Equal => best_solutions.1.extend(positions),
             }
         }
         info!(
@@ -75,7 +75,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         );
     }
     eprintln!("mate in {}:", best_solutions.0);
-    for mut position in best_solutions.1 {
+    for position in best_solutions.1 {
         eprintln!("{}", position.sfen_url());
         println!("{}", position.sfen());
     }
@@ -132,7 +132,7 @@ impl MateFormationFilter {
 
         let mut representatives = vec![];
 
-        let mut frame_position = frame.to_position();
+        let frame_position = frame.to_position();
 
         for king_pos in room {
             if representatives.len() >= 2 || representatives.len() == 1 && !has_parity {
@@ -144,7 +144,7 @@ impl MateFormationFilter {
             representatives.push(position);
         }
 
-        for mut representative in representatives {
+        for representative in representatives {
             let mut impossible_max_pawn = 0;
             for bit in [4, 2, 1] {
                 let c = impossible_max_pawn | bit;
@@ -179,10 +179,8 @@ impl MateFormationFilter {
                 white_pawn |= mate_position.bitboard(Color::WHITE, Kind::Pawn);
             }
 
-            if self.no_redundant {
-                if !mate_position.hands().is_empty(Color::BLACK) {
-                    continue;
-                }
+            if self.no_redundant && !mate_position.hands().is_empty(Color::BLACK) {
+                continue;
             }
             if (mate_position
                 .bitboard(Color::WHITE, Kind::ProPawn)

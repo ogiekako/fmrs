@@ -50,7 +50,7 @@ pub fn backward_search(
         let mut movements = vec![];
         advance_aux(
             p,
-            &mut MemoStub::default(),
+            &mut MemoStub,
             0,
             &AdvanceOptions {
                 no_memo: true,
@@ -59,7 +59,7 @@ pub fn backward_search(
             &mut movements,
         )?;
         for m in movements.iter() {
-            let digest = p.moved_digest(&m);
+            let digest = p.moved_digest(m);
             if search
                 .prev_memo
                 .get(&digest)
@@ -138,10 +138,8 @@ impl BackwardSearch {
                     if !pp.checked_slow(Color::WHITE) || pp.checked_slow(Color::BLACK) {
                         continue;
                     }
-                } else {
-                    if pp.checked_slow(Color::WHITE) {
-                        continue;
-                    }
+                } else if pp.checked_slow(Color::WHITE) {
+                    continue;
                 }
 
                 let ans = solutions(&mut pp, &mut self.prev_memo, &mut self.memo, self.step + 1);
@@ -219,7 +217,7 @@ fn solutions(
     let mut movements = vec![];
     let is_mate = advance_aux(
         position,
-        &mut MemoStub::default(),
+        &mut MemoStub,
         0,
         &AdvanceOptions {
             no_memo: true,
@@ -348,17 +346,14 @@ impl StepRange {
     }
 
     fn needs_investigation(&self, mate_in: u16) -> bool {
-        if self.definitely_shorter_or_non_unique(mate_in) {
-            return false;
-        }
-        if definitely_longer(&self.shortest, mate_in) {
+        if self.definitely_shorter_or_non_unique(mate_in)
+            || definitely_longer(&self.shortest, mate_in)
+        {
             return false;
         }
         if exactly(&self.shortest, mate_in) {
             debug_assert!(!definitely_shorter(&self.next, mate_in));
-            if definitely_longer(&self.next, mate_in) {
-                return false;
-            } else if exactly(&self.next, mate_in) {
+            if definitely_longer(&self.next, mate_in) || exactly(&self.next, mate_in) {
                 return false;
             }
         }
@@ -441,7 +436,7 @@ mod tests {
                 .map(|sfen| PositionAux::from_sfen(sfen).unwrap())
                 .collect::<Vec<_>>();
 
-            positions.sort_by(|a, b| a.clone().sfen().cmp(&b.clone().sfen()));
+            positions.sort_by_key(|a| a.clone().sfen());
 
             assert_eq!(positions, want_positions)
         }

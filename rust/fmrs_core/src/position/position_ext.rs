@@ -247,7 +247,7 @@ mod tests {
             let (board_sfen, movement, want) = (tc.0, tc.1, tc.2);
             let mut board = sfen::decode_position(board_sfen).unwrap();
             board.do_move(&movement);
-            assert_eq!(want, sfen::encode_position(&mut board));
+            assert_eq!(want, sfen::encode_position(&board));
         }
     }
 }

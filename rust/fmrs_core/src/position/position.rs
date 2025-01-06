@@ -122,12 +122,11 @@ impl Position {
     }
 }
 
-// TOOD: remove clone
 #[derive(Clone, Default)]
 pub struct PositionAux {
     core: Position,
-    occupied: Option<BitBoard>,
-    white_bb: Option<BitBoard>,
+    occupied: BitBoard,
+    white_bb: BitBoard,
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
     stone: Option<BitBoard>,
@@ -149,9 +148,16 @@ impl Debug for PositionAux {
 
 impl PositionAux {
     pub fn new(core: Position, stone: Option<BitBoard>) -> Self {
+        let mut occupied = core.kind_bb().occupied();
+        let white_bb = occupied.and_not(core.black());
+        if let Some(stone) = &stone {
+            occupied |= *stone;
+        }
         Self {
             core,
             stone,
+            occupied,
+            white_bb,
             ..Default::default()
         }
     }
@@ -164,23 +170,15 @@ impl PositionAux {
         self.core.kind_bb().bitboard(kind)
     }
 
-    pub fn bitboard(&mut self, color: Color, kind: Kind) -> BitBoard {
+    pub fn bitboard(&self, color: Color, kind: Kind) -> BitBoard {
         self.kind_bb(kind) & self.color_bb(color)
     }
 
-    pub(crate) fn occupied_bb(&mut self) -> BitBoard {
-        if let Some(occupied) = &self.occupied {
-            return *occupied;
-        }
-        let mut res = self.core.kind_bb().occupied();
-        if let Some(stone) = self.stone() {
-            res |= *stone;
-        }
-        self.occupied = Some(res);
-        res
+    pub(crate) fn occupied_bb(&self) -> BitBoard {
+        self.occupied
     }
 
-    pub(crate) fn capturable_by(&mut self, color: Color) -> BitBoard {
+    pub(crate) fn capturable_by(&self, color: Color) -> BitBoard {
         if color.is_black() {
             self.white_bb()
         } else {
@@ -188,7 +186,7 @@ impl PositionAux {
         }
     }
 
-    pub(crate) fn color_bb_and_stone(&mut self, color: Color) -> BitBoard {
+    pub(crate) fn color_bb_and_stone(&self, color: Color) -> BitBoard {
         let mut res = if color.is_black() {
             self.core.black()
         } else {
@@ -204,16 +202,11 @@ impl PositionAux {
         self.core.black()
     }
 
-    pub fn white_bb(&mut self) -> BitBoard {
-        if self.white_bb.is_none() {
-            let occupied = self.occupied_bb();
-            let white_bb = occupied.and_not(self.color_bb_and_stone(Color::BLACK));
-            self.white_bb = Some(white_bb);
-        }
-        self.white_bb.unwrap()
+    pub fn white_bb(&self) -> BitBoard {
+        self.white_bb
     }
 
-    pub fn color_bb(&mut self, color: Color) -> BitBoard {
+    pub fn color_bb(&self, color: Color) -> BitBoard {
         if color.is_black() {
             self.core.black()
         } else {
@@ -234,7 +227,7 @@ impl PositionAux {
         self.core.kind_bb().get(dest)
     }
 
-    pub fn get(&mut self, pos: Square) -> Option<(Color, Kind)> {
+    pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         if self.has_stone(pos) {
             return None;
         }
@@ -255,11 +248,11 @@ impl PositionAux {
         self.core.kind_bb().pawn_silver_goldish()
     }
 
-    pub(crate) fn bishopish(&mut self) -> BitBoard {
+    pub(crate) fn bishopish(&self) -> BitBoard {
         self.core.kind_bb.bishopish()
     }
 
-    pub(crate) fn rookish(&mut self) -> BitBoard {
+    pub(crate) fn rookish(&self) -> BitBoard {
         self.core.kind_bb.rookish()
     }
 
@@ -328,13 +321,9 @@ impl PositionAux {
     }
 
     pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
-        if let Some(bb) = self.occupied.as_mut() {
-            bb.unset(pos)
-        }
+        self.occupied.unset(pos);
         if color.is_white() {
-            if let Some(bb) = self.white_bb.as_mut() {
-                bb.unset(pos)
-            }
+            self.white_bb.unset(pos);
         }
 
         if kind == Kind::King {
@@ -350,13 +339,9 @@ impl PositionAux {
 
     pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
         debug_assert!(!self.has_stone(pos));
-        if let Some(bb) = self.occupied.as_mut() {
-            bb.set(pos)
-        }
+        self.occupied.set(pos);
         if color.is_white() {
-            if let Some(bb) = self.white_bb.as_mut() {
-                bb.set(pos)
-            }
+            self.white_bb.set(pos);
         }
 
         if kind == Kind::King {
@@ -379,12 +364,9 @@ impl PositionAux {
     }
 
     pub fn shift(&mut self, dir: Direction) {
-        if let Some(bb) = self.occupied.as_mut() {
-            bb.shift(dir)
-        }
-        if let Some(bb) = self.white_bb.as_mut() {
-            bb.shift(dir)
-        }
+        if let Some(stone) = self.stone.as_mut() { stone.shift(dir) }
+        self.occupied.shift(dir);
+        self.white_bb.shift(dir);
         if let Some(pos) = self.white_king_pos.as_mut() {
             pos.shift(dir)
         }
@@ -420,19 +402,15 @@ impl PositionAux {
         &self.core
     }
 
-    pub fn set_stone(&mut self, stone: BitBoard) {
-        self.stone = Some(stone);
-    }
-
     pub fn from_sfen(s: &str) -> anyhow::Result<Self> {
         sfen::decode_position(s)
     }
 
-    pub fn sfen(&mut self) -> String {
+    pub fn sfen(&self) -> String {
         sfen::encode_position(self)
     }
 
-    pub fn sfen_url(&mut self) -> String {
+    pub fn sfen_url(&self) -> String {
         sfen::sfen_to_image_url(&self.sfen())
     }
 
@@ -449,17 +427,19 @@ impl PositionAux {
     }
 
     pub fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
-        *self = Self::new(self.core.clone(), self.stone);
-        self.core.undo_move(token)
+        let mut core = self.core.clone();
+        let res = core.undo_move(token);
+        *self = Self::new(core, self.stone);
+        res
     }
 
-    pub fn col_has_pawn(&mut self, color: Color, col: usize) -> bool {
+    pub fn col_has_pawn(&self, color: Color, col: usize) -> bool {
         let pawn_bb = self.bitboard(color, Kind::Pawn).u128();
-        let mask = (1 << col * 9 + 9) - (1 << col * 9);
+        let mask = (1 << (col * 9 + 9)) - (1 << (col * 9));
         pawn_bb & mask != 0
     }
 
-    pub fn flipped(&mut self) -> Self {
+    pub fn flipped(&self) -> Self {
         let mut core = Position::default();
         let mut stone = BitBoard::default();
         for pos in Square::iter() {
@@ -473,9 +453,14 @@ impl PositionAux {
         core.set_turn(self.turn().opposite());
         Self {
             core,
-            stone: (!stone.is_empty()).then(|| stone),
+            stone: (!stone.is_empty()).then_some(stone),
             ..Default::default()
         }
+    }
+
+    pub fn set_stone(&mut self, stone: BitBoard) {
+        self.stone = Some(stone);
+        self.occupied |= stone;
     }
 
     // TODO: remember attackers
@@ -548,10 +533,9 @@ mod tests {
     fn test_stone() {
         use crate::position::Position;
 
-        let mut position = PositionAux::new(Position::default(), None);
         let mut stone = BitBoard::default();
         stone.set(Square::new(0, 0));
-        position.set_stone(stone);
+        let position = PositionAux::new(Position::default(), stone.into());
 
         assert_eq!(position.sfen(), "8O/9/9/9/9/9/9/9/9 b - 1");
     }

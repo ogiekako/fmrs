@@ -130,7 +130,7 @@ impl Solver {
         !np.hands().is_empty(Color::BLACK)
     }
 
-    pub fn from_white(&self) -> bool {
+    pub fn is_from_white(&self) -> bool {
         self.initial_position.turn() == Color::WHITE
     }
 }

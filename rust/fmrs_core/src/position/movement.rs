@@ -136,9 +136,9 @@ impl Movement {
     }
 
     pub fn flipped(&self) -> Movement {
-        match self {
-            &Movement::Drop(pos, kind) => Movement::Drop(pos.flipped(), kind),
-            &Movement::Move {
+        match *self {
+            Movement::Drop(pos, kind) => Movement::Drop(pos.flipped(), kind),
+            Movement::Move {
                 source,
                 source_kind_hint,
                 dest,
