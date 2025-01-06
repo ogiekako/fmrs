@@ -52,7 +52,7 @@ impl Hands {
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
     pub fn add(&mut self, c: Color, k: Kind) {
-        debug_assert!(self.count(c, k) + 1 <= Hands::max_count(k));
+        debug_assert!(self.count(c, k) < Hands::max_count(k));
         self.x += Hands::bit_of(c, k);
     }
     pub fn add_n(&mut self, c: Color, k: Kind, n: usize) {

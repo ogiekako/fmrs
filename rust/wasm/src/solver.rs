@@ -7,7 +7,7 @@ use fmrs_core::{
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
-use crate::{log, utils::set_panic_hook};
+use crate::utils::set_panic_hook;
 
 pub trait SolverTrait {
     fn advance(&mut self) -> anyhow::Result<SolverStatus>;
