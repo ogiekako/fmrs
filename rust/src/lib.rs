@@ -49,7 +49,9 @@ enum Action {
         #[arg(long, default_value = "max-unique")]
         criteria: Criteria,
     },
-    BatchSquare,
+    BatchSquare {
+        filter_file: Option<String>,
+    },
     Backward {
         sfen_like: String,
     },
@@ -79,8 +81,8 @@ pub async fn do_main() -> anyhow::Result<()> {
                 println!("{} {}", solution.len(), position.sfen());
             }
         }
-        Action::BatchSquare => {
-            batch_square()?;
+        Action::BatchSquare { filter_file } => {
+            batch_square(filter_file)?;
         }
         Action::Backward { sfen_like } => backward(&sfen_like)?,
     }

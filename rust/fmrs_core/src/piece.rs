@@ -48,7 +48,7 @@ fn test_color_index() {
     assert_eq!(Color::WHITE.index(), 1);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Kind {
     Pawn,
     Lance,
@@ -79,7 +79,7 @@ impl Distribution<Kind> for rand::distributions::Standard {
     }
 }
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 pub use Kind::*;
 
 pub const KINDS: [Kind; NUM_KIND] = [

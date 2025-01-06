@@ -160,7 +160,7 @@ impl PositionAux {
         self.core.moved_digest(movement)
     }
 
-    pub(crate) fn kind_bb(&mut self, kind: Kind) -> BitBoard {
+    pub(crate) fn kind_bb(&self, kind: Kind) -> BitBoard {
         self.core.kind_bb().bitboard(kind)
     }
 

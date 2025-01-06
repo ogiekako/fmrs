@@ -1,19 +1,46 @@
+use std::{ops::RangeInclusive, sync::Mutex};
+
 use fmrs_core::{
     piece::{Color, Kind},
-    position::{
-        bitboard::{gold_power, magic::rook_reachable, reachable, rook_power},
-        position::PositionAux,
-        BitBoard, Square,
-    },
+    position::{position::PositionAux, BitBoard, Square},
     search::backward::backward_search,
-    solve::{SolverStatus, StandardSolver},
+    solve::standard_solve::standard_solve,
 };
-use log::info;
+use log::{debug, info};
 // use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
-pub fn batch_square() -> anyhow::Result<()> {
-    let positions = positions();
+pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
+    let filter = if let Some(filter_file) = &filter_file {
+        serde_json::from_str::<FrameFilter>(&std::fs::read_to_string(filter_file)?)?
+    } else {
+        FrameFilter {
+            room_filter: RoomFilter {
+                width: vec![7, 9],
+                height: 2..=3,
+                weakly_decreasing: true,
+                area: Some(16..=27),
+            },
+            no_black_pawn_count: Some(1..=3),
+            no_white_pawn_count: Some(1..=3),
+            mate_formation_filter: Some(MateFormationFilter {
+                attacker_kind: Kind::Rook,
+                no_redundant: true,
+                unique: false,
+                no_less_pro_pawn: 1,
+                pawn_maximally_constrained: true,
+            }),
+        }
+    };
+
+    let frames = frames(&filter);
+
+    let positions: Vec<_> = frames
+        .into_iter()
+        .filter_map(|(_, metadata)| metadata.mate_with_minimum_pawn)
+        .flatten()
+        .collect();
     // positions.shuffle(&mut SmallRng::seed_from_u64(20250105));
 
     eprintln!("{} positions {:?}", positions.len(), positions[0]);
@@ -56,121 +83,369 @@ pub fn batch_square() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn positions() -> Vec<PositionAux> {
-    let mut positions = vec![];
-    for h in 2..=5 {
-        for w in 3..=5 {
-            let area = h * w;
-            if !(9..25).contains(&area) {
-                continue;
-            }
-            insert(&mut positions, h, w);
-        }
-    }
-    positions
+#[derive(Clone, Debug)]
+struct Frame {
+    room: Room,
+    white_pawn: u16,
+    black_pawn: u16,
 }
 
-fn insert(positions: &mut Vec<PositionAux>, h: usize, w: usize) {
-    let mut area = BitBoard::default();
-    for i in 0..h {
-        for j in 0..w {
-            area.set(Square::new(j, 8 - i));
-        }
-    }
-    let mut stone = BitBoard::default();
-    for i in 0..h + 1 {
-        for j in 0..w + 1 {
-            let pos = Square::new(j, 8 - i);
-            if !area.get(pos) {
-                stone.set(pos);
+impl Frame {
+    fn to_position(&self) -> PositionAux {
+        let mut position = PositionAux::default();
+        let stone = self.room.stone();
+
+        position.set_stone(stone);
+
+        for i in 0..self.room.width() as usize {
+            if self.white_pawn & 1 << i != 0 {
+                position.set(Square::new(i, 0), Color::WHITE, Kind::Pawn);
+            }
+            if self.black_pawn & 1 << i != 0 {
+                position.set(Square::new(i, 1), Color::BLACK, Kind::Pawn);
             }
         }
+
+        position
     }
-    for king in area {
-        for rook in rook_reachable(stone, king).and_not(stone) {
-            let mut position = PositionAux::default();
-            position.set_stone(stone);
-            position.set_turn(Color::WHITE);
-            position.set(king, Color::WHITE, Kind::King);
-            position.set(rook, Color::BLACK, Kind::Rook);
+}
 
-            let remaining = reachable(&mut position, Color::WHITE, king, Kind::King, false)
-                .and_not(rook_power(rook));
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct MateFormationFilter {
+    attacker_kind: Kind,
+    no_redundant: bool,
+    unique: bool,
+    no_less_pro_pawn: u8,
+    pawn_maximally_constrained: bool,
+}
 
-            let mut mms = vec![];
-            model_mates(&mut position, remaining, rook, &mut mms);
+impl MateFormationFilter {
+    fn check(&self, frame: &Frame) -> Vec<PositionAux> {
+        let mut mate_positions = vec![];
 
-            for mut mm in mms {
-                let black_pawn_mask = mm
-                    .bitboard(Color::BLACK, Kind::Pawn)
-                    .fold(0, |acc, p| acc | 1 << p.col());
-                let white_pawn_mask = mm
-                    .bitboard(Color::WHITE, Kind::Pawn)
-                    .fold(0, |acc, p| acc | 1 << p.col());
+        let room = frame.room.bitboard();
+        if room.is_empty() {
+            return mate_positions;
+        }
 
-                for bp in 0..1 << w {
-                    if bp & black_pawn_mask != 0 {
-                        continue;
-                    }
-                    for wp in 0..1 << w {
-                        if wp & white_pawn_mask != 0 {
-                            continue;
-                        }
-                        let mut position = mm.clone();
-                        for i in 0..w {
-                            if bp & 1 << i != 0 {
-                                position.set(Square::new(i, 1), Color::BLACK, Kind::Pawn);
-                            }
-                            if wp & 1 << i != 0 {
-                                position.set(Square::new(i, 0), Color::WHITE, Kind::Pawn);
-                            }
-                        }
-                        positions.push(position);
-                    }
+        let has_parity = self.attacker_kind == Kind::Bishop;
+
+        let mut representatives = vec![];
+
+        let mut frame_position = frame.to_position();
+
+        for king_pos in room {
+            if representatives.len() >= 2 || representatives.len() == 1 && !has_parity {
+                break;
+            }
+            let mut position = frame_position.clone();
+            position.set(king_pos, Color::WHITE, Kind::King);
+            position.hands_mut().add(Color::BLACK, self.attacker_kind);
+            representatives.push(position);
+        }
+
+        for mut representative in representatives {
+            let mut impossible_max_pawn = 0;
+            for bit in [4, 2, 1] {
+                let c = impossible_max_pawn | bit;
+
+                let mut position = representative.clone();
+                for _ in 0..c {
+                    position.hands_mut().add(Color::WHITE, Kind::Pawn);
+                }
+                let solution = standard_solve(position.clone(), 1, true).unwrap();
+                if solution.is_empty() {
+                    impossible_max_pawn = c;
                 }
             }
+            if impossible_max_pawn == 7 {
+                continue;
+            }
+            let min_pawn = impossible_max_pawn + 1;
+
+            let mut position = representative.clone();
+            for _ in 0..min_pawn {
+                position.hands_mut().add(Color::WHITE, Kind::Pawn);
+            }
+            let solution = standard_solve(position.clone(), 1, true).unwrap().remove(0);
+
+            let mut black_pawn = frame_position.bitboard(Color::BLACK, Kind::Pawn);
+            let mut white_pawn = frame_position.bitboard(Color::WHITE, Kind::Pawn);
+
+            let mut mate_position = position.clone();
+            for m in solution {
+                mate_position.do_move(&m);
+                black_pawn |= mate_position.bitboard(Color::BLACK, Kind::Pawn);
+                white_pawn |= mate_position.bitboard(Color::WHITE, Kind::Pawn);
+            }
+
+            if self.no_redundant {
+                if !mate_position.hands().is_empty(Color::BLACK) {
+                    continue;
+                }
+            }
+            if (mate_position
+                .bitboard(Color::WHITE, Kind::ProPawn)
+                .u128()
+                .count_ones() as u8)
+                < self.no_less_pro_pawn
+            {
+                continue;
+            }
+            if self.pawn_maximally_constrained {
+                if black_pawn.col_mask().count_ones() != frame.room.width() as u32 {
+                    continue;
+                }
+                if white_pawn.col_mask().count_ones() != frame.room.width() as u32 {
+                    continue;
+                }
+            }
+
+            if !self.unique {
+                mate_positions.push(mate_position);
+                continue;
+            }
+
+            let mut variants = vec![];
+
+            for king_pos in room {
+                if has_parity
+                    && king_pos.parity()
+                        != representative
+                            .bitboard(Color::WHITE, Kind::King)
+                            .singleton()
+                            .parity()
+                {
+                    continue;
+                }
+
+                let mut position = frame_position.clone();
+                position.set(king_pos, Color::WHITE, Kind::King);
+                position.hands_mut().add(Color::BLACK, self.attacker_kind);
+                for _ in 0..min_pawn {
+                    position.hands_mut().add(Color::WHITE, Kind::Pawn);
+                }
+
+                variants.push(position);
+            }
+
+            let mut unique = true;
+            for mut position in variants {
+                let Some(solution) = standard_solve(position.clone(), 1, true).unwrap().pop()
+                else {
+                    continue;
+                };
+                for m in solution {
+                    position.do_move(&m);
+                }
+                if position.digest() != mate_position.digest() {
+                    unique = false;
+                    break;
+                }
+            }
+            if unique {
+                mate_positions.push(mate_position);
+            }
         }
+
+        mate_positions
     }
 }
 
-fn model_mates(
-    position: &mut PositionAux,
-    mut remaining: BitBoard,
-    attacker_pos: Square,
-    positions: &mut Vec<PositionAux>,
-) {
-    let Some(pos) = remaining.next() else {
-        if !position.checked_slow(Color::WHITE) {
-            return;
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct FrameFilter {
+    room_filter: RoomFilter,
+    no_black_pawn_count: Option<RangeInclusive<u8>>,
+    no_white_pawn_count: Option<RangeInclusive<u8>>,
+    mate_formation_filter: Option<MateFormationFilter>,
+}
+
+#[derive(Default, Clone, Debug)]
+struct FrameMetadata {
+    mate_with_minimum_pawn: Option<Vec<PositionAux>>,
+}
+
+fn frames(filter: &FrameFilter) -> Vec<(Frame, FrameMetadata)> {
+    let rooms = rooms(&filter.room_filter);
+
+    debug!("rooms: {}", rooms.len());
+
+    let mut frames = vec![];
+
+    for room in rooms {
+        let w = room.width();
+
+        let black_masks = pawn_masks(w, &filter.no_black_pawn_count);
+        let white_masks = pawn_masks(w, &filter.no_white_pawn_count);
+
+        for black_pawn in black_masks.iter().copied() {
+            for white_pawn in white_masks.iter().copied() {
+                frames.push(Frame {
+                    room: room.clone(),
+                    white_pawn,
+                    black_pawn,
+                });
+            }
         }
-        let mut solver = StandardSolver::new(position.clone(), 2, true);
-        if solver.advance().unwrap() == SolverStatus::Mate(vec![vec![]]) {
-            positions.push(position.clone());
-        }
-        return;
-    };
-    if position.get(pos).is_none()
-        && pos.row() != 8
-        && attacker_pos != Square::new(pos.col(), pos.row() + 1)
-        && !position.col_has_pawn(Color::WHITE, pos.col())
-    {
-        position.set(pos, Color::WHITE, Kind::Pawn);
-        model_mates(position, remaining, attacker_pos, positions);
-        position.unset(pos, Color::WHITE, Kind::Pawn);
     }
-    if position.get(pos).is_none() && !gold_power(Color::WHITE, pos).get(attacker_pos) {
-        position.set(pos, Color::WHITE, Kind::ProPawn);
-        model_mates(position, remaining, attacker_pos, positions);
-        position.unset(pos, Color::WHITE, Kind::ProPawn);
+    let Some(mate_formation_filter) = &filter.mate_formation_filter else {
+        return frames
+            .into_iter()
+            .map(|frame| (frame, FrameMetadata::default()))
+            .collect();
+    };
+
+    let frames_len = frames.len();
+    let frame_i = Mutex::new(0);
+
+    frames
+        .into_par_iter()
+        .filter_map(|frame| {
+            {
+                let mut frame_i = frame_i.lock().unwrap();
+                *frame_i += 1;
+                if *frame_i % 1000 == 0 {
+                    eprintln!("frame {}/{}", *frame_i, frames_len);
+                }
+            }
+
+            let mates = mate_formation_filter.check(&frame);
+            if mates.is_empty() {
+                return None;
+            }
+            Some((
+                frame,
+                FrameMetadata {
+                    mate_with_minimum_pawn: Some(mates),
+                },
+            ))
+        })
+        .collect()
+}
+
+fn pawn_masks(w: u8, no_count: &Option<RangeInclusive<u8>>) -> Vec<u16> {
+    let mut masks = vec![];
+    for i in 0u16..1 << w {
+        if let Some(no_count) = &no_count {
+            if !no_count.contains(&(w - i.count_ones() as u8)) {
+                continue;
+            }
+        }
+        masks.push(i);
+    }
+    masks
+}
+
+#[derive(Clone, Debug)]
+struct Room {
+    heights: Vec<u8>,
+}
+
+impl Room {
+    fn weakly_decreasing(&self) -> bool {
+        for i in 1..self.heights.len() {
+            if self.heights[i - 1] < self.heights[i] {
+                return false;
+            }
+        }
+        true
     }
 
-    if pos.row() >= 8 {
+    fn area(&self) -> u8 {
+        self.heights.iter().sum()
+    }
+
+    fn width(&self) -> u8 {
+        self.heights.len() as u8
+    }
+
+    fn stone(&self) -> BitBoard {
+        let mut stone = BitBoard::default();
+        let max_height = self.heights.iter().copied().max().unwrap_or(0);
+
+        for (i, h) in self.heights.iter().copied().enumerate() {
+            for j in h..=max_height {
+                stone.set(Square::new(i, (8 - j).into()));
+            }
+        }
+        for j in 0..=max_height {
+            stone.set(Square::new(self.heights.len(), (8 - j).into()));
+        }
+        stone
+    }
+
+    fn bitboard(&self) -> BitBoard {
+        let mut res = BitBoard::default();
+        for (i, h) in self.heights.iter().copied().enumerate() {
+            for j in 0..h {
+                res.set(Square::new(i, (8 - j).into()));
+            }
+        }
+        res
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct RoomFilter {
+    width: Vec<u8>,
+    height: RangeInclusive<u8>,
+    weakly_decreasing: bool,
+    area: Option<RangeInclusive<u8>>,
+}
+
+impl RoomFilter {
+    fn unextensible(&self, room: &Room) -> bool {
+        let max_width = *self.width.iter().max().unwrap();
+        if room.heights.len() >= max_width as usize {
+            return true;
+        }
+        if let Some(a) = &self.area {
+            if *a.end() <= room.area() {
+                return true;
+            }
+        }
+        if self.weakly_decreasing && !room.weakly_decreasing() {
+            return true;
+        }
+        false
+    }
+
+    fn matches(&self, room: &Room) -> bool {
+        if !self.width.contains(&(room.heights.len() as u8)) {
+            return false;
+        }
+        if !room.heights.iter().all(|&h| self.height.contains(&h)) {
+            return false;
+        }
+        if let Some(area) = &self.area {
+            if !area.contains(&room.area()) {
+                return false;
+            }
+        }
+        if self.weakly_decreasing && !room.weakly_decreasing() {
+            return false;
+        }
+        true
+    }
+}
+
+fn rooms(filter: &RoomFilter) -> Vec<Room> {
+    let mut rooms = vec![];
+    rooms_dfs(&mut Room { heights: vec![] }, filter, &mut rooms);
+    rooms
+}
+
+fn rooms_dfs(room: &mut Room, filter: &RoomFilter, rooms: &mut Vec<Room>) {
+    if filter.matches(room) {
+        rooms.push(room.clone());
+    }
+    if filter.unextensible(room) {
         return;
     }
-    let lower = Square::new(pos.col(), pos.row() + 1);
-    if position.get(lower).is_none() && !position.col_has_pawn(Color::BLACK, pos.col()) {
-        position.set(lower, Color::BLACK, Kind::Pawn);
-        model_mates(position, remaining, attacker_pos, positions);
-        position.unset(lower, Color::BLACK, Kind::Pawn);
+
+    for h in filter.height.clone() {
+        room.heights.push(h);
+        rooms_dfs(room, filter, rooms);
+        room.heights.pop();
     }
 }

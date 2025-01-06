@@ -36,6 +36,10 @@ impl Square {
     pub(crate) fn flipped(&self) -> Square {
         Square::new(8 - self.col(), 8 - self.row())
     }
+
+    pub fn parity(&self) -> bool {
+        (self.col() + self.row()) % 2 == 1
+    }
 }
 
 impl std::fmt::Debug for Square {

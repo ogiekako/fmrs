@@ -78,6 +78,20 @@ impl BitBoard {
     pub(crate) const fn empty() -> BitBoard {
         BitBoard(0)
     }
+
+    pub fn col_mask(&self) -> usize {
+        let mut res = 0;
+        for i in 0..9 {
+            if !self.col_is_empty(i) {
+                res |= 1 << i;
+            }
+        }
+        res
+    }
+
+    fn col_is_empty(&self, col: usize) -> bool {
+        (self.u128() >> col * 9) & 0b111111111 == 0
+    }
 }
 
 impl Iterator for BitBoard {
