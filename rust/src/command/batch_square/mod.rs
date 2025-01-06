@@ -93,7 +93,12 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
 
     all_problems.sort_by_key(|(step, _)| *step);
 
-    if let Err(err) = log_results(&filter, &all_problems) {
+    let filtered_problems = all_problems
+        .into_iter()
+        .filter(|(step, _)| *step >= best_problems.0 / 2)
+        .collect::<Vec<_>>();
+
+    if let Err(err) = log_results(&filter, &filtered_problems) {
         info!("logging failed: {}", err);
     }
 
