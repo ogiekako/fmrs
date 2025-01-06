@@ -13,9 +13,8 @@ export class BackwardSearch {
   sfen(): string;
 }
 export class Solver {
-  private constructor();
   free(): void;
-  static new(problem_sfen: string, solutions_upto: number, algo: Algorithm): Solver;
+  constructor(problem_sfen: string, solutions_upto: number, algo: Algorithm);
   /**
    * Returns non-empty string in case of an error.
    */

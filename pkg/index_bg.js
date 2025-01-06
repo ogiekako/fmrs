@@ -174,14 +174,6 @@ const SolverFinalization = (typeof FinalizationRegistry === 'undefined')
 
 export class Solver {
 
-    static __wrap(ptr) {
-        ptr = ptr >>> 0;
-        const obj = Object.create(Solver.prototype);
-        obj.__wbg_ptr = ptr;
-        SolverFinalization.register(obj, obj.__wbg_ptr, obj);
-        return obj;
-    }
-
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;
@@ -197,13 +189,17 @@ export class Solver {
      * @param {string} problem_sfen
      * @param {number} solutions_upto
      * @param {Algorithm} algo
-     * @returns {Solver}
      */
-    static new(problem_sfen, solutions_upto, algo) {
+    constructor(problem_sfen, solutions_upto, algo) {
         const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.solver_new(ptr0, len0, solutions_upto, algo);
-        return Solver.__wrap(ret);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        this.__wbg_ptr = ret[0] >>> 0;
+        SolverFinalization.register(this, this.__wbg_ptr, this);
+        return this;
     }
     /**
      * Returns non-empty string in case of an error.
@@ -298,10 +294,6 @@ export function __wbg_error_7534b8e9a36f1ab4(arg0, arg1) {
     } finally {
         wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
     }
-};
-
-export function __wbg_log_80c94b23c6d868ca(arg0, arg1) {
-    console.log(getStringFromWasm0(arg0, arg1));
 };
 
 export function __wbg_new_8a6f238a6ece86ea() {
