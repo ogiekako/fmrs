@@ -17,10 +17,10 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     } else {
         FrameFilter {
             room_filter: RoomFilter {
-                width: vec![3, 4, 5, 6, 7],
+                width: vec![3, 4, 5, 6, 7, 9],
                 height: 3..=6,
                 weakly_decreasing: true,
-                area: Some(16..=25),
+                area: Some(21..=30),
             },
             no_black_pawn_count: Some(1..=4),
             no_white_pawn_count: Some(1..=3),
@@ -54,7 +54,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
 
     eprintln!("{} positions {:?}", positions.len(), positions[0]);
 
-    let chunk_size = 100;
+    let chunk_size = 50;
     let chunks = positions.chunks(chunk_size).collect::<Vec<_>>();
 
     let mut all_problems = vec![];
