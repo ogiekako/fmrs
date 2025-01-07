@@ -1,0 +1,321 @@
+{
+  "filter": {
+    "room_filter": {
+      "width": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "height": {
+        "start": 3,
+        "end": 5
+      },
+      "weakly_decreasing": true,
+      "area": {
+        "start": 16,
+        "end": 23
+      }
+    },
+    "no_black_pawn_count": {
+      "start": 1,
+      "end": 4
+    },
+    "no_white_pawn_count": {
+      "start": 1,
+      "end": 3
+    },
+    "mate_formation_filter": {
+      "attackers": [
+        "Silver",
+        "Bishop"
+      ],
+      "no_redundant": true,
+      "unique": false,
+      "no_less_pro_pawn": 1,
+      "pawn_maximally_constrained": true
+    }
+  },
+  "problems": [
+    {
+      "step": 59,
+      "sfen": "3ppp2p/3PP1PPP/9/9/2OOOOOOO/2OOOO2+S/2O5B/2O3pp1/2O1k1+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PP1PPP%2F9%2F9%2F2OOOOOOO%2F2OOOO2%2BS%2F2O5B%2F2O3pp1%2F2O1k1%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 59,
+      "sfen": "3ppp2p/3PP1PPP/9/9/2OOOOOOO/2OOOO2+S/2O5B/2O3p+p1/2O1k1+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PP1PPP%2F9%2F9%2F2OOOOOOO%2F2OOOO2%2BS%2F2O5B%2F2O3p%2Bp1%2F2O1k1%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4pp2p/4PP1PP/9/3OOOOOO/3OOOO2/3OO3k/3O1+p3/3O4+p/3O1+p+sB1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO2%2F3OO3k%2F3O1%2Bp3%2F3O4%2Bp%2F3O1%2Bp%2BsB1%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4pp2p/4PP1PP/9/3OOOOOO/3OOOO2/3OO3k/3O1+p3/3O1+s2+p/3O1+p1B1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO2%2F3OO3k%2F3O1%2Bp3%2F3O1%2Bs2%2Bp%2F3O1%2Bp1B1%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4ppp1p/4PP1PP/9/3OOOOOO/3OOOO2/3OO3k/3O1+p3/3O4+p/3O1+p+sB1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4ppp1p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO2%2F3OO3k%2F3O1%2Bp3%2F3O4%2Bp%2F3O1%2Bp%2BsB1%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4ppp1p/4PP1PP/9/3OOOOOO/3OOOO2/3OO3k/3O1+p3/3O1+s2+p/3O1+p1B1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4ppp1p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO2%2F3OO3k%2F3O1%2Bp3%2F3O1%2Bs2%2Bp%2F3O1%2Bp1B1%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4pp2p/4PP1PP/9/3OOOOOO/3OOOO2/3O4k/3O1+p3/3O4+p/3O1+p+sB1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO2%2F3O4k%2F3O1%2Bp3%2F3O4%2Bp%2F3O1%2Bp%2BsB1%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4pp2p/4PP1PP/9/3OOOOOO/3OOOO2/3O4k/3O1+p3/3O1+s2+p/3O1+p1B1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO2%2F3O4k%2F3O1%2Bp3%2F3O1%2Bs2%2Bp%2F3O1%2Bp1B1%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4ppp1p/4PP1PP/9/3OOOOOO/3OOOO+p1/3OB4/3O3k1/3O3s+p/3O1+p3 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4ppp1p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO%2Bp1%2F3OB4%2F3O3k1%2F3O3s%2Bp%2F3O1%2Bp3%20b%20%2D%201"
+    },
+    {
+      "step": 61,
+      "sfen": "4ppp1p/4PP1PP/9/3OOOOOO/3OOOO+p1/3OB4/3O3k1/3O1s2+p/3O1+p3 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4ppp1p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOO%2Bp1%2F3OB4%2F3O3k1%2F3O1s2%2Bp%2F3O1%2Bp3%20b%20%2D%201"
+    },
+    {
+      "step": 63,
+      "sfen": "4p1ppp/4PP1PP/9/9/3OOOOOO/3OO3+s/3O1pk1+p/3O5/3O1BP2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1ppp%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3OO3%2Bs%2F3O1pk1%2Bp%2F3O5%2F3O1BP2%20b%20%2D%201"
+    },
+    {
+      "step": 63,
+      "sfen": "4p1ppp/4PP1PP/9/9/3OOOOOO/3OO3+s/3O1pk1+p/3O5/3O1B3 b P 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1ppp%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3OO3%2Bs%2F3O1pk1%2Bp%2F3O5%2F3O1B3%20b%20P%201"
+    },
+    {
+      "step": 63,
+      "sfen": "4p1ppp/4PP1PP/9/9/3OOOOOO/3O4+s/3O1pk1+p/3O5/3O1BP2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1ppp%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3O4%2Bs%2F3O1pk1%2Bp%2F3O5%2F3O1BP2%20b%20%2D%201"
+    },
+    {
+      "step": 63,
+      "sfen": "4p1ppp/4PP1PP/9/9/3OOOOOO/3O4+s/3O1pk1+p/3O5/3O1B3 b P 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1ppp%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3O4%2Bs%2F3O1pk1%2Bp%2F3O5%2F3O1B3%20b%20P%201"
+    },
+    {
+      "step": 63,
+      "sfen": "4ppp1p/4PP1PP/9/9/3OOOOOO/3O+s4/3O+p1kp1/3O5/3O2PB1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4ppp1p%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3O%2Bs4%2F3O%2Bp1kp1%2F3O5%2F3O2PB1%20b%20%2D%201"
+    },
+    {
+      "step": 63,
+      "sfen": "4ppp1p/4PP1PP/9/9/3OOOOOO/3O+s4/3O+p1kp1/3O5/3O3B1 b P 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4ppp1p%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3O%2Bs4%2F3O%2Bp1kp1%2F3O5%2F3O3B1%20b%20P%201"
+    },
+    {
+      "step": 65,
+      "sfen": "3ppp1pp/3PP1PPP/9/9/2OOOOOOO/2OOOO1kB/2O6/2O1+p1+S+p1/2O3+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp1pp%2F3PP1PPP%2F9%2F9%2F2OOOOOOO%2F2OOOO1kB%2F2O6%2F2O1%2Bp1%2BS%2Bp1%2F2O3%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 65,
+      "sfen": "3ppp1pp/3PP1PPP/9/9/2OOOOOOO/2OOOO1kB/2O6/2O1+p+S1+p1/2O3+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp1pp%2F3PP1PPP%2F9%2F9%2F2OOOOOOO%2F2OOOO1kB%2F2O6%2F2O1%2Bp%2BS1%2Bp1%2F2O3%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 65,
+      "sfen": "3ppp1pp/3PP1PPP/9/9/2OOOOOOO/2OOOO1k1/2O6/2O1+p1+S+p1/2O2B+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp1pp%2F3PP1PPP%2F9%2F9%2F2OOOOOOO%2F2OOOO1k1%2F2O6%2F2O1%2Bp1%2BS%2Bp1%2F2O2B%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 65,
+      "sfen": "3ppp1pp/3PP1PPP/9/9/2OOOOOOO/2OOOO1k1/2O6/2O1+p+S1+p1/2O2B+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp1pp%2F3PP1PPP%2F9%2F9%2F2OOOOOOO%2F2OOOO1k1%2F2O6%2F2O1%2Bp%2BS1%2Bp1%2F2O2B%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/9/2OOOOOOO/2OOOOO2/2O5k/2O1+p4/2O1+p1+pb+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO2%2F2O5k%2F2O1%2Bp4%2F2O1%2Bp1%2Bpb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/9/2OOOOOOO/2OOOOO2/2O4k1/2O1+p4/2O1+p1+pb+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO2%2F2O4k1%2F2O1%2Bp4%2F2O1%2Bp1%2Bpb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/9/2OOOOOOO/2OOOOO2/2O3k2/2O1+p4/2O1+p1+pb+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO2%2F2O3k2%2F2O1%2Bp4%2F2O1%2Bp1%2Bpb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/9/2OOOOOOO/2OOOOO2/2O5k/2O1+p4/2O1+p1+p+b+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO2%2F2O5k%2F2O1%2Bp4%2F2O1%2Bp1%2Bp%2Bb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/9/2OOOOOOO/2OOOOO2/2O4k1/2O1+p4/2O1+p1+p+b+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO2%2F2O4k1%2F2O1%2Bp4%2F2O1%2Bp1%2Bp%2Bb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/9/2OOOOOOO/2OOOOO2/2O3k2/2O1+p4/2O1+p1+p+b+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO2%2F2O3k2%2F2O1%2Bp4%2F2O1%2Bp1%2Bp%2Bb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO2/2O5k/2O1+p4/2O1+p1+pb+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO2%2F2O5k%2F2O1%2Bp4%2F2O1%2Bp1%2Bpb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO2/2O4k1/2O1+p4/2O1+p1+pb+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO2%2F2O4k1%2F2O1%2Bp4%2F2O1%2Bp1%2Bpb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO2/2O3k2/2O1+p4/2O1+p1+pb+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO2%2F2O3k2%2F2O1%2Bp4%2F2O1%2Bp1%2Bpb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO2/2O5k/2O1+p4/2O1+p1+p+b+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO2%2F2O5k%2F2O1%2Bp4%2F2O1%2Bp1%2Bp%2Bb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO2/2O4k1/2O1+p4/2O1+p1+p+b+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO2%2F2O4k1%2F2O1%2Bp4%2F2O1%2Bp1%2Bp%2Bb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 69,
+      "sfen": "3pppp1p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO2/2O3k2/2O1+p4/2O1+p1+p+b+S b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pppp1p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO2%2F2O3k2%2F2O1%2Bp4%2F2O1%2Bp1%2Bp%2Bb%2BS%20b%20%2D%201"
+    },
+    {
+      "step": 75,
+      "sfen": "3p2ppp/3PPP1PP/9/9/2OOOOOOO/2OOp3B/2O6/2O2p2k/2O2s3 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3p2ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOp3B%2F2O6%2F2O2p2k%2F2O2s3%20b%20%2D%201"
+    },
+    {
+      "step": 75,
+      "sfen": "3p2ppp/3PPP1PP/9/9/2OOOOOOO/2OOp3B/2O6/2O2p2k/2O2+s3 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3p2ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOp3B%2F2O6%2F2O2p2k%2F2O2%2Bs3%20b%20%2D%201"
+    },
+    {
+      "step": 75,
+      "sfen": "3p2ppp/3PPP1PP/9/9/2OOOOOOO/2OOp4/2O6/2O1Bp2k/2O2+s3 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3p2ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOp4%2F2O6%2F2O1Bp2k%2F2O2%2Bs3%20b%20%2D%201"
+    },
+    {
+      "step": 75,
+      "sfen": "3p2ppp/3PPP1PP/9/9/2OOOOOOO/2OOp4/2O6/2O2p2k/2OB1+s3 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3p2ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOp4%2F2O6%2F2O2p2k%2F2OB1%2Bs3%20b%20%2D%201"
+    },
+    {
+      "step": 75,
+      "sfen": "3pp2pp/3PPP1PP/9/9/2OOOOOOO/2OOS1k2/2Ob5/2O2pP2/2O6 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp2pp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOS1k2%2F2Ob5%2F2O2pP2%2F2O6%20b%20%2D%201"
+    },
+    {
+      "step": 75,
+      "sfen": "3pp2pp/3PPP1PP/9/9/2OOOOOOO/2OOS1k2/2O+b5/2O2pP2/2O6 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp2pp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOS1k2%2F2O%2Bb5%2F2O2pP2%2F2O6%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/9/2OOOOOOO/2OOOOOp1/2O6/2O4B+s/2O1k1+p1+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOOp1%2F2O6%2F2O4B%2Bs%2F2O1k1%2Bp1%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/9/2OOOOOOO/2OOOOO+p1/2O6/2O4B+s/2O1k1+p1+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO%2Bp1%2F2O6%2F2O4B%2Bs%2F2O1k1%2Bp1%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/9/2OOOOOOO/2OOOOOp1/2O6/2O4B1/2O1k1+p+s+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOOp1%2F2O6%2F2O4B1%2F2O1k1%2Bp%2Bs%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/9/2OOOOOOO/2OOOOO+p1/2O6/2O4B1/2O1k1+p+s+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OOOOO%2Bp1%2F2O6%2F2O4B1%2F2O1k1%2Bp%2Bs%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOOp1/2O6/2O4B+s/2O1k1+p1+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOOp1%2F2O6%2F2O4B%2Bs%2F2O1k1%2Bp1%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO+p1/2O6/2O4B+s/2O1k1+p1+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO%2Bp1%2F2O6%2F2O4B%2Bs%2F2O1k1%2Bp1%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOOp1/2O6/2O4B1/2O1k1+p+s+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOOp1%2F2O6%2F2O4B1%2F2O1k1%2Bp%2Bs%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 79,
+      "sfen": "3ppp2p/3PPP1PP/9/2OOOOOOO/2OOOOO2/2OOOOO+p1/2O6/2O4B1/2O1k1+p+s+p b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3ppp2p%2F3PPP1PP%2F9%2F2OOOOOOO%2F2OOOOO2%2F2OOOOO%2Bp1%2F2O6%2F2O4B1%2F2O1k1%2Bp%2Bs%2Bp%20b%20%2D%201"
+    },
+    {
+      "step": 83,
+      "sfen": "3pp1ppp/3PPP1PP/9/9/2OOOOOOO/2OO2B2/2Ok3+p1/2O2s1+p1/2O6 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp1ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OO2B2%2F2Ok3%2Bp1%2F2O2s1%2Bp1%2F2O6%20b%20%2D%201"
+    },
+    {
+      "step": 83,
+      "sfen": "3pp1ppp/3PPP1PP/9/9/2OOOOOOO/2OO5/2Ok3+p1/2O2s1+p1/2OB5 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp1ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OO5%2F2Ok3%2Bp1%2F2O2s1%2Bp1%2F2OB5%20b%20%2D%201"
+    },
+    {
+      "step": 83,
+      "sfen": "3pp1ppp/3PPP1PP/9/9/2OOOOOOO/2OO2+p1B/2Ok5/2O2s1+p1/2O6 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp1ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OO2%2Bp1B%2F2Ok5%2F2O2s1%2Bp1%2F2O6%20b%20%2D%201"
+    },
+    {
+      "step": 83,
+      "sfen": "3pp1ppp/3PPP1PP/9/9/2OOOOOOO/2OO2+p2/2Ok3B1/2O2s1+p1/2O6 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp1ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OO2%2Bp2%2F2Ok3B1%2F2O2s1%2Bp1%2F2O6%20b%20%2D%201"
+    },
+    {
+      "step": 83,
+      "sfen": "3pp1ppp/3PPP1PP/9/9/2OOOOOOO/2OO2+p2/2Ok5/2O2s1+p1/2OB5 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp1ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OO2%2Bp2%2F2Ok5%2F2O2s1%2Bp1%2F2OB5%20b%20%2D%201"
+    },
+    {
+      "step": 83,
+      "sfen": "3pp1ppp/3PPP1PP/9/9/2OOOOOOO/2OO2+p2/2OB3k1/2O2s1+p1/2O6 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=3pp1ppp%2F3PPP1PP%2F9%2F9%2F2OOOOOOO%2F2OO2%2Bp2%2F2OB3k1%2F2O2s1%2Bp1%2F2O6%20b%20%2D%201"
+    },
+    {
+      "step": 113,
+      "sfen": "4pp2p/4PP1PP/9/3OOOOOO/3OOOOS1/3OOOOp1/3O3+p1/3O2P2/3O2k1B b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOOS1%2F3OOOOp1%2F3O3%2Bp1%2F3O2P2%2F3O2k1B%20b%20%2D%201"
+    },
+    {
+      "step": 113,
+      "sfen": "4pp2p/4PP1PP/9/3OOOOOO/3OOOOS1/3OOOO+p1/3O3+p1/3O2P2/3O2k1B b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F3OOOOOO%2F3OOOOS1%2F3OOOO%2Bp1%2F3O3%2Bp1%2F3O2P2%2F3O2k1B%20b%20%2D%201"
+    },
+    {
+      "step": 115,
+      "sfen": "4p3p/4PP1PP/9/9/3OOOOOO/3OOOO+pS/3O2P2/3O2k2/3O2+p1B b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p3p%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3OOOO%2BpS%2F3O2P2%2F3O2k2%2F3O2%2Bp1B%20b%20%2D%201"
+    },
+    {
+      "step": 115,
+      "sfen": "4pp2p/4PP1PP/9/9/3OOOOOO/3OOOO+pS/3O2P2/3O2k2/3O2+p1B b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4pp2p%2F4PP1PP%2F9%2F9%2F3OOOOOO%2F3OOOO%2BpS%2F3O2P2%2F3O2k2%2F3O2%2Bp1B%20b%20%2D%201"
+    }
+  ]
+}

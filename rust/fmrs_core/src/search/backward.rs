@@ -46,7 +46,7 @@ pub fn backward_search(
 
     let mut black_positions = vec![];
     for p in positions.iter_mut() {
-        assert_eq!(p.turn(), Color::WHITE);
+        debug_assert_eq!(p.turn(), Color::WHITE);
         let mut movements = vec![];
         advance_aux(
             p,
@@ -230,10 +230,10 @@ fn solutions(
     let mut hint = StepRange::unknown();
     if is_mate {
         hint = StepRange::exact(0);
-        assert!(!hint.needs_investigation(mate_in));
+        debug_assert!(!hint.needs_investigation(mate_in));
     } else if movements.is_empty() {
         hint = StepRange::unsolvable();
-        assert!(!hint.needs_investigation(mate_in));
+        debug_assert!(!hint.needs_investigation(mate_in));
     } else if mate_in == 0 {
         hint = StepRange::non_zero();
     }

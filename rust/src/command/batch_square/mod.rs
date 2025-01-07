@@ -17,15 +17,15 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     } else {
         FrameFilter {
             room_filter: RoomFilter {
-                width: vec![6],
-                height: 3..=5,
+                width: vec![3, 4, 5, 6, 7],
+                height: 3..=6,
                 weakly_decreasing: true,
-                area: Some(16..=30),
+                area: Some(16..=25),
             },
             no_black_pawn_count: Some(1..=4),
             no_white_pawn_count: Some(1..=3),
             mate_formation_filter: Some(MateFormationFilter {
-                attackers: vec![Kind::Bishop, Kind::Bishop],
+                attackers: vec![Kind::Silver, Kind::Bishop],
                 no_redundant: true,
                 unique: false,
                 no_less_pro_pawn: 1,
@@ -54,7 +54,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
 
     eprintln!("{} positions {:?}", positions.len(), positions[0]);
 
-    let chunk_size = 1000;
+    let chunk_size = 100;
     let chunks = positions.chunks(chunk_size).collect::<Vec<_>>();
 
     let mut all_problems = vec![];
@@ -93,12 +93,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
 
     all_problems.sort_by_key(|(step, _)| *step);
 
-    let filtered_problems = all_problems
-        .into_iter()
-        .filter(|(step, _)| *step >= best_problems.0 / 2)
-        .collect::<Vec<_>>();
-
-    if let Err(err) = log_results(&filter, &filtered_problems) {
+    if let Err(err) = log_results(&filter, &all_problems) {
         info!("logging failed: {}", err);
     }
 
@@ -135,6 +130,7 @@ fn log_results(
                 Kind::Knight => "knight",
                 Kind::Bishop => "bishop",
                 Kind::Rook => "rook",
+                Kind::Silver => "silver",
                 _ => "unknown",
             })
             .collect::<Vec<_>>()
