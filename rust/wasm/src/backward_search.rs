@@ -32,7 +32,7 @@ impl BackwardSearch {
 
     pub fn sfen(&self) -> String {
         let (stone, positions) = self.inner.positions();
-        
+
         PositionAux::new(positions[0].clone(), stone).sfen()
     }
 }

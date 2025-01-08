@@ -126,17 +126,17 @@ impl KindBitBoard {
     // #[inline(never)]
     pub fn must_get(&self, pos: Square) -> Kind {
         let mut i = 0;
-        if self.kind0.get(pos) {
+        if self.kind0.contains(pos) {
             i |= 1;
         }
-        if self.kind1.get(pos) {
+        if self.kind1.contains(pos) {
             i |= 2;
         }
-        if self.kind2.get(pos) {
+        if self.kind2.contains(pos) {
             i |= 4;
         }
         debug_assert_ne!(i, 0);
-        if self.promote.get(pos) {
+        if self.promote.contains(pos) {
             i |= 8;
         }
         KINDS[i]
@@ -186,19 +186,19 @@ impl KindBitBoard {
     // #[inline(never)]
     pub fn get(&self, pos: Square) -> Option<Kind> {
         let mut i = 0;
-        if self.kind0.get(pos) {
+        if self.kind0.contains(pos) {
             i |= 1;
         }
-        if self.kind1.get(pos) {
+        if self.kind1.contains(pos) {
             i |= 2;
         }
-        if self.kind2.get(pos) {
+        if self.kind2.contains(pos) {
             i |= 4;
         }
         if i == 0 {
             return None;
         }
-        if self.promote.get(pos) {
+        if self.promote.contains(pos) {
             i |= 8;
         }
         Some(KINDS[i])

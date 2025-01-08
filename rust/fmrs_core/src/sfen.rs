@@ -58,7 +58,7 @@ pub fn encode_position(board: &PositionAux) -> String {
         let mut count_empty = 0i32;
         for col in (0..9).rev() {
             if let Some(stone) = stone {
-                if stone.get(Square::new(col, row)) {
+                if stone.contains(Square::new(col, row)) {
                     if count_empty > 0 {
                         res.push_str(&count_empty.to_string());
                         count_empty = 0;

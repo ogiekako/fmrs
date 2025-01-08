@@ -8,6 +8,5 @@ pub use kind_bitboard::KindBitBoard;
 pub use rule::*;
 pub use square::Square;
 
-#[cfg(test)]
 #[macro_use]
 pub mod testing;

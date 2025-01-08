@@ -5,7 +5,7 @@ use log::info;
 
 use crate::{
     memo::MemoStub,
-    nohash::NoHashMap,
+    nohash::NoHashMap64,
     piece::Color,
     position::{
         advance::advance::advance_aux, position::PositionAux, previous, AdvanceOptions, BitBoard,
@@ -78,8 +78,8 @@ pub struct BackwardSearch {
     seen_positions: usize,
     positions: Vec<Position>,
     prev_positions: Vec<Position>,
-    memo: NoHashMap<StepRange>,
-    prev_memo: NoHashMap<StepRange>,
+    memo: NoHashMap64<StepRange>,
+    prev_memo: NoHashMap64<StepRange>,
     stone: Option<BitBoard>,
     step: u16,
 }
@@ -101,7 +101,7 @@ impl BackwardSearch {
 
         let positions = vec![initial_position.core().clone()];
 
-        let mut memo = NoHashMap::default();
+        let mut memo = NoHashMap64::default();
         memo.insert(
             initial_position.digest(),
             StepRange::exact(solution.len() as u16),
@@ -202,8 +202,8 @@ const INF_END: u16 = u16::MAX - 1;
 
 fn solutions(
     position: &mut PositionAux,
-    memo: &mut NoHashMap<StepRange>,
-    next_memo: &mut NoHashMap<StepRange>,
+    memo: &mut NoHashMap64<StepRange>,
+    next_memo: &mut NoHashMap64<StepRange>,
     mate_in: u16,
 ) -> StepRange {
     let mut ans = StepRange::unknown();

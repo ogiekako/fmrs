@@ -277,8 +277,8 @@ fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
 #[cfg(test)]
 mod tests {
     use crate::{
+        bitboard,
         piece::{Color, Kind},
-        position::bitboard::testing::bitboard,
         position::bitboard::Square,
     };
 

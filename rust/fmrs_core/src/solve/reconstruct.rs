@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use crate::memo::MemoTrait;
-use crate::nohash::NoHashMap;
+use crate::nohash::NoHashMap64;
 
 use crate::position::position::PositionAux;
 use crate::position::{previous, Movement, PositionExt, UndoMove};
@@ -121,7 +121,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     }
 
     fn reconstruct_bfs<P: PositionTrait>(&self, mate_position: &P) -> Vec<Solution> {
-        let mut position_visit_count = NoHashMap::default();
+        let mut position_visit_count = NoHashMap64::default();
         let mut queue: VecDeque<(P, u16, Rc<MovementList>)> = VecDeque::new();
         queue.push_back((mate_position.clone(), self.mate_in, MovementList::nil()));
         let mut res = vec![];

@@ -239,7 +239,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 .pinned
                 .pinned_area(source_pos)
                 .unwrap_or_else(|| bitboard::power(self.position.turn(), source_pos, source_kind));
-            if source_power.get(dest) {
+            if source_power.contains(dest) {
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
                         continue;
@@ -381,7 +381,7 @@ impl<M: MemoTrait> Context<'_, M> {
 
     fn blockable_squares(&mut self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
         let king_pos = self.position.must_turn_king_pos();
-        if king_power(king_pos).get(attacker_pos) {
+        if king_power(king_pos).contains(attacker_pos) {
             return BitBoard::default();
         }
         bitboard::reachable(
@@ -435,7 +435,7 @@ pub fn attacker(
 
     for pos in king_power_area {
         let kind = position.must_get_kind(pos);
-        if power(king_color, king_pos, kind).get(pos)
+        if power(king_color, king_pos, kind).contains(pos)
             && update_attacker(&mut attacker, pos, kind, early_return)
         {
             return attacker;

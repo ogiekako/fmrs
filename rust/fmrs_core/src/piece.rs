@@ -82,6 +82,8 @@ impl Distribution<Kind> for rand::distributions::Standard {
 use serde::{Deserialize, Serialize};
 pub use Kind::*;
 
+use crate::position::BitBoard;
+
 pub const KINDS: [Kind; NUM_KIND] = [
     Pawn, Lance, Knight, Silver, Gold, Bishop, Rook, // kinds that can be in hand
     King, ProPawn, ProLance, ProKnight, ProSilver, ProBishop, ProRook,
@@ -145,15 +147,73 @@ impl Kind {
     pub fn is_promotable(self) -> bool {
         self.is_hand_piece() && self != Gold
     }
+
+    pub fn max_count(&self) -> u32 {
+        match self.maybe_unpromote() {
+            Kind::Pawn => 18,
+            Kind::Lance | Kind::Knight | Kind::Silver | Kind::Gold => 4,
+            _ => 2,
+        }
+    }
+    pub fn effect(&self) -> KindEffect {
+        match self {
+            Pawn => KindEffect::Pawn,
+            Lance => KindEffect::Lance,
+            Knight => KindEffect::Knight,
+            Silver => KindEffect::Silver,
+            Bishop => KindEffect::Bishop,
+            Rook => KindEffect::Rook,
+            King => KindEffect::King,
+            ProBishop => KindEffect::ProBishop,
+            ProRook => KindEffect::ProRook,
+            _ => KindEffect::Gold,
+        }
+    }
+
+    pub(crate) fn unmovable_bb(&self, color: Color) -> BitBoard {
+        match (self, color) {
+            (Pawn | Lance, Color::BLACK) => BitBoard::COL1,
+            (Knight, Color::BLACK) => BitBoard::COL1 | BitBoard::COL2,
+            (Pawn | Lance, Color::WHITE) => BitBoard::COL9,
+            (Knight, Color::WHITE) => BitBoard::COL8 | BitBoard::COL9,
+            _ => BitBoard::EMPTY,
+        }
+    }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Kinds {
     mask: usize,
 }
 
 impl Kinds {
-    pub fn new(mask: usize) -> Self {
+    pub const PAWN: Kinds = Kinds::new(1 << Pawn.index());
+    pub const LANCE: Kinds = Kinds::new(1 << Lance.index());
+    pub const KNIGHT: Kinds = Kinds::new(1 << Knight.index());
+    pub const SILVER: Kinds = Kinds::new(1 << Silver.index());
+    pub const BISHOP: Kinds = Kinds::new(1 << Bishop.index());
+    pub const ROOK: Kinds = Kinds::new(1 << Rook.index());
+    pub const KING: Kinds = Kinds::new(1 << King.index());
+    pub const PRO_BISHOP: Kinds = Kinds::new(1 << ProBishop.index());
+    pub const PRO_ROOK: Kinds = Kinds::new(1 << ProRook.index());
+    pub const GOLDISH: Kinds = Kinds::new(
+        1 << Gold.index()
+            | 1 << ProPawn.index()
+            | 1 << ProLance.index()
+            | 1 << ProKnight.index()
+            | 1 << ProSilver.index(),
+    );
+
+    pub const fn new(mask: usize) -> Self {
         Self { mask }
+    }
+
+    pub fn set(&mut self, kind: Kind) {
+        self.mask |= 1 << kind.index();
+    }
+
+    pub fn count_ones(&self) -> u32 {
+        self.mask.count_ones()
     }
 }
 
@@ -167,5 +227,95 @@ impl Iterator for Kinds {
         let x = self.mask.trailing_zeros() as usize;
         self.mask &= !(1 << x);
         Some(Kind::from_index(x))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum KindEffect {
+    Pawn,
+    Lance,
+    Knight,
+    Silver,
+    Gold,
+    Bishop,
+    Rook,
+    King,
+    ProBishop,
+    ProRook,
+}
+
+pub const KIND_EFFECTS: [KindEffect; 10] = [
+    KindEffect::Pawn,
+    KindEffect::Lance,
+    KindEffect::Knight,
+    KindEffect::Silver,
+    KindEffect::Gold,
+    KindEffect::Bishop,
+    KindEffect::Rook,
+    KindEffect::King,
+    KindEffect::ProBishop,
+    KindEffect::ProRook,
+];
+
+impl KindEffect {
+    pub fn index(&self) -> usize {
+        *self as usize
+    }
+    pub fn from_index(x: usize) -> Self {
+        KIND_EFFECTS[x]
+    }
+    pub fn iter() -> impl Iterator<Item = KindEffect> {
+        KIND_EFFECTS.iter().copied()
+    }
+
+    pub fn kinds(&self) -> Kinds {
+        match self {
+            KindEffect::Pawn => Kinds::PAWN,
+            KindEffect::Lance => Kinds::LANCE,
+            KindEffect::Knight => Kinds::KNIGHT,
+            KindEffect::Silver => Kinds::SILVER,
+            KindEffect::Gold => Kinds::GOLDISH,
+            KindEffect::Bishop => Kinds::BISHOP,
+            KindEffect::Rook => Kinds::ROOK,
+            KindEffect::King => Kinds::KING,
+            KindEffect::ProBishop => Kinds::PRO_BISHOP,
+            KindEffect::ProRook => Kinds::PRO_ROOK,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct KindEffects {
+    mask: u16,
+}
+
+impl KindEffects {
+    pub fn new(mask: u16) -> Self {
+        Self { mask }
+    }
+
+    pub fn set(&mut self, kind: KindEffect) {
+        self.mask |= 1 << kind as u16;
+    }
+
+    pub fn count_ones(&self) -> u32 {
+        self.mask.count_ones()
+    }
+
+    pub fn contains(&self, effect: KindEffect) -> bool {
+        self.mask & (1 << effect as u16) != 0
+    }
+}
+
+impl Iterator for KindEffects {
+    type Item = KindEffect;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.mask == 0 {
+            return None;
+        }
+        let x = self.mask.trailing_zeros() as u16;
+        self.mask &= !(1 << x);
+        Some(KindEffect::from_index(x as usize))
     }
 }

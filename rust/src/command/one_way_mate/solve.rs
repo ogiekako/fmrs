@@ -1,6 +1,6 @@
 use fmrs_core::{
     memo::MemoStub,
-    nohash::NoHashSet,
+    nohash::NoHashSet64,
     piece::Color,
     position::{advance::advance::advance_aux, position::PositionAux, AdvanceOptions, Movement},
 };
@@ -37,7 +37,7 @@ fn one_way_mate_steps_inner(
         ..Default::default()
     };
 
-    let mut seen_positions = NoHashSet::default();
+    let mut seen_positions = NoHashSet64::default();
 
     let mut unused_memo = MemoStub;
 

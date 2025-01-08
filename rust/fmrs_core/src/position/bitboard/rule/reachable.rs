@@ -23,6 +23,20 @@ pub fn reachable(
     reachable_sub(position, color, pos, kind).and_not(exclude)
 }
 
+pub fn reachable_core(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
+    if !kind.is_line_piece() {
+        return power(color, pos, kind);
+    }
+    match kind {
+        Kind::Lance => lance_reachable(occupied, color, pos),
+        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Rook => magic::rook_reachable(occupied, pos),
+        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
+        Kind::ProRook => magic::prorook_reachable(occupied, pos),
+        _ => unreachable!(),
+    }
+}
+
 pub fn reachable_sub(
     position: &mut PositionAux,
     color: Color,
@@ -100,8 +114,9 @@ pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoar
 #[cfg(test)]
 mod tests {
     use crate::{
+        bitboard,
         piece::{Color, Kind},
-        position::bitboard::{testing::bitboard, BitBoard, Square},
+        position::bitboard::{BitBoard, Square},
     };
 
     #[test]

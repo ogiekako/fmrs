@@ -13,9 +13,9 @@ const PROMOTABLE_MASKS: [BitBoard; 2] = [
 
 pub(super) fn promotable(pos: Square, c: Color) -> bool {
     if c.is_black() {
-        PROMOTABLE_MASKS[0].get(pos)
+        PROMOTABLE_MASKS[0].contains(pos)
     } else {
-        PROMOTABLE_MASKS[1].get(pos)
+        PROMOTABLE_MASKS[1].contains(pos)
     }
 }
 
@@ -35,8 +35,8 @@ pub(super) fn is_legal_move(
 
 pub(super) fn is_movable(color: Color, dest: Square, kind: Kind) -> bool {
     match kind {
-        Kind::Pawn | Kind::Lance => !ILLEGAL_PAWN_MASKS[color.index()].get(dest),
-        Kind::Knight => !ILLEGAL_KNIGHT_MASKS[color.index()].get(dest),
+        Kind::Pawn | Kind::Lance => !ILLEGAL_PAWN_MASKS[color.index()].contains(dest),
+        Kind::Knight => !ILLEGAL_KNIGHT_MASKS[color.index()].contains(dest),
         _ => true,
     }
 }

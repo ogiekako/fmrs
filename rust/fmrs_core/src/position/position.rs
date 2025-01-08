@@ -1,3 +1,5 @@
+use anyhow::bail;
+
 use crate::direction::Direction;
 use crate::piece::*;
 
@@ -9,6 +11,7 @@ pub struct Position {
     pub(super) digest: u64, // 8 bytes
 }
 
+use crate::position::rule::is_movable;
 use crate::sfen;
 use std::fmt;
 use std::fmt::Debug;
@@ -66,7 +69,7 @@ impl Position {
     }
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let kind = self.kind_bb.get(pos)?;
-        Some(if self.black().get(pos) {
+        Some(if self.black().contains(pos) {
             (Color::BLACK, kind)
         } else {
             (Color::WHITE, kind)
@@ -103,7 +106,7 @@ impl Position {
     }
 
     pub(super) fn hash_at(&self, pos: Square) -> u64 {
-        let color = if self.black_bb.get(pos) {
+        let color = if self.black_bb.contains(pos) {
             Color::BLACK
         } else {
             Color::WHITE
@@ -119,6 +122,46 @@ impl Position {
 
     pub fn sfen(&self) -> String {
         PositionAux::new(self.clone(), None).sfen()
+    }
+
+    pub fn try_set(&mut self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        self.check_can_set(pos, color, kind)?;
+        self.set(pos, color, kind);
+        Ok(())
+    }
+
+    pub fn check_can_set(&self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        if self.get(pos).is_some() {
+            bail!("already occupied");
+        }
+        if self.used_kind_count(kind) >= kind.max_count() {
+            bail!("too many pieces");
+        }
+        if kind == Kind::Pawn && self.col_has_pawn(color, pos.col()) {
+            bail!("double pawns");
+        }
+        if !is_movable(color, pos, kind) {
+            bail!("unmovable");
+        }
+        Ok(())
+    }
+
+    fn used_kind_count(&self, kind: Kind) -> u32 {
+        let kind = kind.maybe_unpromote();
+        let mut res = Color::iter()
+            .map(|c| self.hands().count(c, kind))
+            .sum::<usize>() as u32;
+        res += self.kind_bb().bitboard(kind).count_ones();
+        if let Some(kind) = kind.promote() {
+            res += self.kind_bb().bitboard(kind).count_ones();
+        }
+        res
+    }
+
+    fn col_has_pawn(&self, color: Color, col: usize) -> bool {
+        let pawn_bb = self.bitboard(color, Kind::Pawn).u128();
+        let mask = (1 << (col * 9 + 9)) - (1 << (col * 9));
+        pawn_bb & mask != 0
     }
 }
 
@@ -231,11 +274,11 @@ impl PositionAux {
         if self.has_stone(pos) {
             return None;
         }
-        if !self.occupied_bb().get(pos) {
+        if !self.occupied_bb().contains(pos) {
             return None;
         }
         Some((
-            Color::from_is_black(self.black_bb().get(pos)),
+            Color::from_is_black(self.black_bb().contains(pos)),
             self.must_get_kind(pos),
         ))
     }
@@ -425,7 +468,9 @@ impl PositionAux {
     }
 
     fn has_stone(&self, pos: Square) -> bool {
-        self.stone.as_ref().map_or(false, |stone| stone.get(pos))
+        self.stone
+            .as_ref()
+            .map_or(false, |stone| stone.contains(pos))
     }
 
     pub fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
@@ -436,9 +481,7 @@ impl PositionAux {
     }
 
     pub fn col_has_pawn(&self, color: Color, col: usize) -> bool {
-        let pawn_bb = self.bitboard(color, Kind::Pawn).u128();
-        let mask = (1 << (col * 9 + 9)) - (1 << (col * 9));
-        pawn_bb & mask != 0
+        self.core.col_has_pawn(color, col)
     }
 
     pub fn flipped(&self) -> Self {
@@ -448,7 +491,7 @@ impl PositionAux {
             if let Some((color, kind)) = self.get(pos) {
                 core.set(pos.flipped(), color.opposite(), kind);
             }
-            if self.stone().map_or(false, |stone| stone.get(pos)) {
+            if self.stone().map_or(false, |stone| stone.contains(pos)) {
                 stone.set(pos.flipped());
             }
         }
@@ -466,6 +509,28 @@ impl PositionAux {
     pub fn set_stone(&mut self, stone: BitBoard) {
         self.stone = Some(stone);
         self.occupied |= stone;
+    }
+
+    pub fn try_set(&mut self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        self.core.try_set(pos, color, kind)
+    }
+
+    pub fn can_set(&self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        self.core.check_can_set(pos, color, kind)
+    }
+
+    pub fn settable_bb(&self, color: Color, kind: Kind) -> BitBoard {
+        if self.core.used_kind_count(kind) >= kind.max_count() {
+            return BitBoard::EMPTY;
+        }
+
+        let occupied = self.occupied_bb();
+        let unmovable = kind.unmovable_bb(color);
+        if kind == Kind::Pawn {
+            let pawn_mask = self.bitboard(color, Kind::Pawn).col_mask_bb();
+            return BitBoard::FULL.and_not(occupied | unmovable | pawn_mask);
+        }
+        BitBoard::FULL.and_not(occupied | unmovable)
     }
 
     // TODO: remember attackers

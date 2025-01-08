@@ -1,6 +1,6 @@
 use dashmap::DashMap;
 
-use crate::nohash::{BuildNoHasher, NoHashMap};
+use crate::nohash::{BuildNoHasher, NoHashMap64};
 
 pub trait MemoTrait {
     fn contains_key(&self, digest: &u64) -> bool;
@@ -39,7 +39,7 @@ impl MemoTrait for MemoStub {
 
 #[derive(Debug, Clone)]
 pub struct Memo {
-    steps: NoHashMap<u16>,
+    steps: NoHashMap64<u16>,
 }
 
 impl Memo {
@@ -50,7 +50,7 @@ impl Memo {
 
 impl Default for Memo {
     fn default() -> Self {
-        let steps = NoHashMap::default();
+        let steps = NoHashMap64::default();
         Memo { steps }
     }
 }

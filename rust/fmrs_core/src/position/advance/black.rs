@@ -166,7 +166,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                     self.position.white_king_pos(),
                     attacker_dest_kind,
                 );
-                if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
+                if promote && !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
                     attack_squares &= BitBoard::BLACK_PROMOTABLE;
                 }
 
@@ -230,7 +230,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                         .white_king_attack_squares(attacker_dest_kind)
                         .and_not(self.position.color_bb_and_stone(Color::BLACK));
 
-                    if promote && !BitBoard::BLACK_PROMOTABLE.get(attacker_pos) {
+                    if promote && !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
                         attack_squares &= BitBoard::BLACK_PROMOTABLE;
                     }
 

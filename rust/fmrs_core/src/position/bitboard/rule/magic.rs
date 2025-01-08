@@ -54,7 +54,7 @@ pub fn init_magic() {
         | probishop_reachable(BitBoard::default(), Square::new(0, 0))
         | rook_reachable(BitBoard::default(), Square::new(0, 0))
         | prorook_reachable(BitBoard::default(), Square::new(0, 0));
-    assert!(!b.get(Square::new(0, 0)));
+    assert!(!b.contains(Square::new(0, 0)));
 }
 
 lazy_static! {
@@ -127,7 +127,7 @@ fn new_magic(
                     match add(pos, dc * i, dr * i) {
                         Some(p) => {
                             reachable.set(p);
-                            if block.get(p) {
+                            if block.contains(p) {
                                 break;
                             }
                         }
@@ -191,7 +191,7 @@ fn add(pos: Square, col: isize, row: isize) -> Option<Square> {
 
 #[cfg(test)]
 mod tests {
-    use crate::position::bitboard::{testing::bitboard, Square};
+    use crate::{bitboard, position::bitboard::Square};
 
     #[test]
     fn bishop_reachable() {

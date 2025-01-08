@@ -22,7 +22,7 @@ impl Pinned {
     }
     pub fn is_unpin_move(&self, source: Square, dest: Square) -> bool {
         self.pinned_area(source)
-            .map(|area| !area.get(dest))
+            .map(|area| !area.contains(dest))
             .unwrap_or(false)
     }
     // Reachable pinned area including capturing move
@@ -150,13 +150,13 @@ fn lance_pinned(
 
     if king_color.is_white() {
         let blocker_pos = occupied.next().unwrap();
-        if !position.color_bb(blocker_color).get(blocker_pos) {
+        if !position.color_bb(blocker_color).contains(blocker_pos) {
             return;
         }
         let Some(attacker_pos) = occupied.next() else {
             return;
         };
-        if !lances.get(attacker_pos) {
+        if !lances.contains(attacker_pos) {
             return;
         }
         let blocker_kind = position.must_get_kind(blocker_pos);
@@ -166,7 +166,7 @@ fn lance_pinned(
     } else {
         let mut occupied = occupied.u128();
         let blocker_pos = Square::from_index(127 - occupied.leading_zeros() as usize);
-        if !position.color_bb(blocker_color).get(blocker_pos) {
+        if !position.color_bb(blocker_color).contains(blocker_pos) {
             return;
         }
         occupied &= !(1 << blocker_pos.index());
@@ -174,7 +174,7 @@ fn lance_pinned(
             return;
         }
         let attacker_pos = Square::from_index(127 - occupied.leading_zeros() as usize);
-        if !lances.get(attacker_pos) {
+        if !lances.contains(attacker_pos) {
             return;
         }
         let blocker_kind = position.must_get_kind(blocker_pos);

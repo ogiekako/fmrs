@@ -6,19 +6,45 @@ use super::square::Square;
 pub struct BitBoard(u128);
 
 impl BitBoard {
-    pub const UPPER: BitBoard = BitBoard::from_u128(
+    pub const UPPER: BitBoard = BitBoard::COL1;
+    pub const LOWER: BitBoard = BitBoard::COL9;
+
+    pub const BLACK_PROMOTABLE: BitBoard =
+        Self::from_u128(Self::COL1.u128() | Self::COL2.u128() | Self::COL3.u128());
+    pub const WHITE_PROMOTABLE: BitBoard =
+        Self::from_u128(Self::COL7.u128() | Self::COL8.u128() | Self::COL9.u128());
+
+    pub const COL1: BitBoard = BitBoard::from_u128(
         0b000000001000000001000000001000000001000000001000000001000000001000000001000000001u128,
     );
-    pub const LOWER: BitBoard = BitBoard::from_u128(
+    pub const COL2: BitBoard = BitBoard::from_u128(
+        0b000000010000000010000000010000000010000000010000000010000000010000000010000000010u128,
+    );
+    pub const COL3: BitBoard = BitBoard::from_u128(
+        0b000000100000000100000000100000000100000000100000000100000000100000000100000000100u128,
+    );
+    pub const COL4: BitBoard = BitBoard::from_u128(
+        0b000001000000001000000001000000001000000001000000001000000001000000001000000001000u128,
+    );
+    pub const COL5: BitBoard = BitBoard::from_u128(
+        0b000010000000010000000010000000010000000010000000010000000010000000010000000010000u128,
+    );
+    pub const COL6: BitBoard = BitBoard::from_u128(
+        0b000100000000100000000100000000100000000100000000100000000100000000100000000100000u128,
+    );
+    pub const COL7: BitBoard = BitBoard::from_u128(
+        0b001000000001000000001000000001000000001000000001000000001000000001000000001000000u128,
+    );
+    pub const COL8: BitBoard = BitBoard::from_u128(
+        0b010000000010000000010000000010000000010000000010000000010000000010000000010000000u128,
+    );
+    pub const COL9: BitBoard = BitBoard::from_u128(
         0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
     );
-
-    pub const BLACK_PROMOTABLE: BitBoard = BitBoard::from_u128(
-        0b000000111000000111000000111000000111000000111000000111000000111000000111000000111u128,
+    pub const FULL: BitBoard = BitBoard::from_u128(
+        0b111111111111111111111111111111111111111111111111111111111111111111111111111111111u128,
     );
-    pub const WHITE_PROMOTABLE: BitBoard = BitBoard::from_u128(
-        0b111000000111000000111000000111000000111000000111000000111000000111000000111000000u128,
-    );
+    pub const EMPTY: BitBoard = BitBoard(0);
 
     pub fn is_empty(&self) -> bool {
         self.0 == 0
@@ -31,7 +57,7 @@ impl BitBoard {
         let i = pos.index();
         self.0 &= !(1 << i);
     }
-    pub fn get(&self, pos: Square) -> bool {
+    pub fn contains(&self, pos: Square) -> bool {
         let i = pos.index();
         self.0 >> i & 1 != 0
     }
@@ -92,6 +118,19 @@ impl BitBoard {
     fn col_is_empty(&self, col: usize) -> bool {
         (self.u128() >> (col * 9)) & 0b111111111 == 0
     }
+
+    pub fn count_ones(&self) -> u32 {
+        self.0.count_ones()
+    }
+
+    pub(crate) fn col_mask_bb(self) -> BitBoard {
+        let mut res = 0;
+        for pos in self {
+            let i = pos.col();
+            res |= 0x1FF << (i * 9);
+        }
+        BitBoard::from_u128(res)
+    }
 }
 
 impl Iterator for BitBoard {
@@ -141,7 +180,7 @@ impl std::fmt::Display for BitBoard {
                 write!(
                     f,
                     "{}",
-                    if self.get(Square::new(col, row)) {
+                    if self.contains(Square::new(col, row)) {
                         "*"
                     } else {
                         "."
@@ -161,7 +200,7 @@ impl std::fmt::Debug for BitBoard {
 }
 
 impl BitBoard {
-    pub fn u128(&self) -> u128 {
+    pub const fn u128(&self) -> u128 {
         self.0
     }
     pub fn singleton(&self) -> Square {
@@ -189,11 +228,35 @@ impl BitBoard {
     }
 }
 
+#[macro_export]
+macro_rules! bitboard {
+    ($($x:expr,)*) => {
+        {
+            let v = vec![$($x),*];
+            if v.len() != 9 {
+                panic!("Exactly 9 elements should be given.");
+            }
+            let mut res = $crate::position::BitBoard::default();
+            for i in 0..9 {
+                if v[i].len() != 9 {
+                    panic!("v[{}] = {:?} should contain exactly 9 characters.", i, v[i]);
+                }
+                for (j, c) in v[i].chars().rev().enumerate() {
+                    if c == '*' {
+                        res.set($crate::position::Square::new(j, i));
+                    }
+                }
+            }
+            res
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         direction::Direction,
-        position::bitboard::{bitboard::BitBoard, square::Square, testing::bitboard},
+        position::bitboard::{bitboard::BitBoard, square::Square},
     };
     use pretty_assertions::assert_eq;
 

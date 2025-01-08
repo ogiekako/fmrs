@@ -43,8 +43,10 @@ impl BuildHasher for BuildNoHasher {
     }
 }
 
-pub type NoHashMap<V> = HashMap<u64, V, BuildNoHasher>;
-pub type NoHashSet = HashSet<u64, BuildNoHasher>;
+pub type NoHashSet<K> = HashSet<K, BuildNoHasher>;
+pub type NoHashMap<K, V> = HashMap<K, V, BuildNoHasher>;
+pub type NoHashSet64 = NoHashSet<u64>;
+pub type NoHashMap64<V> = NoHashMap<u64, V>;
 
 #[cfg(test)]
 mod tests {
@@ -52,7 +54,7 @@ mod tests {
 
     #[test]
     fn test_no_hash_map() {
-        let mut map = NoHashMap::default();
+        let mut map = NoHashMap64::default();
         map.insert(1, 2);
         assert_eq!(map.get(&1), Some(&2));
         map.insert(1, 3);

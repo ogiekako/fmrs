@@ -19,7 +19,7 @@ impl Square {
     pub fn iter() -> impl Iterator<Item = Self> {
         (0..81).map(Self::from_index)
     }
-    pub(crate) const fn index(self) -> usize {
+    pub const fn index(self) -> usize {
         self.x
     }
     pub const fn from_index(x: usize) -> Self {

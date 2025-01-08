@@ -9,9 +9,9 @@ pub mod memo;
 pub mod nohash;
 pub mod piece;
 pub mod position;
+pub mod search;
 pub mod sfen;
 pub mod solve;
-pub mod search;
 
 #[cfg(test)]
 mod tests {

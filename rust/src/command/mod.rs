@@ -1,10 +1,10 @@
+pub mod backward;
 pub mod batch;
+pub mod batch_square;
 pub mod bench;
 mod one_way_mate;
 mod server;
 mod solve;
-pub mod batch_square;
-pub mod backward;
 
 pub use batch::batch;
 pub use bench::bench;
