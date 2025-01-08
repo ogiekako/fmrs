@@ -39,7 +39,7 @@ impl Room {
             if i < self.heights.len() - 1 {
                 necessary_height = necessary_height.max(self.heights[i + 1] + 1);
             }
-            for j in h..=necessary_height {
+            for j in h..necessary_height {
                 stone.set(Square::new(i, (8 - j).into()));
             }
         }
