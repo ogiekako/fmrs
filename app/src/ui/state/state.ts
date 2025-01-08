@@ -1,4 +1,4 @@
-import { cloneState } from "../clone";
+import { cloneSelected, cloneState } from "../clone";
 import * as types from "../types";
 import * as position from "./position";
 import * as model from "../../model";
@@ -13,7 +13,11 @@ export function newState(): types.State {
   const initialPosition = sfen ? model.decodeSfen(sfen) : position.create();
   return {
     position: initialPosition,
-    selected: undefined,
+    selected: {
+      shown: false,
+      ty: "board",
+      pos: [4, 4],
+    },
     solving: undefined,
     problems: PRESET_PROBLEMS.map(([sfen, name]) => [
       model.decodeSfen(sfen),
@@ -42,7 +46,11 @@ export function reduce(orig: types.State, event: types.Event): types.State {
     case "set-position":
       state = cloneState(orig);
       state.position = event.position;
-      state.selected = undefined;
+      state.selected = {
+        shown: false,
+        ty: "board",
+        pos: [4, 4],
+      };
       maybeClearSolveResponse(state);
       return state;
     case "set-solving":
@@ -78,9 +86,10 @@ function handleClick(
   const state = cloneState(orig);
   maybeClearSolveResponse(state);
 
-  if (!state.selected) {
+  if (!state.selected.shown) {
     if (event.ty === "click-hand") {
       state.selected = {
+        shown: true,
         ty: "hand",
         color: event.color,
         kind: event.kind,
@@ -88,6 +97,7 @@ function handleClick(
       return state;
     }
     state.selected = {
+      shown: true,
       ty: "board",
       pos: event.pos,
     };
@@ -103,6 +113,7 @@ function handleClick(
     switch (event.ty) {
       case "click-hand":
         state.selected = {
+          shown: true,
           ty: "hand",
           color: event.color,
           kind: event.kind,
@@ -110,6 +121,7 @@ function handleClick(
         break;
       case "click-board":
         state.selected = {
+          shown: true,
           ty: "board",
           pos: event.pos,
         };
@@ -127,6 +139,7 @@ function handleClick(
     switch (event.ty) {
       case "click-hand":
         state.selected = {
+          shown: true,
           ty: "hand",
           color: event.color,
           kind: event.kind,
@@ -150,7 +163,7 @@ function handleClick(
       default:
         ((_: never) => {})(event);
     }
-    state.selected = undefined;
+    state.selected.shown = false;
     return state;
   }
 
@@ -196,7 +209,7 @@ function handleClick(
   }
 
   tryMove(state, from, to);
-  state.selected = undefined;
+  state.selected.shown = false;
   return state;
 }
 
@@ -238,15 +251,9 @@ type Direction = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
 
 function nextSelection(
   hands: { [c in model.Color | "pieceBox"]: model.Hands },
-  selected: types.Selected | undefined,
+  selected: types.Selected,
   direction: Direction
-): types.Selected | undefined {
-  if (!selected) {
-    return {
-      ty: "board",
-      pos: [4, 4],
-    };
-  }
+): types.Selected {
   switch (selected.ty) {
     case "hand":
       switch (direction) {
@@ -259,11 +266,11 @@ function nextSelection(
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
             const pieceBoxKinds = KINDS.filter((k) => hands["pieceBox"][k]);
             const kind = pieceBoxKinds[Math.min(pieceBoxKinds.length - 1, i)];
-            return { ty: "hand", color: "pieceBox", kind };
+            return { shown: true, ty: "hand", color: "pieceBox", kind };
           } else {
             const kinds = KINDS.filter((k) => hands["black"][k]);
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
-            return { ty: "board", pos: [8, 8 - i] };
+            return { shown: true, ty: "board", pos: [8, 8 - i] };
           }
         case "ArrowDown":
           if (selected.color === "black") {
@@ -273,14 +280,15 @@ function nextSelection(
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
             const whiteKinds = KINDS.filter((k) => hands["white"][k]);
             const kind = whiteKinds[Math.min(whiteKinds.length - 1, i)];
-            return { ty: "hand", color: "white", kind };
+            return { shown: true, ty: "hand", color: "white", kind };
           } else {
             const kinds = KINDS.filter((k) => hands["white"][k]);
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
-            return { ty: "board", pos: [0, 8 - i] };
+            return { shown: true, ty: "board", pos: [0, 8 - i] };
           }
         case "ArrowLeft":
           return {
+            shown: true,
             ty: "hand",
             color: selected.color,
             kind:
@@ -289,6 +297,7 @@ function nextSelection(
           };
         case "ArrowRight":
           return {
+            shown: true,
             ty: "hand",
             color: selected.color,
             kind:
@@ -316,6 +325,7 @@ function nextSelection(
         const kinds = KINDS.filter((k) => hands["white"][k]);
         const kind = kinds[Math.min(kinds.length - 1, 8 - pos[1])];
         return {
+          shown: true,
           ty: "hand",
           color: "white",
           kind,
@@ -324,12 +334,13 @@ function nextSelection(
         const kinds = KINDS.filter((k) => hands["black"][k]);
         const kind = kinds[Math.min(kinds.length - 1, 8 - pos[1])];
         return {
+          shown: true,
           ty: "hand",
           color: "black",
           kind,
         };
       }
-      return { ty: "board", pos };
+      return { shown: true, ty: "board", pos };
   }
 }
 
@@ -358,10 +369,6 @@ function nextKind(
   return hands[kind] > 0 ? kind : undefined;
 }
 
-function firstKind(hands: model.Hands) {
-  return nextKind(hands, "P", "right", true);
-}
-
 function handleKeyDown(orig: types.State, key: string) {
   const state = cloneState(orig);
 
@@ -377,7 +384,7 @@ function handleKeyDown(orig: types.State, key: string) {
     return state;
   }
 
-  if (!state.selected) return orig;
+  if (!state.selected.shown) return orig;
 
   const oppositeOrWhite = {
     black: "white",
@@ -459,22 +466,31 @@ function handleKeyDown(orig: types.State, key: string) {
       state.position.hands["white"][dest.kind]++;
     }
     state.position.board[state.selected.pos[0]][state.selected.pos[1]] = piece;
+    state.selected.shown = false;
   } else {
-    tryMove(
-      state,
-      {
-        ty: "hand",
-        color: "white",
-        kind: piece.kind,
-      },
-      {
-        ty: "board",
-        pos: state.selected.pos,
-        color: piece.color,
-        promoted: piece.promoted,
+    for (const color of ["white", "pieceBox", "black"] as const) {
+      if (
+        tryMove(
+          state,
+          {
+            ty: "hand",
+            color,
+            kind: piece.kind,
+          },
+          {
+            ty: "board",
+            pos: state.selected.pos,
+            color: piece.color,
+            promoted: piece.promoted,
+          }
+        )
+      ) {
+        state.selected.shown = false;
+        break;
       }
-    );
+    }
   }
+
   return state;
 }
 
@@ -535,29 +551,28 @@ type Dest =
       promoted: boolean;
     };
 
-function tryMove(state: types.State, from: Source, to: Dest) {
+function tryMove(state: types.State, from: Source, to: Dest): boolean {
+  const pieceBox = positionPieceBox(state.position);
+  const hands = {
+    black: state.position.hands["black"],
+    white: state.position.hands["white"],
+    pieceBox: pieceBox,
+  };
+
   if (from.ty === "hand") {
     if (to.ty === "hand") {
-      if (from.color === to.color) return;
-      if (from.color !== "pieceBox") {
-        if (state.position.hands[from.color][from.kind] === 0) return;
-        state.position.hands[from.color][from.kind]--;
-      }
-      if (to.color !== "pieceBox") {
-        state.position.hands[to.color][from.kind]++;
-      }
+      if (from.color === to.color) return false;
+      if (hands[from.color][from.kind] === 0) return false;
+      hands[from.color][from.kind]--;
+      hands[to.color][from.kind]++;
     } else {
       let dest = state.position.board[to.pos[0]][to.pos[1]];
       if (dest === "O") {
         state.position.board[to.pos[0]][to.pos[1]] = undefined;
         dest = undefined;
       }
-      if (
-        dest?.kind !== from.kind &&
-        from.color !== "pieceBox" &&
-        state.position.hands[from.color][from.kind] === 0
-      ) {
-        return;
+      if (dest?.kind !== from.kind && hands[from.color][from.kind] === 0) {
+        return false;
       }
 
       state.position.board[to.pos[0]][to.pos[1]] = {
@@ -565,24 +580,22 @@ function tryMove(state: types.State, from: Source, to: Dest) {
         kind: from.kind,
         promoted: to.promoted,
       };
-      if (from.color !== "pieceBox") {
-        state.position.hands[from.color][from.kind]--;
-        if (dest) {
-          state.position.hands[from.color][dest.kind]++;
-        }
+      hands[from.color][from.kind]--;
+      if (dest) {
+        hands[from.color][dest.kind]++;
       }
     }
   } else {
     const source = state.position.board[from.pos[0]][from.pos[1]];
-    if (!source) return;
+    if (!source) return false;
     if (to.ty === "hand") {
       state.position.board[from.pos[0]][from.pos[1]] = undefined;
-      if (source !== "O" && to.color !== "pieceBox") {
-        state.position.hands[to.color][source.kind]++;
+      if (source !== "O") {
+        hands[to.color][source.kind]++;
       }
     } else {
       if (from.pos[0] === to.pos[0] && from.pos[1] === to.pos[1]) {
-        if (source === "O") return;
+        if (source === "O") return false;
         state.position.board[from.pos[0]][from.pos[1]] = {
           color: to.color,
           kind: source.kind,
@@ -592,19 +605,17 @@ function tryMove(state: types.State, from: Source, to: Dest) {
         const dest = state.position.board[to.pos[0]][to.pos[1]];
         state.position.board[to.pos[0]][to.pos[1]] = source;
         if (dest && dest !== "O") {
-          state.position.hands[source === "O" ? "white" : source.color][
-            dest.kind
-          ]++;
+          hands[source === "O" ? "white" : source.color][dest.kind]++;
         }
         state.position.board[from.pos[0]][from.pos[1]] = undefined;
       }
     }
   }
-  state.position.hands["black"]["K"] = 0;
-  state.position.hands["white"]["K"] = 0;
+  hands["black"]["K"] = 0;
+  hands["white"]["K"] = 0;
 
   // Update selected.
-  if (!state.selected) return;
+  if (!state.selected.shown) return true;
   if (state.selected.ty === "hand") {
     state.selected.kind = nextKind(
       getHands(state.position, state.selected.color),
@@ -613,6 +624,7 @@ function tryMove(state: types.State, from: Source, to: Dest) {
       true
     );
   }
+  return true;
 }
 
 function shifted(orig: types.State, dir: "up" | "down" | "left" | "right") {

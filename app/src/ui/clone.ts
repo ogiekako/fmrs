@@ -12,18 +12,15 @@ export function cloneState(state: types.State): types.State {
   };
 }
 
-function cloneSelected(
-  selected: types.Selected | undefined
-): types.Selected | undefined {
-  if (!selected) {
-    return undefined;
-  }
+export function cloneSelected(selected: types.Selected): types.Selected {
   return selected.ty === "board"
     ? {
+        shown: selected.shown,
         ty: "board",
         pos: [selected.pos[0], selected.pos[1]],
       }
     : {
+        shown: selected.shown,
         ty: "hand",
         color: selected.color,
         kind: selected.kind,

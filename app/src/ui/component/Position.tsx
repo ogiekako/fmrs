@@ -8,7 +8,7 @@ import { FloatingLabel } from "react-bootstrap";
 
 export default function Position(props: {
   position: model.Position;
-  selected: types.Selected | undefined;
+  selected: types.Selected;
   dispatch: types.Dispatcher;
   disabled: boolean;
 }) {
@@ -16,7 +16,7 @@ export default function Position(props: {
   let whiteHandSelected = undefined;
   let blackHandSelected = undefined;
   let pieceBoxSelected = undefined;
-  if (props.selected) {
+  if (props.selected.shown) {
     if (props.selected.ty === "board") {
       boardSelected = props.selected.pos;
     } else if (props.selected.color === "white") {

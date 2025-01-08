@@ -3,7 +3,7 @@ import * as solve from "../solve";
 
 export type State = {
   position: Position;
-  selected: Selected | undefined;
+  selected: Selected;
   solving: Solving | undefined;
   problems: Array<Problem>;
   solveResponse: SolveResponse | undefined;
@@ -12,7 +12,9 @@ export type State = {
 
 export type Problem = [Position, /* name */ string];
 
-export type Selected =
+export type Selected = {
+  shown: boolean;
+} & (
   | {
       ty: "hand";
       color: Color | "pieceBox";
@@ -21,7 +23,8 @@ export type Selected =
   | {
       ty: "board";
       pos: [number, number]; // zero-origin
-    };
+    }
+);
 
 export type Solving = {
   cancelToken: solve.CancellationToken;
