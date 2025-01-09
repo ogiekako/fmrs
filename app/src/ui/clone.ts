@@ -18,6 +18,7 @@ export function cloneSelected(selected: types.Selected): types.Selected {
         shown: selected.shown,
         ty: "board",
         pos: [selected.pos[0], selected.pos[1]],
+        typed: selected.typed,
       }
     : {
         shown: selected.shown,

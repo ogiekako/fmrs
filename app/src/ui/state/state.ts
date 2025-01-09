@@ -17,6 +17,7 @@ export function newState(): types.State {
       shown: false,
       ty: "board",
       pos: [4, 4],
+      typed: false,
     },
     solving: undefined,
     problems: PRESET_PROBLEMS.map(([sfen, name]) => [
@@ -50,6 +51,7 @@ export function reduce(orig: types.State, event: types.Event): types.State {
         shown: false,
         ty: "board",
         pos: [4, 4],
+        typed: false,
       };
       maybeClearSolveResponse(state);
       return state;
@@ -86,7 +88,10 @@ function handleClick(
   const state = cloneState(orig);
   maybeClearSolveResponse(state);
 
-  if (!state.selected.shown) {
+  if (
+    !state.selected.shown ||
+    (state.selected.ty === "board" && state.selected.typed)
+  ) {
     if (event.ty === "click-hand") {
       state.selected = {
         shown: true,
@@ -100,6 +105,7 @@ function handleClick(
       shown: true,
       ty: "board",
       pos: event.pos,
+      typed: false,
     };
     return state;
   }
@@ -124,6 +130,7 @@ function handleClick(
           shown: true,
           ty: "board",
           pos: event.pos,
+          typed: false,
         };
         break;
       default:
@@ -138,12 +145,8 @@ function handleClick(
   ) {
     switch (event.ty) {
       case "click-hand":
-        state.selected = {
-          shown: true,
-          ty: "hand",
-          color: event.color,
-          kind: event.kind,
-        };
+        state.position.board[state.selected.pos[0]][state.selected.pos[1]] =
+          undefined;
         break;
       case "click-board":
         tryMove(
@@ -270,7 +273,7 @@ function nextSelection(
           } else {
             const kinds = KINDS.filter((k) => hands["black"][k]);
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
-            return { shown: true, ty: "board", pos: [8, 8 - i] };
+            return { shown: true, ty: "board", pos: [8, 8 - i], typed: false };
           }
         case "ArrowDown":
           if (selected.color === "black") {
@@ -284,7 +287,7 @@ function nextSelection(
           } else {
             const kinds = KINDS.filter((k) => hands["white"][k]);
             const i = selected.kind ? kinds.indexOf(selected.kind) : 0;
-            return { shown: true, ty: "board", pos: [0, 8 - i] };
+            return { shown: true, ty: "board", pos: [0, 8 - i], typed: false };
           }
         case "ArrowLeft":
           return {
@@ -340,7 +343,7 @@ function nextSelection(
           kind,
         };
       }
-      return { shown: true, ty: "board", pos };
+      return { shown: true, ty: "board", pos, typed: false };
   }
 }
 
@@ -466,7 +469,7 @@ function handleKeyDown(orig: types.State, key: string) {
       state.position.hands["white"][dest.kind]++;
     }
     state.position.board[state.selected.pos[0]][state.selected.pos[1]] = piece;
-    state.selected.shown = false;
+    state.selected.typed = true;
   } else {
     for (const color of ["white", "pieceBox", "black"] as const) {
       if (
@@ -485,7 +488,7 @@ function handleKeyDown(orig: types.State, key: string) {
           }
         )
       ) {
-        state.selected.shown = false;
+        state.selected.typed = true;
         break;
       }
     }

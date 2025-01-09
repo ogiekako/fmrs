@@ -4,6 +4,7 @@ import Solution from "./Solution";
 export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;
   solutionLimit: number;
+  dispatch: types.Dispatcher;
 }) {
   const message = getMessage(props.solveResponse, props.solutionLimit);
 
@@ -22,6 +23,7 @@ export default function SolveResponse(props: {
         kif={props.solveResponse.response.kif}
         stone={props.solveResponse.stone}
         fromWhite={props.solveResponse.response.fromWhite}
+        dispatch={props.dispatch}
       />
     </div>
   ) : (

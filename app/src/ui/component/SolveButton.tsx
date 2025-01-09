@@ -131,6 +131,7 @@ export default function SolveButton(props: {
         <SolveResponse
           solveResponse={props.solveResponse}
           solutionLimit={props.solutionLimit}
+          dispatch={props.dispatch}
         />
       ) : (
         <></>

@@ -23,6 +23,7 @@ export type Selected = {
   | {
       ty: "board";
       pos: [number, number]; // zero-origin
+      typed: boolean;
     }
 );
 

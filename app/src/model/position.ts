@@ -1,4 +1,4 @@
-import { Color, Hands, Board, Kind } from ".";
+import { Color, Hands, Board, Kind, emptyBoard, emptyHands } from ".";
 
 export type Position = {
   board: Board;
@@ -39,4 +39,14 @@ function count(position: Position, kind: Kind): number {
     }
   }
   return res + position.hands["black"][kind] + position.hands["white"][kind];
+}
+
+export function emptyPosition(): Position {
+  return {
+    board: emptyBoard(),
+    hands: {
+      black: emptyHands(),
+      white: emptyHands(),
+    },
+  };
 }
