@@ -398,8 +398,8 @@ fn bench_jugemu(c: &mut Criterion) {
     bench_heavy_problem(
         c,
         "bench_jugemu",
-        include_str!("../problems/jugemu_gentei_kai_36603.sfen"),
-        36603,
+        include_str!("../problems/jugemu_gentei_kai_36607.sfen"),
+        36607,
         1,
         Algorithm::Standard,
     );

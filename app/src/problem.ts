@@ -22,8 +22,8 @@ export const PRESET_PROBLEMS = [
     "森茂・橋本孝治・浦壁和彦「寿限無」完全限定化案 36511手",
   ],
   [
-    "1K1R1r1S1/L1+P1l1L+NB/4+lg1N1/1nps2g1P/1gbn1g1P1/1kP1s1P2/3P1P3/4+p4/P1s1P4 b P6p",
-    "ogiekako「寿限無」完全限定化案の改案 36603手",
+    "1K1R1r1S1/L2+Pl1L+NB/3+P+ng1N1/1nps2g1P/1gbl1g1P1/1kP1s1P2/3P1P3/4+p4/P1s1P4 b P5p 1",
+    "ogiekako「寿限無」完全限定化案の改案 36607手",
   ],
   // TODO: make them solvable
   //   [
