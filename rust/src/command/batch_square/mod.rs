@@ -65,7 +65,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         let problems = chunk
             .into_par_iter()
             .map(|position| {
-                let res = backward_search(position, true).unwrap();
+                let res = backward_search(position, true, 0).unwrap();
                 debug_assert!(!res.1.is_empty(), "{} {:?}", res.0, position);
                 res
             })

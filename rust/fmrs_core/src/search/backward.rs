@@ -1,7 +1,7 @@
 use std::ops::Range;
 
 use anyhow::bail;
-use log::info;
+use log::{debug, info};
 
 use crate::{
     memo::MemoStub,
@@ -9,7 +9,7 @@ use crate::{
     piece::Color,
     position::{
         advance::advance::advance_aux, position::PositionAux, previous, AdvanceOptions, BitBoard,
-        Position,
+        Movement, Position,
     },
     solve::standard_solve::standard_solve,
 };
@@ -17,64 +17,114 @@ use crate::{
 pub fn backward_search(
     initial_position: &PositionAux,
     black_position: bool,
+    forward: usize,
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
     let mut search = BackwardSearch::new(initial_position)?;
 
-    loop {
-        if !search.advance()? {
-            break;
+    let initial_step = search.solution.len() as u16;
+
+    let mut best = (0, NoHashMap64::default());
+
+    for i in 0..=forward {
+        if i > 0 {
+            search.forward();
+            info!("forward to {} ({}/{})", search.step, i, forward);
         }
-        if search.step % 40 == 0 {
-            info!(
-                "backward step={} count={}",
-                search.step,
-                search.positions.len()
-            );
-        }
-    }
-
-    let mut positions = search
-        .positions
-        .iter()
-        .filter(|p| !p.pawn_drop())
-        .map(|p| PositionAux::new(p.clone(), *initial_position.stone()))
-        .collect::<Vec<_>>();
-
-    if !black_position || search.step % 2 == 1 || search.step == 0 {
-        return Ok((search.step, positions));
-    }
-
-    let mut black_positions = vec![];
-    for p in positions.iter_mut() {
-        debug_assert_eq!(p.turn(), Color::WHITE);
-        let mut movements = vec![];
-        advance_aux(
-            p,
-            &mut MemoStub,
-            0,
-            &AdvanceOptions {
-                no_memo: true,
-                ..Default::default()
-            },
-            &mut movements,
-        )?;
-        for m in movements.iter() {
-            let digest = p.moved_digest(m);
-            if search
-                .prev_memo
-                .get(&digest)
-                .map_or(false, |x| x.is_uniquely(search.step - 1))
-            {
-                let mut np = p.clone();
-                np.do_move(m);
-                black_positions.push(np);
+        loop {
+            if !search.advance()? {
+                break;
+            }
+            if search.step > initial_step && search.step % 40 == 0 {
+                info!(
+                    "backward step={} count={} {}",
+                    search.step,
+                    search.positions.len(),
+                    PositionAux::new(search.positions[0].clone(), *initial_position.stone())
+                        .sfen_url()
+                );
+            } else if search.step > initial_step {
+                debug!(
+                    "backward step={} count={} {}",
+                    search.step,
+                    search.positions.len(),
+                    PositionAux::new(search.positions[0].clone(), *initial_position.stone())
+                        .sfen_url()
+                );
             }
         }
+
+        let step = if search.step > 0 && search.step % 2 == 0 && black_position {
+            search.step - 1
+        } else {
+            search.step
+        };
+        if step < best.0 {
+            continue;
+        }
+        if step > best.0 {
+            best = (step, NoHashMap64::default());
+
+            info!(
+                "best={} count={} {}",
+                best.0,
+                search.positions.len(),
+                PositionAux::new(search.positions[0].clone(), *initial_position.stone()).sfen_url()
+            );
+        }
+
+        let mut positions = search
+            .positions
+            .iter()
+            .filter(|p| !p.pawn_drop())
+            .map(|p| PositionAux::new(p.clone(), *initial_position.stone()))
+            .collect::<Vec<_>>();
+
+        if !black_position || search.step % 2 == 1 || search.step == 0 {
+            for p in positions.iter_mut() {
+                best.1.insert(p.digest(), p.clone());
+            }
+            continue;
+        }
+
+        let mut black_positions = vec![];
+        for p in positions.iter_mut() {
+            debug_assert_eq!(p.turn(), Color::WHITE);
+            let mut movements = vec![];
+            advance_aux(
+                p,
+                &mut MemoStub,
+                0,
+                &AdvanceOptions {
+                    no_memo: true,
+                    ..Default::default()
+                },
+                &mut movements,
+            )?;
+            for m in movements.iter() {
+                let digest = p.moved_digest(m);
+                if search
+                    .prev_memo
+                    .get(&digest)
+                    .map_or(false, |x| x.is_uniquely(search.step - 1))
+                {
+                    let mut np = p.clone();
+                    np.do_move(m);
+                    black_positions.push(np);
+                }
+            }
+        }
+        for p in black_positions.iter_mut() {
+            best.1.insert(p.digest(), p.clone());
+        }
     }
-    Ok((search.step - 1, black_positions))
+    let mut positions = best.1.into_values().collect::<Vec<_>>();
+    positions.sort_by_key(|p| p.sfen());
+    Ok((best.0, positions))
 }
 
 pub struct BackwardSearch {
+    initial_position: PositionAux,
+    solution: Vec<Movement>,
     seen_positions: usize,
     positions: Vec<Position>,
     prev_positions: Vec<Position>,
@@ -102,19 +152,36 @@ impl BackwardSearch {
         let positions = vec![initial_position.core().clone()];
 
         let mut memo = NoHashMap64::default();
-        memo.insert(
-            initial_position.digest(),
-            StepRange::exact(solution.len() as u16),
-        );
+        let mut prev_memo = NoHashMap64::default();
+        let mut p = initial_position.clone();
+        memo.insert(p.digest(), StepRange::exact(solution.len() as u16));
+        for (i, m) in solution.iter().enumerate() {
+            p.do_move(m);
+            if i % 2 == 0 {
+                prev_memo.insert(
+                    p.digest(),
+                    StepRange::exact((solution.len() - i - 1) as u16),
+                );
+            } else {
+                memo.insert(
+                    p.digest(),
+                    StepRange::exact((solution.len() - i - 1) as u16),
+                );
+            }
+        }
+
+        let step = solution.len() as u16;
 
         Ok(BackwardSearch {
+            initial_position: initial_position.clone(),
+            solution,
             seen_positions: 0,
             positions,
             prev_positions: vec![],
             memo,
-            prev_memo: Default::default(),
+            prev_memo,
             stone: *initial_position.stone(),
-            step: solution.len() as u16,
+            step,
         })
     }
 
@@ -194,6 +261,18 @@ impl BackwardSearch {
 
     pub fn positions(&self) -> (/* stone */ Option<BitBoard>, &[Position]) {
         (self.stone, &self.positions)
+    }
+
+    pub fn forward(&mut self) {
+        if self.solution.is_empty() {
+            return;
+        }
+        self.initial_position.do_move(&self.solution.remove(0));
+        self.positions = vec![self.initial_position.core().clone()];
+        self.prev_positions.clear();
+        std::mem::swap(&mut self.memo, &mut self.prev_memo);
+        self.seen_positions = 0;
+        self.step = self.solution.len() as u16;
     }
 }
 
@@ -426,7 +505,7 @@ mod tests {
             ),
         ] {
             let initial_position = PositionAux::from_sfen(sfen).unwrap();
-            let (step, mut positions) = backward_search(&initial_position, true).unwrap();
+            let (step, mut positions) = backward_search(&initial_position, true, 0).unwrap();
 
             assert_eq!(step, want_step, "{:?}", initial_position);
 

@@ -54,6 +54,8 @@ enum Action {
     },
     Backward {
         sfen_like: String,
+        #[arg(long, default_value = "0")]
+        forward: usize,
     },
 }
 
@@ -84,7 +86,7 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::BatchSquare { filter_file } => {
             batch_square(filter_file)?;
         }
-        Action::Backward { sfen_like } => backward(&sfen_like)?,
+        Action::Backward { sfen_like, forward } => backward(&sfen_like, forward)?,
     }
     Ok(())
 }

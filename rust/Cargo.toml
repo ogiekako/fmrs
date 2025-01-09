@@ -48,7 +48,7 @@ log = "*"
 env_logger = "*"
 rayon = "*"
 rustc-hash = "*"
-url = "2.5.4"
+url = "2"
 
 [dev-dependencies]
 pretty_assertions = "*"
