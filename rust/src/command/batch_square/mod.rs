@@ -18,16 +18,16 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     } else {
         FrameFilter {
             room_filter: RoomFilter {
-                width: vec![3, 4, 5, 6],
-                height: 2..=4,
+                width: vec![3, 4, 5],
+                height: 2..=5,
                 weakly_decreasing: false,
                 feasible_without_stone: true,
-                area: Some(12..=24),
+                area: Some(12..=25),
             },
             no_black_pawn_count: Some(1..=3),
             no_white_pawn_count: Some(1..=3),
             mate_formation_filter: Some(MateFormationFilter {
-                attackers: vec![Kind::Lance, Kind::Silver],
+                attackers: vec![Kind::Bishop, Kind::Knight],
                 no_redundant: true,
                 unique: false,
                 no_less_pro_pawn: 1,
