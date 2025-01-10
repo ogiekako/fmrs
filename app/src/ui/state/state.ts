@@ -390,55 +390,73 @@ function handleKeyDown(orig: types.State, key: string) {
   if (!state.selected.shown) return orig;
 
   const oppositeOrWhite = {
-    black: "white",
-    white: "black",
-    pieceBox: "white",
+    black: ["white", "pieceBox"] as const,
+    white: ["pieceBox", "black"] as const,
+    pieceBox: ["white", "black"] as const,
   } as const;
 
   if (state.selected.ty == "hand") {
     if (key == " " || key == "-") {
       if (!state.selected.kind) return state;
-      tryMove(
-        state,
-        {
-          ty: "hand",
-          color: state.selected.color,
-          kind: state.selected.kind,
-        },
-        {
-          ty: "hand",
-          color: oppositeOrWhite[state.selected.color],
+      for (const color of oppositeOrWhite[state.selected.color]) {
+        if (
+          tryMove(
+            state,
+            {
+              ty: "hand",
+              color: state.selected.color,
+              kind: state.selected.kind,
+            },
+            {
+              ty: "hand",
+              color,
+            }
+          )
+        ) {
+          break;
         }
-      );
+      }
     } else if (key == "+") {
       if (!state.selected.kind) return state;
-      tryMove(
-        state,
-        {
-          ty: "hand",
-          color: oppositeOrWhite[state.selected.color],
-          kind: state.selected.kind,
-        },
-        {
-          ty: "hand",
-          color: state.selected.color,
+      for (const color of oppositeOrWhite[state.selected.color]) {
+        if (
+          tryMove(
+            state,
+            {
+              ty: "hand",
+              color,
+              kind: state.selected.kind,
+            },
+            {
+              ty: "hand",
+              color: state.selected.color,
+            }
+          )
+        ) {
+          break;
         }
-      );
+      }
     } else {
       const piece = keyToPiece(key);
       if (piece && piece !== "O") {
-        tryMove(
-          state,
-          {
-            ty: "hand",
-            color: oppositeOrWhite[state.selected.color],
-            kind: piece.kind,
-          },
-          {
-            ty: "hand",
-            color: state.selected.color,
+        for (const color of oppositeOrWhite[state.selected.color]) {
+          if (
+            tryMove(
+              state,
+              {
+                ty: "hand",
+                color,
+                kind: piece.kind,
+              },
+              {
+                ty: "hand",
+                color: state.selected.color,
+              }
+            )
+          ) {
+            break;
           }
-        );
+        }
       }
     }
     return state;

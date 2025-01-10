@@ -22,7 +22,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
                 height: 2..=5,
                 weakly_decreasing: false,
                 feasible_without_stone: true,
-                area: Some(12..=25),
+                area: Some(16..=20),
             },
             no_black_pawn_count: Some(1..=3),
             no_white_pawn_count: Some(1..=3),

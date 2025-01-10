@@ -153,4 +153,8 @@ impl MateFormationFilter {
 
         mate_positions
     }
+
+    pub(crate) fn generate_mates(&self, frames: Vec<Frame>) -> Vec<Frame> {
+        todo!()
+    }
 }
