@@ -8,8 +8,10 @@ use command::{
 };
 use solver::Algorithm;
 
+pub mod bit;
 mod command;
 pub mod solver;
+pub mod opt;
 
 #[derive(Parser)]
 struct Args {

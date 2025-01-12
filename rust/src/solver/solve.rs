@@ -33,7 +33,7 @@ pub fn solve(
 }
 
 pub fn solve_with_progress(
-    progress: futures::channel::mpsc::UnboundedSender<usize>,
+    _progress: futures::channel::mpsc::UnboundedSender<usize>,
     mut position: PositionAux,
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
@@ -49,9 +49,7 @@ pub fn solve_with_progress(
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
-        Algorithm::Parallel => {
-            parallel_solve::parallel_solve(position, progress, solutions_upto, start)
-        }
+        Algorithm::Parallel => parallel_solve::parallel_solve(position, solutions_upto, start),
         Algorithm::Standard => standard_solve(position, solutions_upto, false),
         Algorithm::Shtsume => {
             if position.turn().is_white() {

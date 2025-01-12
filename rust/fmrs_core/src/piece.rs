@@ -186,6 +186,29 @@ pub struct Kinds {
     mask: usize,
 }
 
+impl Serialize for Kinds {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.collect::<Vec<_>>().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Kinds {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let v = Vec::<Kind>::deserialize(deserializer)?;
+        Ok(Self::from(v))
+    }
+}
+
+impl From<Vec<Kind>> for Kinds {
+    fn from(v: Vec<Kind>) -> Self {
+        let mut kinds = Kinds::default();
+        for kind in v {
+            kinds.set(kind);
+        }
+        kinds
+    }
+}
+
 impl Kinds {
     pub const PAWN: Kinds = Kinds::new(1 << Pawn.index());
     pub const LANCE: Kinds = Kinds::new(1 << Lance.index());

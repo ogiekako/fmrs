@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::csp::Constraint;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub(super) struct Room {
     heights: Vec<u8>,
 }
@@ -120,7 +120,7 @@ impl RoomFilter {
 
     pub(super) fn generate_rooms(&self) -> Vec<Room> {
         let mut rooms = vec![];
-        self.dfs(&mut Room { heights: vec![] }, &mut rooms);
+        self.dfs(&mut Room::default(), &mut rooms);
         rooms
     }
 
@@ -157,7 +157,6 @@ mod tests {
         // 1 1 1, 1 1 2, 1 1 3, 1 2 1, 1 2 2, 1 2 3
         // 2 1 1, 2 1 2, 2 1 3, 2 2 1, 2 2 2, 2 2 3, 2 3 1, 2 3 2
         // 3 1 1, 3 1 2, 3 2 1, 3 2 2, 3 3 1
-        dbg!(&rooms.iter().map(|r| r.heights.clone()).collect::<Vec<_>>());
         assert_eq!(rooms.len(), 19);
     }
 }

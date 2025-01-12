@@ -1,6 +1,6 @@
 use rand::{distributions::Standard, prelude::Distribution};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Square {
     x: usize,
 }

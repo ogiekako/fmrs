@@ -12,6 +12,7 @@ pub struct Position {
 }
 
 use crate::position::rule::is_movable;
+use crate::position::zobrist::zobrist_stone;
 use crate::sfen;
 use std::fmt;
 use std::fmt::Debug;
@@ -31,6 +32,7 @@ use super::zobrist::zobrist;
 use super::Movement;
 use super::PositionExt as _;
 use super::Square;
+use super::UndoMove;
 
 impl Position {
     pub fn turn(&self) -> Color {
@@ -173,6 +175,7 @@ pub struct PositionAux {
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
     stone: Option<BitBoard>,
+    stone_digest: u64,
 }
 
 impl PartialEq for PositionAux {
@@ -191,22 +194,22 @@ impl Debug for PositionAux {
 
 impl PositionAux {
     pub fn new(core: Position, stone: Option<BitBoard>) -> Self {
-        let mut occupied = core.kind_bb().occupied();
+        let occupied = core.kind_bb().occupied();
         let white_bb = occupied.and_not(core.black());
-        if let Some(stone) = &stone {
-            occupied |= *stone;
-        }
-        Self {
+        let mut res = Self {
             core,
-            stone,
-            occupied,
             white_bb,
+            occupied,
             ..Default::default()
+        };
+        if let Some(stone) = stone {
+            res.set_stone(stone);
         }
+        res
     }
 
     pub(crate) fn moved_digest(&self, movement: &Movement) -> u64 {
-        self.core.moved_digest(movement)
+        self.core.moved_digest(movement) ^ self.stone_digest
     }
 
     pub(crate) fn kind_bb(&self, kind: Kind) -> BitBoard {
@@ -217,7 +220,7 @@ impl PositionAux {
         self.kind_bb(kind) & self.color_bb(color)
     }
 
-    pub(crate) fn occupied_bb(&self) -> BitBoard {
+    pub fn occupied_bb(&self) -> BitBoard {
         self.occupied
     }
 
@@ -360,7 +363,7 @@ impl PositionAux {
     }
 
     pub fn digest(&self) -> u64 {
-        self.core.digest()
+        self.core.digest() ^ self.stone_digest
     }
 
     pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
@@ -422,7 +425,7 @@ impl PositionAux {
         self.core.shift(dir);
     }
 
-    pub(crate) fn must_king_pos(&mut self, king_color: Color) -> Square {
+    pub fn must_king_pos(&mut self, king_color: Color) -> Square {
         if king_color.is_black() {
             self.black_king_pos().unwrap()
         } else {
@@ -507,8 +510,13 @@ impl PositionAux {
     }
 
     pub fn set_stone(&mut self, stone: BitBoard) {
+        assert_eq!(self.stone, None);
         self.stone = Some(stone);
         self.occupied |= stone;
+
+        for pos in stone {
+            self.stone_digest ^= zobrist_stone(pos);
+        }
     }
 
     pub fn try_set(&mut self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
@@ -531,6 +539,10 @@ impl PositionAux {
             return BitBoard::FULL.and_not(occupied | unmovable | pawn_mask);
         }
         BitBoard::FULL.and_not(occupied | unmovable)
+    }
+
+    pub fn undo_digest(&self, token: &UndoMove) -> u64 {
+        self.core.undo_digest(token) ^ self.stone_digest
     }
 
     // TODO: remember attackers

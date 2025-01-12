@@ -63,6 +63,10 @@ impl Hands {
         debug_assert!(self.count(c, k) > 0);
         self.x -= Hands::bit_of(c, k);
     }
+    pub fn remove_n(&mut self, c: Color, k: Kind, n: usize) {
+        debug_assert!(self.count(c, k) >= n);
+        self.x -= Hands::bit_of(c, k) * n as u64;
+    }
     pub fn kinds(self, c: Color) -> Kinds {
         let mut mask = 0;
         for i in 0..NUM_HAND_KIND {

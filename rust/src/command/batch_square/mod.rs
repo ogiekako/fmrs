@@ -1,12 +1,14 @@
 pub mod csp;
 pub mod frame;
-pub mod mate_formation;
+pub mod mate;
 pub mod room;
+
+use std::sync::Mutex;
 
 use fmrs_core::{piece::Kind, position::position::PositionAux, search::backward::backward_search};
 use frame::FrameFilter;
 use log::info;
-use mate_formation::MateFormationFilter;
+use mate::MateFilter;
 // use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use rayon::prelude::*;
 use room::RoomFilter;
@@ -14,25 +16,24 @@ use serde::{Deserialize, Serialize};
 
 pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     let filter = if let Some(filter_file) = &filter_file {
-        serde_json::from_str::<FrameFilter>(&std::fs::read_to_string(filter_file)?)?
+        serde_json::from_str::<MateFilter>(&std::fs::read_to_string(filter_file)?)?
     } else {
-        FrameFilter {
-            room_filter: RoomFilter {
-                width: vec![3, 4, 5],
-                height: 2..=5,
-                weakly_decreasing: false,
-                feasible_without_stone: true,
-                area: Some(16..=20),
+        MateFilter {
+            frame_filter: FrameFilter {
+                room_filter: RoomFilter {
+                    width: vec![5],
+                    height: 2..=5,
+                    weakly_decreasing: false,
+                    feasible_without_stone: true,
+                    area: Some(12..=20),
+                },
+                max_empty_black_pawn_col: Some(1),
+                max_empty_white_pawn_col: Some(2),
             },
-            no_black_pawn_count: Some(1..=3),
-            no_white_pawn_count: Some(1..=3),
-            mate_formation_filter: Some(MateFormationFilter {
-                attackers: vec![Kind::Bishop, Kind::Knight],
-                no_redundant: true,
-                unique: false,
-                no_less_pro_pawn: 1,
-                pawn_maximally_constrained: true,
-            }),
+            attackers: vec![Kind::Bishop, Kind::Knight],
+            no_redundant: true,
+            no_less_pro_pawn: 1,
+            max_extra_white_hand_pawn: 1.into(),
         }
     };
     eprintln!(
@@ -40,13 +41,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         serde_json::to_string_pretty(&filter)?
     );
 
-    let frames = filter.generate_frames();
-
-    let positions: Vec<_> = frames
-        .into_iter()
-        .filter_map(|(_, metadata)| metadata.mate_with_minimum_pawn)
-        .flatten()
-        .collect();
+    let positions = filter.generate_mates();
     // positions.shuffle(&mut SmallRng::seed_from_u64(20250105));
 
     if positions.is_empty() {
@@ -56,37 +51,43 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
 
     eprintln!("{} positions {:?}", positions.len(), positions[0]);
 
-    let chunk_size = 50;
-    let chunks = positions.chunks(chunk_size).collect::<Vec<_>>();
+    let iter = Mutex::new(0);
+    let total_len = positions.len();
 
-    let mut all_problems = vec![];
-    let mut best_problems = (0, vec![]);
-    for (i, chunk) in chunks.into_iter().enumerate() {
-        let problems = chunk
-            .into_par_iter()
-            .map(|position| {
-                let res = backward_search(position, true, 0).unwrap();
-                debug_assert!(!res.1.is_empty(), "{} {:?}", res.0, position);
-                res
-            })
-            .collect::<Vec<_>>();
+    let all_problems: Mutex<Vec<(u16, Vec<PositionAux>)>> = Mutex::new(vec![]);
+    let best_problems = Mutex::new((0, vec![]));
 
-        for (step, positions) in problems {
-            all_problems.push((step, positions.clone()));
-            match step.cmp(&best_problems.0) {
-                std::cmp::Ordering::Less => continue,
-                std::cmp::Ordering::Greater => best_problems = (step, positions),
-                std::cmp::Ordering::Equal => best_problems.1.extend(positions),
+    positions.into_par_iter().for_each(|position| {
+        let (step, problems) = backward_search(&position, true, 0).unwrap();
+
+        {
+            let mut all_problems = all_problems.lock().unwrap();
+            match all_problems.iter_mut().find(|(s, _)| *s == step) {
+                Some((_, ps)) => ps.extend_from_slice(&problems),
+                None => all_problems.push((step, problems.clone())),
             }
         }
-        info!(
-            "{}/{} best {} {:?}",
-            ((i + 1) * chunk_size).min(positions.len()),
-            positions.len(),
-            best_problems.0,
-            best_problems.1.last().unwrap(),
-        );
-    }
+
+        let (best_step, best_url) = {
+            let mut best_problems = best_problems.lock().unwrap();
+            match step.cmp(&best_problems.0) {
+                std::cmp::Ordering::Less => return,
+                std::cmp::Ordering::Greater => *best_problems = (step, problems),
+                std::cmp::Ordering::Equal => best_problems.1.extend(problems),
+            }
+            (best_problems.0, best_problems.1.last().unwrap().sfen_url())
+        };
+
+        let mut i = iter.lock().unwrap();
+        *i += 1;
+        if *i % 50 == 0 {
+            info!("back {}/{} best {} {}", i, total_len, best_step, best_url);
+        }
+    });
+
+    let best_problems = best_problems.into_inner().unwrap();
+    let mut all_problems = all_problems.into_inner().unwrap();
+
     eprintln!("mate in {} ({}):", best_problems.0, best_problems.1.len());
     for position in best_problems.1.iter() {
         eprintln!("{}", position.sfen_url());
@@ -102,7 +103,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn log_results(filter: &FrameFilter, problems: &[(u16, Vec<PositionAux>)]) -> anyhow::Result<()> {
+fn log_results(filter: &MateFilter, problems: &[(u16, Vec<PositionAux>)]) -> anyhow::Result<()> {
     let result = RunResult {
         filter: filter.clone(),
         problems: problems
@@ -118,26 +119,22 @@ fn log_results(filter: &FrameFilter, problems: &[(u16, Vec<PositionAux>)]) -> an
     };
     let log_dir = std::path::Path::new(file!()).with_file_name("logs");
 
-    let kind = if let Some(mate_filter) = &filter.mate_formation_filter {
-        let mut attackers = mate_filter.attackers.clone();
-        attackers.sort();
-        mate_filter
-            .attackers
-            .iter()
-            .map(|k| match k {
-                Kind::Lance => "lance",
-                Kind::Knight => "knight",
-                Kind::Silver => "silver",
-                Kind::Gold => "gold",
-                Kind::Bishop => "bishop",
-                Kind::Rook => "rook",
-                _ => "unknown",
-            })
-            .collect::<Vec<_>>()
-            .join("-")
-    } else {
-        "unknown".to_string()
-    };
+    let mut attackers = filter.attackers.clone();
+    attackers.sort();
+    let kind = filter
+        .attackers
+        .iter()
+        .map(|k| match k {
+            Kind::Lance => "lance",
+            Kind::Knight => "knight",
+            Kind::Silver => "silver",
+            Kind::Gold => "gold",
+            Kind::Bishop => "bishop",
+            Kind::Rook => "rook",
+            _ => "unknown",
+        })
+        .collect::<Vec<_>>()
+        .join("-");
 
     let best_step = problems.iter().map(|(step, _)| *step).max().unwrap_or(0);
 
@@ -162,7 +159,7 @@ fn log_results(filter: &FrameFilter, problems: &[(u16, Vec<PositionAux>)]) -> an
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct RunResult {
-    filter: FrameFilter,
+    filter: MateFilter,
     problems: Vec<Problem>,
 }
 

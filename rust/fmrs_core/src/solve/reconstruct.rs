@@ -5,7 +5,7 @@ use crate::memo::MemoTrait;
 use crate::nohash::NoHashMap64;
 
 use crate::position::position::PositionAux;
-use crate::position::{previous, Movement, PositionExt, UndoMove};
+use crate::position::{previous, Movement, UndoMove};
 
 use super::Solution;
 
@@ -21,7 +21,7 @@ impl PositionTrait for PositionAux {
         self.digest()
     }
     fn undo_digest(&self, undo_move: &UndoMove) -> u64 {
-        PositionExt::undo_digest(self.core(), undo_move)
+        PositionAux::undo_digest(self, undo_move)
     }
     fn undone(&self, token: &UndoMove) -> Self {
         let mut p = Self::new(self.core().clone(), *self.stone());
