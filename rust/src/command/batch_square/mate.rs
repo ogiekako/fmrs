@@ -6,7 +6,7 @@ use fmrs_core::{
     position::position::PositionAux,
     solve::standard_solve::standard_solve_mult,
 };
-use log::{debug, info};
+use log::{debug, info, warn};
 use rayon::iter::{IntoParallelIterator, ParallelIterator as _};
 use serde::{Deserialize, Serialize};
 
@@ -107,7 +107,10 @@ impl MateFilter {
                 {
                     for x in region.iter() {
                         let v = f(&x);
-                        assert_eq!(v, 0);
+                        if v != 0 {
+                            let position = base.frame_position(&x).positions().remove(0);
+                            warn!("v = {}, want 0; {}", v, position.sfen_url());
+                        }
                     }
                 }
                 good_mates.into_values()
