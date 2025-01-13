@@ -91,6 +91,9 @@ impl DashMemo {
     pub fn insert(&mut self, digest: u64, step: u16) {
         self.steps.insert(digest, step);
     }
+    pub fn len(&self) -> usize {
+        self.steps.len()
+    }
 }
 
 pub struct DashMemoMut<'a> {

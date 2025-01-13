@@ -1,6 +1,7 @@
 use std::sync::Mutex;
 
 use anyhow::anyhow;
+use log::info;
 use rayon::prelude::*;
 
 use crate::memo::{DashMemo, MemoStub};
@@ -50,6 +51,10 @@ impl ParallelSolver {
         }
     }
 
+    pub fn cached_positions(&self) -> usize {
+        self.memo_white_turn.len()
+    }
+
     pub fn advance(&mut self) -> anyhow::Result<SolverStatus> {
         if self.positions.is_empty() {
             return Ok(SolverStatus::NoSolution);
@@ -68,6 +73,7 @@ impl ParallelSolver {
             .get_mut()
             .map_err(|e| anyhow!(e.to_string()))?;
         if !mate_positions.is_empty() {
+            info!("Found mate in {}; reconstructing solutions", self.step);
             let mut res = vec![];
             for mate_position in mate_positions {
                 res.append(&mut reconstruct_solutions(
