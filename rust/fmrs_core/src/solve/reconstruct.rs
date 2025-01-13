@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 
 use crate::memo::{MemoStub, MemoTrait};
-use crate::nohash::NoHashMap64;
+use crate::nohash::{NoHashMap64, NoHashSet64};
 
 use crate::piece::Color;
 use crate::position::position::PositionAux;
@@ -11,7 +11,7 @@ use crate::position::{previous, Movement};
 use super::Solution;
 
 pub struct Reconstructor {
-    initial_position_digest: u64,
+    initial_position_digests: NoHashSet64,
     mates: Vec<PositionAux>,
     memo_white_turn: Box<dyn MemoTrait>,
     solutions_upto: usize,
@@ -19,7 +19,7 @@ pub struct Reconstructor {
 
 impl PartialEq for Reconstructor {
     fn eq(&self, other: &Self) -> bool {
-        self.initial_position_digest == other.initial_position_digest
+        self.initial_position_digests == other.initial_position_digests
             && self.mates.len() == other.mates.len()
             && self
                 .mates
@@ -35,7 +35,7 @@ impl Eq for Reconstructor {}
 impl Reconstructor {
     pub fn no_solution() -> Self {
         Self {
-            initial_position_digest: 0,
+            initial_position_digests: Default::default(),
             mates: vec![],
             memo_white_turn: Box::new(MemoStub),
             solutions_upto: 0,
@@ -43,13 +43,13 @@ impl Reconstructor {
     }
 
     pub fn new(
-        initial_position_digest: u64,
+        initial_position_digests: NoHashSet64,
         mates: Vec<PositionAux>,
         memo_white_turn: Box<dyn MemoTrait>,
         solutions_upto: usize,
     ) -> Self {
         Self {
-            initial_position_digest,
+            initial_position_digests,
             mates,
             memo_white_turn,
             solutions_upto,
@@ -82,7 +82,7 @@ impl Reconstructor {
             }
             let mate_in = self.memo_white_turn.get(&mate.digest()).unwrap();
             let ctx = Context::new(
-                self.initial_position_digest,
+                &self.initial_position_digests,
                 self.memo_white_turn.as_ref(),
                 mate_in,
                 self.solutions_upto - res.len(),
@@ -148,7 +148,7 @@ impl Drop for MovementList {
 }
 
 struct Context<'a> {
-    initial_position_digest: u64,
+    initial_position_digests: &'a NoHashSet64,
     // memo_black_turn: &'a M,
     memo_white_turn: &'a dyn MemoTrait,
     mate_in: u16,
@@ -157,14 +157,14 @@ struct Context<'a> {
 
 impl<'a> Context<'a> {
     fn new(
-        initial_position_digest: u64,
+        initial_position_digests: &'a NoHashSet64,
         // memo_black_turn: &'a M,
         memo_white_turn: &'a dyn MemoTrait,
         mate_in: u16,
         solutions_upto: usize,
     ) -> Self {
         Self {
-            initial_position_digest,
+            initial_position_digests,
             // memo_black_turn,
             memo_white_turn,
             mate_in,
@@ -187,10 +187,12 @@ impl<'a> Context<'a> {
                 break;
             }
             if step == 0 {
-                if white_position.digest() != self.initial_position_digest {
-                    continue;
+                if self
+                    .initial_position_digests
+                    .contains(&white_position.digest())
+                {
+                    res.push(following_movements.vec());
                 }
-                res.push(following_movements.vec());
                 continue;
             }
             {
@@ -220,7 +222,10 @@ impl<'a> Context<'a> {
                     MovementList::cons(black_move, following_movements.clone());
 
                 if step == 1 {
-                    if self.initial_position_digest == black_position.digest() {
+                    if self
+                        .initial_position_digests
+                        .contains(&black_position.digest())
+                    {
                         res.push(following_movements.vec());
                     }
                     continue;

@@ -3,8 +3,8 @@ use std::{ops::RangeInclusive, sync::Mutex};
 use fmrs_core::{
     nohash::NoHashMap64,
     piece::{Color, Kind},
-    position::{position::PositionAux, Square},
-    solve::standard_solve::standard_solve,
+    position::position::PositionAux,
+    solve::standard_solve::standard_solve_mult,
 };
 use log::{debug, info};
 use rayon::iter::{IntoParallelIterator, ParallelIterator as _};
@@ -32,26 +32,37 @@ impl MateFilter {
 
     pub(crate) fn generate_mates(&self) -> Vec<(Frame, PositionAux)> {
         let rooms = self.frame_filter.room_filter.generate_rooms();
-
         info!("rooms: {}", rooms.len());
 
-        // Categorize per king position.
-        let position_bases = rooms
+        let parity = self.attackers.iter().all(|k| k != &Kind::Rook);
+        let bases = rooms
             .into_iter()
             .flat_map(|room| {
-                room.bitboard()
-                    .map(move |king_pos| (room.clone(), king_pos))
+                let pawns = 0..=Self::MAX_WHITE_HAND_PAWNS as i32;
+                if parity {
+                    vec![
+                        PositionBase::new(
+                            room.clone(),
+                            self.attackers.clone(),
+                            pawns.clone(),
+                            Some(true),
+                        ),
+                        PositionBase::new(room, self.attackers.clone(), pawns, Some(false)),
+                    ]
+                } else {
+                    vec![PositionBase::new(room, self.attackers.clone(), pawns, None)]
+                }
             })
             .collect::<Vec<_>>();
 
-        let total_len = position_bases.len();
+        info!("bases: {}", bases.len());
+
+        let total_len = bases.len();
         let iter = Mutex::new(0);
 
-        info!("position bases: {}", total_len);
-
-        let mut mates = position_bases
+        let mut mates = bases
             .into_par_iter()
-            .flat_map_iter(|(room, king_pos)| {
+            .flat_map_iter(|base| {
                 {
                     let mut i = iter.lock().unwrap();
                     *i += 1;
@@ -64,26 +75,19 @@ impl MateFilter {
 
                 let mut good_mates = NoHashMap64::default();
 
-                let base = PositionBase::new(
-                    room,
-                    king_pos,
-                    self.attackers.clone(),
-                    0..=Self::MAX_WHITE_HAND_PAWNS as i32,
-                );
-
                 let mut f = |x: &[i32]| {
                     let frame_position = base.frame_position(x);
                     if self.frame_filter.too_loose(&frame_position.frame) {
                         return 1;
                     }
-
-                    let position = frame_position.position();
-                    let digest = position.digest();
+                    let digest = frame_position.template.digest();
                     if good_mates.contains_key(&digest) {
                         return 0;
                     }
 
-                    let reconstructor = standard_solve(position.clone(), 1, true).unwrap();
+                    let positions = frame_position.positions();
+
+                    let reconstructor = standard_solve_mult(positions, 1, true).unwrap();
                     if reconstructor.is_empty() {
                         return -1;
                     }
@@ -154,23 +158,23 @@ impl MateFilter {
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PositionBase {
     room: Room,
-    king_pos: Square,
     attackers: Vec<Kind>,
     hand_white_pawns: RangeInclusive<i32>,
+    parity: Option<bool>,
 }
 
 impl PositionBase {
     fn new(
         room: Room,
-        king_pos: Square,
         attackers: Vec<Kind>,
         hand_white_pawns: RangeInclusive<i32>,
+        parity: Option<bool>,
     ) -> Self {
         Self {
             room,
-            king_pos,
             attackers,
             hand_white_pawns,
+            parity,
         }
     }
 
@@ -187,9 +191,9 @@ impl PositionBase {
 
         FramePosition::new(
             Frame::new(self.room.clone(), black_pawn, white_pawn),
-            self.king_pos,
             self.attackers.clone(),
             white_hand_pawn as u8,
+            self.parity,
         )
     }
 
@@ -211,29 +215,38 @@ impl PositionBase {
 #[derive(Clone, Debug)]
 struct FramePosition {
     frame: Frame,
-    king_pos: Square,
-    attackers: Vec<Kind>,
-    white_hand_pawn: u8,
+    parity: Option<bool>,
+    template: PositionAux,
 }
 
 impl FramePosition {
-    fn new(frame: Frame, king_pos: Square, attackers: Vec<Kind>, white_hand_pawn: u8) -> Self {
+    fn new(frame: Frame, attackers: Vec<Kind>, white_hand_pawn: u8, parity: Option<bool>) -> Self {
+        let mut template = frame.to_position();
+        let hands = template.hands_mut();
+        hands.add_n(Color::WHITE, Kind::Pawn, white_hand_pawn as usize);
+        for &kind in &attackers {
+            hands.add(Color::BLACK, kind);
+        }
+
         Self {
             frame,
-            king_pos,
-            attackers,
-            white_hand_pawn,
+            parity,
+            template,
         }
     }
 
-    fn position(&self) -> PositionAux {
-        let mut position = self.frame.to_position();
-        position.set(self.king_pos, Color::WHITE, Kind::King);
-        let hands = position.hands_mut();
-        hands.add_n(Color::WHITE, Kind::Pawn, self.white_hand_pawn as usize);
-        for &kind in &self.attackers {
-            hands.add(Color::BLACK, kind);
+    fn positions(&self) -> Vec<PositionAux> {
+        let mut res = vec![];
+        for king_pos in self.frame.room.bitboard() {
+            if self
+                .parity
+                .map_or(true, |parity| parity != king_pos.parity())
+            {
+                let mut position = self.template.clone();
+                position.set(king_pos, Color::WHITE, Kind::King);
+                res.push(position);
+            }
         }
-        position
+        res
     }
 }

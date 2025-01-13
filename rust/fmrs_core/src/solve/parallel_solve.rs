@@ -3,6 +3,7 @@ use std::sync::Mutex;
 use rayon::prelude::*;
 
 use crate::memo::{DashMemo, MemoStub};
+use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
 use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt as _};
@@ -11,7 +12,7 @@ use super::reconstruct::Reconstructor;
 use super::SolverStatus;
 
 pub struct ParallelSolver {
-    initial_position_digest: u64,
+    initial_position_digests: NoHashSet64,
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
@@ -40,7 +41,7 @@ impl ParallelSolver {
         }
 
         Self {
-            initial_position_digest: position.digest(),
+            initial_position_digests: std::iter::once(position.digest()).collect(),
             solutions_upto,
             step,
             positions,
@@ -74,7 +75,7 @@ impl ParallelSolver {
             let memo_white_turn = std::mem::take(&mut self.memo_white_turn);
 
             let reconstructor = Reconstructor::new(
-                self.initial_position_digest,
+                std::mem::take(&mut self.initial_position_digests),
                 mate_positions,
                 Box::new(memo_white_turn),
                 self.solutions_upto,

@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
 use crate::memo::{Memo, MemoStub, MemoTrait};
 
+use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
 use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt};
@@ -13,7 +16,15 @@ pub fn standard_solve(
     solutions_upto: usize,
     silent: bool,
 ) -> anyhow::Result<Reconstructor> {
-    let mut solver = StandardSolver::new(position, solutions_upto, silent)?;
+    standard_solve_mult(vec![position], solutions_upto, silent)
+}
+
+pub fn standard_solve_mult(
+    positions: Vec<PositionAux>,
+    solutions_upto: usize,
+    silent: bool,
+) -> anyhow::Result<Reconstructor> {
+    let mut solver = StandardSolver::with_multiple(positions, solutions_upto, silent)?;
     loop {
         let status = solver.advance()?;
         match status {
@@ -25,7 +36,7 @@ pub fn standard_solve(
 }
 
 pub struct StandardSolver {
-    initial_position: PositionAux,
+    initial_position_digests: NoHashSet64,
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
@@ -44,23 +55,49 @@ pub enum SolverStatus {
 
 impl StandardSolver {
     pub fn new(position: PositionAux, solutions_upto: usize, silent: bool) -> anyhow::Result<Self> {
-        if position.is_illegal_initial_position() {
+        Self::with_multiple(vec![position], solutions_upto, silent)
+    }
+
+    pub fn with_multiple(
+        positions: Vec<PositionAux>,
+        solutions_upto: usize,
+        silent: bool,
+    ) -> anyhow::Result<Self> {
+        if positions.is_empty() {
+            bail!("No initial positions");
+        }
+
+        if positions.iter().any(|p| p.is_illegal_initial_position()) {
             bail!("Illegal initial position");
         }
 
-        let initial_position = position.clone();
+        let initial_position_digests: NoHashSet64 = positions.iter().map(|p| p.digest()).collect();
 
         let mut memo = Memo::default();
-        memo.contains_or_insert(position.digest(), 0);
+        for digest in initial_position_digests.iter() {
+            memo.contains_or_insert(*digest, 0);
+        }
+
+        let turns = positions.iter().map(|p| p.turn()).collect::<HashSet<_>>();
+        if turns.len() > 1 {
+            bail!("Multiple turns");
+        }
+        let turn = turns.iter().next().copied().unwrap();
+
+        let stones = positions.iter().map(|p| p.stone()).collect::<HashSet<_>>();
+
+        if stones.len() > 1 {
+            bail!("Multiple stone formations");
+        }
+        let stone = stones.iter().next().and_then(|s| **s);
 
         let mut mate_positions = vec![];
 
-        let stone = *position.stone();
-        let mut positions = vec![position.core().clone()];
+        let mut positions = positions.iter().map(|p| p.core().clone()).collect();
 
         let mut step = 0;
 
-        if position.turn().is_black() {
+        if turn.is_black() {
             let mut memo_next = Memo::default();
             next_positions(
                 &mut mate_positions,
@@ -74,7 +111,7 @@ impl StandardSolver {
         }
 
         Ok(Self {
-            initial_position,
+            initial_position_digests,
             solutions_upto,
             step,
             positions,
@@ -111,7 +148,7 @@ impl StandardSolver {
             let memo_white_turn = std::mem::take(&mut self.memo_white_turn);
 
             let reconstructor = Reconstructor::new(
-                self.initial_position.digest(),
+                std::mem::take(&mut self.initial_position_digests),
                 mate_positions,
                 Box::new(memo_white_turn),
                 self.solutions_upto,
