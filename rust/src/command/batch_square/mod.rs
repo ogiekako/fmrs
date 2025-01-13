@@ -29,13 +29,13 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
             frame_filter: FrameFilter {
                 room_filter: RoomFilter {
                     width: vec![5],
-                    height: 2..=3,
+                    height: 3..=4,
                     weakly_decreasing: false,
                     feasible_without_stone: true,
-                    area: Some(1..=15),
+                    area: Some(17..=17),
                 },
-                max_empty_black_pawn_col: Some(1),
-                max_empty_white_pawn_col: Some(2),
+                max_empty_black_pawn_col: Some(2),
+                max_empty_white_pawn_col: Some(1),
             },
             attackers: vec![Kind::Rook],
             no_redundant: true,
@@ -62,7 +62,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    eprintln!("{} mates {:?}", mates.len(), mates[0]);
+    eprintln!("{} mates {:?}", mates.len(), mates[0].1.sfen_url());
 
     let iter = Mutex::new(0);
     let total_len = mates.len();
@@ -165,7 +165,7 @@ fn retain_unknown_mates(mates: &mut Vec<(Frame, PositionAux)>) {
                 if !pieces_to_check.contains(&used_pieces(&position)) {
                     continue;
                 }
-                if frames.iter().any(|frame| !frame.matches(&position)) {
+                if !frames.iter().any(|frame| frame.matches(&position)) {
                     continue;
                 }
                 positions.push(position);
