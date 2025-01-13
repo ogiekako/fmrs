@@ -251,7 +251,7 @@ mod tests {
             let status = solver.advance()?;
             match status {
                 SolverStatus::Intermediate(_) => continue,
-                SolverStatus::Mate(solutions) => return Ok(solutions),
+                SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
                 SolverStatus::NoSolution => return Ok(vec![]),
             }
         }

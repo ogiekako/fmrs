@@ -28,18 +28,18 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         MateFilter {
             frame_filter: FrameFilter {
                 room_filter: RoomFilter {
-                    width: vec![5],
-                    height: 3..=4,
+                    width: vec![6],
+                    height: 1..=5,
                     weakly_decreasing: false,
                     feasible_without_stone: true,
-                    area: Some(17..=17),
+                    area: Some(20..=21),
                 },
                 max_empty_black_pawn_col: Some(2),
                 max_empty_white_pawn_col: Some(1),
             },
-            attackers: vec![Kind::Rook],
+            attackers: vec![Kind::Knight, Kind::Bishop],
             no_redundant: true,
-            no_less_pro_pawn: 1,
+            no_less_pro_pawn: 2,
             max_extra_white_hand_pawn: Some(0),
             skip_known_mates: true,
         }
@@ -180,16 +180,14 @@ fn retain_unknown_mates(mates: &mut Vec<(Frame, PositionAux)>) {
 
     let known_mate_digests: NoHashSet64 = positions
         .into_par_iter()
-        .filter_map(|mut position| {
-            let Ok(mut solutions) = standard_solve(position.clone(), 1, true) else {
+        .filter_map(|position| {
+            let Ok(reconstructor) = standard_solve(position, 1, true) else {
                 return None;
             };
-            if solutions.is_empty() {
+            if reconstructor.is_empty() {
                 return None;
             }
-            for m in solutions.remove(0) {
-                position.do_move(&m);
-            }
+            let mate = reconstructor.mates().first().unwrap();
 
             {
                 let mut i = iter.lock().unwrap();
@@ -199,7 +197,7 @@ fn retain_unknown_mates(mates: &mut Vec<(Frame, PositionAux)>) {
                 }
             }
 
-            Some(position.digest())
+            Some(mate.digest())
         })
         .collect();
 

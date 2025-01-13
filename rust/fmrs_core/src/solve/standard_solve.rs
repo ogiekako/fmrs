@@ -4,7 +4,7 @@ use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
 use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt};
 
-use super::{reconstruct_solutions, Solution};
+use super::reconstruct::Reconstructor;
 use anyhow::bail;
 use log::info;
 
@@ -12,14 +12,14 @@ pub fn standard_solve(
     position: PositionAux,
     solutions_upto: usize,
     silent: bool,
-) -> anyhow::Result<Vec<Solution>> {
+) -> anyhow::Result<Reconstructor> {
     let mut solver = StandardSolver::new(position, solutions_upto, silent)?;
     loop {
         let status = solver.advance()?;
         match status {
             SolverStatus::Intermediate(_) => continue,
-            SolverStatus::Mate(solutions) => return Ok(solutions),
-            SolverStatus::NoSolution => return Ok(vec![]),
+            SolverStatus::Mate(reconstructor) => return Ok(reconstructor),
+            SolverStatus::NoSolution => return Ok(Reconstructor::no_solution()),
         }
     }
 }
@@ -38,7 +38,7 @@ pub struct StandardSolver {
 #[derive(PartialEq, Eq)]
 pub enum SolverStatus {
     Intermediate(u32),
-    Mate(Vec<Solution>),
+    Mate(Reconstructor),
     NoSolution,
 }
 
@@ -99,35 +99,25 @@ impl StandardSolver {
         );
 
         if !self.mate_positions.is_empty() {
-            let mut res = vec![];
-            for mate_position in self.mate_positions.iter() {
-                if self.solutions_upto > res.len() {
-                    let mut sol = reconstruct_solutions(
-                        self.initial_position.digest(),
-                        mate_position,
-                        &self.memo_white_turn,
-                        self.solutions_upto - res.len(),
-                    );
-                    assert!(
-                        !sol.is_empty(),
-                        "{:?} {:?}",
-                        self.initial_position,
-                        mate_position
-                    );
-                    res.append(&mut sol);
-                }
-            }
-            res.sort();
-
             if !self.silent {
                 info!(
-                    "Found {} solutions searching {} positions",
-                    res.len(),
+                    "Found {} mates searching {} positions",
+                    self.mate_positions.len(),
                     self.memo_white_turn.len(),
                 );
             }
 
-            return Ok(SolverStatus::Mate(res));
+            let mate_positions = std::mem::take(&mut self.mate_positions);
+            let memo_white_turn = std::mem::take(&mut self.memo_white_turn);
+
+            let reconstructor = Reconstructor::new(
+                self.initial_position.digest(),
+                mate_positions,
+                Box::new(memo_white_turn),
+                self.solutions_upto,
+            );
+
+            return Ok(SolverStatus::Mate(reconstructor));
         }
         self.step += 2;
         Ok(SolverStatus::Intermediate(self.step as u32))

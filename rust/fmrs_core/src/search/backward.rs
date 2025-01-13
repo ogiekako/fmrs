@@ -136,7 +136,7 @@ pub struct BackwardSearch {
 
 impl BackwardSearch {
     pub fn new(initial_position: &PositionAux) -> anyhow::Result<Self> {
-        let mut solution = standard_solve(initial_position.clone(), 2, true)?;
+        let mut solution = standard_solve(initial_position.clone(), 2, true)?.solutions();
         if solution.len() != 1 {
             bail!("Not unique: {}", solution.len());
         }
@@ -213,7 +213,7 @@ impl BackwardSearch {
                 if ans.is_uniquely(self.step + 1) {
                     #[cfg(debug_assertions)]
                     {
-                        let sol = standard_solve(pp.clone(), 2, true).unwrap();
+                        let sol = standard_solve(pp.clone(), 2, true).unwrap().solutions();
                         if sol.len() != 1 {
                             eprintln!("Not unique: {} {}", sol.len(), pp.sfen_url());
                             for sol in sol.iter() {

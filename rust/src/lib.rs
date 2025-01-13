@@ -3,15 +3,14 @@
 use clap::{Parser, Subcommand};
 pub use command::one_way_mate_steps;
 use command::{
-    backward::backward, batch::Criteria, batch_square::batch_square, bench::BenchCommand,
-    OneWayMateGenerator,
+    backward::backward, batch_square::batch_square, bench::BenchCommand, OneWayMateGenerator,
 };
 use solver::Algorithm;
 
 pub mod bit;
 mod command;
-pub mod solver;
 pub mod opt;
+pub mod solver;
 
 #[derive(Parser)]
 struct Args {
@@ -46,11 +45,6 @@ enum Action {
         #[arg(long)]
         goal: Option<usize>,
     },
-    Batch {
-        file: Option<String>,
-        #[arg(long, default_value = "max-unique")]
-        criteria: Criteria,
-    },
     BatchSquare {
         filter_file: Option<String>,
     },
@@ -79,12 +73,6 @@ pub async fn do_main() -> anyhow::Result<()> {
             parallel,
             goal,
         } => command::one_way_mate(algorithm, seed, parallel, goal)?,
-        Action::Batch { file, criteria } => {
-            let ans = command::batch(file, criteria)?;
-            for (position, solution) in ans {
-                println!("{} {}", solution.len(), position.sfen());
-            }
-        }
         Action::BatchSquare { filter_file } => {
             batch_square(filter_file)?;
         }

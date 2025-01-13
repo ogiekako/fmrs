@@ -1,24 +1,20 @@
 use std::time::Instant;
 
 use crate::solver::parallel_solve;
-use crate::solver::shtsume_solve;
-use anyhow::bail;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::solve::standard_solve::standard_solve;
 use fmrs_core::solve::Solution;
-use shtsume_rs::ffi::ssdata::Ssdata;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
     Standard,
     Parallel,
-    Shtsume,
 }
 
 impl Algorithm {
     #[cfg(test)]
     fn iter() -> impl Iterator<Item = Algorithm> {
-        [Algorithm::Standard, Algorithm::Parallel, Algorithm::Shtsume].into_iter()
+        [Algorithm::Standard, Algorithm::Parallel].into_iter()
     }
 }
 
@@ -49,15 +45,10 @@ pub fn solve_with_progress(
 
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
-        Algorithm::Parallel => parallel_solve::parallel_solve(position, solutions_upto, start),
-        Algorithm::Standard => standard_solve(position, solutions_upto, false),
-        Algorithm::Shtsume => {
-            if position.turn().is_white() {
-                bail!("Shtsume is not implemented for white's turn");
-            }
-            let ssdata = Ssdata::from_sfen(&position.sfen());
-            shtsume_solve::shtsume_solve(&ssdata, solutions_upto)
+        Algorithm::Parallel => {
+            Ok(parallel_solve::parallel_solve(position, solutions_upto, start)?.solutions())
         }
+        Algorithm::Standard => Ok(standard_solve(position, solutions_upto, false)?.solutions()),
     }
 }
 
@@ -173,10 +164,6 @@ mod tests {
                         .into_iter()
                         .map(|x| sfen::decode_moves(x).unwrap())
                         .collect();
-
-                if board.turn().is_white() && algorithm == Algorithm::Shtsume {
-                    continue;
-                }
 
                 eprintln!("Solving {:?} (algo={:?})", board, algorithm);
                 let mut got = solve(board, None, algorithm, None).unwrap();

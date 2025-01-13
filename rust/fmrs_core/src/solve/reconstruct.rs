@@ -1,57 +1,100 @@
 use std::collections::VecDeque;
 use std::rc::Rc;
 
-use crate::memo::MemoTrait;
+use crate::memo::{MemoStub, MemoTrait};
 use crate::nohash::NoHashMap64;
 
 use crate::piece::Color;
 use crate::position::position::PositionAux;
-use crate::position::{previous, Movement, UndoMove};
+use crate::position::{previous, Movement};
 
 use super::Solution;
 
-pub trait PositionTrait: Clone {
-    fn digest(&self) -> u64;
-    fn undo_digest(&self, undo_move: &UndoMove) -> u64;
-    fn undone(&self, undo_move: &UndoMove) -> Self;
-    fn to_position(&self) -> PositionAux;
-}
-
-impl PositionTrait for PositionAux {
-    fn digest(&self) -> u64 {
-        self.digest()
-    }
-    fn undo_digest(&self, undo_move: &UndoMove) -> u64 {
-        PositionAux::undo_digest(self, undo_move)
-    }
-    fn undone(&self, token: &UndoMove) -> Self {
-        let mut p = Self::new(self.core().clone(), *self.stone());
-        p.undo_move(token);
-        p
-    }
-    fn to_position(&self) -> PositionAux {
-        self.clone()
-    }
-}
-
-pub fn reconstruct_solutions<M: MemoTrait, P: PositionTrait>(
+pub struct Reconstructor {
     initial_position_digest: u64,
-    mate: &P,
-    memo_white_turn: &M,
+    mates: Vec<PositionAux>,
+    memo_white_turn: Box<dyn MemoTrait>,
     solutions_upto: usize,
-) -> Vec<Solution> {
-    if solutions_upto == 0 {
-        return vec![];
+}
+
+impl PartialEq for Reconstructor {
+    fn eq(&self, other: &Self) -> bool {
+        self.initial_position_digest == other.initial_position_digest
+            && self.mates.len() == other.mates.len()
+            && self
+                .mates
+                .iter()
+                .zip(other.mates.iter())
+                .all(|(a, b)| a.digest() == b.digest())
+            && self.solutions_upto == other.solutions_upto
     }
-    debug_assert!(memo_white_turn.contains_key(&mate.digest()));
-    let step = memo_white_turn.get(&mate.digest()).unwrap();
-    let ctx = Context::new(
-        initial_position_digest,
-        memo_white_turn,
-        step,
-        solutions_upto,
-    );
-    ctx.reconstruct_bfs(mate)
+}
+
+impl Eq for Reconstructor {}
+
+impl Reconstructor {
+    pub fn no_solution() -> Self {
+        Self {
+            initial_position_digest: 0,
+            mates: vec![],
+            memo_white_turn: Box::new(MemoStub),
+            solutions_upto: 0,
+        }
+    }
+
+    pub fn new(
+        initial_position_digest: u64,
+        mates: Vec<PositionAux>,
+        memo_white_turn: Box<dyn MemoTrait>,
+        solutions_upto: usize,
+    ) -> Self {
+        Self {
+            initial_position_digest,
+            mates,
+            memo_white_turn,
+            solutions_upto,
+        }
+    }
+
+    pub fn mates(&self) -> &[PositionAux] {
+        &self.mates
+    }
+
+    pub fn mate_in(&self) -> Option<u16> {
+        self.mates
+            .first()
+            .map(|m| self.memo_white_turn.get(&m.digest()).unwrap())
+    }
+
+    pub fn cached_positions(&self) -> usize {
+        self.memo_white_turn.len()
+    }
+
+    pub fn solutions(&self) -> Vec<Solution> {
+        if self.solutions_upto == 0 {
+            return vec![];
+        }
+        let mut res = vec![];
+
+        for mate in self.mates.iter() {
+            if res.len() >= self.solutions_upto {
+                break;
+            }
+            let mate_in = self.memo_white_turn.get(&mate.digest()).unwrap();
+            let ctx = Context::new(
+                self.initial_position_digest,
+                self.memo_white_turn.as_ref(),
+                mate_in,
+                self.solutions_upto - res.len(),
+            );
+            res.extend(ctx.reconstruct_bfs(mate));
+        }
+        res
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.mates.is_empty()
+    }
 }
 
 #[derive(Debug)]
@@ -104,19 +147,19 @@ impl Drop for MovementList {
     }
 }
 
-struct Context<'a, M: MemoTrait> {
+struct Context<'a> {
     initial_position_digest: u64,
     // memo_black_turn: &'a M,
-    memo_white_turn: &'a M,
+    memo_white_turn: &'a dyn MemoTrait,
     mate_in: u16,
     solutions_upto: usize,
 }
 
-impl<'a, M: MemoTrait> Context<'a, M> {
+impl<'a> Context<'a> {
     fn new(
         initial_position_digest: u64,
         // memo_black_turn: &'a M,
-        memo_white_turn: &'a M,
+        memo_white_turn: &'a dyn MemoTrait,
         mate_in: u16,
         solutions_upto: usize,
     ) -> Self {
@@ -129,29 +172,29 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         }
     }
 
-    fn reconstruct_bfs<P: PositionTrait>(&self, mate_position: &P) -> Vec<Solution> {
+    fn reconstruct_bfs(&self, mate_position: &PositionAux) -> Vec<Solution> {
         let mut position_visit_count = NoHashMap64::default();
-        let mut queue: VecDeque<(P, u16, Rc<MovementList>)> = VecDeque::new();
+        let mut queue: VecDeque<(PositionAux, u16, Rc<MovementList>)> = VecDeque::new();
         queue.push_back((mate_position.clone(), self.mate_in, MovementList::nil()));
         let mut res = vec![];
 
         let mut black_unmoves = vec![];
         let mut white_unmoves = vec![];
-        while let Some((generic_white_position, step, following_movements)) = queue.pop_front() {
-            debug_assert_eq!(generic_white_position.to_position().turn(), Color::WHITE);
+        while let Some((mut white_position, step, following_movements)) = queue.pop_front() {
+            debug_assert_eq!(white_position.turn(), Color::WHITE);
 
             if res.len() >= self.solutions_upto {
                 break;
             }
             if step == 0 {
-                if generic_white_position.digest() != self.initial_position_digest {
+                if white_position.digest() != self.initial_position_digest {
                     continue;
                 }
                 res.push(following_movements.vec());
                 continue;
             }
             {
-                let digest = generic_white_position.digest();
+                let digest = white_position.digest();
                 let visit_count = position_visit_count.entry(digest).or_insert(0);
                 if *visit_count >= self.solutions_upto as u64 {
                     continue;
@@ -160,7 +203,6 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             }
 
             black_unmoves.clear();
-            let mut white_position = generic_white_position.to_position();
             previous(&mut white_position, step < self.mate_in, &mut black_unmoves);
 
             for black_unmove in black_unmoves.iter() {
@@ -178,9 +220,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                     MovementList::cons(black_move, following_movements.clone());
 
                 if step == 1 {
-                    if self.initial_position_digest
-                        == generic_white_position.undo_digest(black_unmove)
-                    {
+                    if self.initial_position_digest == black_position.digest() {
                         res.push(following_movements.vec());
                     }
                     continue;
@@ -189,16 +229,15 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 white_unmoves.clear();
                 previous(&mut black_position, true, &mut white_unmoves);
 
-                let generic_black_position = generic_white_position.undone(black_unmove);
                 for white_unmove in white_unmoves.iter() {
-                    let digest = generic_black_position.undo_digest(white_unmove);
+                    let digest = black_position.undo_digest(white_unmove);
                     if self.memo_white_turn.get(&digest) != Some(step - 2) {
                         continue;
                     }
-                    let wp = generic_black_position.undone(white_unmove);
-                    let white_move = black_position.clone().undo_move(white_unmove);
+                    let mut prev_white_position = black_position.clone();
+                    let white_move = prev_white_position.undo_move(white_unmove);
                     queue.push_back((
-                        wp,
+                        prev_white_position,
                         step - 2,
                         MovementList::cons(white_move, following_movements.clone()),
                     ));

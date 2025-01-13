@@ -549,7 +549,7 @@ impl PositionAux {
         for c in Color::iter() {
             let pawns = self.bitboard(c, Kind::Pawn).u128();
             for i in 0..9 {
-                if (pawns >> i * 9 & 0x1FF).count_ones() > 1 {
+                if (pawns >> (i * 9) & 0x1FF).count_ones() > 1 {
                     return true;
                 }
             }

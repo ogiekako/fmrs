@@ -90,8 +90,8 @@ impl Solver {
         };
         match status {
             SolverStatus::Intermediate(step) => return Ok(step),
-            SolverStatus::Mate(solutions) => {
-                self.solutions = solutions;
+            SolverStatus::Mate(reconstructor) => {
+                self.solutions = reconstructor.solutions();
             }
             SolverStatus::NoSolution => self.no_solution = true,
         }

@@ -15,11 +15,10 @@ name = "fmrs"
 bench = false
 
 [workspace]
-members = ["wasm", "fmrs_core", "shtsume_rs"]
+members = ["wasm", "fmrs_core"]
 
 [dependencies]
 fmrs_core = { path = "./fmrs_core" }
-shtsume_rs = { path = "./shtsume_rs" }
 lazy_static = "*"
 
 serde = { version = "*", features = ["derive"] }

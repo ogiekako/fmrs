@@ -1,7 +1,5 @@
 use std::sync::Mutex;
 
-use anyhow::anyhow;
-use log::info;
 use rayon::prelude::*;
 
 use crate::memo::{DashMemo, MemoStub};
@@ -9,7 +7,8 @@ use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
 use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt as _};
 
-use super::{reconstruct_solutions, SolverStatus};
+use super::reconstruct::Reconstructor;
+use super::SolverStatus;
 
 pub struct ParallelSolver {
     initial_position_digest: u64,
@@ -68,23 +67,19 @@ impl ParallelSolver {
             &self.stone,
         );
 
-        let mate_positions = self
-            .mate_positions
-            .get_mut()
-            .map_err(|e| anyhow!(e.to_string()))?;
-        if !mate_positions.is_empty() {
-            info!("Found mate in {}; reconstructing solutions", self.step);
-            let mut res = vec![];
-            for mate_position in mate_positions {
-                res.append(&mut reconstruct_solutions(
-                    self.initial_position_digest,
-                    mate_position,
-                    &self.memo_white_turn.as_mut(),
-                    self.solutions_upto - res.len(),
-                ));
-            }
-            res.sort();
-            return Ok(SolverStatus::Mate(res));
+        if self.mate_positions.get_mut().is_ok_and(|mp| !mp.is_empty()) {
+            let mate_positions = std::mem::take(&mut self.mate_positions)
+                .into_inner()
+                .unwrap();
+            let memo_white_turn = std::mem::take(&mut self.memo_white_turn);
+
+            let reconstructor = Reconstructor::new(
+                self.initial_position_digest,
+                mate_positions,
+                Box::new(memo_white_turn),
+                self.solutions_upto,
+            );
+            return Ok(SolverStatus::Mate(reconstructor));
         }
         self.step += 2;
         Ok(SolverStatus::Intermediate(self.step as u32))

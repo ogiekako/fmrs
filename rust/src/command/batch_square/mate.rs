@@ -77,22 +77,20 @@ impl MateFilter {
                         return 1;
                     }
 
-                    let mut position = frame_position.position();
+                    let position = frame_position.position();
                     let digest = position.digest();
                     if good_mates.contains_key(&digest) {
                         return 0;
                     }
 
-                    let mut solutions = standard_solve(position.clone(), 1, true).unwrap();
-                    if solutions.is_empty() {
+                    let reconstructor = standard_solve(position.clone(), 1, true).unwrap();
+                    if reconstructor.is_empty() {
                         return -1;
                     }
 
-                    for m in solutions.remove(0) {
-                        position.do_move(&m);
-                    }
-                    if self.is_good_mate(&position) {
-                        good_mates.insert(digest, (frame_position.frame, position));
+                    let mate = reconstructor.mates().first().unwrap();
+                    if self.is_good_mate(mate) {
+                        good_mates.insert(digest, (frame_position.frame, mate.clone()));
                         0
                     } else {
                         1

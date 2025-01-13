@@ -87,12 +87,38 @@ pub struct DashMemo {
     steps: DashMap<u64, u16, BuildNoHasher>,
 }
 
+impl MemoTrait for DashMemo {
+    fn contains_key(&self, digest: &u64) -> bool {
+        self.steps.contains_key(digest)
+    }
+
+    fn contains_or_insert(&mut self, digest: u64, step: u16) -> bool {
+        let mut contains = true;
+        self.steps.entry(digest).or_insert_with(|| {
+            contains = false;
+            step
+        });
+        contains
+    }
+
+    fn get(&self, digest: &u64) -> Option<u16> {
+        self.steps.get(digest).map(|v| *v)
+    }
+
+    fn len(&self) -> usize {
+        self.steps.len()
+    }
+}
+
 impl DashMemo {
     pub fn insert(&mut self, digest: u64, step: u16) {
         self.steps.insert(digest, step);
     }
     pub fn len(&self) -> usize {
         self.steps.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.steps.is_empty()
     }
 }
 

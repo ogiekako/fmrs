@@ -16,11 +16,6 @@ use fmrs_core::solve::standard_solve::standard_solve;
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
-use shtsume_rs::ffi::mvlist::{generate_check, generate_evasion};
-use shtsume_rs::ffi::sdata::Sdata;
-use shtsume_rs::ffi::ssdata::Ssdata;
-use shtsume_rs::ffi::tbase::Tbase;
-use shtsume_rs::ffi::Global;
 
 fn bench_black_advance(c: &mut Criterion) {
     let mut black_position = decode_position(include_str!("../problems/ofm-139_5.sfen")).unwrap();
@@ -47,25 +42,6 @@ fn bench_black_advance(c: &mut Criterion) {
             )
             .unwrap();
             assert_eq!(result.len(), 66);
-        })
-    });
-}
-
-fn bench_black_advance_shtsume(c: &mut Criterion) {
-    let _g = shtsume_rs::ffi::Global::init(0, None);
-
-    let ssdata = Ssdata::from_sfen(include_str!("../problems/ofm-139_5.sfen"));
-    let mut tbase = Tbase::default();
-
-    let mut sdata = Sdata::from_ssdata(&ssdata);
-    assert_eq!(sdata.is_illegal(), 0);
-
-    c.bench_function("black_advance_shtsume", |b| {
-        b.iter(|| {
-            let sdata = Sdata::from_ssdata(&ssdata);
-            let list = generate_check(&sdata, &mut tbase);
-            let count = list.iter().map(|item| item.mlist().count()).sum::<usize>();
-            assert_eq!(count, 66);
         })
     });
 }
@@ -102,36 +78,6 @@ fn bench_white_advance(c: &mut Criterion) {
                 )
                 .unwrap();
                 assert_eq!(result.len(), *want);
-            }
-        })
-    });
-}
-
-fn bench_white_advance_shtsume(c: &mut Criterion) {
-    let  white_positions = vec![
-        ("B+l+pn1+pR+p1/+lR7/3+p+p+p1+p1/2+p1+p4/3+p1+p1+p+l/2n+B+p2+p1/3+p+p1k1g/7s1/3gs1+p2 w GSNgsnlp 1", 42),
-        ("B+l+pn1+pR+p1/+l8/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/1+R1+p+p1k1g/7s1/3gs1+p2 w GSNgsnlp 1", 49),
-        ("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs1+pN1 w GSgsnlp 1", 9),
-    ];
-
-    let _g = Global::init(0, None);
-
-    let mut tbase = Tbase::default();
-
-    let data = white_positions
-        .into_iter()
-        .map(|x| {
-            let ssdata = Ssdata::from_sfen(x.0);
-            (ssdata, x.1)
-        })
-        .collect::<Vec<_>>();
-
-    c.bench_function("white_advance_shtsume", |b| {
-        b.iter(|| {
-            for (ssdata, want) in data.iter() {
-                let sdata = Sdata::from_ssdata(ssdata);
-                let res = generate_evasion(&sdata, &mut tbase, true);
-                assert_eq!(res.iter().map(|i| i.mlist().count()).sum::<usize>(), *want);
             }
         })
     });
@@ -349,9 +295,11 @@ fn bench_solve97(c: &mut Criterion) {
     let mut times = vec![];
     for _ in 0..n_samples {
         let start = std::time::Instant::now();
-        let solutions = standard_solve(position.clone(), 1, true);
-        debug_assert_eq!(1, solutions.as_ref().unwrap().len());
-        debug_assert_eq!(97, solutions.as_ref().unwrap()[0].len());
+        let solutions = standard_solve(position.clone(), 1, true)
+            .unwrap()
+            .solutions();
+        debug_assert_eq!(1, solutions.len());
+        debug_assert_eq!(97, solutions[0].len());
 
         times.push(start.elapsed());
     }
@@ -444,7 +392,7 @@ criterion_group!(
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
-    targets = bench_black_advance, bench_black_advance_shtsume, bench_white_advance, bench_white_advance_shtsume, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
 );
 
 const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
