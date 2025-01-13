@@ -11,6 +11,7 @@ use crate::position::{BitBoard, Position, PositionExt as _};
 use super::{reconstruct_solutions, SolverStatus};
 
 pub struct ParallelSolver {
+    initial_position_digest: u64,
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
@@ -40,6 +41,7 @@ impl ParallelSolver {
         }
 
         Self {
+            initial_position_digest: position.digest(),
             solutions_upto,
             step,
             positions,
@@ -72,8 +74,8 @@ impl ParallelSolver {
             let mut res = vec![];
             for mate_position in mate_positions {
                 res.append(&mut reconstruct_solutions(
+                    self.initial_position_digest,
                     mate_position,
-                    &self.memo_next.as_mut(),
                     &self.memo.as_mut(),
                     self.solutions_upto - res.len(),
                 ));

@@ -1,0 +1,72 @@
+{
+  "filter": {
+    "frame_filter": {
+      "room_filter": {
+        "width": [
+          5
+        ],
+        "height": {
+          "start": 4,
+          "end": 6
+        },
+        "weakly_decreasing": false,
+        "area": {
+          "start": 19,
+          "end": 22
+        },
+        "feasible_without_stone": true
+      },
+      "max_empty_black_pawn_col": 1,
+      "max_empty_white_pawn_col": 2
+    },
+    "attackers": [
+      "Bishop",
+      "Knight"
+    ],
+    "no_redundant": true,
+    "no_less_pro_pawn": 2,
+    "max_extra_white_hand_pawn": 0
+  },
+  "problems": [
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/5OOOO/3OOO1kO/3O2+p2/3O1p1+n+P/3O1+b+pp1/3O2+p+p1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F5OOOO%2F3OOO1kO%2F3O2%2Bp2%2F3O1p1%2Bn%2BP%2F3O1%2Bb%2Bpp1%2F3O2%2Bp%2Bp1%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/5OOOO/3OOO1kO/3O2+p2/3O1p1+n+P/3O1b+pp1/3O2+p+p1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F5OOOO%2F3OOO1kO%2F3O2%2Bp2%2F3O1p1%2Bn%2BP%2F3O1b%2Bpp1%2F3O2%2Bp%2Bp1%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/5OOOO/3OOO1kO/3O2+p2/3O1p1n+P/3O1+b+pp1/3O2+p+p1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F5OOOO%2F3OOO1kO%2F3O2%2Bp2%2F3O1p1n%2BP%2F3O1%2Bb%2Bpp1%2F3O2%2Bp%2Bp1%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/5OOOO/3OOO1kO/3O2+p2/3O1p1n+P/3O1b+pp1/3O2+p+p1 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F5OOOO%2F3OOO1kO%2F3O2%2Bp2%2F3O1p1n%2BP%2F3O1b%2Bpp1%2F3O2%2Bp%2Bp1%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/4OOOO1/3OOk1OO/3O2+p2/3O+P+n1p1/3O1p+p+b1/3O1+p+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F4OOOO1%2F3OOk1OO%2F3O2%2Bp2%2F3O%2BP%2Bn1p1%2F3O1p%2Bp%2Bb1%2F3O1%2Bp%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/4OOOO1/3OOk1OO/3O2+p2/3O+P+n1p1/3O1p+pb1/3O1+p+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F4OOOO1%2F3OOk1OO%2F3O2%2Bp2%2F3O%2BP%2Bn1p1%2F3O1p%2Bpb1%2F3O1%2Bp%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/4OOOO1/3OOk1OO/3O2+p2/3O+Pn1p1/3O1p+p+b1/3O1+p+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F4OOOO1%2F3OOk1OO%2F3O2%2Bp2%2F3O%2BPn1p1%2F3O1p%2Bp%2Bb1%2F3O1%2Bp%2Bp2%20b%20%2D%201"
+    },
+    {
+      "step": 35,
+      "sfen": "4p1p1p/4PP1PP/9/4OOOO1/3OOk1OO/3O2+p2/3O+Pn1p1/3O1p+pb1/3O1+p+p2 b - 1",
+      "url": "https://ogiekako.github.io/fmrs/?sfen=4p1p1p%2F4PP1PP%2F9%2F4OOOO1%2F3OOk1OO%2F3O2%2Bp2%2F3O%2BPn1p1%2F3O1p%2Bpb1%2F3O1%2Bp%2Bp2%20b%20%2D%201"
+    }
+  ]
+}

@@ -3,14 +3,18 @@ pub mod frame;
 pub mod mate;
 pub mod room;
 
-use std::sync::Mutex;
+use std::{path::PathBuf, sync::Mutex};
 
-use fmrs_core::{piece::Kind, position::position::PositionAux, search::backward::backward_search};
+use fmrs_core::{
+    nohash::NoHashSet64, piece::Kind, position::position::PositionAux,
+    search::backward::backward_search, solve::standard_solve::standard_solve,
+};
 use frame::FrameFilter;
 use log::info;
 use mate::MateFilter;
 // use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use rayon::prelude::*;
+use regex::Regex;
 use room::RoomFilter;
 use serde::{Deserialize, Serialize};
 
@@ -22,18 +26,19 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
             frame_filter: FrameFilter {
                 room_filter: RoomFilter {
                     width: vec![5],
-                    height: 2..=5,
+                    height: 2..=6,
                     weakly_decreasing: false,
                     feasible_without_stone: true,
-                    area: Some(12..=20),
+                    area: Some(20..=20),
                 },
                 max_empty_black_pawn_col: Some(1),
                 max_empty_white_pawn_col: Some(2),
             },
             attackers: vec![Kind::Bishop, Kind::Knight],
             no_redundant: true,
-            no_less_pro_pawn: 1,
-            max_extra_white_hand_pawn: 1.into(),
+            no_less_pro_pawn: 2,
+            max_extra_white_hand_pawn: Some(0),
+            skip_known_mates: true,
         }
     };
     eprintln!(
@@ -41,24 +46,37 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         serde_json::to_string_pretty(&filter)?
     );
 
-    let positions = filter.generate_mates();
-    // positions.shuffle(&mut SmallRng::seed_from_u64(20250105));
+    let mut mates = filter.generate_mates();
 
-    if positions.is_empty() {
-        eprintln!("No matching positions found");
+    if filter.skip_known_mates && !mates.is_empty() {
+        let known_digests = known_mates()
+            .iter()
+            .map(|position| position.digest())
+            .collect::<NoHashSet64>();
+        info!(
+            "Filtering {} mate positions with {} known mates",
+            mates.len(),
+            known_digests.len()
+        );
+        mates.retain(|position| !known_digests.contains(&position.digest()));
+    }
+    // mates.shuffle(&mut SmallRng::seed_from_u64(20250105));
+
+    if mates.is_empty() {
+        eprintln!("No matching mates found");
         return Ok(());
     }
 
-    eprintln!("{} positions {:?}", positions.len(), positions[0]);
+    eprintln!("{} mates {:?}", mates.len(), mates[0]);
 
     let iter = Mutex::new(0);
-    let total_len = positions.len();
+    let total_len = mates.len();
 
     let all_problems: Mutex<Vec<(u16, Vec<PositionAux>)>> = Mutex::new(vec![]);
     let best_problems = Mutex::new((0, vec![]));
 
-    positions.into_par_iter().for_each(|position| {
-        let (step, problems) = backward_search(&position, true, 0).unwrap();
+    mates.into_par_iter().for_each(|mate| {
+        let (step, problems) = backward_search(&mate, true, 0).unwrap();
 
         {
             let mut all_problems = all_problems.lock().unwrap();
@@ -103,6 +121,50 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn known_mates() -> Vec<PositionAux> {
+    let Ok(files) = std::fs::read_dir(log_dir()) else {
+        return vec![];
+    };
+    let re = Regex::new(r#""((:?[^/]+/){8}[^/]+ [wb] [^ ]+ -?\d+)""#).unwrap();
+    let mut positions = vec![];
+    for file in files {
+        let Ok(file) = file else { continue };
+        if file.path().extension().and_then(|x| x.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(content) = std::fs::read_to_string(file.path()) else {
+            continue;
+        };
+        for cap in re.captures_iter(&content) {
+            if let Ok(position) = PositionAux::from_sfen(&cap[1]) {
+                positions.push(position);
+            }
+        }
+    }
+    positions.sort_by_key(|position| position.digest());
+    positions.dedup();
+
+    positions
+        .into_par_iter()
+        .filter_map(|mut position| {
+            let Ok(mut solutions) = standard_solve(position.clone(), 1, true) else {
+                return None;
+            };
+            if solutions.is_empty() {
+                return None;
+            }
+            for m in solutions.remove(0) {
+                position.do_move(&m);
+            }
+            Some(position)
+        })
+        .collect()
+}
+
+fn log_dir() -> PathBuf {
+    std::path::Path::new(file!()).with_file_name("logs")
+}
+
 fn log_results(filter: &MateFilter, problems: &[(u16, Vec<PositionAux>)]) -> anyhow::Result<()> {
     let result = RunResult {
         filter: filter.clone(),
@@ -117,14 +179,14 @@ fn log_results(filter: &MateFilter, problems: &[(u16, Vec<PositionAux>)]) -> any
             })
             .collect(),
     };
-    let log_dir = std::path::Path::new(file!()).with_file_name("logs");
+    let log_dir = log_dir();
 
     let mut attackers = filter.attackers.clone();
     attackers.sort();
-    let kind = filter
-        .attackers
+    let kind = attackers
         .iter()
         .map(|k| match k {
+            Kind::Pawn => "pawn",
             Kind::Lance => "lance",
             Kind::Knight => "knight",
             Kind::Silver => "silver",

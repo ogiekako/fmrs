@@ -24,6 +24,7 @@ pub(super) struct MateFilter {
     pub(super) no_redundant: bool,
     pub(super) no_less_pro_pawn: u8,
     pub(super) max_extra_white_hand_pawn: Option<u8>,
+    pub(super) skip_known_mates: bool,
 }
 
 impl MateFilter {

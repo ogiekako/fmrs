@@ -23,7 +23,9 @@ pub fn shtsume_solve(ssdata: &Ssdata, solutions_upto: usize) -> anyhow::Result<V
     let mut tbase = Tbase::create(1024 /* mb */);
 
     let mut black_visited: Memo = Default::default();
-    black_visited.contains_or_insert(digest(&sdata, false), 0);
+    let initial_position_digest = digest(&sdata, false);
+    black_visited.contains_or_insert(initial_position_digest, 0);
+
     let mut white_visited: Memo = Default::default();
 
     let mut black_sdata = vec![sdata];
@@ -86,8 +88,8 @@ pub fn shtsume_solve(ssdata: &Ssdata, solutions_upto: usize) -> anyhow::Result<V
 
             for mate in mate_sdata {
                 res.append(&mut reconstruct_solutions(
+                    initial_position_digest,
                     &SdataPosition::new(mate, false),
-                    &black_visited,
                     &white_visited,
                     solutions_upto - res.len(),
                 ));

@@ -4,6 +4,7 @@ use std::rc::Rc;
 use crate::memo::MemoTrait;
 use crate::nohash::NoHashMap64;
 
+use crate::piece::Color;
 use crate::position::position::PositionAux;
 use crate::position::{previous, Movement, UndoMove};
 
@@ -34,8 +35,8 @@ impl PositionTrait for PositionAux {
 }
 
 pub fn reconstruct_solutions<M: MemoTrait, P: PositionTrait>(
+    initial_position_digest: u64,
     mate: &P,
-    memo_black_turn: &M,
     memo_white_turn: &M,
     solutions_upto: usize,
 ) -> Vec<Solution> {
@@ -44,7 +45,12 @@ pub fn reconstruct_solutions<M: MemoTrait, P: PositionTrait>(
     }
     debug_assert!(memo_white_turn.contains_key(&mate.digest()));
     let step = memo_white_turn.get(&mate.digest()).unwrap();
-    let ctx = Context::new(memo_black_turn, memo_white_turn, step, solutions_upto);
+    let ctx = Context::new(
+        initial_position_digest,
+        memo_white_turn,
+        step,
+        solutions_upto,
+    );
     ctx.reconstruct_bfs(mate)
 }
 
@@ -99,7 +105,8 @@ impl Drop for MovementList {
 }
 
 struct Context<'a, M: MemoTrait> {
-    memo_black_turn: &'a M,
+    initial_position_digest: u64,
+    // memo_black_turn: &'a M,
     memo_white_turn: &'a M,
     mate_in: u16,
     solutions_upto: usize,
@@ -107,13 +114,15 @@ struct Context<'a, M: MemoTrait> {
 
 impl<'a, M: MemoTrait> Context<'a, M> {
     fn new(
-        memo_black_turn: &'a M,
+        initial_position_digest: u64,
+        // memo_black_turn: &'a M,
         memo_white_turn: &'a M,
         mate_in: u16,
         solutions_upto: usize,
     ) -> Self {
         Self {
-            memo_black_turn,
+            initial_position_digest,
+            // memo_black_turn,
             memo_white_turn,
             mate_in,
             solutions_upto,
@@ -126,17 +135,23 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         queue.push_back((mate_position.clone(), self.mate_in, MovementList::nil()));
         let mut res = vec![];
 
-        let mut undo_moves = vec![];
-        while let Some((position, step, following_movements)) = queue.pop_front() {
+        let mut black_unmoves = vec![];
+        let mut white_unmoves = vec![];
+        while let Some((generic_white_position, step, following_movements)) = queue.pop_front() {
+            debug_assert_eq!(generic_white_position.to_position().turn(), Color::WHITE);
+
             if res.len() >= self.solutions_upto {
                 break;
             }
             if step == 0 {
+                if generic_white_position.digest() != self.initial_position_digest {
+                    continue;
+                }
                 res.push(following_movements.vec());
                 continue;
             }
             {
-                let digest = position.digest();
+                let digest = generic_white_position.digest();
                 let visit_count = position_visit_count.entry(digest).or_insert(0);
                 if *visit_count >= self.solutions_upto as u64 {
                     continue;
@@ -144,27 +159,48 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 *visit_count += 1;
             }
 
-            let memo_previous = if (self.mate_in - step) % 2 == 0 {
-                self.memo_black_turn
-            } else {
-                self.memo_white_turn
-            };
+            black_unmoves.clear();
+            let mut white_position = generic_white_position.to_position();
+            previous(&mut white_position, step < self.mate_in, &mut black_unmoves);
 
-            undo_moves.clear();
+            for black_unmove in black_unmoves.iter() {
+                if res.len() >= self.solutions_upto {
+                    break;
+                }
+                let mut black_position = white_position.clone();
+                let black_move = black_position.undo_move(black_unmove);
 
-            let mut position_aux = position.to_position();
-            previous(&mut position_aux, step < self.mate_in, &mut undo_moves);
+                if black_position.checked_slow(Color::WHITE) {
+                    continue;
+                }
 
-            for undo_move in undo_moves.iter() {
-                let digest = position.undo_digest(undo_move);
+                let following_movements =
+                    MovementList::cons(black_move, following_movements.clone());
 
-                if memo_previous.get(&digest) == Some(step - 1) {
-                    let mut prev_position = position.to_position();
-                    let movement = prev_position.undo_move(undo_move);
+                if step == 1 {
+                    if self.initial_position_digest
+                        == generic_white_position.undo_digest(black_unmove)
+                    {
+                        res.push(following_movements.vec());
+                    }
+                    continue;
+                }
+
+                white_unmoves.clear();
+                previous(&mut black_position, true, &mut white_unmoves);
+
+                let generic_black_position = generic_white_position.undone(black_unmove);
+                for white_unmove in white_unmoves.iter() {
+                    let digest = generic_black_position.undo_digest(white_unmove);
+                    if self.memo_white_turn.get(&digest) != Some(step - 2) {
+                        continue;
+                    }
+                    let wp = generic_black_position.undone(white_unmove);
+                    let white_move = black_position.clone().undo_move(white_unmove);
                     queue.push_back((
-                        position.undone(undo_move),
-                        step - 1,
-                        MovementList::cons(movement, following_movements.clone()),
+                        wp,
+                        step - 2,
+                        MovementList::cons(white_move, following_movements.clone()),
                     ));
                 }
             }

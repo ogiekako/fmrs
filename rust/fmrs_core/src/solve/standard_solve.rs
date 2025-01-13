@@ -1,8 +1,8 @@
-use crate::memo::{Memo, MemoTrait};
+use crate::memo::{Memo, MemoStub, MemoTrait};
 
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
-use crate::position::{BitBoard, Position, PositionExt};
+use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt};
 
 use super::{reconstruct_solutions, Solution};
 use log::info;
@@ -29,8 +29,7 @@ pub struct StandardSolver {
     step: u16,
     positions: Vec<Position>,
     mate_positions: Vec<PositionAux>,
-    memo: Memo,
-    memo_next: Memo,
+    memo_white_turn: Memo,
     stone: Option<BitBoard>,
     silent: bool,
 }
@@ -48,7 +47,6 @@ impl StandardSolver {
 
         let mut memo = Memo::default();
         memo.contains_or_insert(position.digest(), 0);
-        let mut memo_next = Memo::default();
 
         let mut mate_positions = vec![];
 
@@ -58,6 +56,7 @@ impl StandardSolver {
         let mut step = 0;
 
         if position.turn().is_black() {
+            let mut memo_next = Memo::default();
             next_positions(
                 &mut mate_positions,
                 &mut memo_next,
@@ -75,8 +74,7 @@ impl StandardSolver {
             step,
             positions,
             mate_positions,
-            memo,
-            memo_next,
+            memo_white_turn: memo,
             stone,
             silent,
         }
@@ -89,8 +87,7 @@ impl StandardSolver {
 
         next_next_positions(
             &mut self.mate_positions,
-            &mut self.memo,
-            &mut self.memo_next,
+            &mut self.memo_white_turn,
             &mut self.positions,
             self.step,
             &self.stone,
@@ -101,9 +98,9 @@ impl StandardSolver {
             for mate_position in self.mate_positions.iter() {
                 if self.solutions_upto > res.len() {
                     let mut sol = reconstruct_solutions(
+                        self.initial_position.digest(),
                         mate_position,
-                        &self.memo_next,
-                        &self.memo,
+                        &self.memo_white_turn,
                         self.solutions_upto - res.len(),
                     );
                     assert!(
@@ -119,10 +116,9 @@ impl StandardSolver {
 
             if !self.silent {
                 info!(
-                    "Found {} solutions searching {}+{} positions",
+                    "Found {} solutions searching {} positions",
                     res.len(),
-                    self.memo.len(),
-                    self.memo_next.len(),
+                    self.memo_white_turn.len(),
                 );
             }
 
@@ -169,8 +165,7 @@ fn next_positions(
 
 fn next_next_positions(
     mate_positions: &mut Vec<PositionAux>,
-    memo: &mut Memo,
-    memo_next: &mut Memo,
+    memo_white_turn: &mut Memo,
     positions: &mut Vec<Position>,
     step: u16,
     stone: &Option<BitBoard>,
@@ -183,9 +178,12 @@ fn next_next_positions(
         let mut movements = vec![];
         let is_mate = advance_aux(
             &mut position,
-            memo_next,
+            &mut MemoStub,
             step + 1,
-            &Default::default(),
+            &AdvanceOptions {
+                no_memo: true,
+                ..Default::default()
+            },
             &mut movements,
         )
         .unwrap();
@@ -205,7 +203,7 @@ fn next_next_positions(
             let mut movements = vec![];
             advance_aux(
                 &mut position,
-                memo,
+                memo_white_turn,
                 step + 2,
                 &Default::default(),
                 &mut movements,
