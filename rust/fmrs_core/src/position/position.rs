@@ -545,6 +545,23 @@ impl PositionAux {
         self.core.undo_digest(token) ^ self.stone_digest
     }
 
+    pub fn is_illegal_initial_position(&self) -> bool {
+        for c in Color::iter() {
+            let pawns = self.bitboard(c, Kind::Pawn).u128();
+            for i in 0..9 {
+                if (pawns >> i * 9 & 0x1FF).count_ones() > 1 {
+                    return true;
+                }
+            }
+            for k in [Kind::Pawn, Kind::Lance, Kind::Knight] {
+                if !(k.unmovable_bb(c) & self.bitboard(c, k)).is_empty() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     // TODO: remember attackers
 }
 

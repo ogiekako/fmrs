@@ -54,12 +54,17 @@ impl Solver {
             return Err("both checked".to_string());
         }
 
+        if position.is_illegal_initial_position() {
+            return Err("Illegal initial position".to_string());
+        }
+
         let inner: Box<dyn SolverTrait> = match algo {
-            Algorithm::Standard => Box::new(StandardSolver::new(
-                position.clone(),
-                solutions_upto as usize,
-                true,
-            )),
+            Algorithm::Standard => {
+                match StandardSolver::new(position.clone(), solutions_upto as usize, false) {
+                    Ok(x) => Box::new(x),
+                    Err(x) => return Err(x.to_string()),
+                }
+            }
             Algorithm::Parallel => Box::new(ParallelSolver::new(
                 position.clone(),
                 solutions_upto as usize,

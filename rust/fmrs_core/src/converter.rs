@@ -246,7 +246,7 @@ mod tests {
     }
 
     fn solve(position: PositionAux, solutions_upto: usize) -> anyhow::Result<Vec<Solution>> {
-        let mut solver = StandardSolver::new(position, solutions_upto, false);
+        let mut solver = StandardSolver::new(position, solutions_upto, false)?;
         loop {
             let status = solver.advance()?;
             match status {

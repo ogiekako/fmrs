@@ -172,10 +172,10 @@ impl Kind {
 
     pub(crate) fn unmovable_bb(&self, color: Color) -> BitBoard {
         match (self, color) {
-            (Pawn | Lance, Color::BLACK) => BitBoard::COL1,
-            (Knight, Color::BLACK) => BitBoard::COL1 | BitBoard::COL2,
-            (Pawn | Lance, Color::WHITE) => BitBoard::COL9,
-            (Knight, Color::WHITE) => BitBoard::COL8 | BitBoard::COL9,
+            (Pawn | Lance, Color::BLACK) => BitBoard::ROW1,
+            (Knight, Color::BLACK) => BitBoard::ROW1 | BitBoard::ROW2,
+            (Pawn | Lance, Color::WHITE) => BitBoard::ROW9,
+            (Knight, Color::WHITE) => BitBoard::ROW8 | BitBoard::ROW9,
             _ => BitBoard::EMPTY,
         }
     }

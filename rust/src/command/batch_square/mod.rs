@@ -3,13 +3,16 @@ pub mod frame;
 pub mod mate;
 pub mod room;
 
-use std::{path::PathBuf, sync::Mutex};
+use std::{collections::HashSet, path::PathBuf, sync::Mutex};
 
 use fmrs_core::{
-    nohash::NoHashSet64, piece::Kind, position::position::PositionAux,
-    search::backward::backward_search, solve::standard_solve::standard_solve,
+    nohash::NoHashSet64,
+    piece::{Color, Kind, KINDS, NUM_HAND_KIND},
+    position::{position::PositionAux, Hands},
+    search::backward::backward_search,
+    solve::standard_solve::standard_solve,
 };
-use frame::FrameFilter;
+use frame::{Frame, FrameFilter};
 use log::info;
 use mate::MateFilter;
 // use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
@@ -26,17 +29,17 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
             frame_filter: FrameFilter {
                 room_filter: RoomFilter {
                     width: vec![5],
-                    height: 2..=6,
+                    height: 2..=3,
                     weakly_decreasing: false,
                     feasible_without_stone: true,
-                    area: Some(20..=20),
+                    area: Some(1..=15),
                 },
                 max_empty_black_pawn_col: Some(1),
                 max_empty_white_pawn_col: Some(2),
             },
-            attackers: vec![Kind::Bishop, Kind::Knight],
+            attackers: vec![Kind::Rook],
             no_redundant: true,
-            no_less_pro_pawn: 2,
+            no_less_pro_pawn: 1,
             max_extra_white_hand_pawn: Some(0),
             skip_known_mates: true,
         }
@@ -48,17 +51,9 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
 
     let mut mates = filter.generate_mates();
 
-    if filter.skip_known_mates && !mates.is_empty() {
-        let known_digests = known_mates()
-            .iter()
-            .map(|position| position.digest())
-            .collect::<NoHashSet64>();
-        info!(
-            "Filtering {} mate positions with {} known mates",
-            mates.len(),
-            known_digests.len()
-        );
-        mates.retain(|position| !known_digests.contains(&position.digest()));
+    if filter.skip_known_mates {
+        info!("Filtering {} mate positions with known mates", mates.len(),);
+        retain_unknown_mates(&mut mates);
     }
     // mates.shuffle(&mut SmallRng::seed_from_u64(20250105));
 
@@ -75,7 +70,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     let all_problems: Mutex<Vec<(u16, Vec<PositionAux>)>> = Mutex::new(vec![]);
     let best_problems = Mutex::new((0, vec![]));
 
-    mates.into_par_iter().for_each(|mate| {
+    mates.into_par_iter().for_each(|(_, mate)| {
         let (step, problems) = backward_search(&mate, true, 0).unwrap();
 
         {
@@ -121,12 +116,39 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn known_mates() -> Vec<PositionAux> {
+fn used_pieces(position: &PositionAux) -> Hands {
+    let mut res = Hands::default();
+    for &k in KINDS[0..NUM_HAND_KIND].iter() {
+        let mut count = 0;
+        for c in Color::iter() {
+            count += position.hands().count(c, k);
+            count += position.bitboard(c, k).count_ones() as usize;
+            if let Some(k) = k.promote() {
+                count += position.bitboard(c, k).count_ones() as usize;
+            }
+        }
+        res.add_n(Color::WHITE, k, count);
+    }
+    res
+}
+
+fn retain_unknown_mates(mates: &mut Vec<(Frame, PositionAux)>) {
     let Ok(files) = std::fs::read_dir(log_dir()) else {
-        return vec![];
+        return;
     };
-    let re = Regex::new(r#""((:?[^/]+/){8}[^/]+ [wb] [^ ]+ -?\d+)""#).unwrap();
+
+    let mut pieces_to_check = HashSet::new();
+    for mate in mates.iter() {
+        pieces_to_check.insert(used_pieces(&mate.1));
+    }
+    let mut frames = HashSet::new();
+    for (frame, _) in mates.iter() {
+        frames.insert(frame.clone());
+    }
+
+    let re = Regex::new(r#""((:?[^/ ]+/){8}[^/ ]+ [wb] [^ ]+ -?\d+)""#).unwrap();
     let mut positions = vec![];
+
     for file in files {
         let Ok(file) = file else { continue };
         if file.path().extension().and_then(|x| x.to_str()) != Some("json") {
@@ -137,6 +159,15 @@ fn known_mates() -> Vec<PositionAux> {
         };
         for cap in re.captures_iter(&content) {
             if let Ok(position) = PositionAux::from_sfen(&cap[1]) {
+                if position.is_illegal_initial_position() {
+                    continue;
+                }
+                if !pieces_to_check.contains(&used_pieces(&position)) {
+                    continue;
+                }
+                if frames.iter().any(|frame| !frame.matches(&position)) {
+                    continue;
+                }
                 positions.push(position);
             }
         }
@@ -144,7 +175,10 @@ fn known_mates() -> Vec<PositionAux> {
     positions.sort_by_key(|position| position.digest());
     positions.dedup();
 
-    positions
+    let iter = Mutex::new(0);
+    let total_len = positions.len();
+
+    let known_mate_digests: NoHashSet64 = positions
         .into_par_iter()
         .filter_map(|mut position| {
             let Ok(mut solutions) = standard_solve(position.clone(), 1, true) else {
@@ -156,9 +190,20 @@ fn known_mates() -> Vec<PositionAux> {
             for m in solutions.remove(0) {
                 position.do_move(&m);
             }
-            Some(position)
+
+            {
+                let mut i = iter.lock().unwrap();
+                *i += 1;
+                if *i % 100 == 0 {
+                    info!("known {}/{}", *i, total_len);
+                }
+            }
+
+            Some(position.digest())
         })
-        .collect()
+        .collect();
+
+    mates.retain(|(_, position)| !known_mate_digests.contains(&position.digest()));
 }
 
 fn log_dir() -> PathBuf {

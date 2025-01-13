@@ -10,6 +10,9 @@ pub(crate) fn parallel_solve(
     solutions_upto: usize,
     start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
+    if position.is_illegal_initial_position() {
+        anyhow::bail!("Illegal initial position");
+    }
     let mut solver = ParallelSolver::new(position, solutions_upto);
     loop {
         let status = solver.advance()?;

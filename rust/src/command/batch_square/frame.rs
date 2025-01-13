@@ -1,12 +1,12 @@
 use fmrs_core::{
     piece::{Color, Kind},
-    position::{position::PositionAux, Square},
+    position::{position::PositionAux, BitBoard, Square},
 };
 use serde::{Deserialize, Serialize};
 
 use super::room::{Room, RoomFilter};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Frame {
     pub(super) room: Room,
     pub(super) white_pawn: u16,
@@ -46,6 +46,26 @@ impl Frame {
 
     pub(super) fn black_pawn_row(col: usize) -> Square {
         Square::new(col, 1)
+    }
+
+    pub(crate) fn matches(&self, position: &PositionAux) -> bool {
+        if position.stone() != &Some(self.room.stone()) {
+            return false;
+        }
+        if (position.bitboard(Color::WHITE, Kind::Pawn) & BitBoard::ROW1)
+            .fold(0, |acc, s| acc | 1 << s.col())
+            != self.white_pawn
+        {
+            return false;
+        }
+        if (position.bitboard(Color::BLACK, Kind::Pawn) & BitBoard::ROW2)
+            .fold(0, |acc, s| acc | 1 << s.col())
+            != self.black_pawn
+        {
+            return false;
+        }
+
+        true
     }
 }
 

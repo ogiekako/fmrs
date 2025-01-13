@@ -30,7 +30,7 @@ pub(super) struct MateFilter {
 impl MateFilter {
     const MAX_WHITE_HAND_PAWNS: usize = 7;
 
-    pub(crate) fn generate_mates(&self) -> Vec<PositionAux> {
+    pub(crate) fn generate_mates(&self) -> Vec<(Frame, PositionAux)> {
         let rooms = self.frame_filter.room_filter.generate_rooms();
 
         info!("rooms: {}", rooms.len());
@@ -92,7 +92,7 @@ impl MateFilter {
                         position.do_move(&m);
                     }
                     if self.is_good_mate(&position) {
-                        good_mates.insert(digest, position);
+                        good_mates.insert(digest, (frame_position.frame, position));
                         0
                     } else {
                         1
@@ -111,15 +111,15 @@ impl MateFilter {
                 good_mates.into_values()
             })
             .collect::<Vec<_>>();
-        mates.sort_by_key(|p| p.digest());
+        mates.sort_by_key(|(_, p)| p.digest());
         mates.dedup();
 
         if let Some(max_extra_white_hand_pawn) = self.max_extra_white_hand_pawn {
             let mut mate_set = NoHashMap64::default();
-            mates.iter().for_each(|p| {
-                mate_set.insert(p.digest(), p);
+            mates.iter().for_each(|(f, p)| {
+                mate_set.insert(p.digest(), (f, p));
             });
-            for p in mates.iter() {
+            for (_, p) in mates.iter() {
                 let n = p.hands().count(Color::WHITE, Kind::Pawn);
                 for c in 0..n.saturating_sub(max_extra_white_hand_pawn as usize) {
                     let mut np = p.clone();
@@ -130,8 +130,11 @@ impl MateFilter {
                     }
                 }
             }
-            mates = mate_set.into_values().cloned().collect();
-            mates.sort_by_key(|p| p.digest());
+            mates = mate_set
+                .into_values()
+                .map(|(f, p)| (f.clone(), p.clone()))
+                .collect();
+            mates.sort_by_key(|(_, p)| p.digest());
         }
 
         mates

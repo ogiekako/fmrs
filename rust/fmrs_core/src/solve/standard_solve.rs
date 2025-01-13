@@ -5,6 +5,7 @@ use crate::position::position::PositionAux;
 use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt};
 
 use super::{reconstruct_solutions, Solution};
+use anyhow::bail;
 use log::info;
 
 pub fn standard_solve(
@@ -12,7 +13,7 @@ pub fn standard_solve(
     solutions_upto: usize,
     silent: bool,
 ) -> anyhow::Result<Vec<Solution>> {
-    let mut solver = StandardSolver::new(position, solutions_upto, silent);
+    let mut solver = StandardSolver::new(position, solutions_upto, silent)?;
     loop {
         let status = solver.advance()?;
         match status {
@@ -42,7 +43,11 @@ pub enum SolverStatus {
 }
 
 impl StandardSolver {
-    pub fn new(position: PositionAux, solutions_upto: usize, silent: bool) -> Self {
+    pub fn new(position: PositionAux, solutions_upto: usize, silent: bool) -> anyhow::Result<Self> {
+        if position.is_illegal_initial_position() {
+            bail!("Illegal initial position");
+        }
+
         let initial_position = position.clone();
 
         let mut memo = Memo::default();
@@ -68,7 +73,7 @@ impl StandardSolver {
             step += 1;
         }
 
-        Self {
+        Ok(Self {
             initial_position,
             solutions_upto,
             step,
@@ -77,7 +82,7 @@ impl StandardSolver {
             memo_white_turn: memo,
             stone,
             silent,
-        }
+        })
     }
 
     pub fn advance(&mut self) -> anyhow::Result<SolverStatus> {

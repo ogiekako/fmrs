@@ -3,10 +3,10 @@ use std::sync::Mutex;
 use anyhow::anyhow;
 use rayon::prelude::*;
 
-use crate::memo::DashMemo;
+use crate::memo::{DashMemo, MemoStub};
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
-use crate::position::{BitBoard, Position, PositionExt as _};
+use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt as _};
 
 use super::{reconstruct_solutions, SolverStatus};
 
@@ -16,8 +16,7 @@ pub struct ParallelSolver {
     step: u16,
     positions: Vec<Position>,
     mate_positions: Mutex<Vec<PositionAux>>,
-    memo: DashMemo,
-    memo_next: DashMemo,
+    memo_white_turn: DashMemo,
     stone: Option<BitBoard>,
 }
 
@@ -46,8 +45,7 @@ impl ParallelSolver {
             step,
             positions,
             mate_positions,
-            memo,
-            memo_next,
+            memo_white_turn: memo,
             stone,
         }
     }
@@ -59,8 +57,7 @@ impl ParallelSolver {
 
         next_next_positions(
             &self.mate_positions,
-            &mut self.memo,
-            &mut self.memo_next,
+            &mut self.memo_white_turn,
             &mut self.positions,
             self.step,
             &self.stone,
@@ -76,7 +73,7 @@ impl ParallelSolver {
                 res.append(&mut reconstruct_solutions(
                     self.initial_position_digest,
                     mate_position,
-                    &self.memo.as_mut(),
+                    &self.memo_white_turn.as_mut(),
                     self.solutions_upto - res.len(),
                 ));
             }
@@ -124,8 +121,7 @@ fn next_positions(
 
 fn next_next_positions(
     mate_positions: &Mutex<Vec<PositionAux>>,
-    memo: &mut DashMemo,
-    memo_next: &mut DashMemo,
+    memo_white_turn: &mut DashMemo,
     positions: &mut Vec<Position>,
     step: u16,
     stone: &Option<BitBoard>,
@@ -137,9 +133,12 @@ fn next_next_positions(
             let mut movements = vec![];
             let is_mate = advance_aux(
                 &mut position,
-                &mut memo_next.as_mut(),
+                &mut MemoStub,
                 step + 1,
-                &Default::default(),
+                &AdvanceOptions {
+                    no_memo: true,
+                    ..Default::default()
+                },
                 &mut movements,
             )
             .unwrap();
@@ -158,7 +157,7 @@ fn next_next_positions(
                 let mut nnp = PositionAux::new(np.clone(), *stone);
                 advance_aux(
                     &mut nnp,
-                    &mut memo.as_mut(),
+                    &mut memo_white_turn.as_mut(),
                     step + 2,
                     &Default::default(),
                     &mut movements,

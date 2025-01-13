@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::csp::Constraint;
 
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Default, Hash)]
 pub(super) struct Room {
     heights: Vec<u8>,
 }

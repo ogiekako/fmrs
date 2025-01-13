@@ -6,39 +6,39 @@ use super::square::Square;
 pub struct BitBoard(u128);
 
 impl BitBoard {
-    pub const UPPER: BitBoard = BitBoard::COL1;
-    pub const LOWER: BitBoard = BitBoard::COL9;
+    pub const UPPER: BitBoard = BitBoard::ROW1;
+    pub const LOWER: BitBoard = BitBoard::ROW9;
 
     pub const BLACK_PROMOTABLE: BitBoard =
-        Self::from_u128(Self::COL1.u128() | Self::COL2.u128() | Self::COL3.u128());
+        Self::from_u128(Self::ROW1.u128() | Self::ROW2.u128() | Self::ROW3.u128());
     pub const WHITE_PROMOTABLE: BitBoard =
-        Self::from_u128(Self::COL7.u128() | Self::COL8.u128() | Self::COL9.u128());
+        Self::from_u128(Self::ROW7.u128() | Self::ROW8.u128() | Self::ROW9.u128());
 
-    pub const COL1: BitBoard = BitBoard::from_u128(
+    pub const ROW1: BitBoard = BitBoard::from_u128(
         0b000000001000000001000000001000000001000000001000000001000000001000000001000000001u128,
     );
-    pub const COL2: BitBoard = BitBoard::from_u128(
+    pub const ROW2: BitBoard = BitBoard::from_u128(
         0b000000010000000010000000010000000010000000010000000010000000010000000010000000010u128,
     );
-    pub const COL3: BitBoard = BitBoard::from_u128(
+    pub const ROW3: BitBoard = BitBoard::from_u128(
         0b000000100000000100000000100000000100000000100000000100000000100000000100000000100u128,
     );
-    pub const COL4: BitBoard = BitBoard::from_u128(
+    pub const ROW4: BitBoard = BitBoard::from_u128(
         0b000001000000001000000001000000001000000001000000001000000001000000001000000001000u128,
     );
-    pub const COL5: BitBoard = BitBoard::from_u128(
+    pub const ROW5: BitBoard = BitBoard::from_u128(
         0b000010000000010000000010000000010000000010000000010000000010000000010000000010000u128,
     );
-    pub const COL6: BitBoard = BitBoard::from_u128(
+    pub const ROW6: BitBoard = BitBoard::from_u128(
         0b000100000000100000000100000000100000000100000000100000000100000000100000000100000u128,
     );
-    pub const COL7: BitBoard = BitBoard::from_u128(
+    pub const ROW7: BitBoard = BitBoard::from_u128(
         0b001000000001000000001000000001000000001000000001000000001000000001000000001000000u128,
     );
-    pub const COL8: BitBoard = BitBoard::from_u128(
+    pub const ROW8: BitBoard = BitBoard::from_u128(
         0b010000000010000000010000000010000000010000000010000000010000000010000000010000000u128,
     );
-    pub const COL9: BitBoard = BitBoard::from_u128(
+    pub const ROW9: BitBoard = BitBoard::from_u128(
         0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
     );
     pub const FULL: BitBoard = BitBoard::from_u128(
