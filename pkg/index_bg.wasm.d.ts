@@ -1,6 +1,11 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_backwardsearch_free: (a: number, b: number) => void;
+export const backwardsearch_new: (a: number, b: number) => number;
+export const backwardsearch_advance: (a: number) => number;
+export const backwardsearch_step: (a: number) => number;
+export const backwardsearch_sfen: (a: number) => [number, number];
 export const __wbg_solver_free: (a: number, b: number) => void;
 export const solver_new: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const solver_advance: (a: number) => [number, number, number];
@@ -11,11 +16,6 @@ export const solver_solutions_kif: (a: number) => [number, number];
 export const solver_solutions_count: (a: number) => number;
 export const solver_redundant: (a: number) => number;
 export const solver_is_from_white: (a: number) => number;
-export const __wbg_backwardsearch_free: (a: number, b: number) => void;
-export const backwardsearch_new: (a: number, b: number) => number;
-export const backwardsearch_advance: (a: number) => number;
-export const backwardsearch_step: (a: number) => number;
-export const backwardsearch_sfen: (a: number) => [number, number];
 export const greet: () => void;
 export const display_single_compactmove: (a: number, b: number, c: number) => number;
 export const display_single_compactmove_kansuji: (a: number, b: number, c: number) => number;
