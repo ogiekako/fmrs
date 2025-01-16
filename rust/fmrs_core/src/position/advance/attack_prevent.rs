@@ -288,7 +288,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 }
                 let source_kind = self.position.must_get_kind(source_pos);
                 for promote in [false, true] {
-                    if promote && !source_kind.is_promotable() {
+                    if promote && !source_kind.can_promote() {
                         continue;
                     }
                     if !is_legal_move(self.position.turn(), source_pos, dest, source_kind, promote)

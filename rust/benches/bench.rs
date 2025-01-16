@@ -177,7 +177,7 @@ fn random_positions_with_filter<F: Fn(&mut Position) -> bool>(
                 }
             }
 
-            if rng.gen() && k.is_promotable() {
+            if rng.gen() && k.can_promote() {
                 position.set(pos, c, k.promote().unwrap());
             } else {
                 position.set(pos, c, k);

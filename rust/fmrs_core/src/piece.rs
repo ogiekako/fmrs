@@ -144,7 +144,7 @@ impl Kind {
     pub fn is_hand_piece(self) -> bool {
         self.index() < NUM_HAND_KIND
     }
-    pub fn is_promotable(self) -> bool {
+    pub fn can_promote(self) -> bool {
         self.is_hand_piece() && self != Gold
     }
 

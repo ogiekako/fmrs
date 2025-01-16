@@ -1,5 +1,5 @@
 use crate::memo::MemoTrait;
-use crate::position::bitboard::{king_power, lion_king_power, power, reachable_sub};
+use crate::position::bitboard::{king_power, lion_king_power, power, reachable, reachable_sub};
 use crate::position::position::PositionAux;
 use crate::position::rule::is_legal_move;
 use anyhow::Result;
@@ -190,6 +190,8 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
     // #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
+        let white_king_pos = self.position.white_king_pos();
+
         for attacker_source_kind in [
             Kind::Lance,
             Kind::Knight,
@@ -202,48 +204,41 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             if attackers.is_empty() {
                 continue;
             }
+            let promoted_kind = attacker_source_kind.promote();
+            let no_promotion_dest_cands = reachable(
+                self.position,
+                Color::WHITE,
+                white_king_pos,
+                attacker_source_kind,
+                true,
+            );
+            let promotion_dest_cands = promoted_kind
+                .map(|k| reachable(self.position, Color::WHITE, white_king_pos, k, true));
 
             for attacker_pos in attackers {
                 let attacker_reachable =
                     self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
-                        bitboard::reachable(
+                        bitboard::reachable_sub(
                             self.position,
                             Color::BLACK,
                             attacker_pos,
                             attacker_source_kind,
-                            false,
                         )
                     });
 
-                for promote in [false, true] {
-                    let attacker_dest_kind = if promote {
-                        let Some(k) = attacker_source_kind.promote() else {
-                            continue;
-                        };
-                        k
-                    } else {
-                        attacker_source_kind
-                    };
-
-                    let mut attack_squares = self
-                        .position
-                        .white_king_attack_squares(attacker_dest_kind)
-                        .and_not(self.position.color_bb_and_stone(Color::BLACK));
-
-                    if promote && !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
-                        attack_squares &= BitBoard::BLACK_PROMOTABLE;
+                for dest in attacker_reachable & no_promotion_dest_cands {
+                    self.maybe_add_move(
+                        Movement::move_without_hint(attacker_pos, dest, false),
+                        attacker_source_kind,
+                    )?;
+                }
+                if let Some(mut dest_cands) = promotion_dest_cands {
+                    if !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
+                        dest_cands &= BitBoard::BLACK_PROMOTABLE;
                     }
-
-                    for dest in attacker_reachable & attack_squares {
-                        let capture_kind = self.position.get_kind(dest);
+                    for dest in attacker_reachable & dest_cands {
                         self.maybe_add_move(
-                            Movement::move_with_hint(
-                                attacker_pos,
-                                attacker_source_kind,
-                                dest,
-                                promote,
-                                capture_kind,
-                            ),
+                            Movement::move_without_hint(attacker_pos, dest, true),
                             attacker_source_kind,
                         )?;
                     }
@@ -272,7 +267,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 blocker_dest_cands &= area;
             }
 
-            let maybe_promotable = blocker_kind.is_promotable();
+            let maybe_promotable = blocker_kind.can_promote();
             for blocker_dest in blocker_dest_cands {
                 for promote in [false, true] {
                     if promote && !maybe_promotable {
