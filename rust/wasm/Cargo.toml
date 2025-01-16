@@ -21,7 +21,6 @@ wasm-bindgen = "*"
 console_error_panic_hook = { version = "0.1.6", optional = true }
 
 anyhow = "*"
-serde_json = "*"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

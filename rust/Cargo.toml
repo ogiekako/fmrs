@@ -19,20 +19,14 @@ members = ["wasm", "fmrs_core"]
 
 [dependencies]
 fmrs_core = { path = "./fmrs_core" }
-lazy_static = "*"
 
 serde = { version = "*", features = ["derive"] }
-serde_yaml = "*"
-bincode = "*"
 
 rand = { version = "*", features = ["small_rng"] }
-sled = { version = "*" } # default-features = false
-percent-encoding = "*"
 anyhow = "*"
 clap = { version = "*", features = ["derive"] }
 actix-web = "*"
 serde_json = "*"
-serde_repr = "*"
 futures = "*"
 actix-files = "*"
 pprof = { version = "*", features = [
@@ -41,8 +35,6 @@ pprof = { version = "*", features = [
     "_protobuf",
     "protobuf-codec",
 ] }
-sysinfo = "*"
-tempfile = "*"
 log = "*"
 env_logger = "*"
 rayon = "*"
