@@ -39,8 +39,8 @@ log = "*"
 env_logger = "*"
 rayon = "*"
 rustc-hash = "*"
-url = "2"
-regex = "1.11.1"
+url = "*"
+regex = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"

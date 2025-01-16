@@ -15,8 +15,8 @@ url = "*"
 log = "*"
 pretty_assertions = "*"
 dashmap = "*"
-shogi-kifu-converter = "0.2.2"
-rayon = "1.10.0"
+shogi-kifu-converter = "0.2"
+rayon = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"
