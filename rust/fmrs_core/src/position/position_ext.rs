@@ -37,7 +37,7 @@ impl PositionExt for Position {
         match *m {
             Movement::Drop(pos, k) => {
                 self.hands_mut().remove(color, k);
-                self.set(pos, color, k);
+                self.set(pos, (color, k).into());
                 self.set_pawn_drop(k == Kind::Pawn);
             }
             Movement::Move {
@@ -53,7 +53,7 @@ impl PositionExt for Position {
                     self.kind_bb().must_get(source)
                 };
 
-                self.unset(source, color, kind);
+                self.unset(source, (color, kind).into());
 
                 let capture = if let Some(capture) = capture_kind_hint {
                     capture
@@ -62,13 +62,13 @@ impl PositionExt for Position {
                 };
 
                 if let Some(capture) = capture {
-                    self.unset(dest, color.opposite(), capture);
+                    self.unset(dest, (color.opposite(), capture).into());
                     self.hands_mut().add(color, capture.maybe_unpromote());
                 }
                 if promote {
-                    self.set(dest, color, kind.promote().unwrap());
+                    self.set(dest, (color, kind.promote().unwrap()).into());
                 } else {
-                    self.set(dest, color, kind);
+                    self.set(dest, (color, kind).into());
                 }
                 self.set_pawn_drop(false);
             }
@@ -84,7 +84,7 @@ impl PositionExt for Position {
         match *token {
             UnDrop(pos, pawn_drop) => {
                 let k = self.kind_bb().must_get(pos);
-                self.unset(pos, prev_turn, k);
+                self.unset(pos, (prev_turn, k).into());
                 self.hands_mut().add(prev_turn, k.maybe_unpromote());
                 self.set_pawn_drop(pawn_drop);
                 Movement::Drop(pos, k.maybe_unpromote())
@@ -97,12 +97,12 @@ impl PositionExt for Position {
                 pawn_drop,
             } => {
                 let k = self.kind_bb().must_get(to);
-                self.unset(to, prev_turn, k);
+                self.unset(to, (prev_turn, k).into());
                 debug_assert_eq!(None, self.get(from));
                 let prev_k = if promote { k.unpromote().unwrap() } else { k };
-                self.set(from, prev_turn, prev_k);
+                self.set(from, (prev_turn, prev_k).into());
                 if let Some(captured_k) = capture {
-                    self.set(to, prev_turn.opposite(), captured_k);
+                    self.set(to, (prev_turn.opposite(), captured_k).into());
                     self.hands_mut()
                         .remove(prev_turn, captured_k.maybe_unpromote());
                 }

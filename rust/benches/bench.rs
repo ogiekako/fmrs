@@ -9,6 +9,7 @@ use fmrs_core::position::advance::advance::advance_aux;
 use fmrs_core::position::advance::attack_prevent::attacker;
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
+use fmrs_core::position::controller::PositionController;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
 use fmrs_core::sfen::decode_position;
@@ -178,9 +179,9 @@ fn random_positions_with_filter<F: Fn(&mut Position) -> bool>(
             }
 
             if rng.gen() && k.can_promote() {
-                position.set(pos, c, k.promote().unwrap());
+                position.set(pos, (c, k.promote().unwrap()).into());
             } else {
-                position.set(pos, c, k);
+                position.set(pos, (c, k).into());
             }
             pieces[i] -= 1;
             remaining -= 1;
@@ -200,8 +201,8 @@ fn bench_reachable(c: &mut Criterion) {
     for position in positions {
         let (color, pos, kind) = loop {
             let pos: Square = rng.gen();
-            if let Some((color, kind)) = position.get(pos) {
-                break (color, pos, kind);
+            if let Some(p) = position.get(pos) {
+                break (p.color(), pos, p.kind());
             }
         };
         let capture_same_color: bool = rng.gen();
@@ -237,19 +238,16 @@ fn bench_attacker(c: &mut Criterion) {
     });
     let mut test_cases = vec![];
     for position in positions {
-        test_cases.push(PositionAux::new(position, None));
+        test_cases.push(PositionController::new(position, None));
     }
 
     c.bench_function("attacker", |b| {
-        b.iter_with_setup(
-            || test_cases.clone(),
-            |mut test_cases| {
-                test_cases.iter_mut().for_each(|position| {
-                    attacker(position, Color::WHITE, false);
-                    attacker(position, Color::WHITE, true);
-                })
-            },
-        )
+        b.iter(|| {
+            test_cases.iter_mut().for_each(|controller| {
+                attacker(controller, Color::WHITE, false);
+                attacker(controller, Color::WHITE, true);
+            })
+        })
     });
 }
 
@@ -261,13 +259,12 @@ fn bench_pinned300(c: &mut Criterion) {
     for position in positions {
         let king_color: Color = rng.gen();
 
-        let mut position_aux = PositionAux::new(position.clone(), None);
-        if checked(&mut position_aux, king_color) {
+        let mut controller = PositionController::new(position.clone(), None);
+        if checked(&mut controller, king_color) {
             continue;
         }
 
-        let blocker_color: Color = rng.gen();
-        test_cases.push((position_aux, king_color, blocker_color));
+        test_cases.push((PositionController::new(position, None), king_color));
         if test_cases.len() >= 300 {
             break;
         }
@@ -275,17 +272,12 @@ fn bench_pinned300(c: &mut Criterion) {
     assert_eq!(300, test_cases.len());
 
     c.bench_function("pinned300", |b| {
-        b.iter_with_setup(
-            || test_cases.clone(),
-            |mut test_cases| {
-                test_cases
-                    .iter_mut()
-                    .for_each(|(position, king_color, blocker_color)| {
-                        let pinned = pinned(position, *king_color, *blocker_color);
-                        black_box(pinned);
-                    });
-            },
-        )
+        b.iter(|| {
+            test_cases.iter_mut().for_each(|(position, king_color)| {
+                let pinned = pinned(position, *king_color);
+                black_box(pinned);
+            });
+        })
     });
 }
 

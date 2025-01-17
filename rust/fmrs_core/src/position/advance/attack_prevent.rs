@@ -1,12 +1,14 @@
 use crate::{
     memo::MemoTrait,
+    piece::KindEffect,
     position::{
         bitboard::{
-            king_then_king_or_night_power, knight_power, lance_reachable,
+            king_then_king_or_night_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
+            reachable_cont,
         },
         checked,
-        position::PositionAux,
+        controller::PositionController,
         rule::{is_legal_drop, is_legal_move},
     },
 };
@@ -28,7 +30,7 @@ use super::{
 
 // #[inline(never)]
 pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
-    position: &'a mut PositionAux,
+    controller: &'a mut PositionController,
     memo: &'a mut M,
     next_step: u16,
     should_return_check: bool,
@@ -37,7 +39,7 @@ pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
     result: &'a mut Vec<Movement>,
 ) -> Result</* is legal mate */ bool> {
     let mut ctx = Context::new(
-        position,
+        controller,
         memo,
         next_step,
         should_return_check,
@@ -46,17 +48,17 @@ pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
         result,
     )?;
     ctx.advance()?;
-    Ok(ctx.is_mate && !position.pawn_drop())
+    Ok(ctx.is_mate && !controller.pawn_drop())
 }
 
 struct Context<'a, M: MemoTrait> {
-    position: &'a mut PositionAux,
+    controller: &'a mut PositionController,
     occupied_without_king: BitBoard,
     pinned: Pinned,
     attacker: Attacker,
-    pawn_mask: Option<usize>,
     next_step: u16,
     should_return_check: bool,
+    orig_result_len: usize,
     // Mutable fields
     memo: &'a mut M,
     result: &'a mut Vec<Movement>,
@@ -69,7 +71,7 @@ struct Context<'a, M: MemoTrait> {
 impl<'a, M: MemoTrait> Context<'a, M> {
     // #[inline(never)]
     fn new(
-        position: &'a mut PositionAux,
+        controller: &'a mut PositionController,
         memo: &'a mut M,
         next_step: u16,
         should_return_check: bool,
@@ -77,40 +79,30 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         attacker_hint: Option<Attacker>,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
-        let turn = position.turn();
+        let turn = controller.turn();
         let attacker = match attacker_hint {
             Some(attacker) => attacker,
-            None => attacker(position, turn, false)
+            None => attacker(controller, turn, false)
                 .ok_or_else(|| anyhow::anyhow!("No attacker found"))?,
         };
-        let pinned = pinned(position, turn, turn);
+        let pinned = pinned(controller, turn);
 
-        let mut occupied_without_king = position.occupied_bb();
-        occupied_without_king.unset(position.must_king_pos(turn));
+        let mut occupied_without_king = controller.occupied_bb();
+        occupied_without_king.unset(controller.must_king_pos(turn));
 
         Ok(Self {
-            position,
+            controller,
             occupied_without_king,
             pinned,
             attacker,
-            pawn_mask: None, // TODO: move to PositionAux
             next_step,
             should_return_check,
+            orig_result_len: result.len(),
             memo,
             result,
             is_mate: true,
             num_branches_without_pawn_drop: 0,
             options,
-        })
-    }
-
-    fn pawn_mask(&mut self) -> usize {
-        *self.pawn_mask.get_or_insert_with(|| {
-            let mut mask = Default::default();
-            for pos in self.position.bitboard(self.position.turn(), Kind::Pawn) {
-                mask |= 1 << pos.col()
-            }
-            mask
         })
     }
 
@@ -128,7 +120,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
     // #[inline(never)]
     fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> Result<()> {
-        if attacker_kind.is_line_piece() {
+        if attacker_kind.is_slider() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
             for dest in blockable {
                 self.add_movements_to(dest, true)?;
@@ -144,21 +136,21 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
     // #[inline(never)]
     fn king_move(&mut self) -> Result<()> {
-        let king_color = self.position.turn();
+        let king_color = self.controller.turn();
         let attacker_color = king_color.opposite();
-        let attacker_color_bb = self.position.capturable_by(king_color);
+        let attacker_color_bb = self.controller.capturable_by(king_color);
 
-        let mut king_reachable = king_power(self.position.must_turn_king_pos())
-            .and_not(self.position.color_bb_and_stone(king_color));
+        let mut king_reachable = king_power(self.controller.must_turn_king_pos())
+            .and_not(self.controller.color_bb_and_stone(king_color));
         if king_reachable.is_empty() {
             return Ok(());
         }
         let mut seen_cands = BitBoard::default();
         let non_line_cands =
-            king_then_king_or_night_power(king_color, self.position.must_turn_king_pos())
+            king_then_king_or_night_power(king_color, self.controller.must_turn_king_pos())
                 & attacker_color_bb;
         for attacker_pos in non_line_cands {
-            let attacker_kind = self.position.must_get_kind(attacker_pos);
+            let attacker_kind = self.controller.must_get_kind(attacker_pos);
             let attacker_reach = match attacker_kind {
                 Kind::Lance | Kind::Bishop | Kind::Rook => continue,
                 Kind::ProBishop | Kind::ProRook => king_power(attacker_pos),
@@ -174,9 +166,9 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             }
         }
 
-        let lances = self.position.bitboard(attacker_color, Kind::Lance);
-        let bishipish = self.position.bishopish() & attacker_color_bb;
-        let rookish = self.position.rookish() & attacker_color_bb;
+        let lances = self.controller.bitboard(attacker_color, Kind::Lance);
+        let bishipish = self.controller.bishopish() & attacker_color_bb;
+        let rookish = self.controller.rookish() & attacker_color_bb;
 
         for dest in king_reachable {
             if !lances.is_empty() {
@@ -200,8 +192,8 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 }
             }
 
-            let capture_kind = self.position.get_kind(dest);
-            let king_pos = self.position.must_turn_king_pos();
+            let capture_kind = self.controller.get_kind(dest);
+            let king_pos = self.controller.must_turn_king_pos();
             self.maybe_add_move(
                 Movement::move_with_hint(king_pos, Kind::King, dest, false, capture_kind),
                 Kind::King,
@@ -213,9 +205,11 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> Result<()> {
         // Drop
         if include_drop {
-            for kind in self.position.hands().kinds(self.position.turn()) {
-                let pawn_mask = (kind == Kind::Pawn).then(|| self.pawn_mask()).unwrap_or(0);
-                if is_legal_drop(self.position.turn(), dest, kind, pawn_mask) {
+            for kind in self.controller.hands().kinds(self.controller.turn()) {
+                let pawn_mask = (kind == Kind::Pawn)
+                    .then(|| self.controller.pawn_mask(self.controller.turn()))
+                    .unwrap_or(0);
+                if is_legal_drop(self.controller.turn(), dest, kind, pawn_mask) {
                     self.maybe_add_move(Movement::Drop(dest, kind), kind)?;
                 }
             }
@@ -224,28 +218,34 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         let capture_kind = if include_drop {
             None
         } else {
-            self.position.get_kind(dest)
+            self.controller.get_kind(dest)
         };
 
         // Move
-        let around_dest =
-            king_power(dest) & self.position.capturable_by(self.position.turn().opposite());
+        let around_dest = king_power(dest)
+            & self
+                .controller
+                .capturable_by(self.controller.turn().opposite());
         for source_pos in around_dest {
-            let source_kind = self.position.must_get_kind(source_pos);
+            let source_kind = self.controller.must_get_kind(source_pos);
             if source_kind == Kind::King {
                 continue;
             }
-            let source_power = self
-                .pinned
-                .pinned_area(source_pos)
-                .unwrap_or_else(|| bitboard::power(self.position.turn(), source_pos, source_kind));
+            let source_power = self.pinned.pinned_area(source_pos).unwrap_or_else(|| {
+                bitboard::power(self.controller.turn(), source_pos, source_kind)
+            });
             if source_power.contains(dest) {
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
                         continue;
                     }
-                    if !is_legal_move(self.position.turn(), source_pos, dest, source_kind, promote)
-                    {
+                    if !is_legal_move(
+                        self.controller.turn(),
+                        source_pos,
+                        dest,
+                        source_kind,
+                        promote,
+                    ) {
                         continue;
                     }
                     self.maybe_add_move(
@@ -264,20 +264,24 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
         for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
             let on_board = {
-                let raw_pieces = self.position.bitboard(self.position.turn(), leap_kind);
+                let raw_pieces = self.controller.bitboard(self.controller.turn(), leap_kind);
                 let promoted_kind = leap_kind.promote().unwrap();
-                if promoted_kind.is_line_piece() {
-                    raw_pieces | self.position.bitboard(self.position.turn(), promoted_kind)
+                if promoted_kind.is_slider() {
+                    raw_pieces
+                        | self
+                            .controller
+                            .bitboard(self.controller.turn(), promoted_kind)
                 } else {
                     raw_pieces
                 }
-            };
+            }
+            .and_not(around_dest);
             if on_board.is_empty() {
                 continue;
             }
-            let sources = bitboard::reachable(
-                self.position,
-                self.position.turn().opposite(),
+            let sources = reachable_cont(
+                self.controller,
+                self.controller.turn().opposite(),
                 dest,
                 leap_kind,
                 false,
@@ -286,13 +290,18 @@ impl<'a, M: MemoTrait> Context<'a, M> {
                 if self.pinned.is_unpin_move(source_pos, dest) {
                     continue;
                 }
-                let source_kind = self.position.must_get_kind(source_pos);
+                let source_kind = self.controller.must_get_kind(source_pos);
                 for promote in [false, true] {
                     if promote && !source_kind.can_promote() {
                         continue;
                     }
-                    if !is_legal_move(self.position.turn(), source_pos, dest, source_kind, promote)
-                    {
+                    if !is_legal_move(
+                        self.controller.turn(),
+                        source_pos,
+                        dest,
+                        source_kind,
+                        promote,
+                    ) {
                         continue;
                     }
                     self.maybe_add_move(
@@ -315,10 +324,12 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 // Helper methods
 impl<M: MemoTrait> Context<'_, M> {
     // #[inline(never)]
-    fn is_return_check(&self, movement: &Movement) -> bool {
-        let mut np = self.position.clone();
-        np.do_move(movement);
-        checked(&mut np, self.position.turn().opposite())
+    fn is_return_check(&mut self, movement: &Movement) -> bool {
+        self.controller.push();
+        self.controller.do_move(movement);
+        let res = checked(self.controller, self.controller.turn());
+        self.controller.pop();
+        res
     }
 
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
@@ -326,9 +337,11 @@ impl<M: MemoTrait> Context<'_, M> {
 
         // TODO: check the second attacker
         if !is_king_move && self.attacker.double_check.is_some() {
-            let mut np = self.position.clone();
-            np.do_move(&movement);
-            if checked(&mut np, self.position.turn()) {
+            self.controller.push();
+            self.controller.do_move(&movement);
+            let checked = checked(self.controller, self.controller.turn().opposite());
+            self.controller.pop();
+            if checked {
                 return Ok(());
             }
         }
@@ -346,23 +359,20 @@ impl<M: MemoTrait> Context<'_, M> {
 
         debug_assert!(
             {
-                let mut np = self.position.clone();
-                np.do_move(&movement);
-                !common::checked(&mut np, self.position.turn())
+                self.controller.push();
+                self.controller.do_move(&movement);
+                let res = !common::checked(self.controller, self.controller.turn().opposite());
+                self.controller.pop();
+                res
             },
-            "{:?} king checked: posision={:?} movement={:?} next={:?}",
-            self.position.turn(),
-            self.position,
+            "{:?} king checked: posision={:?} movement={:?}",
+            self.controller.turn(),
+            self.controller,
             movement,
-            {
-                let mut np = self.position.clone();
-                np.do_move(&movement);
-                np
-            }
         );
 
         if !self.options.no_memo {
-            let digest = self.position.moved_digest(&movement);
+            let digest = self.controller.moved_digest(&movement);
 
             if self.options.no_insertion {
                 if self.memo.contains_key(&digest) {
@@ -374,25 +384,30 @@ impl<M: MemoTrait> Context<'_, M> {
             }
         }
 
+        debug_assert!(
+            !self.result[self.orig_result_len..].contains(&movement),
+            "{:?}",
+            movement
+        );
         self.result.push(movement);
 
         Ok(())
     }
 
     fn blockable_squares(&mut self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        let king_pos = self.position.must_turn_king_pos();
+        let king_pos = self.controller.must_turn_king_pos();
         if king_power(king_pos).contains(attacker_pos) {
             return BitBoard::default();
         }
-        bitboard::reachable(
-            self.position,
-            self.position.turn(),
+        reachable_cont(
+            self.controller,
+            self.controller.turn(),
             king_pos,
             attacker_kind.maybe_unpromote(),
             false,
-        ) & bitboard::reachable(
-            self.position,
-            self.position.turn().opposite(),
+        ) & reachable_cont(
+            self.controller,
+            self.controller.turn().opposite(),
             attacker_pos,
             attacker_kind.maybe_unpromote(),
             true,
@@ -418,24 +433,23 @@ impl Attacker {
 }
 
 pub fn attacker(
-    position: &mut PositionAux,
+    controller: &mut PositionController,
     king_color: Color,
     early_return: bool,
 ) -> Option<Attacker> {
     let mut attacker: Option<Attacker> = None;
 
-    let mut opponent_bb = position.capturable_by(king_color);
-    let king_pos = if king_color.is_black() {
-        position.black_king_pos()?
-    } else {
-        position.white_king_pos()
-    };
+    let mut opponent_bb = controller.capturable_by(king_color);
 
-    let king_power_area = (king_power(king_pos) | knight_power(king_color, king_pos)) & opponent_bb;
+    let king_power_area = (controller.king_attack_squares(king_color, KindEffect::King)
+        | controller.king_attack_squares(king_color, KindEffect::Knight))
+        & opponent_bb;
 
     for pos in king_power_area {
-        let kind = position.must_get_kind(pos);
-        if power(king_color, king_pos, kind).contains(pos)
+        let kind = controller.must_get_kind(pos);
+        if controller
+            .king_attack_squares(king_color, kind.effect())
+            .contains(pos)
             && update_attacker(&mut attacker, pos, kind, early_return)
         {
             return attacker;
@@ -445,10 +459,10 @@ pub fn attacker(
 
     // Lance
     let attacking_lances =
-        lance_reachable(position.occupied_bb(), king_color, king_pos) & opponent_bb;
+        controller.king_attack_squares(king_color, KindEffect::Lance) & opponent_bb;
     if !attacking_lances.is_empty() {
         let attacker_pos = attacking_lances.singleton();
-        let kind = position.must_get_kind(attacker_pos);
+        let kind = controller.must_get_kind(attacker_pos);
         if matches!(kind, Kind::Lance | Kind::Rook | Kind::ProRook)
             && update_attacker(&mut attacker, attacker_pos, kind, early_return)
         {
@@ -460,18 +474,18 @@ pub fn attacker(
 
     for bishop in [false, true] {
         let mut attacker_cands = if bishop {
-            position.bishopish()
+            controller.bishopish()
         } else {
-            position.rookish()
+            controller.rookish()
         } & opponent_bb;
 
         if attacker_cands.is_empty() {
             continue;
         }
         attacker_cands &= if bishop {
-            bishop_reachable(position.occupied_bb(), king_pos)
+            controller.king_attack_squares(king_color, KindEffect::Bishop)
         } else {
-            rook_reachable(position.occupied_bb(), king_pos)
+            controller.king_attack_squares(king_color, KindEffect::Rook)
         };
         if attacker_cands.is_empty() {
             continue;
@@ -480,7 +494,7 @@ pub fn attacker(
             if update_attacker(
                 &mut attacker,
                 attacker_pos,
-                position.must_get_kind(attacker_pos),
+                controller.must_get_kind(attacker_pos),
                 early_return,
             ) {
                 return attacker;

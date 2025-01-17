@@ -7,6 +7,7 @@ mod position_ext;
 mod previous;
 mod rule;
 pub mod zobrist;
+pub mod controller;
 
 pub use advance::checked;
 pub use advance::AdvanceOptions;

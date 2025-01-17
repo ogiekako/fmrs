@@ -1,6 +1,6 @@
-use crate::memo::MemoTrait;
 use crate::position::position::PositionAux;
 use crate::position::Movement;
+use crate::{memo::MemoTrait, position::controller::PositionController};
 
 use super::{black, white, AdvanceOptions};
 
@@ -11,11 +11,22 @@ pub fn advance_aux<M: MemoTrait>(
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* is legal mate */ bool> {
-    if position.turn().is_black() {
-        black::advance(position, memo, next_step, options, result)?;
+    let mut controller = PositionController::new(position.core().clone(), *position.stone());
+    advance(&mut controller, memo, next_step, options, result)
+}
+
+pub fn advance<M: MemoTrait>(
+    controller: &mut PositionController,
+    memo: &mut M,
+    next_step: u16,
+    options: &AdvanceOptions,
+    result: &mut Vec<Movement>,
+) -> anyhow::Result<bool> {
+    if controller.turn().is_black() {
+        black::advance(controller, memo, next_step, options, result)?;
         Ok(false)
     } else {
-        white::advance(position, memo, next_step, options, result)
+        white::advance(controller, memo, next_step, options, result)
     }
 }
 

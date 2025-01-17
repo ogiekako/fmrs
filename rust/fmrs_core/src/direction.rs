@@ -17,7 +17,7 @@ impl Direction {
         }
     }
 
-    pub(crate) fn col(&self) -> isize {
+    pub fn col(&self) -> isize {
         match self {
             Direction::Up => 0,
             Direction::Down => 0,
@@ -26,7 +26,7 @@ impl Direction {
         }
     }
 
-    pub(crate) fn row(&self) -> isize {
+    pub fn row(&self) -> isize {
         match self {
             Direction::Up => -1,
             Direction::Down => 1,

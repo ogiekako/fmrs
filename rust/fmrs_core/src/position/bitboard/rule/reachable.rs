@@ -2,6 +2,7 @@ use crate::{
     piece::{Color, Kind},
     position::{
         bitboard::{BitBoard, Square},
+        controller::PositionController,
         position::PositionAux,
     },
 };
@@ -24,7 +25,7 @@ pub fn reachable(
 }
 
 pub fn reachable_core(occupied: BitBoard, color: Color, pos: Square, kind: Kind) -> BitBoard {
-    if !kind.is_line_piece() {
+    if !kind.is_slider() {
         return power(color, pos, kind);
     }
     match kind {
@@ -43,10 +44,45 @@ pub fn reachable_sub(
     pos: Square,
     kind: Kind,
 ) -> BitBoard {
-    if !kind.is_line_piece() {
+    if !kind.is_slider() {
         return power(color, pos, kind);
     }
     let occupied = position.occupied_bb();
+    match kind {
+        Kind::Lance => lance_reachable(occupied, color, pos),
+        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Rook => magic::rook_reachable(occupied, pos),
+        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
+        Kind::ProRook => magic::prorook_reachable(occupied, pos),
+        _ => unreachable!(),
+    }
+}
+
+pub fn reachable_cont(
+    controller: &mut PositionController,
+    color: Color,
+    pos: Square,
+    kind: Kind,
+    capture_same_color: bool,
+) -> BitBoard {
+    let exclude = if color.is_white() ^ capture_same_color {
+        controller.color_bb_and_stone(Color::WHITE)
+    } else {
+        controller.color_bb_and_stone(Color::BLACK)
+    };
+    reachable_cont_sub(controller, color, pos, kind).and_not(exclude)
+}
+
+pub fn reachable_cont_sub(
+    controller: &mut PositionController,
+    color: Color,
+    pos: Square,
+    kind: Kind,
+) -> BitBoard {
+    if !kind.is_slider() {
+        return power(color, pos, kind);
+    }
+    let occupied = controller.occupied_bb();
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => magic::bishop_reachable(occupied, pos),
@@ -64,7 +100,7 @@ pub fn reachable2(
     pos: Square,
     kind: Kind,
 ) -> BitBoard {
-    if !kind.is_line_piece() {
+    if !kind.is_slider() {
         return power(color, pos, kind).and_not(uncapturable);
     }
     let occupied = capturable | uncapturable;

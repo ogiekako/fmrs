@@ -4,10 +4,10 @@ use super::{BitBoard, Square};
 
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Default, Debug)]
 pub struct KindBitBoard {
-    promote: BitBoard,
-    kind0: BitBoard,
-    kind1: BitBoard,
-    kind2: BitBoard,
+    pub(crate) promote: BitBoard,
+    pub(crate) kind0: BitBoard,
+    pub(crate) kind1: BitBoard,
+    pub(crate) kind2: BitBoard,
 }
 
 // promote = 0:

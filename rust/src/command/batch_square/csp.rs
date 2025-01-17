@@ -118,7 +118,7 @@ impl State {
     }
 
     fn search_sub(&mut self, pos: Square, kind: Kind) -> bool {
-        self.position.set(pos, Color::BLACK, kind);
+        self.position.set(pos, (Color::BLACK, kind).into());
 
         let prev_need_check = self.need_check;
         let prev_need_place = self.need_place;
@@ -134,7 +134,7 @@ impl State {
         self.need_check = prev_need_check;
         self.need_place = prev_need_place;
 
-        self.position.unset(pos, Color::BLACK, kind);
+        self.position.unset(pos, (Color::BLACK, kind).into());
 
         false
     }
@@ -142,7 +142,7 @@ impl State {
     fn checker_pos_cands(&mut self, checked_pos: Square, kind: Kind) -> BitBoard {
         let placeable = reachable(&mut self.position, Color::WHITE, checked_pos, kind, true)
             .and_not(self.uncheckable | self.disallowed[kind.index()])
-            & self.position.settable_bb(Color::BLACK, kind);
+            & self.position.settable_bb((Color::BLACK, kind).into());
         placeable & king_power(checked_pos)
     }
 
@@ -159,7 +159,7 @@ impl State {
             if self.disallowed[k.index()].contains(pos) {
                 continue;
             }
-            if self.position.can_set(pos, Color::BLACK, k).is_ok() {
+            if self.position.can_set(pos, (Color::BLACK, k).into()).is_ok() {
                 effects.set(k.effect());
                 kinds.set(k);
             }
