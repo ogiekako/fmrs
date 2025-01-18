@@ -28,18 +28,18 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
         MateFilter {
             frame_filter: FrameFilter {
                 room_filter: RoomFilter {
-                    width: vec![3, 4, 5],
+                    width: vec![3, 4, 5, 6, 7, 8, 9],
                     height: 1..=6,
                     weakly_decreasing: false,
                     feasible_without_stone: true,
-                    area: Some(20..=20),
+                    area: Some(20..=21),
                 },
                 max_empty_black_pawn_col: Some(2),
                 max_empty_white_pawn_col: Some(2),
             },
             attackers: vec![Kind::Knight, Kind::Bishop],
             no_redundant: true,
-            no_less_pro_pawn: 2,
+            no_less_pro_pawn: 3,
             max_extra_white_hand_pawn: Some(0),
             skip_known_mates: true,
         }
