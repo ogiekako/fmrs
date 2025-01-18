@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737194580256,
+  "lastUpdate": 1737229142034,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -24563,6 +24563,54 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 63691,
             "range": "± 17",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@users.noreply.github.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@users.noreply.github.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "601fd30892cead4f83b8aeea24fab507d65cdf1c",
+          "message": "Experiment controller (slow)",
+          "timestamp": "2025-01-18T19:35:45Z",
+          "tree_id": "fe8801d8547593c3d223f5aa0c0357c774e22909",
+          "url": "https://github.com/ogiekako/fmrs/commit/601fd30892cead4f83b8aeea24fab507d65cdf1c"
+        },
+        "date": 1737229140462,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 2333,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 6046,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 1233,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 3554,
+            "range": "± 452",
             "unit": "ns/iter"
           }
         ]
