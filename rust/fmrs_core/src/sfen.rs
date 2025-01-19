@@ -136,7 +136,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<PositionAux> {
         bail!("There should be exactly 9 rows");
     }
     let mut board = PositionAux::default();
-    let mut stone = BitBoard::empty();
+    let mut stone = BitBoard::const_default();
 
     for row in 0..9 {
         let mut col = 9isize;

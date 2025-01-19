@@ -1,29 +1,70 @@
-use crate::piece::{Color, Kind};
+use crate::piece::{Color, Kind, NUM_KIND};
 
 use super::super::{BitBoard, Square};
 
 pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
-    POWERS[kind.index()][color.index()][pos.index()]
+    const CK: [usize; NUM_KIND * 2] = [
+        ColorKind::BlackPawn.index(),
+        ColorKind::BlackLance.index(),
+        ColorKind::BlackKnight.index(),
+        ColorKind::BlackSilver.index(),
+        ColorKind::BlackGold.index(),
+        ColorKind::Bishop.index(),
+        ColorKind::Rook.index(),
+        ColorKind::King.index(),
+        ColorKind::BlackGold.index(),
+        ColorKind::BlackGold.index(),
+        ColorKind::BlackGold.index(),
+        ColorKind::BlackGold.index(),
+        ColorKind::ProBishop.index(),
+        ColorKind::ProRook.index(),
+        ColorKind::WhitePawn.index(),
+        ColorKind::WhiteLance.index(),
+        ColorKind::WhiteKnight.index(),
+        ColorKind::WhiteSilver.index(),
+        ColorKind::WhiteGold.index(),
+        ColorKind::Bishop.index(),
+        ColorKind::Rook.index(),
+        ColorKind::King.index(),
+        ColorKind::WhiteGold.index(),
+        ColorKind::WhiteGold.index(),
+        ColorKind::WhiteGold.index(),
+        ColorKind::WhiteGold.index(),
+        ColorKind::ProBishop.index(),
+        ColorKind::ProRook.index(),
+    ];
+
+    POWERS[pos.index()][CK[kind.index() as usize + color.index() * NUM_KIND]]
 }
 
 pub fn pawn_power(color: Color, pos: Square) -> BitBoard {
-    PAWN_POWER[color.index()][pos.index()]
+    const CK: [usize; 2] = [ColorKind::BlackPawn.index(), ColorKind::WhitePawn.index()];
+    POWERS[pos.index()][CK[color.index()]]
 }
 
 pub fn knight_power(color: Color, pos: Square) -> BitBoard {
-    KNIGHT_POWER[color.index()][pos.index()]
+    const CK: [usize; 2] = [
+        ColorKind::BlackKnight.index(),
+        ColorKind::WhiteKnight.index(),
+    ];
+    POWERS[pos.index()][CK[color.index()]]
 }
 
 pub fn silver_power(color: Color, pos: Square) -> BitBoard {
-    SILVER_POWER[color.index()][pos.index()]
+    const CK: [usize; 2] = [
+        ColorKind::BlackSilver.index(),
+        ColorKind::WhiteSilver.index(),
+    ];
+    POWERS[pos.index()][CK[color.index()]]
 }
 
 pub fn gold_power(color: Color, pos: Square) -> BitBoard {
-    GOLD_POWER[color.index()][pos.index()]
+    const CK: [usize; 2] = [ColorKind::BlackGold.index(), ColorKind::WhiteGold.index()];
+    POWERS[pos.index()][CK[color.index()]]
 }
 
 pub fn king_power(pos: Square) -> BitBoard {
-    KING_POWER2[pos.index()]
+    POWERS[pos.index()][ColorKind::King.index()]
 }
 
 pub fn lion_king_power(pos: Square) -> BitBoard {
@@ -35,15 +76,24 @@ pub fn king_then_king_or_night_power(color: Color, pos: Square) -> BitBoard {
 }
 
 pub fn lance_power(color: Color, pos: Square) -> BitBoard {
-    LANCE_POWER[color.index()][pos.index()]
+    const CK: [usize; 2] = [ColorKind::BlackLance.index(), ColorKind::WhiteLance.index()];
+    POWERS[pos.index()][CK[color.index()]]
 }
 
 pub fn bishop_power(pos: Square) -> BitBoard {
-    BISHOP_POWER[pos.index()]
+    POWERS[pos.index()][ColorKind::Bishop.index()]
 }
 
 pub fn rook_power(pos: Square) -> BitBoard {
-    ROOK_POWER[pos.index()]
+    POWERS[pos.index()][ColorKind::Rook.index()]
+}
+
+pub fn pro_bishop_power(pos: Square) -> BitBoard {
+    POWERS[pos.index()][ColorKind::ProBishop.index()]
+}
+
+pub fn pro_rook_power(pos: Square) -> BitBoard {
+    POWERS[pos.index()][ColorKind::ProRook.index()]
 }
 
 pub fn queen_power(pos: Square) -> BitBoard {
@@ -54,84 +104,9 @@ pub fn king_and_any_power(color: Color, pos: Square) -> BitBoard {
     KING_AND_ANY_POWER[color.index()][pos.index()]
 }
 
-pub fn power2(color: Color, pos: Square, step1: Kind, step2: Kind) -> BitBoard {
-    POWER2[color.index()][pos.index()][step1.index()][step2.index()]
-}
-
-const KING_POWER2: [BitBoard; 81] = {
-    let mut res = [BitBoard::empty(); 81];
-    let mut i = 0;
-    while i < 81 {
-        let pos = Square::from_index(i);
-
-        let mut dx = -1;
-        let mut bb = 0;
-        while dx < 2 {
-            let mut dy = -1;
-            while dy < 2 {
-                if dx != 0 || dy != 0 {
-                    let col = pos.col() as isize + dx;
-                    let row = pos.row() as isize + dy;
-
-                    if 0 <= col && col < 9 && 0 <= row && row < 9 {
-                        bb |= 1 << Square::new(col as usize, row as usize).index();
-                    }
-                }
-                dy += 1;
-            }
-            dx += 1;
-        }
-        res[i] = BitBoard::from_u128(bb);
-
-        i += 1;
-    }
-    res
-};
-
 type KindPower = [[BitBoard; 81]; 2];
 
 lazy_static! {
-    static ref POWERS: Vec<KindPower> = {
-        let mut res = vec![];
-        for kind in Kind::iter() {
-            res.push(match kind {
-                Kind::Pawn => *PAWN_POWER,
-                Kind::Lance => *LANCE_POWER,
-                Kind::Knight => *KNIGHT_POWER,
-                Kind::Silver => *SILVER_POWER,
-                Kind::Gold => *GOLD_POWER,
-                Kind::Bishop => [*BISHOP_POWER, *BISHOP_POWER],
-                Kind::Rook => [*ROOK_POWER, *ROOK_POWER],
-                Kind::King => [*KING_POWER, *KING_POWER],
-                Kind::ProPawn => *GOLD_POWER,
-                Kind::ProLance => *GOLD_POWER,
-                Kind::ProKnight => *GOLD_POWER,
-                Kind::ProSilver => *GOLD_POWER,
-                Kind::ProBishop => *PRO_BISHOP_POWER,
-                Kind::ProRook => *PRO_ROOK_POWER,
-            });
-        }
-        res
-    };
-    static ref PAWN_POWER: KindPower = powers([(0, -1)].into_iter());
-    static ref KNIGHT_POWER: KindPower = powers([(-1, -2), (1, -2)].into_iter());
-    static ref SILVER_POWER: KindPower =
-        powers([(-1, -1), (-1, 1), (0, -1), (1, -1), (1, 1)].into_iter());
-    static ref GOLD_POWER: KindPower =
-        powers([(-1, -1), (-1, 0), (0, -1), (0, 1), (1, -1), (1, 0)].into_iter());
-    static ref KING_POWER: [BitBoard; 81] = powers_sub(
-        [
-            (-1, -1),
-            (-1, 0),
-            (-1, 1),
-            (0, -1),
-            (0, 1),
-            (1, -1),
-            (1, 0),
-            (1, 1)
-        ]
-        .into_iter()
-    );
     static ref LION_KING_POWER: [BitBoard; 81] = powers_sub(
         [
             (-2, -2),
@@ -160,31 +135,6 @@ lazy_static! {
             (2, 2)
         ]
         .into_iter()
-    );
-    static ref LANCE_POWER: KindPower = powers(run((0, -1)));
-    static ref BISHOP_POWER: [BitBoard; 81] = powers_sub(
-        run((-1, -1))
-            .chain(run((-1, 1)))
-            .chain(run((1, -1)))
-            .chain(run((1, 1)))
-    );
-    static ref ROOK_POWER: [BitBoard; 81] = powers_sub(
-        run((-1, 0))
-            .chain(run((0, -1)))
-            .chain(run((0, 1)))
-            .chain(run((1, 0)))
-    );
-    static ref PRO_BISHOP_POWER: KindPower = powers(
-        run((-1, -1))
-            .chain(run((-1, 1)))
-            .chain(run((1, -1)))
-            .chain(run((1, 1)).chain([(-1, 0), (0, -1), (0, 1), (1, 0)].into_iter()))
-    );
-    static ref PRO_ROOK_POWER: KindPower = powers(
-        run((-1, 0))
-            .chain(run((0, -1)))
-            .chain(run((0, 1)))
-            .chain(run((1, 0)).chain([(-1, -1), (-1, 1), (1, -1), (1, 1)].into_iter()))
     );
     static ref QUEEN_POWER: [BitBoard; 81] = {
         let mut res = [BitBoard::default(); 81];
@@ -226,34 +176,6 @@ lazy_static! {
         }
         res
     };
-    static ref POWER2: [[[[BitBoard; 14]; 14]; 81]; 2] = {
-        let mut res = [[[[BitBoard::default(); 14]; 14]; 81]; 2];
-        for color in Color::iter() {
-            for pos in Square::iter() {
-                for step1 in Kind::iter() {
-                    for step2 in Kind::iter() {
-                        let mut p = BitBoard::default();
-                        for pos2 in power(color, pos, step1) {
-                            p |= power(color, pos2, step2);
-                        }
-                        res[color.index()][pos.index()][step1.index()][step2.index()] = p;
-                    }
-                }
-            }
-        }
-        res
-    };
-}
-
-fn run(dir: (isize, isize)) -> impl Iterator<Item = (isize, isize)> {
-    (1..9).map(move |i| (dir.0 * i, dir.1 * i))
-}
-
-fn powers(black_shifts: impl Iterator<Item = (isize, isize)>) -> KindPower {
-    let black_shifts = black_shifts.collect::<Vec<_>>();
-    let black = powers_sub(black_shifts.iter().map(|(col, row)| (*col, *row)));
-    let white = powers_sub(black_shifts.iter().map(|(col, row)| (*col, -row)));
-    [black, white]
 }
 
 fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
@@ -270,6 +192,228 @@ fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
                 }
             }
         }
+    }
+    res
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ColorKind {
+    BlackPawn,
+    BlackLance,
+    BlackKnight,
+    BlackSilver,
+    BlackGold,
+    WhitePawn,
+    WhiteLance,
+    WhiteKnight,
+    WhiteSilver,
+    WhiteGold,
+    Bishop,
+    Rook,
+    King,
+    ProBishop,
+    ProRook,
+}
+
+const COLOR_KINDS: [ColorKind; COLOR_KIND_NUM] = [
+    ColorKind::BlackPawn,
+    ColorKind::BlackLance,
+    ColorKind::BlackKnight,
+    ColorKind::BlackSilver,
+    ColorKind::BlackGold,
+    ColorKind::WhitePawn,
+    ColorKind::WhiteLance,
+    ColorKind::WhiteKnight,
+    ColorKind::WhiteSilver,
+    ColorKind::WhiteGold,
+    ColorKind::Bishop,
+    ColorKind::Rook,
+    ColorKind::King,
+    ColorKind::ProBishop,
+    ColorKind::ProRook,
+];
+
+const COLOR_KIND_NUM: usize = 15;
+
+impl ColorKind {
+    const fn slides(&self) -> [Option<(i8, i8)>; 4] {
+        match self {
+            ColorKind::BlackLance => [Some((0, -1)), None, None, None],
+            ColorKind::WhiteLance => [Some((0, 1)), None, None, None],
+            ColorKind::Bishop | ColorKind::ProBishop => {
+                [Some((-1, -1)), Some((-1, 1)), Some((1, -1)), Some((1, 1))]
+            }
+            ColorKind::Rook | ColorKind::ProRook => {
+                [Some((-1, 0)), Some((0, -1)), Some((0, 1)), Some((1, 0))]
+            }
+            _ => [None; 4],
+        }
+    }
+    const fn steps(&self) -> [Option<(i8, i8)>; 8] {
+        match self {
+            ColorKind::BlackPawn => [Some((0, -1)), None, None, None, None, None, None, None],
+            ColorKind::BlackKnight => [
+                Some((-1, -2)),
+                Some((1, -2)),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            ColorKind::BlackSilver => [
+                Some((-1, -1)),
+                Some((-1, 1)),
+                Some((0, -1)),
+                Some((1, -1)),
+                Some((1, 1)),
+                None,
+                None,
+                None,
+            ],
+            ColorKind::BlackGold => [
+                Some((-1, -1)),
+                Some((-1, 0)),
+                Some((0, -1)),
+                Some((0, 1)),
+                Some((1, -1)),
+                Some((1, 0)),
+                None,
+                None,
+            ],
+            ColorKind::WhitePawn => [Some((0, 1)), None, None, None, None, None, None, None],
+            ColorKind::WhiteKnight => [
+                Some((-1, 2)),
+                Some((1, 2)),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            ],
+            ColorKind::WhiteSilver => [
+                Some((-1, -1)),
+                Some((-1, 1)),
+                Some((0, 1)),
+                Some((1, -1)),
+                Some((1, 1)),
+                None,
+                None,
+                None,
+            ],
+            ColorKind::WhiteGold => [
+                Some((-1, 1)),
+                Some((-1, 0)),
+                Some((0, 1)),
+                Some((0, -1)),
+                Some((1, 1)),
+                Some((1, 0)),
+                None,
+                None,
+            ],
+            ColorKind::King => [
+                Some((-1, -1)),
+                Some((-1, 0)),
+                Some((-1, 1)),
+                Some((0, -1)),
+                Some((0, 1)),
+                Some((1, -1)),
+                Some((1, 0)),
+                Some((1, 1)),
+            ],
+            ColorKind::ProBishop => [
+                Some((-1, 0)),
+                Some((0, -1)),
+                Some((0, 1)),
+                Some((1, 0)),
+                None,
+                None,
+                None,
+                None,
+            ],
+            ColorKind::ProRook => [
+                Some((-1, -1)),
+                Some((-1, 1)),
+                Some((1, -1)),
+                Some((1, 1)),
+                None,
+                None,
+                None,
+                None,
+            ],
+            _ => [None; 8],
+        }
+    }
+
+    const fn power(&self, pos: Square) -> BitBoard {
+        let slides = self.slides();
+        let steps = self.steps();
+
+        let mut res = BitBoard::EMPTY;
+
+        let mut i = 0;
+        while i < 4 {
+            let Some((dx, dy)) = slides[i] else { break };
+
+            let (mut x, mut y) = (pos.col() as i8, pos.row() as i8);
+            let mut j = 0;
+            while j < 8 {
+                x += dx;
+                y += dy;
+                if x < 0 || x >= 9 || y < 0 || y >= 9 {
+                    break;
+                }
+                res.set(Square::new(x as usize, y as usize));
+                j += 1;
+            }
+
+            i += 1;
+        }
+        i = 0;
+        while i < 8 {
+            let Some((dx, dy)) = steps[i] else {
+                break;
+            };
+
+            let x = pos.col() as i8 + dx;
+            let y = pos.row() as i8 + dy;
+            if x >= 0 && x < 9 && y >= 0 && y < 9 {
+                res.set(Square::new(x as usize, y as usize));
+            }
+
+            i += 1;
+        }
+        res
+    }
+
+    const fn index(&self) -> usize {
+        *self as usize
+    }
+}
+
+const POWERS: [[BitBoard; COLOR_KIND_NUM]; 81] = construct_powers();
+
+const fn construct_pos_powers(pos: Square) -> [BitBoard; COLOR_KIND_NUM] {
+    let mut res = [BitBoard::const_default(); COLOR_KIND_NUM];
+
+    let mut i = 0;
+    while i < COLOR_KIND_NUM {
+        res[i] = COLOR_KINDS[i].power(pos);
+        i += 1;
+    }
+    res
+}
+
+const fn construct_powers() -> [[BitBoard; COLOR_KIND_NUM]; 81] {
+    let mut res = [[BitBoard::const_default(); COLOR_KIND_NUM]; 81];
+
+    let mut i = 0;
+    while i < 81 {
+        let pos = Square::from_index(i);
+        res[i] = construct_pos_powers(pos);
+        i += 1;
     }
     res
 }

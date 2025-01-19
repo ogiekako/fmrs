@@ -6,6 +6,8 @@ use super::square::Square;
 pub struct BitBoard(u128);
 
 impl BitBoard {
+    pub const EMPTY: BitBoard = BitBoard(0);
+
     pub const UPPER: BitBoard = BitBoard::ROW1;
     pub const LOWER: BitBoard = BitBoard::ROW9;
 
@@ -44,12 +46,11 @@ impl BitBoard {
     pub const FULL: BitBoard = BitBoard::from_u128(
         0b111111111111111111111111111111111111111111111111111111111111111111111111111111111u128,
     );
-    pub const EMPTY: BitBoard = BitBoard(0);
 
     pub fn is_empty(&self) -> bool {
         self.0 == 0
     }
-    pub fn set(&mut self, pos: Square) {
+    pub const fn set(&mut self, pos: Square) {
         let i = pos.index();
         self.0 |= 1 << i;
     }
@@ -101,7 +102,7 @@ impl BitBoard {
         BitBoard::from_u128(1 << pos.index())
     }
 
-    pub(crate) const fn empty() -> BitBoard {
+    pub(crate) const fn const_default() -> BitBoard {
         BitBoard(0)
     }
 

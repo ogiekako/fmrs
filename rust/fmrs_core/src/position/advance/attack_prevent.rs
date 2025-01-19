@@ -4,7 +4,6 @@ use crate::{
         bitboard::{
             king_then_king_or_night_power, knight_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
-            reachable_sub,
         },
         checked,
         position::PositionAux,
