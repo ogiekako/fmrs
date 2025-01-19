@@ -30,10 +30,10 @@ impl Frame {
 
         for i in 0..self.room.width() as usize {
             if self.white_pawn & 1 << i != 0 {
-                position.set(Self::white_pawn(i), (Color::WHITE, Kind::Pawn).into());
+                position.set(Self::white_pawn(i), Color::WHITE, Kind::Pawn);
             }
             if self.black_pawn & 1 << i != 0 {
-                position.set(Self::black_pawn_row(i), (Color::BLACK, Kind::Pawn).into());
+                position.set(Self::black_pawn_row(i), Color::BLACK, Kind::Pawn);
             }
         }
 

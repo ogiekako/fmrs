@@ -44,9 +44,7 @@ fn one_way_mate_steps_inner(
     for step in (initial_step..).step_by(2) {
         if step > 0 {
             let prev_len = movements.len();
-
             advance_aux(position, &mut unused_memo, 0, &options, movements).ok()?;
-
             debug_assert!(movements.len() - prev_len <= 2);
             if movements.len() == prev_len {
                 return None;

@@ -1,4 +1,4 @@
-pub mod bitboard;
+mod bitboard;
 mod kind_bitboard;
 pub mod rule;
 mod square;

@@ -1,6 +1,6 @@
 use std::hash::Hash;
 
-use crate::piece::Kind;
+use crate::{piece::Kind, sfen};
 
 use super::Square;
 
@@ -126,9 +126,6 @@ impl Movement {
             capture_kind_hint: Some(capture_kind_hint),
         }
     }
-    pub fn drop(pos: Square, kind: Kind) -> Movement {
-        Movement::Drop(pos, kind)
-    }
 
     pub fn is_move(&self) -> bool {
         matches!(self, Movement::Move { .. })
@@ -160,20 +157,6 @@ impl Movement {
 
 impl std::fmt::Debug for Movement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Movement::Drop(pos, kind) => write!(f, "Drop({:?}, {:?})", pos, kind),
-            Movement::Move {
-                source,
-                dest,
-                promote,
-                ..
-            } => write!(
-                f,
-                "Move({:?}->{:?}{})",
-                source,
-                dest,
-                if *promote { "+" } else { "" }
-            ),
-        }
+        write!(f, "{:?}", sfen::encode_move(self))
     }
 }

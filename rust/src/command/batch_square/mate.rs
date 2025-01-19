@@ -246,7 +246,7 @@ impl FramePosition {
                 .map_or(true, |parity| parity != king_pos.parity())
             {
                 let mut position = self.template.clone();
-                position.set(king_pos, (Color::WHITE, Kind::King).into());
+                position.set(king_pos, Color::WHITE, Kind::King);
                 res.push(position);
             }
         }

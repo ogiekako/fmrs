@@ -187,7 +187,7 @@ mod tests {
         ] {
             for algorithm in Algorithm::iter() {
                 let board = sfen::decode_position(sfen).unwrap();
-                eprintln!("solving {:?}", board);
+                eprintln!("solving {}", sfen);
                 let got = solve(board.clone(), None, algorithm, None).unwrap();
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
@@ -199,8 +199,8 @@ mod tests {
     fn two_answers() {
         for sfen in ["7lk/7r1/7lP/8G/9/9/9/9/9 b Lr2b3g4s4nl17p 1"] {
             for algorithm in Algorithm::iter() {
+                eprintln!("solving {} {:?}", sfen, algorithm);
                 let board = sfen::decode_position(sfen).unwrap();
-                eprintln!("solving {:?} {:?}", board, algorithm);
                 let got = solve(board.clone(), None, algorithm, None).unwrap();
                 assert_eq!(got.len(), 2);
             }

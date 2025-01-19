@@ -97,6 +97,10 @@ impl BitBoard {
         (self.0 >> 64) as u64 ^ self.0 as u64
     }
 
+    pub(crate) fn from_square(pos: Square) -> BitBoard {
+        BitBoard::from_u128(1 << pos.index())
+    }
+
     pub(crate) const fn empty() -> BitBoard {
         BitBoard(0)
     }
@@ -126,26 +130,6 @@ impl BitBoard {
             res |= 0x1FF << (i * 9);
         }
         BitBoard::from_u128(res)
-    }
-
-    pub fn with(&self, pos: Square) -> BitBoard {
-        let mut res = *self;
-        res.set(pos);
-        res
-    }
-
-    pub(crate) fn clear(&mut self) {
-        self.0 = 0;
-    }
-
-    pub(crate) fn without(&self, pos: Square) -> BitBoard {
-        let mut res = *self;
-        res.unset(pos);
-        res
-    }
-
-    pub(crate) fn and_not_assign(&mut self, rhs: BitBoard) {
-        self.0 &= !rhs.0;
     }
 }
 
@@ -242,77 +226,6 @@ impl BitBoard {
         debug_assert!(x < 1 << 81);
         Self(x)
     }
-}
-
-pub fn between(a: Square, b: Square) -> BitBoard {
-    BETWEEN[a.index()][b.index()]
-}
-
-pub fn outside(a: Square, b: Square) -> BitBoard {
-    OUTSIDE[a.index()][b.index()]
-}
-
-lazy_static! {
-    pub static ref BETWEEN: [[BitBoard; 81]; 81] = {
-        let mut res = [[BitBoard::default(); 81]; 81];
-        for i in Square::iter() {
-            for j in Square::iter() {
-                if i == j {
-                    continue;
-                }
-                let (x0, y0) = (i.col() as i32, i.row() as i32);
-                let (x1, y1) = (j.col() as i32, j.row() as i32);
-
-                let (dx, dy) = ((x1 - x0), (y1 - y0));
-                if dx != 0 && dy != 0 && dx.abs() != dy.abs() {
-                    continue;
-                }
-                let (dx, dy) = (dx.signum(), dy.signum());
-
-                let mut bb = BitBoard::default();
-
-                for i in 1.. {
-                    let (x, y) = (x0 + dx * i, y0 + dy * i);
-                    if (x, y) == (x1, y1) {
-                        break;
-                    }
-                    bb.set(Square::new(x as usize, y as usize));
-                }
-                res[i.index()][j.index()] = bb;
-            }
-        }
-        res
-    };
-    pub static ref OUTSIDE: [[BitBoard; 81]; 81] = {
-        let mut res = [[BitBoard::default(); 81]; 81];
-        for i in Square::iter() {
-            for j in Square::iter() {
-                if i == j {
-                    continue;
-                }
-                let (x0, y0) = (i.col() as i32, i.row() as i32);
-                let (x1, y1) = (j.col() as i32, j.row() as i32);
-
-                let (dx, dy) = ((x1 - x0), (y1 - y0));
-                if dx != 0 && dy != 0 && dx.abs() != dy.abs() {
-                    continue;
-                }
-                let (dx, dy) = (dx.signum(), dy.signum());
-
-                let mut bb = BitBoard::default();
-
-                for i in 1.. {
-                    let (x, y) = (x1 + dx * i, y1 + dy * i);
-                    if !(0..9).contains(&x) || !(0..9).contains(&y) {
-                        break;
-                    }
-                    bb.set(Square::new(x as usize, y as usize));
-                }
-                res[i.index()][j.index()] = bb;
-            }
-        }
-        res
-    };
 }
 
 #[macro_export]

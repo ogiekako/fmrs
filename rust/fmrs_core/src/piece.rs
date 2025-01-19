@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct Color(bool);
 
 impl Color {
@@ -6,16 +6,10 @@ impl Color {
     pub const WHITE: Color = Color(true);
 }
 
-impl std::fmt::Debug for Color {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", if self.0 { "WHITE" } else { "BLACK" })
-    }
-}
-
 use rand::prelude::Distribution;
 
 impl Color {
-    pub const fn index(&self) -> usize {
+    pub fn index(&self) -> usize {
         self.0 as usize
     }
     pub fn iter() -> impl Iterator<Item = Color> {
@@ -86,7 +80,6 @@ impl Distribution<Kind> for rand::distributions::Standard {
 }
 
 use serde::{Deserialize, Serialize};
-use std::{hash::Hash, num::NonZeroU8};
 pub use Kind::*;
 
 use crate::position::BitBoard;
@@ -145,7 +138,7 @@ impl Kind {
             _ => return None,
         })
     }
-    pub fn is_slider(self) -> bool {
+    pub fn is_line_piece(self) -> bool {
         LINE_PIECE_MASK & 1 << self.index() != 0
     }
     pub fn is_hand_piece(self) -> bool {
@@ -185,26 +178,6 @@ impl Kind {
             (Knight, Color::WHITE) => BitBoard::ROW8 | BitBoard::ROW9,
             _ => BitBoard::EMPTY,
         }
-    }
-
-    pub(crate) fn ish(&self) -> Kindish {
-        match self {
-            Pawn => Kindish::Pawn,
-            Lance => Kindish::Lance,
-            Knight => Kindish::Knight,
-            Silver => Kindish::Silver,
-            Bishop | ProBishop => Kindish::Bishop,
-            Rook | ProRook => Kindish::Rook,
-            King => Kindish::King,
-            _ => Kindish::Gold,
-        }
-    }
-
-    pub(crate) fn is_promoted(&self) -> bool {
-        matches!(
-            self,
-            ProPawn | ProLance | ProKnight | ProSilver | ProBishop | ProRook
-        )
     }
 }
 
@@ -265,10 +238,6 @@ impl Kinds {
     pub fn count_ones(&self) -> u32 {
         self.mask.count_ones()
     }
-
-    pub(crate) fn contains(&self, kind: Kind) -> bool {
-        self.mask & (1 << kind.index()) != 0
-    }
 }
 
 impl Iterator for Kinds {
@@ -284,7 +253,7 @@ impl Iterator for Kinds {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum KindEffect {
     Pawn,
     Lance,
@@ -298,15 +267,7 @@ pub enum KindEffect {
     ProRook,
 }
 
-impl Hash for KindEffect {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (self.index() as u64).hash(state)
-    }
-}
-
-pub const NUM_KIND_EFFECTS: usize = 10;
-
-pub const KIND_EFFECTS: [KindEffect; NUM_KIND_EFFECTS] = [
+pub const KIND_EFFECTS: [KindEffect; 10] = [
     KindEffect::Pawn,
     KindEffect::Lance,
     KindEffect::Knight,
@@ -344,18 +305,6 @@ impl KindEffect {
             KindEffect::ProRook => Kinds::PRO_ROOK,
         }
     }
-
-    pub fn promoted(&self) -> Option<KindEffect> {
-        Some(match self {
-            KindEffect::Pawn => KindEffect::Gold,
-            KindEffect::Lance => KindEffect::Gold,
-            KindEffect::Knight => KindEffect::Gold,
-            KindEffect::Silver => KindEffect::Gold,
-            KindEffect::Bishop => KindEffect::ProBishop,
-            KindEffect::Rook => KindEffect::ProRook,
-            _ => return None,
-        })
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -391,124 +340,5 @@ impl Iterator for KindEffects {
         let x = self.mask.trailing_zeros() as u16;
         self.mask &= !(1 << x);
         Some(KindEffect::from_index(x as usize))
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Kindish {
-    Pawn,
-    Lance,
-    Knight,
-    Silver,
-    Gold,
-    Bishop,
-    Rook,
-    King,
-}
-
-pub const NUM_KINDISH: usize = 8;
-
-impl Kindish {
-    pub fn index(&self) -> usize {
-        *self as usize
-    }
-
-    pub(crate) fn promoted(&self) -> Kindish {
-        if matches!(self, Kindish::Bishop | Kindish::Rook | Kindish::King) {
-            Kindish::King
-        } else {
-            Kindish::Gold
-        }
-    }
-
-    pub(crate) fn effect(&self) -> KindEffect {
-        KindEffect::from_index(self.index())
-    }
-
-    pub(crate) fn weakest(&self) -> Kind {
-        Kind::from_index(self.index())
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub struct BoardPiece(NonZeroU8);
-
-impl std::fmt::Debug for BoardPiece {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("BoardPiece")
-            .field(&self.color())
-            .field(&self.kind())
-            .finish()
-    }
-}
-
-impl From<(Color, Kind)> for BoardPiece {
-    fn from((color, kind): (Color, Kind)) -> Self {
-        Self::new(color, kind)
-    }
-}
-
-impl BoardPiece {
-    pub fn new(color: Color, kind: Kind) -> Self {
-        NonZeroU8::new(((color.index() as u8) << 7) | 16 | kind.index() as u8)
-            .map(BoardPiece)
-            .unwrap()
-    }
-
-    pub fn color(&self) -> Color {
-        Color::from_is_black(self.0.get() >> 7 == 0)
-    }
-
-    pub fn kind(&self) -> Kind {
-        Kind::from_index((self.0.get() & 0b1111) as usize)
-    }
-
-    pub fn is_white(&self) -> bool {
-        self.0.get() >> 7 == 1
-    }
-
-    pub fn is_black(&self) -> bool {
-        self.0.get() >> 7 == 0
-    }
-
-    pub fn is(&self, kind: Kind) -> bool {
-        (self.0.get() & 0b1111) as usize == kind.index()
-    }
-
-    pub(crate) fn is_king(&self) -> bool {
-        self.0.get() & 0b1111 == King.index() as u8
-    }
-
-    pub(crate) fn is_slider(&self) -> bool {
-        self.kind().is_slider()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_kindish_effect() {
-        assert_eq!(Kindish::Pawn.effect(), KindEffect::Pawn);
-        assert_eq!(Kindish::Lance.effect(), KindEffect::Lance);
-        assert_eq!(Kindish::Knight.effect(), KindEffect::Knight);
-        assert_eq!(Kindish::Silver.effect(), KindEffect::Silver);
-        assert_eq!(Kindish::Gold.effect(), KindEffect::Gold);
-        assert_eq!(Kindish::Bishop.effect(), KindEffect::Bishop);
-        assert_eq!(Kindish::Rook.effect(), KindEffect::Rook);
-        assert_eq!(Kindish::King.effect(), KindEffect::King);
-    }
-
-    #[test]
-    fn test_kindish_weakest() {
-        assert_eq!(Kindish::Pawn.weakest(), Pawn);
-        assert_eq!(Kindish::Lance.weakest(), Lance);
-        assert_eq!(Kindish::Knight.weakest(), Knight);
-        assert_eq!(Kindish::Silver.weakest(), Silver);
-        assert_eq!(Kindish::Gold.weakest(), Gold);
-        assert_eq!(Kindish::Bishop.weakest(), Bishop);
-        assert_eq!(Kindish::Rook.weakest(), Rook);
-        assert_eq!(Kindish::King.weakest(), King);
     }
 }

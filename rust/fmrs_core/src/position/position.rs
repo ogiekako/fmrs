@@ -24,9 +24,9 @@ impl fmt::Debug for Position {
 }
 
 use super::advance::attack_prevent::attacker;
+use super::bitboard::reachable_sub;
 use super::bitboard::BitBoard;
 use super::bitboard::KindBitBoard;
-use super::controller::PositionController;
 use super::hands::Hands;
 use super::zobrist::zobrist;
 use super::Movement;
@@ -69,35 +69,33 @@ impl Position {
     pub fn kind_bb(&self) -> &KindBitBoard {
         &self.kind_bb
     }
-    pub fn get(&self, pos: Square) -> Option<BoardPiece> {
+    pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let kind = self.kind_bb.get(pos)?;
         Some(if self.black().contains(pos) {
-            (Color::BLACK, kind).into()
+            (Color::BLACK, kind)
         } else {
-            BoardPiece::new(Color::WHITE, kind)
+            (Color::WHITE, kind)
         })
     }
-
-    pub fn set(&mut self, pos: Square, p: BoardPiece) {
+    pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), None);
 
-        if p.is_black() {
+        if c.is_black() {
             self.black_bb.set(pos);
         }
-        self.kind_bb.set(pos, p.kind());
+        self.kind_bb.set(pos, k);
 
         self.digest ^= self.hash_at(pos);
     }
-
-    pub fn unset(&mut self, pos: Square, p: BoardPiece) {
-        debug_assert_eq!(self.get(pos), Some(p));
+    pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
+        debug_assert_eq!(self.get(pos), Some((c, k)));
 
         self.digest ^= self.hash_at(pos);
 
-        if p.is_black() {
+        if c.is_black() {
             self.black_bb.unset(pos);
         }
-        self.kind_bb.unset(pos, p.kind());
+        self.kind_bb.unset(pos, k);
     }
 
     pub fn shift(&mut self, dir: Direction) {
@@ -128,23 +126,23 @@ impl Position {
         PositionAux::new(self.clone(), None).sfen()
     }
 
-    pub fn try_set(&mut self, pos: Square, p: BoardPiece) -> anyhow::Result<()> {
-        self.check_can_set(pos, p)?;
-        self.set(pos, p);
+    pub fn try_set(&mut self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        self.check_can_set(pos, color, kind)?;
+        self.set(pos, color, kind);
         Ok(())
     }
 
-    pub fn check_can_set(&self, pos: Square, p: BoardPiece) -> anyhow::Result<()> {
+    pub fn check_can_set(&self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
         if self.get(pos).is_some() {
             bail!("already occupied");
         }
-        if self.used_kind_count(p.kind()) >= p.kind().max_count() {
+        if self.used_kind_count(kind) >= kind.max_count() {
             bail!("too many pieces");
         }
-        if p.kind() == Kind::Pawn && self.col_has_pawn(p.color(), pos.col()) {
+        if kind == Kind::Pawn && self.col_has_pawn(color, pos.col()) {
             bail!("double pawns");
         }
-        if !is_movable(p.color(), pos, p.kind()) {
+        if !is_movable(color, pos, kind) {
             bail!("unmovable");
         }
         Ok(())
@@ -171,12 +169,13 @@ impl Position {
 
 #[derive(Clone, Default)]
 pub struct PositionAux {
-    stone: Option<BitBoard>,
-    stone_digest: u64,
-
     core: Position,
     occupied: BitBoard,
     white_bb: BitBoard,
+    white_king_pos: Option<Square>,
+    black_king_pos: Option<Option<Square>>,
+    stone: Option<BitBoard>,
+    stone_digest: u64,
 }
 
 impl PartialEq for PositionAux {
@@ -189,7 +188,7 @@ impl Eq for PositionAux {}
 
 impl Debug for PositionAux {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.sfen_url())
+        write!(f, "{}", self.clone().sfen_url())
     }
 }
 
@@ -223,6 +222,14 @@ impl PositionAux {
 
     pub fn occupied_bb(&self) -> BitBoard {
         self.occupied
+    }
+
+    pub(crate) fn capturable_by(&self, color: Color) -> BitBoard {
+        if color.is_black() {
+            self.white_bb()
+        } else {
+            self.core.black()
+        }
     }
 
     pub(crate) fn color_bb_and_stone(&self, color: Color) -> BitBoard {
@@ -283,25 +290,38 @@ impl PositionAux {
         self.core.turn()
     }
 
+    pub(crate) fn pawn_silver_goldish(&self) -> BitBoard {
+        self.core.kind_bb().pawn_silver_goldish()
+    }
+
+    pub(crate) fn bishopish(&self) -> BitBoard {
+        self.core.kind_bb.bishopish()
+    }
+
+    pub(crate) fn rookish(&self) -> BitBoard {
+        self.core.kind_bb.rookish()
+    }
+
     pub fn pawn_drop(&self) -> bool {
         self.core.pawn_drop()
     }
 
     pub fn checked_slow(&mut self, king_color: Color) -> bool {
-        attacker(
-            &mut PositionController::new(self.core().clone(), *self.stone()),
-            king_color,
-            true,
-        )
-        .is_some()
+        attacker(self, king_color, true).is_some()
     }
 
     pub(crate) fn white_king_pos(&mut self) -> Square {
-        (self.kind_bb(Kind::King) & self.white_bb()).singleton()
+        if self.white_king_pos.is_none() {
+            self.white_king_pos = Some((self.kind_bb(Kind::King) & self.white_bb()).singleton());
+        }
+        self.white_king_pos.unwrap()
     }
 
     pub(crate) fn black_king_pos(&mut self) -> Option<Square> {
-        (self.kind_bb(Kind::King) & self.black_bb()).next()
+        if self.black_king_pos.is_none() {
+            self.black_king_pos = Some((self.kind_bb(Kind::King) & self.black_bb()).next());
+        }
+        self.black_king_pos.unwrap()
     }
 
     pub fn do_move(&mut self, movement: &Movement) {
@@ -323,17 +343,17 @@ impl PositionAux {
                     source_kind
                 };
                 if let Some(capture_kind) = capture_kind {
-                    self.unset(*dest, BoardPiece::new(turn.opposite(), capture_kind));
+                    self.unset(*dest, turn.opposite(), capture_kind);
                     self.hands_mut().add(turn, capture_kind.maybe_unpromote());
                 }
-                self.unset(*source, (turn, source_kind).into());
-                self.set(*dest, (turn, dest_kind).into());
+                self.unset(*source, turn, source_kind);
+                self.set(*dest, turn, dest_kind);
 
                 self.core.set_pawn_drop(false);
                 self.core.set_turn(turn.opposite());
             }
             Movement::Drop(pos, kind) => {
-                self.set(*pos, (turn, *kind).into());
+                self.set(*pos, turn, *kind);
                 self.hands_mut().remove(turn, *kind);
 
                 self.core.set_pawn_drop(*kind == Kind::Pawn);
@@ -346,23 +366,39 @@ impl PositionAux {
         self.core.digest() ^ self.stone_digest
     }
 
-    pub fn unset(&mut self, pos: Square, p: BoardPiece) {
+    pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
         self.occupied.unset(pos);
-        if p.is_white() {
+        if color.is_white() {
             self.white_bb.unset(pos);
         }
 
-        self.core.unset(pos, p);
+        if kind == Kind::King {
+            if color.is_black() {
+                self.black_king_pos = None;
+            } else {
+                self.white_king_pos = None;
+            }
+        }
+
+        self.core.unset(pos, color, kind);
     }
 
-    pub fn set(&mut self, pos: Square, p: BoardPiece) {
+    pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
         debug_assert!(!self.has_stone(pos));
         self.occupied.set(pos);
-        if p.is_white() {
+        if color.is_white() {
             self.white_bb.set(pos);
         }
 
-        self.core.set(pos, p);
+        if kind == Kind::King {
+            if color.is_black() {
+                self.black_king_pos = Some(Some(pos));
+            } else {
+                self.white_king_pos = Some(pos);
+            }
+        }
+
+        self.core.set(pos, color, kind);
     }
 
     pub fn hands_mut(&mut self) -> &mut Hands {
@@ -379,6 +415,12 @@ impl PositionAux {
         }
         self.occupied.shift(dir);
         self.white_bb.shift(dir);
+        if let Some(pos) = self.white_king_pos.as_mut() {
+            pos.shift(dir)
+        }
+        self.black_king_pos
+            .as_mut()
+            .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
 
         self.core.shift(dir);
     }
@@ -389,6 +431,19 @@ impl PositionAux {
         } else {
             self.white_king_pos()
         }
+    }
+
+    pub(crate) fn must_turn_king_pos(&mut self) -> Square {
+        if self.turn().is_black() {
+            self.black_king_pos().unwrap()
+        } else {
+            self.white_king_pos()
+        }
+    }
+
+    pub(crate) fn white_king_attack_squares(&mut self, kind: Kind) -> BitBoard {
+        let white_king_pos = self.white_king_pos();
+        reachable_sub(self, Color::WHITE, white_king_pos, kind)
     }
 
     pub(crate) fn core(&self) -> &Position {
@@ -437,7 +492,7 @@ impl PositionAux {
         let mut stone = BitBoard::default();
         for pos in Square::iter() {
             if let Some((color, kind)) = self.get(pos) {
-                core.set(pos.flipped(), (color.opposite(), kind).into());
+                core.set(pos.flipped(), color.opposite(), kind);
             }
             if self.stone().map_or(false, |stone| stone.contains(pos)) {
                 stone.set(pos.flipped());
@@ -464,23 +519,23 @@ impl PositionAux {
         }
     }
 
-    pub fn try_set(&mut self, pos: Square, p: BoardPiece) -> anyhow::Result<()> {
-        self.core.try_set(pos, p)
+    pub fn try_set(&mut self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        self.core.try_set(pos, color, kind)
     }
 
-    pub fn can_set(&self, pos: Square, p: BoardPiece) -> anyhow::Result<()> {
-        self.core.check_can_set(pos, p)
+    pub fn can_set(&self, pos: Square, color: Color, kind: Kind) -> anyhow::Result<()> {
+        self.core.check_can_set(pos, color, kind)
     }
 
-    pub fn settable_bb(&self, p: BoardPiece) -> BitBoard {
-        if self.core.used_kind_count(p.kind()) >= p.kind().max_count() {
+    pub fn settable_bb(&self, color: Color, kind: Kind) -> BitBoard {
+        if self.core.used_kind_count(kind) >= kind.max_count() {
             return BitBoard::EMPTY;
         }
 
         let occupied = self.occupied_bb();
-        let unmovable = p.kind().unmovable_bb(p.color());
-        if p.kind() == Kind::Pawn {
-            let pawn_mask = self.bitboard(p.color(), Kind::Pawn).col_mask_bb();
+        let unmovable = kind.unmovable_bb(color);
+        if kind == Kind::Pawn {
+            let pawn_mask = self.bitboard(color, Kind::Pawn).col_mask_bb();
             return BitBoard::FULL.and_not(occupied | unmovable | pawn_mask);
         }
         BitBoard::FULL.and_not(occupied | unmovable)
@@ -522,12 +577,12 @@ mod tests {
     #[test]
     fn test_shift() {
         let mut position = Position::default();
-        position.set(Square::new(0, 0), (Color::BLACK, Kind::Pawn).into());
+        position.set(Square::new(0, 0), Color::BLACK, Kind::Pawn);
         position.shift(Direction::Down);
 
         assert_eq!(position.digest(), {
             let mut position = Position::default();
-            position.set(Square::new(0, 1), (Color::BLACK, Kind::Pawn).into());
+            position.set(Square::new(0, 1), Color::BLACK, Kind::Pawn);
             position.digest()
         });
     }

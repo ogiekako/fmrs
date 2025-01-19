@@ -183,7 +183,8 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<PositionAux> {
 
                         board.set(
                             Square::new(col as usize, row),
-                            (c, if promote { k.promote().unwrap() } else { k }).into(),
+                            c,
+                            if promote { k.promote().unwrap() } else { k },
                         );
                         promote = false;
                         break 'outer;
@@ -261,39 +262,39 @@ pub fn from_image_url(url: &str) -> anyhow::Result<String> {
 fn test_encode() {
     let mut board = PositionAux::default();
 
-    board.set(Square::new(0, 0), (Color::WHITE, Lance).into());
-    board.set(Square::new(3, 1), (Color::BLACK, Pawn).into());
-    board.set(Square::new(6, 1), (Color::BLACK, ProRook).into());
-    board.set(Square::new(7, 1), (Color::WHITE, Lance).into());
-    board.set(Square::new(0, 2), (Color::WHITE, Pawn).into());
-    board.set(Square::new(1, 2), (Color::WHITE, Pawn).into());
-    board.set(Square::new(3, 2), (Color::BLACK, Gold).into());
-    board.set(Square::new(4, 2), (Color::BLACK, Bishop).into());
-    board.set(Square::new(5, 2), (Color::WHITE, Pawn).into());
-    board.set(Square::new(8, 2), (Color::WHITE, Pawn).into());
-    board.set(Square::new(4, 3), (Color::WHITE, Pawn).into());
-    board.set(Square::new(6, 3), (Color::WHITE, Silver).into());
-    board.set(Square::new(7, 3), (Color::WHITE, Pawn).into());
-    board.set(Square::new(8, 3), (Color::WHITE, King).into());
-    board.set(Square::new(2, 4), (Color::BLACK, Gold).into());
-    board.set(Square::new(5, 4), (Color::BLACK, Pawn).into());
-    board.set(Square::new(7, 4), (Color::WHITE, Knight).into());
-    board.set(Square::new(8, 4), (Color::BLACK, Knight).into());
-    board.set(Square::new(0, 5), (Color::BLACK, Pawn).into());
-    board.set(Square::new(1, 5), (Color::BLACK, Pawn).into());
-    board.set(Square::new(4, 5), (Color::BLACK, Pawn).into());
-    board.set(Square::new(6, 5), (Color::BLACK, Pawn).into());
-    board.set(Square::new(8, 5), (Color::BLACK, Pawn).into());
-    board.set(Square::new(6, 6), (Color::BLACK, Silver).into());
-    board.set(Square::new(7, 6), (Color::BLACK, Pawn).into());
-    board.set(Square::new(1, 7), (Color::WHITE, ProRook).into());
-    board.set(Square::new(5, 7), (Color::BLACK, Gold).into());
-    board.set(Square::new(6, 7), (Color::BLACK, Silver).into());
-    board.set(Square::new(7, 7), (Color::BLACK, King).into());
-    board.set(Square::new(0, 8), (Color::BLACK, Lance).into());
-    board.set(Square::new(4, 8), (Color::WHITE, ProPawn).into());
-    board.set(Square::new(7, 8), (Color::BLACK, Knight).into());
-    board.set(Square::new(8, 8), (Color::BLACK, Lance).into());
+    board.set(Square::new(0, 0), Color::WHITE, Lance);
+    board.set(Square::new(3, 1), Color::BLACK, Pawn);
+    board.set(Square::new(6, 1), Color::BLACK, ProRook);
+    board.set(Square::new(7, 1), Color::WHITE, Lance);
+    board.set(Square::new(0, 2), Color::WHITE, Pawn);
+    board.set(Square::new(1, 2), Color::WHITE, Pawn);
+    board.set(Square::new(3, 2), Color::BLACK, Gold);
+    board.set(Square::new(4, 2), Color::BLACK, Bishop);
+    board.set(Square::new(5, 2), Color::WHITE, Pawn);
+    board.set(Square::new(8, 2), Color::WHITE, Pawn);
+    board.set(Square::new(4, 3), Color::WHITE, Pawn);
+    board.set(Square::new(6, 3), Color::WHITE, Silver);
+    board.set(Square::new(7, 3), Color::WHITE, Pawn);
+    board.set(Square::new(8, 3), Color::WHITE, King);
+    board.set(Square::new(2, 4), Color::BLACK, Gold);
+    board.set(Square::new(5, 4), Color::BLACK, Pawn);
+    board.set(Square::new(7, 4), Color::WHITE, Knight);
+    board.set(Square::new(8, 4), Color::BLACK, Knight);
+    board.set(Square::new(0, 5), Color::BLACK, Pawn);
+    board.set(Square::new(1, 5), Color::BLACK, Pawn);
+    board.set(Square::new(4, 5), Color::BLACK, Pawn);
+    board.set(Square::new(6, 5), Color::BLACK, Pawn);
+    board.set(Square::new(8, 5), Color::BLACK, Pawn);
+    board.set(Square::new(6, 6), Color::BLACK, Silver);
+    board.set(Square::new(7, 6), Color::BLACK, Pawn);
+    board.set(Square::new(1, 7), Color::WHITE, ProRook);
+    board.set(Square::new(5, 7), Color::BLACK, Gold);
+    board.set(Square::new(6, 7), Color::BLACK, Silver);
+    board.set(Square::new(7, 7), Color::BLACK, King);
+    board.set(Square::new(0, 8), Color::BLACK, Lance);
+    board.set(Square::new(4, 8), Color::WHITE, ProPawn);
+    board.set(Square::new(7, 8), Color::BLACK, Knight);
+    board.set(Square::new(8, 8), Color::BLACK, Lance);
     board.hands_mut().add(Color::BLACK, Silver);
     board.hands_mut().add(Color::WHITE, Bishop);
     board.hands_mut().add(Color::WHITE, Gold);
