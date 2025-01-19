@@ -67,12 +67,6 @@ pub enum Kind {
              // 14
 }
 
-const LINE_PIECE_MASK: usize = 1 << Lance.index()
-    | 1 << Bishop.index()
-    | 1 << Rook.index()
-    | 1 << ProBishop.index()
-    | 1 << ProRook.index();
-
 impl Distribution<Kind> for rand::distributions::Standard {
     fn sample<R: rand::Rng + ?Sized>(&self, rng: &mut R) -> Kind {
         Kind::from_index(rng.gen_range(0..NUM_KIND))
@@ -139,7 +133,13 @@ impl Kind {
         })
     }
     pub fn is_line_piece(self) -> bool {
-        LINE_PIECE_MASK & 1 << self.index() != 0
+        const MASK: usize = 1 << Lance.index()
+            | 1 << Bishop.index()
+            | 1 << Rook.index()
+            | 1 << ProBishop.index()
+            | 1 << ProRook.index();
+
+        MASK & 1 << self.index() != 0
     }
     pub fn is_hand_piece(self) -> bool {
         self.index() < NUM_HAND_KIND

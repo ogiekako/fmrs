@@ -12,6 +12,7 @@ pub mod position;
 pub mod search;
 pub mod sfen;
 pub mod solve;
+pub mod config;
 
 #[cfg(test)]
 mod tests {

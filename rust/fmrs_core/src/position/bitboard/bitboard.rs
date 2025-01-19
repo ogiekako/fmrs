@@ -132,6 +132,41 @@ impl BitBoard {
         }
         BitBoard::from_u128(res)
     }
+
+    pub fn and_not_assign(&mut self, other: BitBoard) {
+        self.0 &= !other.0;
+    }
+
+    pub(crate) fn s99_to_highest(&self) -> BitBoard {
+        if self.is_empty() {
+            return BitBoard::FULL;
+        }
+        ((1 << 81) - (1 << self.0.ilog2())).into()
+    }
+
+    pub(crate) fn s11_to_lowest(&self) -> BitBoard {
+        if self.is_empty() {
+            return BitBoard::FULL;
+        }
+        ((2 << self.0.trailing_zeros()) - 1).into()
+    }
+
+    pub(crate) fn surrounding(&self, pos: Square) -> u128 {
+        debug_assert!(!self.contains(pos));
+        let p = 1u128 << pos.index();
+        let high = self.0 ^ self.0.wrapping_sub(p);
+        let mut lower = self.0 & (p - 1);
+        if lower == 0 {
+            lower = 1;
+        };
+        high - (1 << lower.ilog2())
+    }
+}
+
+impl From<u128> for BitBoard {
+    fn from(x: u128) -> Self {
+        Self(x)
+    }
 }
 
 impl Iterator for BitBoard {

@@ -27,22 +27,22 @@ impl Magic {
     }
 }
 
-pub fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    BISHOP_MAGIC[pos.index()].reachable63(occupied)
+pub(super) fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    MAGICS[pos.index()].bishop.reachable63(occupied)
 }
 
-pub fn probishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    PROBISHOP_MAGIC[pos.index()].reachable63(occupied)
+pub fn pro_bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    MAGICS[pos.index()].pro_bishop.reachable63(occupied)
 }
 
 pub fn rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    ROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
-        | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
+    MAGICS[pos.index()].rook_row.reachable63(occupied)
+        | MAGICS[pos.index()].rook_col.reachable(occupied)
 }
 
-pub fn prorook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
-    PROROOK_MAGIC_ROW[pos.index()].reachable63(occupied)
-        | ROOK_MAGIC_COL[pos.index()].reachable(occupied)
+pub fn pro_rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    MAGICS[pos.index()].pro_rook_row.reachable63(occupied)
+        | MAGICS[pos.index()].rook_col.reachable(occupied)
 }
 
 fn one_to_eight(bb: BitBoard) -> u64 {
@@ -51,13 +51,30 @@ fn one_to_eight(bb: BitBoard) -> u64 {
 
 pub fn init_magic() {
     let b = bishop_reachable(BitBoard::default(), Square::new(0, 0))
-        | probishop_reachable(BitBoard::default(), Square::new(0, 0))
+        | pro_bishop_reachable(BitBoard::default(), Square::new(0, 0))
         | rook_reachable(BitBoard::default(), Square::new(0, 0))
-        | prorook_reachable(BitBoard::default(), Square::new(0, 0));
+        | pro_rook_reachable(BitBoard::default(), Square::new(0, 0));
     assert!(!b.contains(Square::new(0, 0)));
 }
 
+struct Magics {
+    bishop: Magic,
+    rook_row: Magic,
+    rook_col: Magic,
+    pro_bishop: Magic,
+    pro_rook_row: Magic,
+}
+
 lazy_static! {
+    static ref MAGICS: [Magics; 81] = {
+        std::array::from_fn(|i| Magics {
+            bishop: BISHOP_MAGIC[i].clone(),
+            rook_row: ROOK_MAGIC_ROW[i].clone(),
+            rook_col: ROOK_MAGIC_COL[i].clone(),
+            pro_bishop: PROBISHOP_MAGIC[i].clone(),
+            pro_rook_row: PROROOK_MAGIC_ROW[i].clone(),
+        })
+    };
     static ref BISHOP_MAGIC: Vec<Magic> = {
         let mut res = vec![];
         for pos in Square::iter() {

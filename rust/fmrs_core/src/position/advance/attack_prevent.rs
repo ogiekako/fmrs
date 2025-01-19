@@ -2,8 +2,8 @@ use crate::{
     memo::MemoTrait,
     position::{
         bitboard::{
-            king_then_king_or_night_power, knight_power, lance_reachable,
-            magic::{bishop_reachable, rook_reachable},
+            bishop_reachable, king_then_king_or_night_power, knight_power, lance_reachable,
+            magic::rook_reachable,
         },
         checked,
         position::PositionAux,

@@ -3,38 +3,38 @@ use crate::piece::{Color, Kind, NUM_KIND};
 use super::super::{BitBoard, Square};
 
 pub fn power(color: Color, pos: Square, kind: Kind) -> BitBoard {
-    const CK: [usize; NUM_KIND * 2] = [
-        ColorKind::BlackPawn.index(),
-        ColorKind::BlackLance.index(),
-        ColorKind::BlackKnight.index(),
-        ColorKind::BlackSilver.index(),
-        ColorKind::BlackGold.index(),
-        ColorKind::Bishop.index(),
-        ColorKind::Rook.index(),
-        ColorKind::King.index(),
-        ColorKind::BlackGold.index(),
-        ColorKind::BlackGold.index(),
-        ColorKind::BlackGold.index(),
-        ColorKind::BlackGold.index(),
-        ColorKind::ProBishop.index(),
-        ColorKind::ProRook.index(),
-        ColorKind::WhitePawn.index(),
-        ColorKind::WhiteLance.index(),
-        ColorKind::WhiteKnight.index(),
-        ColorKind::WhiteSilver.index(),
-        ColorKind::WhiteGold.index(),
-        ColorKind::Bishop.index(),
-        ColorKind::Rook.index(),
-        ColorKind::King.index(),
-        ColorKind::WhiteGold.index(),
-        ColorKind::WhiteGold.index(),
-        ColorKind::WhiteGold.index(),
-        ColorKind::WhiteGold.index(),
-        ColorKind::ProBishop.index(),
-        ColorKind::ProRook.index(),
+    const CK: [u8; NUM_KIND * 2] = [
+        ColorKind::BlackPawn.index() as u8,
+        ColorKind::BlackLance.index() as u8,
+        ColorKind::BlackKnight.index() as u8,
+        ColorKind::BlackSilver.index() as u8,
+        ColorKind::BlackGold.index() as u8,
+        ColorKind::Bishop.index() as u8,
+        ColorKind::Rook.index() as u8,
+        ColorKind::King.index() as u8,
+        ColorKind::BlackGold.index() as u8,
+        ColorKind::BlackGold.index() as u8,
+        ColorKind::BlackGold.index() as u8,
+        ColorKind::BlackGold.index() as u8,
+        ColorKind::ProBishop.index() as u8,
+        ColorKind::ProRook.index() as u8,
+        ColorKind::WhitePawn.index() as u8,
+        ColorKind::WhiteLance.index() as u8,
+        ColorKind::WhiteKnight.index() as u8,
+        ColorKind::WhiteSilver.index() as u8,
+        ColorKind::WhiteGold.index() as u8,
+        ColorKind::Bishop.index() as u8,
+        ColorKind::Rook.index() as u8,
+        ColorKind::King.index() as u8,
+        ColorKind::WhiteGold.index() as u8,
+        ColorKind::WhiteGold.index() as u8,
+        ColorKind::WhiteGold.index() as u8,
+        ColorKind::WhiteGold.index() as u8,
+        ColorKind::ProBishop.index() as u8,
+        ColorKind::ProRook.index() as u8,
     ];
 
-    POWERS[pos.index()][CK[kind.index() as usize + color.index() * NUM_KIND]]
+    POWERS[pos.index()][CK[kind.index() + color.index() * NUM_KIND] as usize]
 }
 
 pub fn pawn_power(color: Color, pos: Square) -> BitBoard {
@@ -197,7 +197,7 @@ fn powers_sub(shifts: impl Iterator<Item = (isize, isize)>) -> [BitBoard; 81] {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ColorKind {
+pub enum ColorKind {
     BlackPawn,
     BlackLance,
     BlackKnight,
@@ -213,7 +213,12 @@ enum ColorKind {
     King,
     ProBishop,
     ProRook,
+    //
+    RuLd,
+    RdLu,
 }
+
+const COLOR_KIND_NUM: usize = 17;
 
 const COLOR_KINDS: [ColorKind; COLOR_KIND_NUM] = [
     ColorKind::BlackPawn,
@@ -231,9 +236,10 @@ const COLOR_KINDS: [ColorKind; COLOR_KIND_NUM] = [
     ColorKind::King,
     ColorKind::ProBishop,
     ColorKind::ProRook,
+    //
+    ColorKind::RuLd,
+    ColorKind::RdLu,
 ];
-
-const COLOR_KIND_NUM: usize = 15;
 
 impl ColorKind {
     const fn slides(&self) -> [Option<(i8, i8)>; 4] {
@@ -246,6 +252,8 @@ impl ColorKind {
             ColorKind::Rook | ColorKind::ProRook => {
                 [Some((-1, 0)), Some((0, -1)), Some((0, 1)), Some((1, 0))]
             }
+            ColorKind::RuLd => [Some((-1, -1)), Some((1, 1)), None, None],
+            ColorKind::RdLu => [Some((-1, 1)), Some((1, -1)), None, None],
             _ => [None; 4],
         }
     }
@@ -347,7 +355,7 @@ impl ColorKind {
         }
     }
 
-    const fn power(&self, pos: Square) -> BitBoard {
+    const fn power_naive(&self, pos: Square) -> BitBoard {
         let slides = self.slides();
         let steps = self.steps();
 
@@ -391,6 +399,10 @@ impl ColorKind {
     const fn index(&self) -> usize {
         *self as usize
     }
+
+    pub fn power(&self, pos: Square) -> BitBoard {
+        POWERS[pos.index()][self.index()]
+    }
 }
 
 const POWERS: [[BitBoard; COLOR_KIND_NUM]; 81] = construct_powers();
@@ -400,7 +412,7 @@ const fn construct_pos_powers(pos: Square) -> [BitBoard; COLOR_KIND_NUM] {
 
     let mut i = 0;
     while i < COLOR_KIND_NUM {
-        res[i] = COLOR_KINDS[i].power(pos);
+        res[i] = COLOR_KINDS[i].power_naive(pos);
         i += 1;
     }
     res

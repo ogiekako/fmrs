@@ -1,7 +1,9 @@
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{bishop_power, lance_power, magic, reachable, rook_power, BitBoard},
+        bitboard::{
+            bishop_power, bishop_reachable, lance_power, magic, reachable, rook_power, BitBoard,
+        },
         position::PositionAux,
         Square,
     },
@@ -63,7 +65,7 @@ fn bishop_pinned(
     }
 
     let reachable_from_king =
-        magic::bishop_reachable(position.occupied_bb(), position.must_king_pos(king_color));
+        bishop_reachable(position.occupied_bb(), position.must_king_pos(king_color));
 
     potential_attackers = potential_attackers.and_not(reachable_from_king);
 
@@ -71,7 +73,7 @@ fn bishop_pinned(
         let power_from_attacker = bishop_power(attacker_pos);
 
         let block = reachable_from_king
-            & magic::bishop_reachable(position.occupied_bb(), attacker_pos)
+            & bishop_reachable(position.occupied_bb(), attacker_pos)
             & position.color_bb(blocker_color);
         if block.is_empty() {
             continue;

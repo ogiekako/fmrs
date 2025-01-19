@@ -441,7 +441,7 @@ impl PositionAux {
         }
     }
 
-    pub(crate) fn white_king_attack_squares(&mut self, kind: Kind) -> BitBoard {
+    pub fn white_king_attack_squares(&mut self, kind: Kind) -> BitBoard {
         let white_king_pos = self.white_king_pos();
         reachable_sub(self, Color::WHITE, white_king_pos, kind)
     }

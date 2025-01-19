@@ -1,4 +1,5 @@
 use crate::{
+    config::CONFIG,
     piece::{Color, Kind},
     position::{
         bitboard::{BitBoard, Square},
@@ -6,7 +7,7 @@ use crate::{
     },
 };
 
-use super::{magic, power};
+use super::{magic, power, ColorKind};
 
 pub fn reachable(
     position: &mut PositionAux,
@@ -29,10 +30,10 @@ pub fn reachable_core(occupied: BitBoard, color: Color, pos: Square, kind: Kind)
     }
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
-        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Bishop => bishop_reachable(occupied, pos),
         Kind::Rook => magic::rook_reachable(occupied, pos),
-        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
-        Kind::ProRook => magic::prorook_reachable(occupied, pos),
+        Kind::ProBishop => magic::pro_bishop_reachable(occupied, pos),
+        Kind::ProRook => magic::pro_rook_reachable(occupied, pos),
         _ => unreachable!(),
     }
 }
@@ -47,14 +48,30 @@ pub fn reachable_sub(
         return power(color, pos, kind);
     }
     let occupied = position.occupied_bb();
+
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
-        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Bishop => bishop_reachable(occupied, pos),
         Kind::Rook => magic::rook_reachable(occupied, pos),
-        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
-        Kind::ProRook => magic::prorook_reachable(occupied, pos),
+        Kind::ProBishop => magic::pro_bishop_reachable(occupied, pos),
+        Kind::ProRook => magic::pro_rook_reachable(occupied, pos),
         _ => unreachable!(),
     }
+}
+
+#[inline(never)]
+pub fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    const F: fn(BitBoard, Square) -> BitBoard =
+        [bishop_reachable2, magic::bishop_reachable][CONFIG.use_bishop_magic as usize];
+    F(occupied, pos)
+}
+
+fn bishop_reachable2(occupied: BitBoard, pos: Square) -> BitBoard {
+    let power1 = ColorKind::RuLd.power(pos);
+    let power2 = ColorKind::RdLu.power(pos);
+    (power1.u128() & (power1 & occupied).surrounding(pos)
+        | power2.u128() & (power2 & occupied).surrounding(pos))
+    .into()
 }
 
 pub fn reachable2(
@@ -70,10 +87,10 @@ pub fn reachable2(
     let occupied = capturable | uncapturable;
     match kind {
         Kind::Lance => lance_reachable(occupied, color, pos),
-        Kind::Bishop => magic::bishop_reachable(occupied, pos),
+        Kind::Bishop => bishop_reachable(occupied, pos),
         Kind::Rook => magic::rook_reachable(occupied, pos),
-        Kind::ProBishop => magic::probishop_reachable(occupied, pos),
-        Kind::ProRook => magic::prorook_reachable(occupied, pos),
+        Kind::ProBishop => magic::pro_bishop_reachable(occupied, pos),
+        Kind::ProRook => magic::pro_rook_reachable(occupied, pos),
         _ => unreachable!(),
     }
     .and_not(uncapturable)
