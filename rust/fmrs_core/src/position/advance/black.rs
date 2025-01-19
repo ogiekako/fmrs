@@ -200,7 +200,6 @@ impl<'a, M: MemoTrait> Context<'a, M> {
     #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
         for kindish in [
-            Kindish::Pawn,
             Kindish::Lance,
             Kindish::Knight,
             Kindish::Bishop,
