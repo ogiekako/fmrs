@@ -562,6 +562,14 @@ impl PositionAux {
         false
     }
 
+    pub(crate) fn king_pos(&mut self, king_color: Color) -> Option<Square> {
+        if king_color.is_black() {
+            self.black_king_pos()
+        } else {
+            self.white_king_pos().into()
+        }
+    }
+
     // TODO: remember attackers
 }
 

@@ -4,6 +4,7 @@ use crate::{
         bitboard::{
             king_then_king_or_night_power, knight_power, lance_reachable,
             magic::{bishop_reachable, rook_reachable},
+            reachable_sub,
         },
         checked,
         position::PositionAux,
@@ -422,14 +423,11 @@ pub fn attacker(
     king_color: Color,
     early_return: bool,
 ) -> Option<Attacker> {
+    let king_pos = position.king_pos(king_color)?;
+
     let mut attacker: Option<Attacker> = None;
 
     let mut opponent_bb = position.capturable_by(king_color);
-    let king_pos = if king_color.is_black() {
-        position.black_king_pos()?
-    } else {
-        position.white_king_pos()
-    };
 
     let king_power_area = (king_power(king_pos) | knight_power(king_color, king_pos)) & opponent_bb;
 
@@ -443,9 +441,10 @@ pub fn attacker(
     }
     opponent_bb = opponent_bb.and_not(king_power_area);
 
+    let occupied = position.occupied_bb();
+
     // Lance
-    let attacking_lances =
-        lance_reachable(position.occupied_bb(), king_color, king_pos) & opponent_bb;
+    let attacking_lances = lance_reachable(occupied, king_color, king_pos) & opponent_bb;
     if !attacking_lances.is_empty() {
         let attacker_pos = attacking_lances.singleton();
         let kind = position.must_get_kind(attacker_pos);
@@ -469,9 +468,9 @@ pub fn attacker(
             continue;
         }
         attacker_cands &= if bishop {
-            bishop_reachable(position.occupied_bb(), king_pos)
+            bishop_reachable(occupied, king_pos)
         } else {
-            rook_reachable(position.occupied_bb(), king_pos)
+            rook_reachable(occupied, king_pos)
         };
         if attacker_cands.is_empty() {
             continue;
