@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-use fmrs_core::{position::bitboard::magic::init_magic, sfen};
+use fmrs_core::{position::bitboard::legacy_magic::init_magic, sfen};
 use pprof::protos::Message;
 
 use crate::solver::{self, Algorithm};

@@ -1,6 +1,7 @@
 pub mod backward;
 pub mod batch_square;
 pub mod bench;
+pub mod magic;
 mod one_way_mate;
 mod server;
 mod solve;

@@ -5,64 +5,66 @@ use super::square::Square;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct BitBoard(u128);
 
+const fn const_or<const N: usize>(xs: [BitBoard; N]) -> BitBoard {
+    let mut res = 0;
+    let mut i = 0;
+    while i < N {
+        res |= xs[i].0;
+        i += 1;
+    }
+    BitBoard::from_u128(res)
+}
+
 impl BitBoard {
-    pub const EMPTY: BitBoard = BitBoard(0);
+    pub const EMPTY: Self = Self(0);
+    pub const FULL: Self = Self::from_u128((1 << 81) - 1);
 
-    pub const UPPER: BitBoard = BitBoard::ROW1;
-    pub const LOWER: BitBoard = BitBoard::ROW9;
+    pub const UPPER: Self = Self::ROW1;
+    pub const LOWER: Self = Self::ROW9;
 
-    pub const BLACK_PROMOTABLE: BitBoard =
-        Self::from_u128(Self::ROW1.u128() | Self::ROW2.u128() | Self::ROW3.u128());
-    pub const WHITE_PROMOTABLE: BitBoard =
-        Self::from_u128(Self::ROW7.u128() | Self::ROW8.u128() | Self::ROW9.u128());
+    pub const BLACK_PROMOTABLE: Self = const_or([Self::ROW1, Self::ROW2, Self::ROW3]);
+    pub const WHITE_PROMOTABLE: Self = const_or([Self::ROW7, Self::ROW8, Self::ROW9]);
 
-    pub const ROW1: BitBoard = BitBoard::from_u128(
-        0b000000001000000001000000001000000001000000001000000001000000001000000001000000001u128,
-    );
-    pub const ROW2: BitBoard = BitBoard::from_u128(
-        0b000000010000000010000000010000000010000000010000000010000000010000000010000000010u128,
-    );
-    pub const ROW3: BitBoard = BitBoard::from_u128(
-        0b000000100000000100000000100000000100000000100000000100000000100000000100000000100u128,
-    );
-    pub const ROW4: BitBoard = BitBoard::from_u128(
-        0b000001000000001000000001000000001000000001000000001000000001000000001000000001000u128,
-    );
-    pub const ROW5: BitBoard = BitBoard::from_u128(
-        0b000010000000010000000010000000010000000010000000010000000010000000010000000010000u128,
-    );
-    pub const ROW6: BitBoard = BitBoard::from_u128(
-        0b000100000000100000000100000000100000000100000000100000000100000000100000000100000u128,
-    );
-    pub const ROW7: BitBoard = BitBoard::from_u128(
-        0b001000000001000000001000000001000000001000000001000000001000000001000000001000000u128,
-    );
-    pub const ROW8: BitBoard = BitBoard::from_u128(
-        0b010000000010000000010000000010000000010000000010000000010000000010000000010000000u128,
-    );
-    pub const ROW9: BitBoard = BitBoard::from_u128(
-        0b100000000100000000100000000100000000100000000100000000100000000100000000100000000u128,
-    );
-    pub const FULL: BitBoard = BitBoard::from_u128(
-        0b111111111111111111111111111111111111111111111111111111111111111111111111111111111u128,
-    );
+    pub const OUTER: Self = const_or([Self::ROW1, Self::ROW9, Self::COL1, Self::COL9]);
+    pub const INNER: Self = Self::FULL.and_not(Self::OUTER);
 
-    pub fn is_empty(&self) -> bool {
+    pub const ROW1: Self = Self::from_u128(
+        1 << 0 | 1 << 9 | 1 << 18 | 1 << 27 | 1 << 36 | 1 << 45 | 1 << 54 | 1 << 63 | 1 << 72,
+    );
+    pub const ROW2: Self = Self::from_u128(Self::ROW1.0 << 1);
+    pub const ROW3: Self = Self::from_u128(Self::ROW2.0 << 1);
+    pub const ROW4: Self = Self::from_u128(Self::ROW3.0 << 1);
+    pub const ROW5: Self = Self::from_u128(Self::ROW4.0 << 1);
+    pub const ROW6: Self = Self::from_u128(Self::ROW5.0 << 1);
+    pub const ROW7: Self = Self::from_u128(Self::ROW6.0 << 1);
+    pub const ROW8: Self = Self::from_u128(Self::ROW7.0 << 1);
+    pub const ROW9: Self = Self::from_u128(Self::ROW8.0 << 1);
+    pub const COL1: Self = Self::from_u128(0x1FF << 9 * 0);
+    pub const COL2: Self = Self::from_u128(0x1FF << 9 * 1);
+    pub const COL3: Self = Self::from_u128(0x1FF << 9 * 2);
+    pub const COL4: Self = Self::from_u128(0x1FF << 9 * 3);
+    pub const COL5: Self = Self::from_u128(0x1FF << 9 * 4);
+    pub const COL6: Self = Self::from_u128(0x1FF << 9 * 5);
+    pub const COL7: Self = Self::from_u128(0x1FF << 9 * 6);
+    pub const COL8: Self = Self::from_u128(0x1FF << 9 * 7);
+    pub const COL9: Self = Self::from_u128(0x1FF << 9 * 8);
+
+    pub const fn is_empty(&self) -> bool {
         self.0 == 0
     }
     pub const fn set(&mut self, pos: Square) {
         let i = pos.index();
         self.0 |= 1 << i;
     }
-    pub fn unset(&mut self, pos: Square) {
+    pub const fn unset(&mut self, pos: Square) {
         let i = pos.index();
         self.0 &= !(1 << i);
     }
-    pub fn contains(&self, pos: Square) -> bool {
+    pub const fn contains(&self, pos: Square) -> bool {
         let i = pos.index();
         self.0 >> i & 1 != 0
     }
-    pub fn and_not(&self, mask: BitBoard) -> BitBoard {
+    pub const fn and_not(&self, mask: BitBoard) -> BitBoard {
         BitBoard::from_u128(self.0 & !mask.0)
     }
 
@@ -137,14 +139,14 @@ impl BitBoard {
         self.0 &= !other.0;
     }
 
-    pub(crate) fn s99_to_highest(&self) -> BitBoard {
+    pub fn s99_to_highest(&self) -> BitBoard {
         if self.is_empty() {
             return BitBoard::FULL;
         }
         ((1 << 81) - (1 << self.0.ilog2())).into()
     }
 
-    pub(crate) fn s11_to_lowest(&self) -> BitBoard {
+    pub fn s11_to_lowest(&self) -> BitBoard {
         if self.is_empty() {
             return BitBoard::FULL;
         }
@@ -180,34 +182,38 @@ impl Iterator for BitBoard {
     }
 }
 
-macro_rules! def_op {
-    ($ty: ident, $op: ident) => {
-        impl std::ops::$ty for BitBoard {
-            type Output = Self;
-
-            fn $op(self, rhs: Self) -> Self {
-                Self(self.0.$op(rhs.0))
-            }
-        }
-    };
+impl std::ops::BitAnd for BitBoard {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        Self(self.0 & rhs.0)
+    }
 }
 
-def_op!(BitAnd, bitand);
-def_op!(BitOr, bitor);
-def_op!(BitXor, bitxor);
-
-macro_rules! def_op_assign {
-    ($ty: ident, $op: ident) => {
-        impl std::ops::$ty for BitBoard {
-            fn $op(&mut self, rhs: Self) {
-                self.0.$op(rhs.0);
-            }
-        }
-    };
+impl std::ops::BitOr for BitBoard {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        Self(self.0 | rhs.0)
+    }
 }
 
-def_op_assign!(BitAndAssign, bitand_assign);
-def_op_assign!(BitOrAssign, bitor_assign);
+impl std::ops::BitXor for BitBoard {
+    type Output = Self;
+    fn bitxor(self, rhs: Self) -> Self {
+        Self(self.0 ^ rhs.0)
+    }
+}
+
+impl std::ops::BitAndAssign for BitBoard {
+    fn bitand_assign(&mut self, rhs: Self) {
+        self.0 &= rhs.0;
+    }
+}
+
+impl std::ops::BitOrAssign for BitBoard {
+    fn bitor_assign(&mut self, rhs: Self) {
+        self.0 |= rhs.0;
+    }
+}
 
 impl std::fmt::Display for BitBoard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -250,7 +256,7 @@ impl BitBoard {
         self.0 &= self.0 - 1;
         res
     }
-    pub(super) fn subsets(&self) -> impl Iterator<Item = BitBoard> {
+    pub fn subsets(&self) -> impl Iterator<Item = BitBoard> {
         let orig = self.u128();
         let mut x = orig;
         (0..(1u128 << x.count_ones())).map(move |_| {

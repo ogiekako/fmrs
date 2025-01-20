@@ -162,7 +162,9 @@ impl<I: FnMut(&[i32]) -> i8> ZeroFinder<I> {
 
                 return;
             }
-        } else if fl == 0 && fr == 0 && (0..region.len()).all(|i| {
+        } else if fl == 0
+            && fr == 0
+            && (0..region.len()).all(|i| {
                 if self.is_strictly_monotone_index(i) || l[i] == r[i] {
                     return true;
                 }
@@ -171,7 +173,8 @@ impl<I: FnMut(&[i32]) -> i8> ZeroFinder<I> {
                 let mut r2 = r.clone();
                 r2[i] -= 1;
                 self.f(&l2) == 0 && self.f(&r2) == 0
-            }) {
+            })
+        {
             // #[cfg(debug_assertions)]
             // {
             //     for x in region.iter() {

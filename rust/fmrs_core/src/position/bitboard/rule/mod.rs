@@ -1,5 +1,7 @@
-pub mod magic;
-mod magic_core;
+pub mod generated_magics;
+pub mod legacy_magic;
+mod legacy_magic_core;
+pub mod magics_generator;
 mod power;
 mod reachable;
 

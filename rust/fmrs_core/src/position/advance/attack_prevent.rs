@@ -3,7 +3,7 @@ use crate::{
     position::{
         bitboard::{
             bishop_reachable, king_then_king_or_night_power, knight_power, lance_reachable,
-            magic::rook_reachable,
+            rook_reachable,
         },
         checked,
         position::PositionAux,

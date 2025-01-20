@@ -126,7 +126,7 @@ impl Square {
 
 impl std::fmt::Debug for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{}", self.col() + 1, self.row() + 1)
+        write!(f, "S{}{}", self.col() + 1, self.row() + 1)
     }
 }
 

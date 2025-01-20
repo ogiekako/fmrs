@@ -216,9 +216,11 @@ pub enum ColorKind {
     //
     RuLd,
     RdLu,
+    RL,
+    UD,
 }
 
-const COLOR_KIND_NUM: usize = 17;
+const COLOR_KIND_NUM: usize = 19;
 
 const COLOR_KINDS: [ColorKind; COLOR_KIND_NUM] = [
     ColorKind::BlackPawn,
@@ -239,6 +241,8 @@ const COLOR_KINDS: [ColorKind; COLOR_KIND_NUM] = [
     //
     ColorKind::RuLd,
     ColorKind::RdLu,
+    ColorKind::RL,
+    ColorKind::UD,
 ];
 
 impl ColorKind {
@@ -254,6 +258,8 @@ impl ColorKind {
             }
             ColorKind::RuLd => [Some((-1, -1)), Some((1, 1)), None, None],
             ColorKind::RdLu => [Some((-1, 1)), Some((1, -1)), None, None],
+            ColorKind::RL => [Some((-1, 0)), Some((1, 0)), None, None],
+            ColorKind::UD => [Some((0, -1)), Some((0, 1)), None, None],
             _ => [None; 4],
         }
     }
@@ -400,8 +406,50 @@ impl ColorKind {
         *self as usize
     }
 
-    pub fn power(&self, pos: Square) -> BitBoard {
+    pub const fn power(&self, pos: Square) -> BitBoard {
         POWERS[pos.index()][self.index()]
+    }
+
+    pub const fn reachable_naive(&self, occupied: BitBoard, pos: Square) -> BitBoard {
+        let slides = self.slides();
+        let steps = self.steps();
+
+        let mut res = BitBoard::EMPTY;
+        let mut i = 0;
+        while i < steps.len() {
+            let Some((dx, dy)) = steps[i] else {
+                break;
+            };
+            let (x, y) = (pos.col() as i8 + dx, pos.row() as i8 + dy);
+            if x >= 0 && x < 9 && y >= 0 && y < 9 {
+                res.set(Square::new(x as usize, y as usize));
+            }
+            i += 1;
+        }
+        let mut i = 0;
+        while i < slides.len() {
+            let Some((dx, dy)) = slides[i] else {
+                break;
+            };
+            let (mut x, mut y) = (pos.col() as i8, pos.row() as i8);
+            let mut j = 0;
+            while j < 8 {
+                x += dx;
+                y += dy;
+                if x < 0 || x >= 9 || y < 0 || y >= 9 {
+                    break;
+                }
+                let p = Square::new(x as usize, y as usize);
+                res.set(p);
+                if occupied.contains(p) {
+                    break;
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+
+        res
     }
 }
 
