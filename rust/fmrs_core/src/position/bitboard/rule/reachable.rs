@@ -7,7 +7,7 @@ use crate::{
     },
 };
 
-use super::{legacy_magic, power, ColorKind};
+use super::{power, ColorKind};
 
 pub fn reachable(
     position: &mut PositionAux,
@@ -32,8 +32,8 @@ pub fn reachable_core(occupied: BitBoard, color: Color, pos: Square, kind: Kind)
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
-        Kind::ProBishop => legacy_magic::pro_bishop_reachable(occupied, pos),
-        Kind::ProRook => legacy_magic::pro_rook_reachable(occupied, pos),
+        Kind::ProBishop => pro_bishop_reachable(occupied, pos),
+        Kind::ProRook => pro_rook_reachable(occupied, pos),
         _ => unreachable!(),
     }
 }
@@ -122,8 +122,8 @@ pub fn reachable2(
         Kind::Lance => lance_reachable(occupied, color, pos),
         Kind::Bishop => bishop_reachable(occupied, pos),
         Kind::Rook => rook_reachable(occupied, pos),
-        Kind::ProBishop => legacy_magic::pro_bishop_reachable(occupied, pos),
-        Kind::ProRook => legacy_magic::pro_rook_reachable(occupied, pos),
+        Kind::ProBishop => pro_bishop_reachable(occupied, pos),
+        Kind::ProRook => pro_rook_reachable(occupied, pos),
         _ => unreachable!(),
     }
     .and_not(uncapturable)

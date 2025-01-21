@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write};
 
-use fmrs_core::{position::bitboard::legacy_magic::init_magic, sfen};
+use fmrs_core::sfen;
 use pprof::protos::Message;
 
 use crate::solver::{self, Algorithm};
@@ -14,8 +14,6 @@ pub enum BenchCommand {
 }
 
 pub fn bench(cmd: BenchCommand, algo: Algorithm, file: &str) -> anyhow::Result<()> {
-    init_magic();
-
     let guard = pprof::ProfilerGuard::new(100).unwrap();
 
     match cmd {

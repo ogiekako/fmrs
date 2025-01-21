@@ -39,15 +39,15 @@ impl BitBoard {
     pub const ROW7: Self = Self::from_u128(Self::ROW6.0 << 1);
     pub const ROW8: Self = Self::from_u128(Self::ROW7.0 << 1);
     pub const ROW9: Self = Self::from_u128(Self::ROW8.0 << 1);
-    pub const COL1: Self = Self::from_u128(0x1FF << 9 * 0);
-    pub const COL2: Self = Self::from_u128(0x1FF << 9 * 1);
-    pub const COL3: Self = Self::from_u128(0x1FF << 9 * 2);
-    pub const COL4: Self = Self::from_u128(0x1FF << 9 * 3);
-    pub const COL5: Self = Self::from_u128(0x1FF << 9 * 4);
-    pub const COL6: Self = Self::from_u128(0x1FF << 9 * 5);
-    pub const COL7: Self = Self::from_u128(0x1FF << 9 * 6);
-    pub const COL8: Self = Self::from_u128(0x1FF << 9 * 7);
-    pub const COL9: Self = Self::from_u128(0x1FF << 9 * 8);
+    pub const COL1: Self = Self::from_u128(0x1FF);
+    pub const COL2: Self = Self::from_u128(0x1FF << 9);
+    pub const COL3: Self = Self::from_u128(0x1FF << (9 * 2));
+    pub const COL4: Self = Self::from_u128(0x1FF << (9 * 3));
+    pub const COL5: Self = Self::from_u128(0x1FF << (9 * 4));
+    pub const COL6: Self = Self::from_u128(0x1FF << (9 * 5));
+    pub const COL7: Self = Self::from_u128(0x1FF << (9 * 6));
+    pub const COL8: Self = Self::from_u128(0x1FF << (9 * 7));
+    pub const COL9: Self = Self::from_u128(0x1FF << (9 * 8));
 
     pub const fn is_empty(&self) -> bool {
         self.0 == 0
@@ -94,10 +94,6 @@ impl BitBoard {
                 self.0 = self.0 >> 9 | right << 72;
             }
         }
-    }
-
-    pub(crate) fn digest(&self) -> u64 {
-        (self.0 >> 64) as u64 ^ self.0 as u64
     }
 
     pub(crate) fn from_square(pos: Square) -> BitBoard {
