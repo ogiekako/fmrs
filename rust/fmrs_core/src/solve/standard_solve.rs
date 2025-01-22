@@ -5,7 +5,7 @@ use crate::memo::{Memo, MemoTrait};
 use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
-use crate::position::{BitBoard, Position, PositionExt};
+use crate::position::{BitBoard, Movement, Position, PositionExt};
 
 use super::reconstruct::Reconstructor;
 use anyhow::bail;
@@ -40,7 +40,9 @@ pub struct StandardSolver {
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
-    tmp: Vec<Position>,
+    tmp_positions: Vec<Position>,
+    movements: Vec<Movement>,
+    tmp_movements: Vec<Movement>,
     mate_positions: Vec<PositionAux>,
     memo_black_turn: NoHashSet64,
     memo_white_turn: Memo,
@@ -117,7 +119,9 @@ impl StandardSolver {
             solutions_upto,
             step,
             positions,
-            tmp: vec![],
+            tmp_positions: vec![],
+            movements: vec![],
+            tmp_movements: vec![],
             mate_positions,
             memo_black_turn: Default::default(),
             memo_white_turn: memo,
@@ -131,15 +135,7 @@ impl StandardSolver {
             return Ok(SolverStatus::NoSolution);
         }
 
-        next_next_positions(
-            &mut self.mate_positions,
-            &mut self.memo_black_turn,
-            &mut self.memo_white_turn,
-            &mut self.positions,
-            &mut self.tmp,
-            self.step,
-            &self.stone,
-        );
+        self.next_next_positions();
 
         if !self.mate_positions.is_empty() {
             if !self.silent {
@@ -164,6 +160,56 @@ impl StandardSolver {
         }
         self.step += 2;
         Ok(SolverStatus::Intermediate(self.step as u32))
+    }
+
+    fn next_next_positions(&mut self) {
+        self.tmp_positions.clear();
+        std::mem::swap(&mut self.tmp_positions, &mut self.positions);
+
+        for core in self.tmp_positions.iter() {
+            let mut position = PositionAux::new(core.clone(), self.stone);
+
+            self.movements.clear();
+            let is_mate =
+                advance_aux(&mut position, &Default::default(), &mut self.movements).unwrap();
+
+            if is_mate {
+                self.mate_positions.push(position.clone());
+            } else if !self.mate_positions.is_empty() {
+                continue;
+            }
+
+            std::mem::swap(&mut self.tmp_movements, &mut self.movements);
+            for m in self.tmp_movements.iter() {
+                let digest = position.moved_digest(m);
+                if self.memo_black_turn.contains(&digest) {
+                    continue;
+                }
+                self.memo_black_turn.insert(digest);
+
+                let mut np = core.clone();
+                np.do_move(m);
+
+                let mut position = PositionAux::new(np.clone(), self.stone);
+
+                self.movements.clear();
+                advance_aux(&mut position, &Default::default(), &mut self.movements).unwrap();
+
+                for m in self.movements.iter() {
+                    let digest = position.moved_digest(m);
+                    if self
+                        .memo_white_turn
+                        .contains_or_insert(digest, self.step + 2)
+                    {
+                        continue;
+                    }
+
+                    let mut np = np.clone();
+                    np.do_move(m);
+                    self.positions.push(np);
+                }
+            }
+        }
     }
 }
 
@@ -192,63 +238,6 @@ fn next_positions(
             let mut np = core.clone();
             np.do_move(m);
             positions.push(np);
-        }
-    }
-}
-
-fn next_next_positions(
-    mate_positions: &mut Vec<PositionAux>,
-    memo_black_turn: &mut NoHashSet64,
-    memo_white_turn: &mut Memo,
-    positions: &mut Vec<Position>,
-    tmp_positions: &mut Vec<Position>,
-    step: u16,
-    stone: &Option<BitBoard>,
-) {
-    let mut movements = vec![];
-    let mut tmp_movements = vec![];
-
-    tmp_positions.clear();
-    std::mem::swap(tmp_positions, positions);
-
-    for core in tmp_positions {
-        let mut position = PositionAux::new(core.clone(), *stone);
-
-        movements.clear();
-        let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
-
-        if is_mate {
-            mate_positions.push(position.clone());
-        } else if !mate_positions.is_empty() {
-            continue;
-        }
-
-        std::mem::swap(&mut tmp_movements, &mut movements);
-        for m in tmp_movements.iter() {
-            let digest = position.moved_digest(m);
-            if memo_black_turn.contains(&digest) {
-                continue;
-            }
-            memo_black_turn.insert(digest);
-
-            let mut np = core.clone();
-            np.do_move(m);
-
-            let mut position = PositionAux::new(np.clone(), *stone);
-
-            movements.clear();
-            advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
-
-            for m in movements.iter() {
-                let digest = position.moved_digest(m);
-                if memo_white_turn.contains_or_insert(digest, step + 2) {
-                    continue;
-                }
-
-                let mut np = np.clone();
-                np.do_move(m);
-                positions.push(np);
-            }
         }
     }
 }
