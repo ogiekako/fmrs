@@ -483,7 +483,7 @@ fn pack(bb: BitBoard, shift: u32) -> u64 {
     lower | upper
 }
 
-fn create_table(map: &Vec<&Vec<u64>>, magic: u64, table: &mut Vec<u8>, table_log2: u32) -> bool {
+fn create_table(map: &Vec<&Vec<u64>>, magic: u64, table: &mut [u8], table_log2: u32) -> bool {
     let shift = u64::BITS - table_log2;
     for (i, &blocks) in map.iter().enumerate() {
         let i = i as u8;

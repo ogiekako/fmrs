@@ -184,7 +184,7 @@ fn next_positions(
                 continue;
             }
             let mut np = core.clone();
-            np.do_move(&m);
+            np.do_move(m);
             positions.push(np);
         }
     }

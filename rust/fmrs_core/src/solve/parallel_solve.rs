@@ -62,7 +62,7 @@ impl ParallelSolver {
 
         next_next_positions(
             &self.mate_positions,
-            &mut self.memo_white_turn,
+            &self.memo_white_turn,
             &mut self.positions,
             self.step,
             &self.stone,
