@@ -232,7 +232,7 @@ fn next_next_positions(
             memo_black_turn.insert(digest);
 
             let mut np = core.clone();
-            np.do_move(&m);
+            np.do_move(m);
 
             let mut position = PositionAux::new(np.clone(), *stone);
 
@@ -240,13 +240,13 @@ fn next_next_positions(
             advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
             for m in movements.iter() {
-                let digest = position.moved_digest(&m);
+                let digest = position.moved_digest(m);
                 if memo_white_turn.contains_or_insert(digest, step + 2) {
                     continue;
                 }
 
                 let mut np = np.clone();
-                np.do_move(&m);
+                np.do_move(m);
                 positions.push(np);
             }
         }
