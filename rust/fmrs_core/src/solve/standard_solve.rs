@@ -40,6 +40,7 @@ pub struct StandardSolver {
     solutions_upto: usize,
     step: u16,
     positions: Vec<Position>,
+    tmp: Vec<Position>,
     mate_positions: Vec<PositionAux>,
     memo_black_turn: NoHashSet64,
     memo_white_turn: Memo,
@@ -116,6 +117,7 @@ impl StandardSolver {
             solutions_upto,
             step,
             positions,
+            tmp: vec![],
             mate_positions,
             memo_black_turn: Default::default(),
             memo_white_turn: memo,
@@ -134,6 +136,7 @@ impl StandardSolver {
             &mut self.memo_black_turn,
             &mut self.memo_white_turn,
             &mut self.positions,
+            &mut self.tmp,
             self.step,
             &self.stone,
         );
@@ -198,13 +201,17 @@ fn next_next_positions(
     memo_black_turn: &mut NoHashSet64,
     memo_white_turn: &mut Memo,
     positions: &mut Vec<Position>,
+    tmp_positions: &mut Vec<Position>,
     step: u16,
     stone: &Option<BitBoard>,
 ) {
     let mut movements = vec![];
-    let mut tmp = vec![];
+    let mut tmp_movements = vec![];
 
-    for core in std::mem::take(positions) {
+    tmp_positions.clear();
+    std::mem::swap(tmp_positions, positions);
+
+    for core in tmp_positions {
         let mut position = PositionAux::new(core.clone(), *stone);
 
         movements.clear();
@@ -213,11 +220,11 @@ fn next_next_positions(
         if is_mate {
             mate_positions.push(position.clone());
         } else if !mate_positions.is_empty() {
-            movements.clear();
+            continue;
         }
 
-        std::mem::swap(&mut tmp, &mut movements);
-        for m in tmp.iter() {
+        std::mem::swap(&mut tmp_movements, &mut movements);
+        for m in tmp_movements.iter() {
             let digest = position.moved_digest(m);
             if memo_black_turn.contains(&digest) {
                 continue;
