@@ -4,12 +4,11 @@ use anyhow::bail;
 use log::{debug, info};
 
 use crate::{
-    memo::MemoStub,
     nohash::NoHashMap64,
     piece::Color,
     position::{
-        advance::advance::advance_aux, position::PositionAux, previous, AdvanceOptions, BitBoard,
-        Movement, Position,
+        advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
+        Position,
     },
     solve::standard_solve::standard_solve,
 };
@@ -90,16 +89,7 @@ pub fn backward_search(
         for p in positions.iter_mut() {
             debug_assert_eq!(p.turn(), Color::WHITE);
             let mut movements = vec![];
-            advance_aux(
-                p,
-                &mut MemoStub,
-                0,
-                &AdvanceOptions {
-                    no_memo: true,
-                    ..Default::default()
-                },
-                &mut movements,
-            )?;
+            advance_aux(p, &Default::default(), &mut movements)?;
             for m in movements.iter() {
                 let digest = p.moved_digest(m);
                 if search
@@ -294,17 +284,7 @@ fn solutions(
     }
 
     let mut movements = vec![];
-    let is_mate = advance_aux(
-        position,
-        &mut MemoStub,
-        0,
-        &AdvanceOptions {
-            no_memo: true,
-            ..Default::default()
-        },
-        &mut movements,
-    )
-    .unwrap();
+    let is_mate = advance_aux(position, &Default::default(), &mut movements).unwrap();
 
     let mut hint = StepRange::unknown();
     if is_mate {

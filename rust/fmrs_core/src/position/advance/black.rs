@@ -1,4 +1,3 @@
-use crate::memo::MemoTrait;
 use crate::position::bitboard::{king_power, lion_king_power, power, reachable, reachable_sub};
 use crate::position::position::PositionAux;
 use crate::position::rule::is_legal_move;
@@ -15,39 +14,33 @@ use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
 use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
-pub(super) fn advance<M: MemoTrait>(
+pub(super) fn advance(
     position: &mut PositionAux,
-    memo: &mut M,
-    next_step: u16,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
 ) -> anyhow::Result<()> {
     debug_assert_eq!(position.turn(), Color::BLACK);
-    let mut ctx = Context::new(position, memo, next_step, options, res)?;
+    let mut ctx = Context::new(position, options, res)?;
     ctx.advance()?;
     Ok(())
 }
 
-struct Context<'a, M: MemoTrait> {
+struct Context<'a> {
     // Immutable fields
     position: &'a mut PositionAux,
-    next_step: u16,
     attacker: Option<Attacker>,
     pinned: Pinned,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
 
     // Mutable fields
-    memo: &'a mut M,
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
 }
 
-impl<'a, M: MemoTrait> Context<'a, M> {
+impl<'a> Context<'a> {
     fn new(
         position: &'a mut PositionAux,
-        memo: &'a mut M,
-        next_step: u16,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> anyhow::Result<Self> {
@@ -72,8 +65,6 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 
         Ok(Self {
             position,
-            memo,
-            next_step,
             attacker,
             pinned,
             pawn_mask,
@@ -87,8 +78,6 @@ impl<'a, M: MemoTrait> Context<'a, M> {
         if let Some(attacker) = &self.attacker {
             attack_preventing_movements(
                 self.position,
-                self.memo,
-                self.next_step,
                 true,
                 self.options,
                 attacker.clone().into(),
@@ -302,7 +291,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 }
 
 // Helper
-impl<M: MemoTrait> Context<'_, M> {
+impl Context<'_> {
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
         if kind == Kind::King {
             let mut np = self.position.clone();
@@ -330,18 +319,6 @@ impl<M: MemoTrait> Context<'_, M> {
             self.num_branches_without_pawn_drop += 1;
             self.options
                 .check_allowed_branches(self.num_branches_without_pawn_drop)?;
-        }
-
-        if !self.options.no_memo {
-            let digest = self.position.moved_digest(&movement);
-
-            if self.options.no_insertion {
-                if self.memo.contains_key(&digest) {
-                    return Ok(());
-                }
-            } else if self.memo.contains_or_insert(digest, self.next_step) {
-                return Ok(());
-            }
         }
 
         self.result.push(movement);

@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use crate::memo::{Memo, MemoStub, MemoTrait};
+use crate::memo::{Memo, MemoTrait};
 
 use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
-use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt};
+use crate::position::{BitBoard, Position, PositionExt};
 
 use super::reconstruct::Reconstructor;
 use anyhow::bail;
@@ -168,31 +168,26 @@ fn next_positions(
     step: u16,
     stone: &Option<BitBoard>,
 ) {
-    *positions = positions
-        .iter()
-        .flat_map(|core| {
-            let mut position = PositionAux::new(core.clone(), *stone);
-            let mut movements = vec![];
-            let is_mate = advance_aux(
-                &mut position,
-                memo_next,
-                step + 1,
-                &Default::default(),
-                &mut movements,
-            )
-            .unwrap();
+    let mut movements = vec![];
+    for core in std::mem::take(positions) {
+        let mut position = PositionAux::new(core.clone(), *stone);
+        movements.clear();
+        let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
-            if is_mate {
-                mate_positions.push(position);
+        if is_mate {
+            mate_positions.push(position.clone());
+        }
+
+        for m in movements.iter() {
+            let digest = position.moved_digest(m);
+            if memo_next.contains_or_insert(digest, step + 1) {
+                continue;
             }
-
-            movements.into_iter().map(move |m| {
-                let mut np = core.clone();
-                np.do_move(&m);
-                np
-            })
-        })
-        .collect()
+            let mut np = core.clone();
+            np.do_move(&m);
+            positions.push(np);
+        }
+    }
 }
 
 fn next_next_positions(
@@ -202,23 +197,12 @@ fn next_next_positions(
     step: u16,
     stone: &Option<BitBoard>,
 ) {
-    let mut prev = vec![];
-    std::mem::swap(&mut prev, positions);
+    let mut movements = vec![];
 
-    for core in prev {
+    for core in std::mem::take(positions) {
         let mut position = PositionAux::new(core.clone(), *stone);
-        let mut movements = vec![];
-        let is_mate = advance_aux(
-            &mut position,
-            &mut MemoStub,
-            step + 1,
-            &AdvanceOptions {
-                no_memo: true,
-                ..Default::default()
-            },
-            &mut movements,
-        )
-        .unwrap();
+
+        let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
         if is_mate {
             mate_positions.push(position);
@@ -226,23 +210,20 @@ fn next_next_positions(
             movements.clear();
         }
 
-        for m in movements {
+        for m in std::mem::take(&mut movements) {
             let mut np = core.clone();
             np.do_move(&m);
 
             let mut position = PositionAux::new(np.clone(), *stone);
 
-            let mut movements = vec![];
-            advance_aux(
-                &mut position,
-                memo_white_turn,
-                step + 2,
-                &Default::default(),
-                &mut movements,
-            )
-            .unwrap();
+            advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
-            for m in movements {
+            for m in std::mem::take(&mut movements) {
+                let digest = position.moved_digest(&m);
+                if memo_white_turn.contains_or_insert(digest, step + 2) {
+                    continue;
+                }
+
                 let mut np = np.clone();
                 np.do_move(&m);
                 positions.push(np);

@@ -2,11 +2,11 @@ use std::sync::Mutex;
 
 use rayon::prelude::*;
 
-use crate::memo::{DashMemo, MemoStub};
+use crate::memo::{DashMemo, MemoTrait};
 use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
-use crate::position::{AdvanceOptions, BitBoard, Position, PositionExt as _};
+use crate::position::{BitBoard, Position, PositionExt as _};
 
 use super::reconstruct::Reconstructor;
 use super::SolverStatus;
@@ -99,23 +99,21 @@ fn next_positions(
         .flat_map_iter(|core| {
             let mut movements = vec![];
             let mut position = PositionAux::new(core.clone(), *stone);
-            let is_mate = advance_aux(
-                &mut position,
-                &mut memo_next.as_mut(),
-                step + 1,
-                &Default::default(),
-                &mut movements,
-            )
-            .unwrap();
+            let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
             if is_mate {
-                mate_positions.lock().unwrap().push(position);
+                mate_positions.lock().unwrap().push(position.clone());
             }
 
-            movements.into_iter().map(move |m| {
+            movements.into_iter().filter_map(move |m| {
+                let digest = position.moved_digest(&m);
+                if memo_next.as_mut().contains_or_insert(digest, step + 1) {
+                    return None;
+                }
+
                 let mut np = core.clone();
                 np.do_move(&m);
-                np
+                np.into()
             })
         })
         .collect()
@@ -123,7 +121,7 @@ fn next_positions(
 
 fn next_next_positions(
     mate_positions: &Mutex<Vec<PositionAux>>,
-    memo_white_turn: &mut DashMemo,
+    memo_white_turn: &DashMemo,
     positions: &mut Vec<Position>,
     step: u16,
     stone: &Option<BitBoard>,
@@ -133,17 +131,7 @@ fn next_next_positions(
         .flat_map_iter(|core| {
             let mut position = PositionAux::new(core.clone(), *stone);
             let mut movements = vec![];
-            let is_mate = advance_aux(
-                &mut position,
-                &mut MemoStub,
-                step + 1,
-                &AdvanceOptions {
-                    no_memo: true,
-                    ..Default::default()
-                },
-                &mut movements,
-            )
-            .unwrap();
+            let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
             if is_mate {
                 mate_positions.lock().unwrap().push(position);
@@ -151,25 +139,26 @@ fn next_next_positions(
                 movements.clear();
             }
 
-            movements.into_iter().flat_map(|m| {
+            movements.into_iter().flat_map(move |m| {
                 let mut np = core.clone();
                 np.do_move(&m);
 
                 let mut movements = vec![];
                 let mut nnp = PositionAux::new(np.clone(), *stone);
-                advance_aux(
-                    &mut nnp,
-                    &mut memo_white_turn.as_mut(),
-                    step + 2,
-                    &Default::default(),
-                    &mut movements,
-                )
-                .unwrap();
+                advance_aux(&mut nnp, &Default::default(), &mut movements).unwrap();
 
-                movements.into_iter().map(move |m| {
+                movements.into_iter().filter_map(move |m| {
+                    let digest = nnp.moved_digest(&m);
+                    if memo_white_turn
+                        .as_mut()
+                        .contains_or_insert(digest, step + 2)
+                    {
+                        return None;
+                    }
+
                     let mut np = np.clone();
                     np.do_move(&m);
-                    np
+                    np.into()
                 })
             })
         })

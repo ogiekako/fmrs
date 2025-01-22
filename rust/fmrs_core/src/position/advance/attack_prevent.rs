@@ -1,14 +1,11 @@
-use crate::{
-    memo::MemoTrait,
-    position::{
-        bitboard::{
-            bishop_reachable, king_then_king_or_night_power, knight_power, lance_reachable,
-            rook_reachable,
-        },
-        checked,
-        position::PositionAux,
-        rule::{is_legal_drop, is_legal_move},
+use crate::position::{
+    bitboard::{
+        bishop_reachable, king_then_king_or_night_power, knight_power, lance_reachable,
+        rook_reachable,
     },
+    checked,
+    position::PositionAux,
+    rule::{is_legal_drop, is_legal_move},
 };
 use anyhow::Result;
 
@@ -27,10 +24,8 @@ use super::{
 };
 
 // #[inline(never)]
-pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
+pub(super) fn attack_preventing_movements<'a>(
     position: &'a mut PositionAux,
-    memo: &'a mut M,
-    next_step: u16,
     should_return_check: bool,
     options: &'a AdvanceOptions,
     attacker_hint: Option<Attacker>,
@@ -38,8 +33,6 @@ pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
 ) -> Result</* is legal mate */ bool> {
     let mut ctx = Context::new(
         position,
-        memo,
-        next_step,
         should_return_check,
         options,
         attacker_hint,
@@ -49,16 +42,14 @@ pub(super) fn attack_preventing_movements<'a, M: MemoTrait>(
     Ok(ctx.is_mate && !position.pawn_drop())
 }
 
-struct Context<'a, M: MemoTrait> {
+struct Context<'a> {
     position: &'a mut PositionAux,
     occupied_without_king: BitBoard,
     pinned: Pinned,
     attacker: Attacker,
     pawn_mask: Option<usize>,
-    next_step: u16,
     should_return_check: bool,
     // Mutable fields
-    memo: &'a mut M,
     result: &'a mut Vec<Movement>,
     is_mate: bool,
     num_branches_without_pawn_drop: usize,
@@ -66,12 +57,10 @@ struct Context<'a, M: MemoTrait> {
     options: &'a AdvanceOptions,
 }
 
-impl<'a, M: MemoTrait> Context<'a, M> {
+impl<'a> Context<'a> {
     // #[inline(never)]
     fn new(
         position: &'a mut PositionAux,
-        memo: &'a mut M,
-        next_step: u16,
         should_return_check: bool,
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,
@@ -94,9 +83,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
             pinned,
             attacker,
             pawn_mask: None, // TODO: move to PositionAux
-            next_step,
             should_return_check,
-            memo,
             result,
             is_mate: true,
             num_branches_without_pawn_drop: 0,
@@ -313,7 +300,7 @@ impl<'a, M: MemoTrait> Context<'a, M> {
 }
 
 // Helper methods
-impl<M: MemoTrait> Context<'_, M> {
+impl Context<'_> {
     // #[inline(never)]
     fn is_return_check(&self, movement: &Movement) -> bool {
         let mut np = self.position.clone();
@@ -360,19 +347,6 @@ impl<M: MemoTrait> Context<'_, M> {
                 np
             }
         );
-
-        if !self.options.no_memo {
-            let digest = self.position.moved_digest(&movement);
-
-            if self.options.no_insertion {
-                if self.memo.contains_key(&digest) {
-                    return Ok(());
-                }
-            } else if self.memo.contains_or_insert(digest, self.next_step) {
-                // Already seen during search on other branches.
-                return Ok(());
-            }
-        }
 
         self.result.push(movement);
 

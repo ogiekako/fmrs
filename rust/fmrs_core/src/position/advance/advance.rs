@@ -1,27 +1,24 @@
-use crate::memo::MemoTrait;
 use crate::position::position::PositionAux;
 use crate::position::Movement;
 
 use super::{black, white, AdvanceOptions};
 
-pub fn advance_aux<M: MemoTrait>(
+pub fn advance_aux(
     position: &mut PositionAux,
-    memo: &mut M,
-    next_step: u16,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
 ) -> anyhow::Result</* is legal mate */ bool> {
     if position.turn().is_black() {
-        black::advance(position, memo, next_step, options, result)?;
+        black::advance(position, options, result)?;
         Ok(false)
     } else {
-        white::advance(position, memo, next_step, options, result)
+        white::advance(position, options, result)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{memo::Memo, position::AdvanceOptions};
+    use crate::position::AdvanceOptions;
 
     #[test]
     fn advance() {
@@ -70,14 +67,7 @@ mod tests {
             let mut position =
                 sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
             let mut got = vec![];
-            super::advance_aux(
-                &mut position,
-                &mut Memo::default(),
-                1,
-                &AdvanceOptions::default(),
-                &mut got,
-            )
-            .unwrap();
+            super::advance_aux(&mut position, & AdvanceOptions::default(), &mut got).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" ")).unwrap();
