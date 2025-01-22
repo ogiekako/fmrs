@@ -93,7 +93,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn drops(&mut self) -> Result<()> {
         let white_king_pos = self.position.white_king_pos();
         for kind in self.position.hands().kinds(Color::BLACK) {
@@ -112,7 +112,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn direct_attack_moves(&mut self) -> Result<()> {
         self.non_leap_piece_direct_attack()?;
         self.leap_piece_direct_attack()?;
@@ -120,7 +120,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
         let lion_king_range = lion_king_power(self.position.white_king_pos());
         let king_range = king_power(self.position.white_king_pos())
@@ -177,7 +177,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    // #[inline(never)]
+    #[inline(never)]
     fn leap_piece_direct_attack(&mut self) -> Result<()> {
         let white_king_pos = self.position.white_king_pos();
 

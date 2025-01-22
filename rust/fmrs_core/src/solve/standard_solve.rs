@@ -41,6 +41,7 @@ pub struct StandardSolver {
     step: u16,
     positions: Vec<Position>,
     mate_positions: Vec<PositionAux>,
+    memo_black_turn: NoHashSet64,
     memo_white_turn: Memo,
     stone: Option<BitBoard>,
     silent: bool,
@@ -116,6 +117,7 @@ impl StandardSolver {
             step,
             positions,
             mate_positions,
+            memo_black_turn: Default::default(),
             memo_white_turn: memo,
             stone,
             silent,
@@ -129,6 +131,7 @@ impl StandardSolver {
 
         next_next_positions(
             &mut self.mate_positions,
+            &mut self.memo_black_turn,
             &mut self.memo_white_turn,
             &mut self.positions,
             self.step,
@@ -192,33 +195,44 @@ fn next_positions(
 
 fn next_next_positions(
     mate_positions: &mut Vec<PositionAux>,
+    memo_black_turn: &mut NoHashSet64,
     memo_white_turn: &mut Memo,
     positions: &mut Vec<Position>,
     step: u16,
     stone: &Option<BitBoard>,
 ) {
     let mut movements = vec![];
+    let mut tmp = vec![];
 
     for core in std::mem::take(positions) {
         let mut position = PositionAux::new(core.clone(), *stone);
 
+        movements.clear();
         let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
         if is_mate {
-            mate_positions.push(position);
+            mate_positions.push(position.clone());
         } else if !mate_positions.is_empty() {
             movements.clear();
         }
 
-        for m in std::mem::take(&mut movements) {
+        std::mem::swap(&mut tmp, &mut movements);
+        for m in tmp.iter() {
+            let digest = position.moved_digest(m);
+            if memo_black_turn.contains(&digest) {
+                continue;
+            }
+            memo_black_turn.insert(digest);
+
             let mut np = core.clone();
             np.do_move(&m);
 
             let mut position = PositionAux::new(np.clone(), *stone);
 
+            movements.clear();
             advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
-            for m in std::mem::take(&mut movements) {
+            for m in movements.iter() {
                 let digest = position.moved_digest(&m);
                 if memo_white_turn.contains_or_insert(digest, step + 2) {
                     continue;
