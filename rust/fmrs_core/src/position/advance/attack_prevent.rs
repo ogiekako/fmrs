@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     common,
-    pinned::{pinned, Pinned, PinnedTrait as _},
+    pinned::{pinned, Pinned},
     AdvanceOptions,
 };
 

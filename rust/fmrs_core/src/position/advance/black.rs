@@ -11,7 +11,7 @@ use crate::position::{
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
-use super::pinned::{pinned, Pinned, PinnedTrait as _};
+use super::pinned::{pinned, Pinned};
 use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
@@ -53,7 +53,7 @@ impl<'a> Context<'a> {
             .black_king_pos()
             .is_some()
             .then(|| pinned(position, Color::BLACK, Color::BLACK))
-            .unwrap_or_else(Default::default);
+            .unwrap_or_else(Pinned::default);
 
         let pawn_mask = {
             let mut mask = Default::default();
@@ -240,7 +240,7 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(self.position, Color::WHITE, Color::BLACK);
-        for (blocker_pos, blocker_pinned_area) in blockers.iter() {
+        for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
             let mut blocker_dest_cands = bitboard::reachable(

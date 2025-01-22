@@ -10,22 +10,26 @@ use crate::{
     },
 };
 
-use super::PinnedTrait;
-
 // pinned piece and its movable positions (capturing included) pairs.
 #[derive(Debug, Default)]
-pub struct PinnedV0 {
+pub struct Pinned {
     pinned_area: Vec<(Square, BitBoard)>,
 }
 
-impl PinnedTrait for PinnedV0 {
-    fn is_unpin_move(&self, source: Square, dest: Square) -> bool {
+impl Pinned {
+    fn new(pinned_area: Vec<(Square, BitBoard)>) -> Self {
+        Self { pinned_area }
+    }
+    pub fn iter(&self) -> impl Iterator<Item = &(Square, BitBoard)> {
+        self.pinned_area.iter()
+    }
+    pub fn is_unpin_move(&self, source: Square, dest: Square) -> bool {
         self.pinned_area(source)
             .map(|area| !area.contains(dest))
             .unwrap_or(false)
     }
-
-    fn pinned_area(&self, source: Square) -> Option<BitBoard> {
+    // Reachable pinned area including capturing move
+    pub fn pinned_area(&self, source: Square) -> Option<BitBoard> {
         for &(pinned_pos, movable) in self.pinned_area.iter() {
             if source == pinned_pos {
                 return movable.into();
@@ -33,26 +37,16 @@ impl PinnedTrait for PinnedV0 {
         }
         None
     }
-
-    fn iter(&self) -> Box<dyn Iterator<Item = (Square, BitBoard)> + '_> {
-        Box::new(self.pinned_area.iter().copied())
-    }
 }
 
-impl PinnedV0 {
-    fn new(pinned_area: Vec<(Square, BitBoard)>) -> Self {
-        Self { pinned_area }
-    }
-}
-
-pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Color) -> PinnedV0 {
+pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Color) -> Pinned {
     let mut res = vec![];
 
     lance_pinned(position, king_color, blocker_color, &mut res);
     bishop_pinned(position, king_color, blocker_color, &mut res);
     rook_pinned(position, king_color, blocker_color, &mut res);
 
-    PinnedV0::new(res)
+    Pinned::new(res)
 }
 
 // #[inline(never)]
