@@ -67,7 +67,7 @@ mod tests {
             let mut position =
                 sfen::decode_position(tc.0).unwrap_or_else(|_| panic!("Failed to decode {}", tc.0));
             let mut got = vec![];
-            super::advance_aux(&mut position, & AdvanceOptions::default(), &mut got).unwrap();
+            super::advance_aux(&mut position, &AdvanceOptions::default(), &mut got).unwrap();
             got.sort();
 
             let mut want = sfen::decode_moves(&tc.1.join(" ")).unwrap();

@@ -3,7 +3,10 @@
 use clap::{Parser, Subcommand};
 pub use command::one_way_mate_steps;
 use command::{
-    backward::backward, batch_square::batch_square, bench::BenchCommand, magic::gen_magic,
+    backward::backward,
+    batch_square::batch_square,
+    bench::BenchCommand,
+    magic::{gen_magic, MagicAttribute},
     OneWayMateGenerator,
 };
 use solver::Algorithm;
@@ -54,7 +57,9 @@ enum Action {
         #[arg(long, default_value = "0")]
         forward: usize,
     },
-    GenMagic,
+    GenMagic {
+        attr: MagicAttribute,
+    },
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
@@ -79,7 +84,7 @@ pub async fn do_main() -> anyhow::Result<()> {
             batch_square(filter_file)?;
         }
         Action::Backward { sfen_like, forward } => backward(&sfen_like, forward)?,
-        Action::GenMagic => gen_magic()?,
+        Action::GenMagic { attr } => gen_magic(attr)?,
     }
     Ok(())
 }

@@ -2,10 +2,12 @@
 #[macro_use]
 extern crate lazy_static;
 
+pub mod codegen;
 pub mod config;
 pub mod converter;
 pub mod direction;
 pub mod jkf;
+pub mod magic;
 pub mod memo;
 pub mod nohash;
 pub mod piece;
