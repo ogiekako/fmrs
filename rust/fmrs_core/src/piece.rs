@@ -12,6 +12,10 @@ impl Color {
     pub fn index(&self) -> usize {
         self.0 as usize
     }
+    pub fn from_index(i: usize) -> Color {
+        debug_assert!(i < 2);
+        Color(i != 0)
+    }
     pub fn iter() -> impl Iterator<Item = Color> {
         [Color::BLACK, Color::WHITE].iter().copied()
     }
