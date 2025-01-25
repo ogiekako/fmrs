@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs::File,
     io::Write,
     ops::{Index, RangeInclusive},
@@ -9,8 +10,12 @@ use std::{
 use crate::{
     codegen::WriteCode,
     magic::MagicGenerator,
+    piece::Color,
     position::{
-        bitboard::{bishop_reachable_no_magic, king_power, rook_reachable_no_magic},
+        bitboard::{
+            bishop_reachable_no_magic, king_power, lance_reachable_no_magic,
+            rook_reachable_no_magic,
+        },
         BitBoard, Square,
     },
 };
@@ -19,7 +24,7 @@ use quote::{quote, TokenStreamExt};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
-use super::{bishop_power, rook_power};
+use super::{bishop_power, lance_power, rook_power};
 
 pub fn gen_magic<R: SeedableRng + Rng>() -> anyhow::Result<()> {
     let start = Instant::now();
@@ -38,8 +43,8 @@ pub fn gen_magic<R: SeedableRng + Rng>() -> anyhow::Result<()> {
             let mut generator = MagicGenerator::new(
                 R::seed_from_u64(i as u64),
                 one_prob_per_100.clone(),
-                10_000_000,
-                100,
+                5_000_000,
+                10,
             );
             gen_magics(&mut generator, pos)
         })
@@ -87,6 +92,10 @@ pub fn gen_magic<R: SeedableRng + Rng>() -> anyhow::Result<()> {
         #defs
 
         #[cfg(feature="gen-magic")]
+        pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
+            unimplemented!()
+        }
+        #[cfg(feature="gen-magic")]
         pub fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
             unimplemented!()
         }
@@ -118,7 +127,19 @@ pub fn gen_magic<R: SeedableRng + Rng>() -> anyhow::Result<()> {
     Ok(())
 }
 
-struct Offset(usize);
+struct Offset {
+    ids_offset: usize,
+    all_offset: usize,
+}
+
+impl Offset {
+    fn new(ids_offset: usize, all_offset: usize) -> Self {
+        Self {
+            ids_offset,
+            all_offset,
+        }
+    }
+}
 
 impl Index<usize> for Offset {
     type Output = BitBoard;
@@ -131,26 +152,34 @@ impl Index<usize> for Offset {
 struct ConstMagics {
     range: RangeInclusive<usize>,
     all: Vec<BitBoard>,
+    ids: Vec<u8>,
     magics: Vec<Magics<Offset>>,
 }
 
 impl WriteCode for Offset {
     fn write_def(w: &mut impl TokenStreamExt) {
         w.append_all(quote! {
-            pub struct Offset(usize);
+            struct Offset {
+                ids_offset: usize,
+                all_offset: usize,
+            }
             #[cfg(not(feature="gen-magic"))]
             impl std::ops::Index<usize> for Offset {
                 type Output = BitBoard;
                 fn index(&self, index: usize) -> &Self::Output {
-                    &ALL[index + self.0]
+                    &ALL[self.all_offset + IDS[self.ids_offset + index] as usize]
                 }
             }
         });
     }
     fn write_value(&self, w: &mut impl TokenStreamExt) {
-        let x = self.0;
+        let ids_offset = self.ids_offset;
+        let all_offset = self.all_offset;
         w.append_all(quote! {
-            Offset(#x)
+            Offset {
+                ids_offset: #ids_offset,
+                all_offset: #all_offset,
+            }
         });
     }
 }
@@ -162,11 +191,14 @@ impl WriteCode for Magics<Offset> {
         });
     }
     fn write_value(&self, w: &mut impl TokenStreamExt) {
+        let lance0 = self.lance[0].tokens();
+        let lance1 = self.lance[1].tokens();
         let bishop = self.bishop.tokens();
         let rook = self.rook.tokens();
         let king = self.king.tokens();
         w.append_all(quote! {
             Magics {
+                lance: [#lance0, #lance1],
                 bishop: #bishop,
                 rook: #rook,
                 king: #king,
@@ -202,6 +234,7 @@ impl WriteCode for Magic<Offset> {
 impl ConstMagics {
     fn write_def(w: &mut impl TokenStreamExt) {
         w.append_all(quote! {
+            use crate::piece::Color;
             use crate::position::bitboard::Square;
         });
         BitBoard::write_def(w);
@@ -210,16 +243,22 @@ impl ConstMagics {
         Magics::<Offset>::write_def(w);
     }
     fn write_value(&self, w: &mut impl TokenStreamExt) {
+        let ids = self.ids.tokens();
+        let ids_len = self.ids.len();
         let all = self.all.tokens();
-        let magics = self.magics.tokens();
         let all_len = self.all.len();
+        let magics = self.magics.tokens();
         let magics_len = self.magics.len();
         let start = self.range.start();
         let end = self.range.end();
         w.append_all(quote! {
             const ALL: [BitBoard; #all_len] = #all;
+            const IDS: [u8; #ids_len] = #ids;
             const MAGICS: [Magics<Offset>; #magics_len] = #magics;
 
+            pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
+                MAGICS[pos.index()].lance_reachable(occupied, color)
+            }
             pub fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
                 MAGICS[pos.index()].bishop_reachable(occupied)
             }
@@ -250,16 +289,34 @@ impl ConstMagics {
 
 impl From<&[Magics<Vec<BitBoard>>]> for ConstMagics {
     fn from(all_magics: &[Magics<Vec<BitBoard>>]) -> Self {
+        let mut ids = vec![];
         let mut all = vec![];
+
+        let mut f = |table: &[BitBoard]| {
+            let res = Offset::new(ids.len(), all.len());
+            let mut bbs = HashMap::new();
+            for &bb in table.iter() {
+                if let Some(&i) = bbs.get(&bb) {
+                    ids.push(i);
+                } else {
+                    let i = (all.len() - res.all_offset) as u8;
+                    all.push(bb);
+                    bbs.insert(bb, i);
+                    ids.push(i);
+                }
+            }
+            res
+        };
 
         let mut magics = vec![];
         for m in all_magics {
-            let bishop = m.bishop.clone_with(Offset(all.len()));
-            all.extend_from_slice(&m.bishop.table);
-            let rook = m.rook.clone_with(Offset(all.len()));
-            all.extend_from_slice(&m.rook.table);
+            let lance0 = m.lance[0].clone_with(f(&m.lance[0].table));
+            let lance1 = m.lance[1].clone_with(f(&m.lance[1].table));
+            let bishop = m.bishop.clone_with(f(&m.bishop.table));
+            let rook = m.rook.clone_with(f(&m.rook.table));
 
             magics.push(Magics {
+                lance: [lance0, lance1],
                 bishop,
                 rook,
                 king: m.king,
@@ -267,6 +324,7 @@ impl From<&[Magics<Vec<BitBoard>>]> for ConstMagics {
         }
         Self {
             range: 0..=magics.len() - 1,
+            ids,
             all,
             magics,
         }
@@ -275,6 +333,7 @@ impl From<&[Magics<Vec<BitBoard>>]> for ConstMagics {
 
 #[derive(Debug)]
 pub(super) struct Magics<T> {
+    pub(super) lance: [Magic<T>; 2],
     pub(super) bishop: Magic<T>,
     pub(super) rook: Magic<T>,
     pub(super) king: BitBoard,
@@ -284,19 +343,28 @@ impl<T> Magics<T>
 where
     T: Index<usize, Output = BitBoard>,
 {
-    pub fn bishop_reachable(&self, occupied: BitBoard) -> BitBoard {
+    #[cfg(not(feature = "gen-magic"))]
+    pub(super) fn lance_reachable(&self, occupied: BitBoard, color: Color) -> BitBoard {
+        self.lance[color.index()].f(occupied)
+    }
+
+    #[cfg(not(feature = "gen-magic"))]
+    pub(super) fn bishop_reachable(&self, occupied: BitBoard) -> BitBoard {
         self.bishop.f(occupied)
     }
 
-    pub fn pro_bishop_reachable(&self, occupied: BitBoard) -> BitBoard {
+    #[cfg(not(feature = "gen-magic"))]
+    pub(super) fn pro_bishop_reachable(&self, occupied: BitBoard) -> BitBoard {
         self.bishop.f(occupied) | self.king
     }
 
-    pub fn rook_reachable(&self, occupied: BitBoard) -> BitBoard {
+    #[cfg(not(feature = "gen-magic"))]
+    pub(super) fn rook_reachable(&self, occupied: BitBoard) -> BitBoard {
         self.rook.f(occupied)
     }
 
-    pub fn pro_rook_reachable(&self, occupied: BitBoard) -> BitBoard {
+    #[cfg(not(feature = "gen-magic"))]
+    pub(super) fn pro_rook_reachable(&self, occupied: BitBoard) -> BitBoard {
         self.rook.f(occupied) | self.king
     }
 
@@ -309,6 +377,13 @@ where
                 if rng.gen_range(0..100) < one_prob_per_100 {
                     occupied.set(pos);
                 }
+            }
+
+            for c in Color::iter() {
+                assert_eq!(
+                    self.lance[c.index()].f(occupied),
+                    lance_reachable_no_magic(occupied, c, pos)
+                );
             }
             assert_eq!(
                 self.bishop.f(occupied),
@@ -334,6 +409,7 @@ fn gen_magics<R: SeedableRng + Rng>(
     generator: &mut MagicGenerator<R>,
     pos: Square,
 ) -> anyhow::Result<Magics<Vec<BitBoard>>> {
+    let mut lance_full = [0, 1].map(|i| lance_power(Color::from_index(i), pos));
     let mut bishop_full = bishop_power(pos);
     let mut rook_full = rook_power(pos);
     for edge in [
@@ -343,11 +419,19 @@ fn gen_magics<R: SeedableRng + Rng>(
         BitBoard::ROW9,
     ] {
         if !edge.contains(pos) {
+            lance_full[0].and_not_assign(edge);
+            lance_full[1].and_not_assign(edge);
             rook_full.and_not_assign(edge);
             bishop_full.and_not_assign(edge);
         }
     }
 
+    let [black_lance_map, white_lance_map] = [0, 1].map(|i| {
+        lance_full[i]
+            .subsets()
+            .map(|bb| (bb, lance_reachable_no_magic(bb, Color::from_index(i), pos)))
+            .collect()
+    });
     let bishop_map = bishop_full
         .subsets()
         .map(|bb| (bb, bishop_reachable_no_magic(bb, pos)))
@@ -357,10 +441,15 @@ fn gen_magics<R: SeedableRng + Rng>(
         .map(|bb| (bb, rook_reachable_no_magic(bb, pos)))
         .collect();
 
+    let lance = [
+        generator.gen_magic(black_lance_map, &format!("black lance {:?}", pos))?,
+        generator.gen_magic(white_lance_map, &format!("white lance {:?}", pos))?,
+    ];
     let rook = generator.gen_magic(rook_map, &format!("rook {:?}", pos))?;
     let bishop = generator.gen_magic(bishop_map, &format!("bishop {:?}", pos))?;
 
     Ok(Magics {
+        lance,
         bishop,
         rook,
         king: king_power(pos),

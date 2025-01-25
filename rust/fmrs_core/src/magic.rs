@@ -25,6 +25,26 @@ where
         let packed = pack(occupied & self.full_block, self.pack_shift);
         self.table[(self.magic.wrapping_mul(packed) >> self.magic_shift) as usize]
     }
+
+    fn new(
+        pack_shift: u32,
+        mut magic_shift: u32,
+        full_block: BitBoard,
+        mut magic: u64,
+        table: T,
+    ) -> Self {
+        if magic_shift == u64::BITS {
+            magic_shift = 0;
+            magic = 0;
+        }
+        Magic {
+            pack_shift,
+            magic_shift,
+            full_block,
+            magic,
+            table,
+        }
+    }
 }
 
 impl<T> Magic<T> {
@@ -119,13 +139,13 @@ impl<R: SeedableRng + Rng> MagicGenerator<R> {
                             .map(|&x| kvs.get(x as usize).map(|x| **x.0).unwrap_or_default())
                             .collect();
 
-                        res = Some(Magic {
+                        res = Some(Magic::new(
                             pack_shift,
-                            magic_shift: u64::BITS - table_log2,
+                            u64::BITS - table_log2,
                             full_block,
                             magic,
-                            table: bitboards,
-                        });
+                            bitboards,
+                        ));
                         break;
                     }
 
