@@ -72,13 +72,6 @@ fn pro_rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     F(occupied, pos)
 }
 
-pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
-    const F: fn(BitBoard, Color, Square) -> BitBoard =
-        [lance_reachable_no_magic, generated_magics::lance_reachable]
-            [CONFIG.use_lance_magic as usize];
-    F(occupied, color, pos)
-}
-
 pub fn bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     const F: fn(BitBoard, Square) -> BitBoard = [
         bishop_reachable_no_magic,
@@ -134,7 +127,7 @@ pub fn reachable2(
 const UPPER: u64 = 0b1000000001000000001000000001000000001000000001000000001000000001;
 const LOWER: u64 = 0b100000000100000000100000000100000000100000000100000000100000000;
 
-pub fn lance_reachable_no_magic(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
+pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
     let (occ, p, shift) = if pos.index() >= 63 {
         ((occupied.u128() >> 63) as u64, pos.index() - 63, true)
     } else {
