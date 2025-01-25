@@ -12,6 +12,21 @@ pub(super) trait WriteCode {
     }
 }
 
+trait Num: ToTokens {}
+
+impl Num for u8 {}
+impl Num for u16 {}
+impl Num for u32 {}
+impl Num for usize {}
+
+impl<N: Num> WriteCode for N {
+    fn write_value(&self, w: &mut impl TokenStreamExt) {
+        w.append_all(quote! {
+            #self
+        });
+    }
+}
+
 impl WriteCode for BitBoard {
     fn write_def(w: &mut impl TokenStreamExt) {
         w.append_all(quote! {
