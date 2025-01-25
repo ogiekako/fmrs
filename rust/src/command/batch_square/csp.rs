@@ -123,7 +123,7 @@ impl State {
         let prev_need_check = self.need_check;
         let prev_need_place = self.need_place;
 
-        let reach = reachable_sub(&mut self.position, Color::BLACK, pos, kind);
+        let reach = reachable_sub(&self.position, Color::BLACK, pos, kind);
         self.need_check = self.need_check.and_not(reach);
         self.need_place.unset(pos);
 
@@ -140,7 +140,7 @@ impl State {
     }
 
     fn checker_pos_cands(&mut self, checked_pos: Square, kind: Kind) -> BitBoard {
-        let placeable = reachable(&mut self.position, Color::WHITE, checked_pos, kind, true)
+        let placeable = reachable(&self.position, Color::WHITE, checked_pos, kind, true)
             .and_not(self.uncheckable | self.disallowed[kind.index()])
             & self.position.settable_bb(Color::BLACK, kind);
         placeable & king_power(checked_pos)
@@ -313,7 +313,7 @@ mod tests {
             let position = constraint.search();
             assert_eq!(position.is_some(), want_success);
 
-            let Some(mut p) = position else {
+            let Some(p) = position else {
                 continue;
             };
 
@@ -323,7 +323,7 @@ mod tests {
             let mut checked = BitBoard::EMPTY;
             for pos in p.black_bb() {
                 let kind = p.get(pos).unwrap().1;
-                checked |= reachable_sub(&mut p, Color::BLACK, pos, kind);
+                checked |= reachable_sub(&p, Color::BLACK, pos, kind);
             }
             assert_eq!(checked & room, BitBoard::EMPTY, "{} {:?}", name, p);
             assert_eq!(checked & stone, stone, "{} {:?}", name, p);

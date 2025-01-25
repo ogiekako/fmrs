@@ -10,17 +10,18 @@ gen-magic = []
 
 [dependencies]
 anyhow = "*"
-lazy_static = "*"
-percent-encoding = "*"
-rand = { version = "*" }
-serde = { version = "*", features = ["derive"] }
-url = "*"
-log = "*"
-pretty_assertions = "*"
 dashmap = "*"
-shogi-kifu-converter = "0.2"
-rayon = "*"
+lazy_static = "*"
+log = "*"
+percent-encoding = "*"
+pretty_assertions = "*"
+proc-macro2 = "*"
 quote = "*"
+rand = { version = "*" }
+rayon = "*"
+serde = { version = "*", features = ["derive"] }
+shogi-kifu-converter = "0.2"
+url = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"

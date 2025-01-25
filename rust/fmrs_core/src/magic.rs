@@ -1,61 +1,75 @@
 use std::{
     collections::HashMap,
+    hash::Hash,
     ops::{Index, Range},
 };
 
+use anyhow::bail;
 use log::{debug, info};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
 use rand::{Rng, SeedableRng};
 
-use crate::position::BitBoard;
+use crate::codegen::{DefTokens, DefWriter};
 
 #[derive(Clone, Debug)]
-pub(crate) struct Magic<T> {
-    pub(crate) pack_shift: u32,
-    pub(crate) magic_shift: u32,
-    pub(crate) full_block: BitBoard,
+pub(crate) struct Magic<V, T> {
     pub(crate) magic: u64,
+    pub(crate) magic_shift: u32,
     pub(crate) table: T,
+    pub(crate) _phantom: std::marker::PhantomData<V>,
 }
 
-impl<T> Magic<T>
-where
-    T: Index<usize, Output = BitBoard>,
-{
-    pub(crate) fn f(&self, occupied: BitBoard) -> BitBoard {
-        let packed = pack(occupied & self.full_block, self.pack_shift);
-        self.table[(self.magic.wrapping_mul(packed) >> self.magic_shift) as usize]
+impl<V, T: DefTokens> DefTokens for Magic<V, T> {
+    fn def_tokens(w: &mut DefWriter) {
+        T::def_tokens(w);
+        w.write(
+            "Magic",
+            quote! {
+                use crate::magic::Magic;
+            },
+        );
     }
+}
 
-    fn new(
-        pack_shift: u32,
-        mut magic_shift: u32,
-        full_block: BitBoard,
-        mut magic: u64,
-        table: T,
-    ) -> Self {
+impl<V, T: ToTokens> ToTokens for Magic<V, T> {
+    fn to_tokens(&self, w: &mut TokenStream) {
+        let magic_shift = self.magic_shift;
+        let magic = self.magic;
+        let table = &self.table;
+        w.append_all(quote! {
+            Magic::new(#magic, #magic_shift, #table)
+        });
+    }
+}
+
+impl<V, T> Magic<V, T> {
+    pub(crate) const fn new(mut magic: u64, mut magic_shift: u32, table: T) -> Self {
         if magic_shift == u64::BITS {
             magic_shift = 0;
             magic = 0;
         }
         Magic {
-            pack_shift,
-            magic_shift,
-            full_block,
             magic,
+            magic_shift,
             table,
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<T> Magic<T> {
-    pub fn clone_with<S>(&self, table: S) -> Magic<S> {
-        Magic {
-            pack_shift: self.pack_shift,
-            magic_shift: self.magic_shift,
-            full_block: self.full_block,
-            magic: self.magic,
-            table,
-        }
+impl<V, T> Magic<V, T>
+where
+    T: Index<usize, Output = V>,
+{
+    pub(crate) fn f(&self, a: u64) -> &V {
+        &self.table[(self.magic.wrapping_mul(a) >> self.magic_shift) as usize]
+    }
+}
+
+impl<V, T> Magic<V, T> {
+    pub fn clone_with<S>(&self, table: S) -> Magic<V, S> {
+        Magic::new(self.magic, self.magic_shift, table)
     }
 }
 
@@ -63,128 +77,102 @@ pub struct MagicGenerator<R: SeedableRng + Rng> {
     rng: R,
     one_prob_per_100: Range<u8>,
     max_iter: usize,
-    max_retry: usize,
+    relax: u32,
 }
 
 impl<R: SeedableRng + Rng> MagicGenerator<R> {
-    pub fn new(rng: R, one_prob_per_100: Range<u8>, max_iter: usize, max_retry: usize) -> Self {
+    pub fn new(rng: R, one_prob_per_100: Range<u8>, max_iter: usize, relax: u32) -> Self {
         Self {
             rng,
             one_prob_per_100,
             max_iter,
-            max_retry,
+            relax,
         }
     }
 
-    pub(crate) fn gen_magic(
-        &mut self,
-        f: HashMap<BitBoard, BitBoard>,
-        log_prefix: &str,
-    ) -> anyhow::Result<Magic<Vec<BitBoard>>> {
-        let mut full_block = BitBoard::EMPTY;
-        for x in f.keys() {
-            full_block |= *x;
-        }
+    pub fn rng(&mut self) -> &mut R {
+        &mut self.rng
+    }
 
+    pub(crate) fn gen_magic<V: Clone + Default + Eq + Hash>(
+        &mut self,
+        f: HashMap<u64, V>,
+        log_prefix: &str,
+    ) -> anyhow::Result<Magic<V, Vec<V>>> {
         let mut res = None;
 
-        for _ in 0..self.max_retry {
-            if res.is_some() {
+        let mut rev_f: HashMap<V, Vec<u64>> = HashMap::new();
+        for (&k, v) in f.iter() {
+            rev_f.entry(v.clone()).or_default().push(k);
+        }
+        let kvs = rev_f.iter().collect::<Vec<_>>();
+        let values = kvs.iter().map(|(_, v)| *v).collect::<Vec<_>>();
+
+        let smallest_table_log2 = rev_f.len().next_power_of_two().ilog2();
+        let total_len = rev_f.values().map(Vec::len).sum::<usize>();
+        let largest_table_log2 = total_len.next_power_of_two().ilog2() + self.relax;
+
+        debug!(
+            "{}: gen_magic {}/{}/{}",
+            log_prefix,
+            1 << largest_table_log2,
+            total_len,
+            rev_f.len()
+        );
+
+        for table_log2 in (smallest_table_log2..=largest_table_log2).rev() {
+            let mut table: Vec<u16> = vec![0; 1 << table_log2];
+            for iter in 0..self.max_iter {
+                let magic = random_u64(&mut self.rng, &self.one_prob_per_100);
+
+                table.fill(u16::MAX);
+                if !create_table(&values, magic, &mut table, table_log2) {
+                    continue;
+                };
+
+                info!(
+                    "{log_prefix}: magic found (iter={iter}) {}/{}",
+                    1 << table_log2,
+                    rev_f.len(),
+                );
+
+                let values: Vec<V> = table
+                    .iter()
+                    .map(|&x| kvs.get(x as usize).map(|x| x.0.clone()).unwrap_or_default())
+                    .collect();
+
+                res = Some(Magic::new(magic, u64::BITS - table_log2, values));
                 break;
             }
-            for pack_shift in 0..64 {
-                if res.is_some() {
-                    break;
-                }
-                if pack(full_block, pack_shift).count_ones() != full_block.count_ones() {
-                    continue;
-                }
 
-                let mut map: HashMap<_, Vec<u64>> = HashMap::new();
-                for block in full_block.subsets() {
-                    let reach = f
-                        .get(&block)
-                        .ok_or_else(|| anyhow::anyhow!("block not found: {block:?}"))?;
-                    map.entry(reach).or_default().push(pack(block, pack_shift));
-                }
-                let smallest_table_log2 = map.len().next_power_of_two().ilog2();
-                let largest_table_log2 = map
-                    .values()
-                    .map(Vec::len)
-                    .sum::<usize>()
-                    .next_power_of_two()
-                    .ilog2();
-
-                for table_log2 in (smallest_table_log2..=largest_table_log2).rev() {
-                    let kvs = map.iter().collect::<Vec<_>>();
-                    let values = kvs.iter().map(|(_, v)| *v).collect::<Vec<_>>();
-
-                    let mut table: Vec<u8> = vec![0; 1 << table_log2];
-                    for iter in 0..self.max_iter {
-                        let magic = random_u64(&mut self.rng, &self.one_prob_per_100);
-
-                        table.fill(u8::MAX);
-                        if !create_table(&values, magic, &mut table, table_log2) {
-                            continue;
-                        };
-
-                        info!(
-                                "{log_prefix}: magic found (iter={iter}) {}/{} (pack_shift={pack_shift})",
-                                1 << table_log2,
-                                map.len(),
-                            );
-
-                        let bitboards: Vec<BitBoard> = table
-                            .iter()
-                            .map(|&x| kvs.get(x as usize).map(|x| **x.0).unwrap_or_default())
-                            .collect();
-
-                        res = Some(Magic::new(
-                            pack_shift,
-                            u64::BITS - table_log2,
-                            full_block,
-                            magic,
-                            bitboards,
-                        ));
-                        break;
-                    }
-
-                    if res.is_none() && table_log2 == largest_table_log2 {
-                        debug!(
-                                "{log_prefix}: magic not found after {} iterations (shift={pack_shift})",
-                                self.max_iter,
-                            );
-                    }
-                }
+            if res.is_none() && table_log2 == largest_table_log2 {
+                bail!(
+                    "{log_prefix}: magic not found after {} iterations {}/{}/{}",
+                    self.max_iter,
+                    1 << table_log2,
+                    total_len,
+                    rev_f.len(),
+                );
             }
         }
-        res.ok_or_else(|| {
-            anyhow::anyhow!(
-                "{log_prefix}: magic not found after {} iterations and {} retries",
-                self.max_iter,
-                self.max_retry,
-            )
-        })
+        Ok(res.unwrap())
     }
 }
 
-fn pack(bb: BitBoard, shift: u32) -> u64 {
-    let x = bb.u128();
-    let lower = (x as u64).rotate_left(shift);
-    let upper = (x >> 64) as u64;
-    lower | upper
-}
-
-fn create_table(map: &Vec<&Vec<u64>>, magic: u64, table: &mut [u8], table_log2: u32) -> bool {
+fn create_table(map: &Vec<&Vec<u64>>, magic: u64, table: &mut [u16], table_log2: u32) -> bool {
     let shift = u64::BITS - table_log2;
     for (i, &blocks) in map.iter().enumerate() {
-        let i = i as u8;
+        let i = i as u16;
         for &block in blocks {
-            let j = (magic.wrapping_mul(block) >> shift) as usize;
+            let j = if shift == u64::BITS {
+                0
+            } else {
+                (magic.wrapping_mul(block) >> shift) as usize
+            };
             if table[j] == i {
                 continue;
             }
-            if table[j] != u8::MAX {
+            if table[j] != u16::MAX {
                 return false;
             }
             table[j] = i;

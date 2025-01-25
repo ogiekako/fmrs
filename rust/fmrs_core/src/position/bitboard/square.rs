@@ -1,8 +1,19 @@
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt as _};
 use rand::{distributions::Standard, prelude::Distribution};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Square {
     x: usize,
+}
+
+impl ToTokens for Square {
+    fn to_tokens(&self, w: &mut TokenStream) {
+        let x = self.x;
+        w.append_all(quote! {
+            Square::from_index(#x)
+        });
+    }
 }
 
 impl Square {
