@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737733764204,
+  "lastUpdate": 1737785113442,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -26141,6 +26141,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 60605,
             "range": "± 12",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "9f344bf14c8a5092336fdd5943d40a2c41d7e673",
+          "message": "compact magic",
+          "timestamp": "2025-01-25T14:54:58+09:00",
+          "tree_id": "d328ac2381f06a6b0936e873ef1f7c9238deae02",
+          "url": "https://github.com/ogiekako/fmrs/commit/9f344bf14c8a5092336fdd5943d40a2c41d7e673"
+        },
+        "date": 1737785108955,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 806,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1867,
+            "range": "± 102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 280,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 918,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 16556,
+            "range": "± 405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1680,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5109,
+            "range": "± 122",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1016213,
+            "range": "± 195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13625,
+            "range": "± 236",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 22662,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2469,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 13289,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 64818,
+            "range": "± 10",
             "unit": "ns/iter"
           }
         ]
