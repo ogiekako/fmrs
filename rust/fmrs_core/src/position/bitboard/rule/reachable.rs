@@ -1,6 +1,6 @@
 use crate::{
     config::CONFIG,
-    piece::{Color, Kind},
+    piece::{Color, Kind, NUM_KIND},
     position::{
         bitboard::{generated_magics, BitBoard, Square},
         position::PositionAux,
@@ -44,14 +44,23 @@ pub fn reachable_sub(position: &PositionAux, color: Color, pos: Square, kind: Ki
     }
     let occupied = position.occupied_bb();
 
-    match kind {
-        Kind::Lance => lance_reachable(occupied, color, pos),
-        Kind::Bishop => bishop_reachable(occupied, pos),
-        Kind::Rook => rook_reachable(occupied, pos),
-        Kind::ProBishop => pro_bishop_reachable(occupied, pos),
-        Kind::ProRook => pro_rook_reachable(occupied, pos),
-        _ => unreachable!(),
-    }
+    const F: [fn(BitBoard, Square) -> BitBoard; NUM_KIND * 2] = {
+        let mut f: [fn(BitBoard, Square) -> BitBoard; NUM_KIND * 2] =
+            [bishop_reachable; NUM_KIND * 2];
+        f[Kind::Lance.index() * 2] = black_lance_reachable;
+        f[Kind::Lance.index() * 2 + 1] = white_lance_reachable;
+        let mut i = 0;
+        while i < 2 {
+            f[Kind::Bishop.index() * 2 + i] = bishop_reachable;
+            f[Kind::Rook.index() * 2 + i] = rook_reachable;
+            f[Kind::ProBishop.index() * 2 + i] = pro_bishop_reachable;
+            f[Kind::ProRook.index() * 2 + i] = pro_rook_reachable;
+            i += 1;
+        }
+        f
+    };
+
+    F[kind.index() << 1 | color.index()](occupied, pos)
 }
 
 fn pro_bishop_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
@@ -70,6 +79,14 @@ fn pro_rook_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
     ][CONFIG.use_rook_magic as usize];
 
     F(occupied, pos)
+}
+
+fn black_lance_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    lance_reachable(occupied, Color::BLACK, pos)
+}
+
+fn white_lance_reachable(occupied: BitBoard, pos: Square) -> BitBoard {
+    lance_reachable(occupied, Color::WHITE, pos)
 }
 
 pub fn lance_reachable(occupied: BitBoard, color: Color, pos: Square) -> BitBoard {
