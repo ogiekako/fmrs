@@ -126,7 +126,19 @@ pub fn gen_magic<R: SeedableRng + Rng>() -> anyhow::Result<()> {
 }
 
 #[derive(Clone, Debug)]
-struct Offset(usize);
+struct Offset {
+    ids_offset: usize,
+    all_offset: usize,
+}
+
+impl Offset {
+    fn new(ids_offset: usize, all_offset: usize) -> Self {
+        Self {
+            ids_offset,
+            all_offset,
+        }
+    }
+}
 
 impl Index<usize> for Offset {
     type Output = BitBoard;
@@ -140,6 +152,7 @@ impl Index<usize> for Offset {
 struct ConstMagics {
     range: RangeInclusive<usize>,
     all: Vec<BitBoard>,
+    ids: Vec<u8>,
     magics: Vec<Magics<Offset>>,
 }
 
@@ -148,12 +161,15 @@ impl DefTokens for Offset {
         w.write(
             "Offset",
             quote! {
-                struct Offset(usize);
+                struct Offset {
+                    ids_offset: usize,
+                    all_offset: usize,
+                }
                 #[cfg(not(feature="gen-magic"))]
                 impl std::ops::Index<usize> for Offset {
                     type Output = BitBoard;
                     fn index(&self, index: usize) -> &Self::Output {
-                        &ALL[self.0 + index]
+                        &ALL[self.all_offset + IDS[self.ids_offset + index] as usize]
                     }
                 }
             },
@@ -163,9 +179,13 @@ impl DefTokens for Offset {
 
 impl ToTokens for Offset {
     fn to_tokens(&self, w: &mut TokenStream) {
-        let x = self.0;
+        let ids_offset = self.ids_offset;
+        let all_offset = self.all_offset;
         w.append_all(quote! {
-            Offset(#x)
+            Offset {
+                ids_offset: #ids_offset,
+                all_offset: #all_offset,
+            }
         });
     }
 }
@@ -208,6 +228,7 @@ impl DefTokens for ConstMagics {
 
 impl ToTokens for ConstMagics {
     fn to_tokens(&self, w: &mut TokenStream) {
+        let ids = ConstVec::new(quote!(IDS), quote!(u8), &self.ids);
         let all = ConstVec::new(quote!(ALL), quote!(BitBoard), &self.all);
         let magics = ConstVec::new(quote!(MAGICS), quote!(Magics<Offset>), &self.magics);
         let start = self.range.start();
@@ -215,6 +236,7 @@ impl ToTokens for ConstMagics {
 
         w.append_all(quote! {
             #all
+            #ids
             #magics
 
             pub fn lance_pinning(occupied: BitBoard, king_color: Color, pos: Square) -> BitBoard {
@@ -246,28 +268,41 @@ impl ToTokens for ConstMagics {
 
 impl From<&[Magics<Vec<BitBoard>>]> for ConstMagics {
     fn from(all_magics: &[Magics<Vec<BitBoard>>]) -> Self {
+        let mut ids = vec![];
         let mut all = vec![];
+
+        let mut f = |table: &[BitBoard]| {
+            let res = Offset::new(ids.len(), all.len());
+            let mut bbs = HashMap::new();
+            for &bb in table.iter() {
+                if let Some(&i) = bbs.get(&bb) {
+                    ids.push(i);
+                } else {
+                    let i = (all.len() - res.all_offset) as u8;
+                    all.push(bb);
+                    bbs.insert(bb, i);
+                    ids.push(i);
+                }
+            }
+            res
+        };
 
         let mut magics = vec![];
         for m in all_magics {
-            let lance = [Color::BLACK, Color::WHITE].map(|king_color| {
-                let l = m.lance[king_color.index()].clone_with(Offset(all.len()));
-                all.extend_from_slice(&m.lance[king_color.index()].core.table);
-                l
-            });
-            let bishop = m.bishop.clone_with(Offset(all.len()));
-            all.extend_from_slice(&m.bishop.core.table);
-            let rook = m.rook.clone_with(Offset(all.len()));
-            all.extend_from_slice(&m.rook.core.table);
+            let lance0 = m.lance[0].clone_with(f(&m.lance[0].core.table));
+            let lance1 = m.lance[1].clone_with(f(&m.lance[1].core.table));
+            let bishop = m.bishop.clone_with(f(&m.bishop.core.table));
+            let rook = m.rook.clone_with(f(&m.rook.core.table));
 
             magics.push(Magics {
-                lance,
+                lance: [lance0, lance1],
                 bishop,
                 rook,
             });
         }
         Self {
             range: 0..=magics.len() - 1,
+            ids,
             all,
             magics,
         }
