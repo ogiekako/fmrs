@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1737884339930,
+  "lastUpdate": 1737884733151,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -26753,6 +26753,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 63325,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "d9de9579fd3f7117e709f82e5c7ba84217008939",
+          "message": "Pinned: revert use of magic for lance",
+          "timestamp": "2025-01-26T18:39:22+09:00",
+          "tree_id": "fe2be3a6ec4ebaad846fabdb6f499f0f5ba8394f",
+          "url": "https://github.com/ogiekako/fmrs/commit/d9de9579fd3f7117e709f82e5c7ba84217008939"
+        },
+        "date": 1737884730385,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 768,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1826,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 259,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 895,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 17015,
+            "range": "± 187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1709,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5585,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1103956,
+            "range": "± 3156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12895,
+            "range": "± 78",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 22741,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2541,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 13569,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 62362,
+            "range": "± 11",
             "unit": "ns/iter"
           }
         ]
