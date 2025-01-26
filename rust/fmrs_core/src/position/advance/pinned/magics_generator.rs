@@ -5,7 +5,7 @@ use std::{fs::File, ops::Index, path::PathBuf, time::Instant};
 
 use crate::codegen::{ConstVec, DefTokens, DefWriter};
 use crate::piece::Color;
-use crate::position::bitboard::power;
+use crate::position::bitboard::{lance_reachable_no_magic, power};
 use crate::{
     magic::{Magic, MagicGenerator},
     piece::Kind,
@@ -98,6 +98,10 @@ pub fn gen_magic<R: SeedableRng + Rng>() -> anyhow::Result<()> {
         #defs
 
         #[cfg(feature="gen-magic")]
+        pub fn lance_pinning(occupied: BitBoard, king_color: Color, pos: Square) -> BitBoard {
+            unimplemented!()
+        }
+        #[cfg(feature="gen-magic")]
         pub fn bishop_pinning(occupied: BitBoard, pos: Square) -> BitBoard {
             unimplemented!()
         }
@@ -169,6 +173,7 @@ impl ToTokens for Offset {
 impl<T: DefTokens> DefTokens for Magics<T> {
     fn def_tokens(w: &mut DefWriter) {
         PackMagic::<T>::def_tokens(w);
+        Color::def_tokens(w);
         w.write(
             "Magics",
             quote! {
@@ -180,10 +185,12 @@ impl<T: DefTokens> DefTokens for Magics<T> {
 
 impl<T: ToTokens> ToTokens for Magics<T> {
     fn to_tokens(&self, w: &mut TokenStream) {
+        let lance = &self.lance;
         let bishop = &self.bishop;
         let rook = &self.rook;
         w.append_all(quote! {
             Magics {
+                lance: [#(#lance),*],
                 bishop: #bishop,
                 rook: #rook,
             }
@@ -209,6 +216,10 @@ impl ToTokens for ConstMagics {
         w.append_all(quote! {
             #all
             #magics
+
+            pub fn lance_pinning(occupied: BitBoard, king_color: Color, pos: Square) -> BitBoard {
+                MAGICS[pos.index()].lance_pinning(occupied, king_color)
+            }
 
             pub fn bishop_pinning(occupied: BitBoard, pos: Square) -> BitBoard {
                 MAGICS[pos.index()].bishop_pinning(occupied)
@@ -239,12 +250,21 @@ impl From<&[Magics<Vec<BitBoard>>]> for ConstMagics {
 
         let mut magics = vec![];
         for m in all_magics {
+            let lance = [Color::BLACK, Color::WHITE].map(|king_color| {
+                let l = m.lance[king_color.index()].clone_with(Offset(all.len()));
+                all.extend_from_slice(&m.lance[king_color.index()].core.table);
+                l
+            });
             let bishop = m.bishop.clone_with(Offset(all.len()));
             all.extend_from_slice(&m.bishop.core.table);
             let rook = m.rook.clone_with(Offset(all.len()));
             all.extend_from_slice(&m.rook.core.table);
 
-            magics.push(Magics { bishop, rook });
+            magics.push(Magics {
+                lance,
+                bishop,
+                rook,
+            });
         }
         Self {
             range: 0..=magics.len() - 1,
@@ -315,6 +335,7 @@ impl<T: ToTokens> ToTokens for PackMagic<T> {
 
 #[derive(Clone, Debug)]
 pub(super) struct Magics<T> {
+    pub(super) lance: [PackMagic<T>; 2],
     pub(super) bishop: PackMagic<T>,
     pub(super) rook: PackMagic<T>,
 }
@@ -323,6 +344,11 @@ impl<T> Magics<T>
 where
     T: Index<usize, Output = BitBoard>,
 {
+    #[cfg(not(feature = "gen-magic"))]
+    pub(super) fn lance_pinning(&self, occupied: BitBoard, king_color: Color) -> BitBoard {
+        self.lance[king_color.index()].f(occupied)
+    }
+
     #[cfg(not(feature = "gen-magic"))]
     pub(super) fn bishop_pinning(&self, occupied: BitBoard) -> BitBoard {
         self.bishop.f(occupied)
@@ -348,20 +374,29 @@ where
                 attackers.set(rng.gen());
             }
 
-            let want_bishop = pinning_no_magic(occupied, pos, Kind::Bishop);
-            let got_bishop = self.bishop.f(occupied);
+            for king_color in Color::iter() {
+                let want_lance = pinning_no_magic(occupied, pos, king_color, Kind::Lance);
+                let got_lance = self.lance[king_color.index()].f(occupied);
+                assert_eq!(want_lance, got_lance);
+            }
 
+            let want_bishop = pinning_no_magic(occupied, pos, Color::BLACK, Kind::Bishop);
+            let got_bishop = self.bishop.f(occupied);
             assert_eq!(want_bishop, got_bishop);
 
-            let want_rook = pinning_no_magic(occupied, pos, Kind::Rook);
+            let want_rook = pinning_no_magic(occupied, pos, Color::BLACK, Kind::Rook);
             let got_rook = self.rook.f(occupied);
-
             assert_eq!(want_rook, got_rook);
         }
     }
 }
 
-fn pinning_no_magic(mut occupied: BitBoard, pos: Square, kind: Kind) -> BitBoard {
+fn pinning_no_magic(
+    mut occupied: BitBoard,
+    pos: Square,
+    king_color: Color,
+    kind: Kind,
+) -> BitBoard {
     for edge in [
         BitBoard::COL1,
         BitBoard::COL9,
@@ -373,9 +408,10 @@ fn pinning_no_magic(mut occupied: BitBoard, pos: Square, kind: Kind) -> BitBoard
         }
     }
 
-    let reachable = match kind {
-        Kind::Bishop => bishop_reachable_no_magic,
-        Kind::Rook => rook_reachable_no_magic,
+    let reachable = |bb, pos| match kind {
+        Kind::Bishop => bishop_reachable_no_magic(bb, pos),
+        Kind::Rook => rook_reachable_no_magic(bb, pos),
+        Kind::Lance => lance_reachable_no_magic(bb, king_color, pos),
         _ => unreachable!(),
     };
     let reach = reachable(occupied, pos);
@@ -392,69 +428,77 @@ fn gen_magics<R: SeedableRng + Rng>(
     generator: &mut MagicGenerator<R>,
     pos: Square,
 ) -> anyhow::Result<Magics<Vec<BitBoard>>> {
-    let mut rook_bishop = [Kind::Rook, Kind::Bishop]
-        .iter()
-        .map(|&kind| {
-            let power = power(Color::BLACK, pos, kind);
-            let mut occupied_mask = power;
-            for edge in [
-                BitBoard::COL1,
-                BitBoard::COL9,
-                BitBoard::ROW1,
-                BitBoard::ROW9,
-            ] {
-                if !edge.contains(pos) {
-                    occupied_mask.and_not_assign(edge);
+    let mut lances_rook_bishop = [
+        (Color::BLACK, Kind::Lance),
+        (Color::WHITE, Kind::Lance),
+        (Color::BLACK, Kind::Rook),
+        (Color::BLACK, Kind::Bishop),
+    ]
+    .iter()
+    .map(|&(king_color, kind)| {
+        let power = power(king_color, pos, kind);
+        let mut occupied_mask = power;
+        for edge in [
+            BitBoard::COL1,
+            BitBoard::COL9,
+            BitBoard::ROW1,
+            BitBoard::ROW9,
+        ] {
+            if !edge.contains(pos) {
+                occupied_mask.and_not_assign(edge);
+            }
+        }
+
+        let shifts = (0..64)
+            .filter(|&shift| pack(occupied_mask, shift).count_ones() == occupied_mask.count_ones())
+            .collect::<Vec<_>>();
+
+        if shifts.is_empty() {
+            bail!("no shifts: {pos:?} {kind:?}");
+        }
+
+        debug!("{pos:?} {kind:?} shifts={}/64", shifts.len());
+
+        for &shift in shifts.iter() {
+            let mut map = HashMap::new();
+            for occupied in occupied_mask.subsets() {
+                let packed = pack(occupied, shift);
+                debug_assert!(!map.contains_key(&packed));
+
+                let pinned = pinning_no_magic(occupied, pos, king_color, kind);
+
+                // if map.len() % 100 == 0 {
+                //     debug!("{pos:?} {kind:?} {occupied:?} {attackers:?} {:?}", pinned);
+                // }
+
+                map.insert(packed, pinned);
+            }
+            match generator.gen_magic(map, &format!("{:?} {:?} shift={:?}", pos, kind, shift)) {
+                Ok(core) => {
+                    return Ok(PackMagic {
+                        shift,
+                        occupied_mask,
+                        core,
+                    })
                 }
-            }
-
-            let shifts = (0..64)
-                .filter(|&shift| {
-                    pack(occupied_mask, shift).count_ones() == occupied_mask.count_ones()
-                })
-                .collect::<Vec<_>>();
-
-            if shifts.is_empty() {
-                bail!("no shifts: {pos:?} {kind:?}");
-            }
-
-            debug!("{pos:?} {kind:?} shifts={}/64", shifts.len());
-
-            for &shift in shifts.iter() {
-                let mut map = HashMap::new();
-                for occupied in occupied_mask.subsets() {
-                    let packed = pack(occupied, shift);
-                    debug_assert!(!map.contains_key(&packed));
-
-                    let pinned = pinning_no_magic(occupied, pos, kind);
-
-                    // if map.len() % 100 == 0 {
-                    //     debug!("{pos:?} {kind:?} {occupied:?} {attackers:?} {:?}", pinned);
-                    // }
-
-                    map.insert(packed, pinned);
+                Err(e) => {
+                    debug!("{e}");
                 }
-                match generator.gen_magic(map, &format!("{:?} {:?} shift={:?}", pos, kind, shift)) {
-                    Ok(core) => {
-                        return Ok(PackMagic {
-                            shift,
-                            occupied_mask,
-                            core,
-                        })
-                    }
-                    Err(e) => {
-                        debug!("{e}");
-                    }
-                };
-            }
-            bail!("no magic found: {pos:?} {kind:?}");
-        })
-        .collect::<Result<Vec<_>, _>>()?;
+            };
+        }
+        bail!("no magic found: {pos:?} {kind:?}");
+    })
+    .collect::<Result<Vec<_>, _>>()?;
 
-    let rook = rook_bishop.remove(0);
-    let bishop = rook_bishop.remove(0);
+    let lance = [lances_rook_bishop.remove(0), lances_rook_bishop.remove(0)];
+    let rook = lances_rook_bishop.remove(0);
+    let bishop = lances_rook_bishop.remove(0);
 
-    Ok(Magics { bishop, rook })
+    Ok(Magics {
+        lance,
+        bishop,
+        rook,
+    })
 }
 
 #[cfg(test)]
@@ -477,15 +521,20 @@ mod tests {
             "*........",
         );
         let king = Square::S11;
+        let want_lance_pinning = BitBoard::EMPTY.with(Square::S13);
         let want_bishop_pinning = BitBoard::EMPTY.with(Square::S66);
         let want_rook_pinning = BitBoard::EMPTY.with(Square::S13);
 
         assert_eq!(
-            pinning_no_magic(occupied, king, Kind::Bishop),
+            pinning_no_magic(occupied, king, Color::WHITE, Kind::Lance),
+            want_lance_pinning
+        );
+        assert_eq!(
+            pinning_no_magic(occupied, king, Color::BLACK, Kind::Bishop),
             want_bishop_pinning
         );
         assert_eq!(
-            pinning_no_magic(occupied, king, Kind::Rook),
+            pinning_no_magic(occupied, king, Color::BLACK, Kind::Rook),
             want_rook_pinning
         );
     }

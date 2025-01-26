@@ -3,7 +3,10 @@ use std::collections::HashSet;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 
-use crate::position::{BitBoard, Square};
+use crate::{
+    piece::Color,
+    position::{BitBoard, Square},
+};
 
 pub(crate) struct DefWriter {
     w: TokenStream,
@@ -31,6 +34,17 @@ impl DefWriter {
 
 pub(crate) trait DefTokens {
     fn def_tokens(w: &mut DefWriter);
+}
+
+impl DefTokens for Color {
+    fn def_tokens(w: &mut DefWriter) {
+        w.write(
+            "Color",
+            quote! {
+                use crate::piece::Color;
+            },
+        );
+    }
 }
 
 impl DefTokens for Square {
