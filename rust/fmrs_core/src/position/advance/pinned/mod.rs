@@ -1,12 +1,12 @@
 pub mod generated_magics;
 pub mod magics_generator;
 
-use generated_magics::{bishop_pinning, lance_pinning, rook_pinning};
+use generated_magics::{bishop_pinning, rook_pinning};
 
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{power, BitBoard},
+        bitboard::{lance_power, power, reachable, BitBoard},
         position::PositionAux,
         Square,
     },
@@ -56,15 +56,8 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
         position.color_bb(blocker_color)
     };
 
-    let lance_attackers = position.kind_bb(Kind::Lance) & attacker_bb;
     let bishopish_attackers = position.bishopish() & attacker_bb;
     let rookish_attackers = position.rookish() & attacker_bb;
-
-    let lance_pinning = if lance_attackers.is_empty() {
-        BitBoard::EMPTY
-    } else {
-        lance_pinning(occupied, king_color, king_pos) & lance_attackers
-    };
 
     let bishop_pinning = if bishopish_attackers.is_empty() {
         BitBoard::EMPTY
@@ -78,7 +71,7 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
         rook_pinning(occupied, king_pos) & rookish_attackers
     };
 
-    for pinning in [lance_pinning, bishop_pinning, rook_pinning] {
+    for pinning in [bishop_pinning, rook_pinning] {
         for attacker in pinning {
             let mut area = BitBoard::between(king_pos, attacker);
             let Some(blocker) = (area & blocker_bb).next() else {
@@ -94,5 +87,65 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
         }
     }
 
+    lance_pinned(position, king_color, blocker_color, &mut res);
+
     Pinned::new(res)
+}
+
+// #[inline(never)]
+fn lance_pinned(
+    position: &mut PositionAux,
+    king_color: Color,
+    blocker_color: Color,
+    res: &mut Vec<(Square, BitBoard)>,
+) {
+    let attacker_color = king_color.opposite();
+
+    let lances = position.bitboard(attacker_color, Kind::Lance);
+    if lances.is_empty() {
+        return;
+    }
+
+    let power_from_king = lance_power(king_color, position.must_king_pos(king_color));
+    let potential_attackers = lances & power_from_king;
+    if potential_attackers.is_empty() {
+        return;
+    }
+
+    let mut occupied = position.occupied_bb() & power_from_king;
+
+    if king_color.is_white() {
+        let blocker_pos = occupied.next().unwrap();
+        if !position.color_bb(blocker_color).contains(blocker_pos) {
+            return;
+        }
+        let Some(attacker_pos) = occupied.next() else {
+            return;
+        };
+        if !lances.contains(attacker_pos) {
+            return;
+        }
+        let blocker_kind = position.must_get_kind(blocker_pos);
+        let reach =
+            reachable(position, blocker_color, blocker_pos, blocker_kind, false) & power_from_king;
+        res.push((blocker_pos, reach));
+    } else {
+        let mut occupied = occupied.u128();
+        let blocker_pos = Square::from_index(127 - occupied.leading_zeros() as usize);
+        if !position.color_bb(blocker_color).contains(blocker_pos) {
+            return;
+        }
+        occupied &= !(1 << blocker_pos.index());
+        if occupied == 0 {
+            return;
+        }
+        let attacker_pos = Square::from_index(127 - occupied.leading_zeros() as usize);
+        if !lances.contains(attacker_pos) {
+            return;
+        }
+        let blocker_kind = position.must_get_kind(blocker_pos);
+        let reach =
+            reachable(position, blocker_color, blocker_pos, blocker_kind, false) & power_from_king;
+        res.push((blocker_pos, reach));
+    }
 }
