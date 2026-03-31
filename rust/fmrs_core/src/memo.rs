@@ -154,7 +154,7 @@ impl MemoTrait for DashMemoMut<'_> {
 }
 
 impl DashMemo {
-    pub fn as_mut(&self) -> DashMemoMut {
+    pub fn as_mut(&self) -> DashMemoMut<'_> {
         DashMemoMut { steps: &self.steps }
     }
 }

@@ -17,7 +17,7 @@ percent-encoding = "*"
 pretty_assertions = "*"
 proc-macro2 = "*"
 quote = "*"
-rand = { version = "*" }
+rand = { version = "0.8.5" }
 rayon = "*"
 serde = { version = "*", features = ["derive"] }
 shogi-kifu-converter = "0.2"
