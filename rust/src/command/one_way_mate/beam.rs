@@ -101,6 +101,31 @@ fn insert(all_problems: &mut Vec<Vec<Problem>>, mut problem: Problem, min_step: 
     }
 }
 
+fn compute_key_weights<R: Rng + ?Sized>(
+    keys: Vec<u64>,
+    seen_stats: &HashMap<u64, usize>,
+    rng: &mut R,
+) -> Vec<(u64, f64)> {
+    let weights = keys
+        .iter()
+        .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.).sqrt())
+        .collect::<Vec<_>>();
+    let sum_weight = weights.iter().sum::<f64>();
+    let mut key_weights = keys
+        .into_iter()
+        .zip(weights)
+        .map(|(k, weight)| {
+            let p = weight / sum_weight;
+            let u: f64 = rng.gen();
+            let reservoir = u.powf(1.0 / p);
+            debug_assert!(reservoir.is_finite(), "{} {}", weight, sum_weight);
+            (k, reservoir)
+        })
+        .collect::<Vec<_>>();
+    key_weights.sort_by(|(_, a), (_, b)| b.total_cmp(a));
+    key_weights
+}
+
 fn generate(
     seed: &mut u64,
     parallel: usize,
@@ -144,23 +169,7 @@ fn generate(
         let mut keys = buckets.keys().copied().collect::<Vec<_>>();
         keys.shuffle(&mut rng);
 
-        let weights = keys
-            .iter()
-            .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.).sqrt())
-            .collect::<Vec<_>>();
-        let sum_weight = weights.iter().sum::<f64>();
-        let mut key_weights = keys
-            .into_iter()
-            .zip(weights.into_iter())
-            .map(|(k, weight)| {
-                let p = weight / sum_weight;
-                let u: f64 = rng.gen();
-                let reservoir = u.powf(1.0 / p);
-                debug_assert!(reservoir.is_finite(), "{} {}", weight, sum_weight);
-                (k, reservoir)
-            })
-            .collect::<Vec<_>>();
-        key_weights.sort_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap());
+        let key_weights = compute_key_weights(keys, seen_stats, &mut rng);
 
         let mut problems = vec![];
         'outer: while !buckets.is_empty() {
@@ -169,11 +178,12 @@ fn generate(
                     continue;
                 };
                 problems.push(ps.pop().unwrap());
+                let empty = ps.is_empty();
+                if empty {
+                    buckets.remove(key);
+                }
                 if problems.len() >= parallel {
                     break 'outer;
-                }
-                if ps.is_empty() {
-                    buckets.remove(key);
                 }
             }
         }
@@ -189,12 +199,6 @@ fn generate(
             );
         }
 
-        for problem in problems.iter() {
-            *seen_stats
-                .entry(problem.white_movements_digest)
-                .or_default() += 1;
-        }
-
         let mut i = 0;
         while problems.len() < parallel {
             let p = problems[i].clone();
@@ -204,6 +208,12 @@ fn generate(
 
         let base_seed = *seed;
         *seed += parallel as u64;
+
+        for problem in problems.iter() {
+            *seen_stats
+                .entry(problem.white_movements_digest)
+                .or_default() += 1;
+        }
 
         let new_problems = problems
             .par_iter_mut()
@@ -406,5 +416,26 @@ impl Problem {
             step,
             white_movements_digest: hasher.finish(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use rand::rngs::mock::StepRng;
+
+    use super::compute_key_weights;
+
+    #[test]
+    fn compute_key_weights_prefers_less_seen_bucket_when_uniforms_match() {
+        let keys = vec![1, 2];
+        let seen_stats = HashMap::from([(2, 8)]);
+        let mut rng = StepRng::new(1 << 63, 0);
+
+        let key_weights = compute_key_weights(keys, &seen_stats, &mut rng);
+
+        assert_eq!(key_weights[0].0, 1);
+        assert!(key_weights[0].1 > key_weights[1].1);
     }
 }
