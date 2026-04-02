@@ -26,6 +26,7 @@ export function newState(): types.State {
     ]),
     solveResponse: undefined,
     solutionLimit: 5,
+    oneWayMateMode: false,
   };
 }
 
@@ -75,6 +76,10 @@ export function reduce(orig: types.State, event: types.Event): types.State {
     case "set-solution-limit":
       state = cloneState(orig);
       state.solutionLimit = event.n;
+      return state;
+    case "set-one-way-mate-mode":
+      state = cloneState(orig);
+      state.oneWayMateMode = event.oneWayMateMode;
       return state;
     case "shift":
       return shifted(orig, event.dir);

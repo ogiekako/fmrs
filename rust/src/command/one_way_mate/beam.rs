@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
+    env,
     hash::{Hash as _, Hasher as _},
     time::Instant,
 };
@@ -13,16 +14,58 @@ use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use rustc_hash::FxHasher;
 
-use super::{action::Action, solve::one_way_mate_steps};
+use fmrs_core::solve::one_way::one_way_mate_steps;
+use super::action::Action;
+
+#[derive(Debug, Clone, Copy)]
+struct BeamConfig {
+    weight_exponent: f64,
+    seen_cap: Option<usize>,
+    use_mult: usize,
+}
+
+impl BeamConfig {
+    fn from_env() -> anyhow::Result<Self> {
+        let weight_exponent = parse_f64_env("FMRS_BEAM_WEIGHT_EXPONENT")?.unwrap_or(0.50);
+        let seen_cap = parse_usize_env("FMRS_BEAM_SEEN_CAP")?;
+        let use_mult = parse_usize_env("FMRS_BEAM_USE_MULT")?.unwrap_or(USE_MULT).max(1);
+        Ok(Self {
+            weight_exponent,
+            seen_cap,
+            use_mult,
+        })
+    }
+}
+
+fn parse_usize_env(name: &str) -> anyhow::Result<Option<usize>> {
+    env::var(name)
+        .ok()
+        .map(|s| {
+            s.parse::<usize>()
+                .map_err(|e| anyhow::anyhow!("invalid {}: {} ({})", name, s, e))
+        })
+        .transpose()
+}
+
+fn parse_f64_env(name: &str) -> anyhow::Result<Option<f64>> {
+    env::var(name)
+        .ok()
+        .map(|s| {
+            s.parse::<f64>()
+                .map_err(|e| anyhow::anyhow!("invalid {}: {} ({})", name, s, e))
+        })
+        .transpose()
+}
 
 pub(super) fn generate_one_way_mate_with_beam(
     mut seed: u64,
     parallel: usize,
     goal: Option<usize>,
 ) -> anyhow::Result<()> {
+    let config = BeamConfig::from_env()?;
     info!(
-        "generate_one_way_mate_with_beam: seed={} parallel={}",
-        seed, parallel,
+        "generate_one_way_mate_with_beam: seed={} parallel={} config={:?}",
+        seed, parallel, config,
     );
 
     let start_time = Instant::now();
@@ -46,6 +89,7 @@ pub(super) fn generate_one_way_mate_with_beam(
             &mut seed,
             parallel,
             best_problems.first().cloned(),
+            config,
             &start_time,
             &mut seen_stats,
         );
@@ -104,32 +148,51 @@ fn insert(all_problems: &mut Vec<Vec<Problem>>, mut problem: Problem, min_step: 
 fn compute_key_weights<R: Rng + ?Sized>(
     keys: Vec<u64>,
     seen_stats: &HashMap<u64, usize>,
+    weight_exponent: f64,
+    seen_cap: Option<usize>,
     rng: &mut R,
-) -> Vec<(u64, f64)> {
-    let weights = keys
-        .iter()
-        .map(|k| 1. / (seen_stats.get(k).copied().unwrap_or(0) as f64 + 1.).sqrt())
-        .collect::<Vec<_>>();
-    let sum_weight = weights.iter().sum::<f64>();
+) -> Vec<KeyWeight> {
     let mut key_weights = keys
         .into_iter()
-        .zip(weights)
-        .map(|(k, weight)| {
-            let p = weight / sum_weight;
+        .map(|k| {
+            let seen = seen_stats.get(&k).copied().unwrap_or(0);
+            let seen = seen_cap.map(|cap| seen.min(cap)).unwrap_or(seen);
+            let weight = 1. / (seen as f64 + 1.).powf(weight_exponent);
             let u: f64 = rng.gen();
-            let reservoir = u.powf(1.0 / p);
-            debug_assert!(reservoir.is_finite(), "{} {}", weight, sum_weight);
-            (k, reservoir)
+            KeyWeight {
+                key: k,
+                weight,
+                reservoir: u,
+            }
         })
         .collect::<Vec<_>>();
-    key_weights.sort_by(|(_, a), (_, b)| b.total_cmp(a));
+    let sum_weight = key_weights.iter().map(|kw| kw.weight).sum::<f64>();
+    for key_weight in key_weights.iter_mut() {
+        let p = key_weight.weight / sum_weight;
+        key_weight.reservoir = key_weight.reservoir.powf(1.0 / p);
+        debug_assert!(
+            key_weight.reservoir.is_finite(),
+            "{} {}",
+            key_weight.weight,
+            sum_weight
+        );
+    }
+    key_weights.sort_by(|a, b| b.reservoir.total_cmp(&a.reservoir));
     key_weights
+}
+
+#[derive(Debug, Clone, Copy)]
+struct KeyWeight {
+    key: u64,
+    weight: f64,
+    reservoir: f64,
 }
 
 fn generate(
     seed: &mut u64,
     parallel: usize,
     prev_best: Option<Problem>,
+    config: BeamConfig,
     start_time: &Instant,
     seen_stats: &mut HashMap<u64, usize>,
 ) -> Vec<Problem> {
@@ -169,18 +232,24 @@ fn generate(
         let mut keys = buckets.keys().copied().collect::<Vec<_>>();
         keys.shuffle(&mut rng);
 
-        let key_weights = compute_key_weights(keys, seen_stats, &mut rng);
+        let key_weights = compute_key_weights(
+            keys,
+            seen_stats,
+            config.weight_exponent,
+            config.seen_cap,
+            &mut rng,
+        );
 
         let mut problems = vec![];
         'outer: while !buckets.is_empty() {
-            for (key, _) in key_weights.iter() {
-                let Some(ps) = buckets.get_mut(key) else {
+            for key_weight in key_weights.iter() {
+                let Some(ps) = buckets.get_mut(&key_weight.key) else {
                     continue;
                 };
                 problems.push(ps.pop().unwrap());
                 let empty = ps.is_empty();
                 if empty {
-                    buckets.remove(key);
+                    buckets.remove(&key_weight.key);
                 }
                 if problems.len() >= parallel {
                     break 'outer;
@@ -223,7 +292,8 @@ fn generate(
 
                 let mut rng = SmallRng::seed_from_u64(base_seed + i as u64);
 
-                let num_use = (USE_MULT as f64 * ((step as f64 + 1.).log10() + 1.)).ceil() as usize;
+                let num_use =
+                    (config.use_mult as f64 * ((step as f64 + 1.).log10() + 1.)).ceil() as usize;
 
                 let mut count = [0, 0];
                 let mut new_problems = vec![];
@@ -433,9 +503,20 @@ mod tests {
         let seen_stats = HashMap::from([(2, 8)]);
         let mut rng = StepRng::new(1 << 63, 0);
 
-        let key_weights = compute_key_weights(keys, &seen_stats, &mut rng);
+        let key_weights = compute_key_weights(keys, &seen_stats, 0.5, None, &mut rng);
 
-        assert_eq!(key_weights[0].0, 1);
-        assert!(key_weights[0].1 > key_weights[1].1);
+        assert_eq!(key_weights[0].key, 1);
+        assert!(key_weights[0].reservoir > key_weights[1].reservoir);
+    }
+
+    #[test]
+    fn compute_key_weights_seen_cap_saturates_penalty() {
+        let keys = vec![1, 2];
+        let seen_stats = HashMap::from([(1, 4), (2, 100)]);
+        let mut rng = StepRng::new(1 << 63, 0);
+
+        let key_weights = compute_key_weights(keys, &seen_stats, 0.5, Some(4), &mut rng);
+
+        assert_eq!(key_weights[0].weight, key_weights[1].weight);
     }
 }

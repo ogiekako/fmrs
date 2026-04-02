@@ -1,6 +1,5 @@
 pub(super) mod action;
 mod beam;
-pub mod solve;
 
 use beam::generate_one_way_mate_with_beam;
 

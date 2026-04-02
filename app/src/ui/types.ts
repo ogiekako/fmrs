@@ -8,6 +8,7 @@ export type State = {
   problems: Array<Problem>;
   solveResponse: SolveResponse | undefined;
   solutionLimit: number;
+  oneWayMateMode: boolean;
 };
 
 export type Problem = [Position, /* name */ string];
@@ -88,6 +89,10 @@ export type Event =
   | {
       ty: "set-solution-limit";
       n: number;
+    }
+  | {
+      ty: "set-one-way-mate-mode";
+      oneWayMateMode: boolean;
     }
   | {
       ty: "shift";

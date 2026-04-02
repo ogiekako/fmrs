@@ -9,6 +9,7 @@ export function cloneState(state: types.State): types.State {
     problems: cloneProblems(state.problems),
     solveResponse: state.solveResponse && Object.freeze(state.solveResponse),
     solutionLimit: state.solutionLimit,
+    oneWayMateMode: state.oneWayMateMode,
   };
 }
 

@@ -62,6 +62,7 @@ export function Editor(props: {}) {
         solving={state.solving}
         solveResponse={state.solveResponse}
         solutionLimit={state.solutionLimit}
+        oneWayMateMode={state.oneWayMateMode}
         dispatch={dispatch}
       />
     </div>

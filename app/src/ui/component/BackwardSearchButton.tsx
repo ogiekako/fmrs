@@ -8,6 +8,7 @@ import { sfenEqualsModuloColor } from "../../model/sfen/decode";
 export function BackwardSearchButton(props: {
   position: model.Position;
   solveResponse: types.SolveResponse | undefined;
+  oneWayMateMode: boolean;
   dispatch: types.Dispatcher;
 }) {
   const sfen = model.encodeSfen(props.position);
@@ -29,6 +30,7 @@ export function BackwardSearchButton(props: {
         const newSfen = await backwardSearchWasm(
           sfen,
           cancelToken,
+          props.oneWayMateMode,
           (step, sfen) => {
             props.dispatch({
               ty: "set-solving",

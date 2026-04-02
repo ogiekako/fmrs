@@ -7,9 +7,10 @@ import { BackwardSearch } from "../../../docs/pkg";
 export async function backwardSearchWasm(
   sfen: string,
   cancel: CancellationToken,
+  oneWayMateMode: boolean,
   onStep: (step: number, sfen: string) => void
 ): Promise<string | undefined> {
-  const bs = new BackwardSearch(sfen);
+  const bs = new BackwardSearch(sfen, oneWayMateMode);
 
   try {
     while (bs.advance()) {

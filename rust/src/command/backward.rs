@@ -3,7 +3,7 @@ use fmrs_core::{piece::Color, position::position::PositionAux, search::backward:
 
 use super::parse_to_sfen;
 
-pub fn backward(sfen_like: &str, forward: usize) -> anyhow::Result<()> {
+pub fn backward(sfen_like: &str, forward: usize, black_position: bool) -> anyhow::Result<()> {
     let sfen = parse_to_sfen(sfen_like)?;
 
     let mut position = PositionAux::from_sfen(&sfen)?;
@@ -13,7 +13,7 @@ pub fn backward(sfen_like: &str, forward: usize) -> anyhow::Result<()> {
 
     let builder = std::thread::Builder::new().stack_size(32 * 1024 * 1024); // 32 MB
     let handler = builder.spawn(move || {
-        let (step, positions) = backward_search(&position, false, forward).unwrap();
+        let (step, positions) = backward_search(&position, black_position, forward).unwrap();
 
         eprintln!("mate in {}:", step);
         for position in positions {

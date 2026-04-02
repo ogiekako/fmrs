@@ -1,7 +1,6 @@
 #![allow(clippy::needless_range_loop, clippy::module_inception)]
 
 use clap::{Parser, Subcommand};
-pub use command::one_way_mate_steps;
 use command::{
     backward::backward,
     batch_square::batch_square,
@@ -56,6 +55,8 @@ enum Action {
         sfen_like: String,
         #[arg(long, default_value = "0")]
         forward: usize,
+        #[arg(long, default_value_t = false)]
+        black_position: bool,
     },
     GenMagic {
         attr: MagicAttribute,
@@ -83,7 +84,11 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::BatchSquare { filter_file } => {
             batch_square(filter_file)?;
         }
-        Action::Backward { sfen_like, forward } => backward(&sfen_like, forward)?,
+        Action::Backward {
+            sfen_like,
+            forward,
+            black_position,
+        } => backward(&sfen_like, forward, black_position)?,
         Action::GenMagic { attr } => gen_magic(attr)?,
     }
     Ok(())

@@ -11,6 +11,7 @@ export default function SolveButton(props: {
   solving: types.Solving | undefined;
   solveResponse: types.SolveResponse | undefined;
   solutionLimit: number;
+  oneWayMateMode: boolean;
   dispatch: types.Dispatcher;
 }) {
   const buttonText = props.solving ? "Cancel" : "Solve";
@@ -89,6 +90,7 @@ export default function SolveButton(props: {
       <BackwardSearchButton
         position={props.position}
         solveResponse={props.solveResponse}
+        oneWayMateMode={props.oneWayMateMode}
         dispatch={props.dispatch}
       />
       {props.solving ? (
@@ -127,10 +129,22 @@ export default function SolveButton(props: {
           disabled={!!props.solving}
         />
       </InputGroup>
+      <Form.Check 
+        type="checkbox"
+        id="one-way-mate-mode-checkbox"
+        label="一本道詰将棋モード"
+        checked={props.oneWayMateMode}
+        onChange={(e) => {
+          props.dispatch({ ty: "set-one-way-mate-mode", oneWayMateMode: e.target.checked });
+        }}
+        disabled={!!props.solving}
+        className="mb-3"
+      />
       {props.solveResponse ? (
         <SolveResponse
           solveResponse={props.solveResponse}
           solutionLimit={props.solutionLimit}
+          oneWayMateMode={props.oneWayMateMode}
           dispatch={props.dispatch}
         />
       ) : (

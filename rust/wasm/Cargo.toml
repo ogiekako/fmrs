@@ -25,3 +25,5 @@ anyhow = "*"
 
 [dev-dependencies]
 wasm-bindgen-test = "*"
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

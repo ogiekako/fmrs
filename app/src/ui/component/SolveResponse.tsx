@@ -1,19 +1,32 @@
 import * as types from "../types";
 import Solution from "./Solution";
+import { check_one_way_mate } from "../../../../docs/pkg";
 
 export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;
   solutionLimit: number;
+  oneWayMateMode: boolean;
   dispatch: types.Dispatcher;
 }) {
   const message = getMessage(props.solveResponse, props.solutionLimit);
 
+  let oneWayMessage = null;
+  if (props.oneWayMateMode && props.solveResponse.ty === "solved" && props.solveResponse.response.sfen) {
+    const steps = check_one_way_mate(props.solveResponse.response.sfen);
+    if (steps !== undefined) {
+      oneWayMessage = <div>一本道詰将棋です ({steps}手)</div>;
+    } else {
+      oneWayMessage = <div>一本道詰将棋ではありません</div>;
+    }
+  }
+
   const text = message ? (
     <div>
       {message} ({(props.solveResponse.millis / 1000).toFixed(1)}s)
+      {oneWayMessage}
     </div>
   ) : (
-    <div></div>
+    <div>{oneWayMessage}</div>
   );
 
   return props.solveResponse.ty === "solved" ? (

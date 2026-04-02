@@ -180,6 +180,14 @@ impl BackwardSearch {
     }
 
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
+        self.advance_upto_with_filter(upto, |_, _| true)
+    }
+
+    pub fn advance_upto_with_filter(
+        &mut self,
+        upto: usize,
+        mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
+    ) -> anyhow::Result<bool> {
         let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
         self.seen_positions = range.end;
         for core in self.positions[range].iter() {
@@ -196,6 +204,10 @@ impl BackwardSearch {
                         continue;
                     }
                 } else if pp.checked_slow(Color::WHITE) {
+                    continue;
+                }
+
+                if !filter(pp.core(), self.stone) {
                     continue;
                 }
 

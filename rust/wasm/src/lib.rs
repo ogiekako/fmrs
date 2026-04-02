@@ -13,6 +13,10 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, wasm!");
+pub fn check_one_way_mate(sfen: &str) -> Option<u32> {
+    let mut position = fmrs_core::position::position::PositionAux::from_sfen(sfen).ok()?;
+    if position.checked_slow(fmrs_core::piece::Color::WHITE) {
+        position.set_turn(fmrs_core::piece::Color::WHITE);
+    }
+    fmrs_core::solve::one_way::one_way_mate_steps(&mut position, &mut vec![]).map(|x| x as u32)
 }
