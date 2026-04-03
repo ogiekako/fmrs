@@ -13,10 +13,19 @@ extern "C" {
 }
 
 #[wasm_bindgen]
-pub fn check_one_way_mate(sfen: &str) -> Option<u32> {
+pub struct OneWayMateResult {
+    pub is_one_way: bool,
+    pub steps: u32,
+}
+
+#[wasm_bindgen]
+pub fn check_one_way_mate(sfen: &str) -> Option<OneWayMateResult> {
     let mut position = fmrs_core::position::position::PositionAux::from_sfen(sfen).ok()?;
     if position.checked_slow(fmrs_core::piece::Color::WHITE) {
         position.set_turn(fmrs_core::piece::Color::WHITE);
     }
-    fmrs_core::solve::one_way::one_way_mate_steps(&mut position, &mut vec![]).map(|x| x as u32)
+    match fmrs_core::solve::one_way::one_way_mate_steps(&mut position, &mut vec![]) {
+        Ok(s) => Some(OneWayMateResult { is_one_way: true, steps: s as u32 }),
+        Err(s) => Some(OneWayMateResult { is_one_way: false, steps: s as u32 }),
+    }
 }

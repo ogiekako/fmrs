@@ -27,7 +27,7 @@ export const PRESET_PROBLEMS = [
   ],
   [
     "4lk3/5nP2/S2Pp4/1SG2pL1G/2SL4S/1N1p1l1B1/B4NR2/3g1K1p1/PNP1P3P b Prg7p 1",
-    "diamond",
+    "詰棋猫「ダイアモンド」55手",
   ],
   // TODO: make them solvable
   //   [

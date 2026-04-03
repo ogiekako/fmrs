@@ -31,7 +31,7 @@ impl BackwardSearch {
                 if p.checked_slow(Color::WHITE) {
                     p.set_turn(Color::WHITE);
                 }
-                one_way_mate_steps(&mut p, &mut vec![]).is_some()
+                one_way_mate_steps(&mut p, &mut vec![]).is_ok()
             }).unwrap()
         } else {
             self.inner.advance_upto(10).unwrap()

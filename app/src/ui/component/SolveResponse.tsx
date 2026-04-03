@@ -12,9 +12,14 @@ export default function SolveResponse(props: {
 
   let oneWayMessage = null;
   if (props.oneWayMateMode && props.solveResponse.ty === "solved" && props.solveResponse.response.sfen) {
-    const steps = check_one_way_mate(props.solveResponse.response.sfen);
-    if (steps !== undefined) {
-      oneWayMessage = <div>一本道詰将棋です ({steps}手)</div>;
+    const result = check_one_way_mate(props.solveResponse.response.sfen);
+    if (result !== undefined) {
+      if (result.is_one_way) {
+        oneWayMessage = <div>一本道詰将棋です ({result.steps}手)</div>;
+      } else {
+        oneWayMessage = <div>一本道詰将棋ではありません ({result.steps}手目に変化あり)</div>;
+      }
+      result.free();
     } else {
       oneWayMessage = <div>一本道詰将棋ではありません</div>;
     }

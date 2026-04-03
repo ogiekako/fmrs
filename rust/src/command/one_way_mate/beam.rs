@@ -124,7 +124,7 @@ const MAX_PRODUCE: [usize; 2] = [1, 1];
 
 fn insert(all_problems: &mut Vec<Vec<Problem>>, mut problem: Problem, min_step: usize) {
     let mut movements = vec![];
-    let step = one_way_mate_steps(&mut problem.position, &mut movements).unwrap();
+    let step = one_way_mate_steps(&mut problem.position, &mut movements).unwrap_or_else(|e| e);
 
     if step >= all_problems.len() {
         all_problems.resize(step + 1, vec![]);
@@ -374,7 +374,7 @@ fn compute_better_problem(
         movements.clear();
         let step = one_way_mate_steps(&mut position, &mut movements);
 
-        if step.is_none() || step.unwrap() < problem.step {
+        if step.is_err() || *step.as_ref().unwrap() < problem.step {
             inferior_count += 1;
             if inferior_count >= search_depth {
                 position = solvable_position.clone();
@@ -456,7 +456,7 @@ fn random_one_way_mate_positions(seed: &mut u64, count: usize) -> Vec<Problem> {
                     continue;
                 }
                 movements.clear();
-                if let Some(step) = one_way_mate_steps(&mut position, &mut movements) {
+                if let Ok(step) = one_way_mate_steps(&mut position, &mut movements) {
                     return Problem::new(position, step, &movements);
                 }
             }

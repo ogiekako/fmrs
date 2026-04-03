@@ -7,13 +7,13 @@ use crate::{
 pub fn one_way_mate_steps(
     position: &mut PositionAux,
     movements: &mut Vec<Movement>,
-) -> Option<usize> {
+) -> Result<usize, usize> {
     if position.turn().is_black() {
         if position.checked_slow(Color::WHITE) {
-            return None;
+            return Err(0);
         }
     } else if position.checked_slow(Color::BLACK) {
-        return None;
+        return Err(0);
     }
     let mut orig = None;
     let res = one_way_mate_steps_inner(position, movements, &mut orig);
@@ -27,7 +27,7 @@ fn one_way_mate_steps_inner(
     position: &mut PositionAux,
     movements: &mut Vec<Movement>,
     orig: &mut Option<PositionAux>,
-) -> Option<usize> {
+) -> Result<usize, usize> {
     let initial_step = if position.turn().is_black() { 1 } else { 0 };
 
     let options = AdvanceOptions {
@@ -39,10 +39,12 @@ fn one_way_mate_steps_inner(
     for step in (initial_step..).step_by(2) {
         if step > 0 {
             let prev_len = movements.len();
-            advance_aux(position, &options, movements).ok()?;
+            if advance_aux(position, &options, movements).is_err() {
+                return Err(step);
+            }
             debug_assert!(movements.len() - prev_len <= 2);
             if movements.len() == prev_len {
-                return None;
+                return Err(step);
             }
             if movements.len() == prev_len + 2 {
                 if movements[movements.len() - 2].is_pawn_drop() {
@@ -54,13 +56,15 @@ fn one_way_mate_steps_inner(
                 orig.get_or_insert_with(|| position.clone());
                 let prev = position.clone();
                 position.do_move(&pawn_move);
-                advance_aux(position, &options, movements).ok()?;
+                if advance_aux(position, &options, movements).is_err() {
+                    return Err(step);
+                }
                 if movements.len() != prev_len + 1 {
-                    return None;
+                    return Err(step);
                 }
                 *position = prev;
             } else if movements.len() != prev_len + 1 {
-                return None;
+                return Err(step);
             }
 
             orig.get_or_insert_with(|| position.clone());
@@ -70,17 +74,20 @@ fn one_way_mate_steps_inner(
         assert!(position.turn().is_white(), "{:?}", position);
 
         let prev_len = movements.len();
-        let is_mate = advance_aux(position, &options, movements).ok()?;
+        let is_mate = match advance_aux(position, &options, movements) {
+            Ok(x) => x,
+            Err(_) => return Err(step + 1),
+        };
 
         if is_mate {
             if !position.hands().is_empty(Color::BLACK) {
-                return None;
+                return Err(step + 1);
             }
-            return (step as usize).into();
+            return Ok(step as usize);
         }
 
         if movements.len() != prev_len + 1 {
-            return None;
+            return Err(step + 1);
         }
 
         debug_assert_eq!(movements.len(), prev_len + 1);
@@ -92,7 +99,7 @@ fn one_way_mate_steps_inner(
             // Avoid perpetual check
             let digest = position.digest();
             if seen_positions.contains(&digest) {
-                return None;
+                return Err(step + 1);
             }
             seen_positions.insert(digest);
         }
@@ -110,7 +117,7 @@ mod tests {
             "sg7/1b1S3+P1/pNPp4g/S+P1sgpppB/1L2p2P+p/1l3RK1k/P1pGP1+p1p/1PNNN3P/RL6L b -",
         )
         .unwrap();
-        assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(43));
+        assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Ok(43));
     }
 
     #[test]
@@ -127,7 +134,7 @@ mod tests {
         ] {
             let mut position = PositionAux::from_sfen(sfen).unwrap();
             assert_eq!(position.turn(), Color::WHITE);
-            assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(step));
+            assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Ok(step));
         }
     }
 
@@ -135,6 +142,6 @@ mod tests {
     fn test_diamond() {
         let mut position =
             PositionAux::from_sfen(include_str!("../../../problems/diamond.sfen")).unwrap();
-        assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Some(55));
+        assert_eq!(one_way_mate_steps(&mut position, &mut vec![]), Ok(55));
     }
 }
