@@ -53,6 +53,7 @@ struct Context<'a> {
     result: &'a mut Vec<Movement>,
     is_mate: bool,
     num_branches_without_pawn_drop: usize,
+    start_len: usize,
 
     options: &'a AdvanceOptions,
 }
@@ -77,6 +78,8 @@ impl<'a> Context<'a> {
         let mut occupied_without_king = position.occupied_bb();
         occupied_without_king.unset(position.must_king_pos(turn));
 
+        let start_len = result.len();
+
         Ok(Self {
             position,
             occupied_without_king,
@@ -87,6 +90,7 @@ impl<'a> Context<'a> {
             result,
             is_mate: true,
             num_branches_without_pawn_drop: 0,
+            start_len,
             options,
         })
     }
@@ -309,6 +313,10 @@ impl Context<'_> {
     }
 
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
+        if self.result[self.start_len..].contains(&movement) {
+            return Ok(());
+        }
+
         let is_king_move = kind == Kind::King;
 
         // TODO: check the second attacker

@@ -36,6 +36,7 @@ struct Context<'a> {
     // Mutable fields
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
+    start_len: usize,
 }
 
 impl<'a> Context<'a> {
@@ -63,6 +64,8 @@ impl<'a> Context<'a> {
             mask
         };
 
+        let start_len = result.len();
+
         Ok(Self {
             position,
             attacker,
@@ -71,6 +74,7 @@ impl<'a> Context<'a> {
             result,
             num_branches_without_pawn_drop: 0,
             options,
+            start_len,
         })
     }
 
@@ -314,6 +318,8 @@ impl Context<'_> {
                 np
             }
         );
+
+        if self.result[self.start_len..].contains(&movement) { return Ok(()); }
 
         if !movement.is_pawn_drop() {
             self.num_branches_without_pawn_drop += 1;
