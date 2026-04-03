@@ -25,6 +25,10 @@ export const PRESET_PROBLEMS = [
     "1K1R1r1S1/L2+Pl1L+NB/3+P+ng1N1/1nps2g1P/1gbl1g1P1/1kP1s1P2/3P1P3/4+p4/P1s1P4 b P5p 1",
     "ogiekako「寿限無」完全限定化案の改案 36607手",
   ],
+  [
+    "4lk3/5nP2/S2Pp4/1SG2pL1G/2SL4S/1N1p1l1B1/B4NR2/3g1K1p1/PNP1P3P b Prg7p 1",
+    "diamond",
+  ],
   // TODO: make them solvable
   //   [
   //     "r3+B1K2/SG4b2/1L2N3l/1GNGLp3/2rNp1n1g/1ss4lk/5P3/3PP1P1P/PPP3sP1 b 7p 1",
