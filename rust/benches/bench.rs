@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fmrs::one_way_mate_steps;
+use fmrs_core::solve::one_way::one_way_mate_steps;
 use fmrs::solver::{solve, Algorithm};
 use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
@@ -98,14 +98,14 @@ fn bench_solve3(c: &mut Criterion) {
 
 fn bench_oneway(c: &mut Criterion) {
     let mut positions = [
-        (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap(), None),
-        (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+p+B+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/2n+p+p1k1g/7s1/1K1gs2+p1 b GSgsnlp 1").unwrap(), None),
-        (decode_position(include_str!("../problems/diamond.sfen")).unwrap(), Some(55)),
+        (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs2+p1 b GSgs2nlp 1").unwrap(), false),
+        (decode_position("B+l+pn1+pR+p1/+lR7/3+p+p+p+B+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/2n+p+p1k1g/7s1/1K1gs2+p1 b GSgsnlp 1").unwrap(), false),
+        (decode_position(include_str!("../problems/diamond.sfen")).unwrap(), true),
     ];
     c.bench_function("oneway", |b| {
         b.iter(|| {
-            positions.iter_mut().for_each(|(position, steps)| {
-                assert_eq!(one_way_mate_steps(black_box(position), &mut vec![]), *steps)
+            positions.iter_mut().for_each(|(position, is_ok)| {
+                assert_eq!(one_way_mate_steps(black_box(position), &mut vec![]).is_ok(), *is_ok)
             })
         })
     });
