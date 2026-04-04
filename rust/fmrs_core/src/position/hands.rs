@@ -21,8 +21,8 @@ fn test_hands_size() {
 
 const BLACK_MASK: u64 = 0x7FFF_FFFF;
 const WHITE_MASK: u64 = 0x7FFF_FFFF << 32;
-const TURN_FLAG: u64 = 1 << 31;
-const PAWN_DROP_FLAG: u64 = 1 << 63;
+pub(crate) const TURN_FLAG: u64 = 1 << 31;
+pub(crate) const PAWN_DROP_FLAG: u64 = 1 << 63;
 
 const SHIFTS: [u64; 2 * 8] = [
     0, 7, 11, 15, 19, 23, 27, /* dummy */ 31, 32, 39, 43, 47, 51, 55, 59, /* dummy */ 63,
@@ -51,18 +51,22 @@ impl Hands {
         debug_assert!(k.is_hand_piece());
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
+    #[inline]
     pub fn add(&mut self, c: Color, k: Kind) {
         debug_assert!(self.count(c, k) < Hands::max_count(k));
         self.x += Hands::bit_of(c, k);
     }
+    #[inline]
     pub fn add_n(&mut self, c: Color, k: Kind, n: usize) {
         debug_assert!(self.count(c, k) + n <= Hands::max_count(k));
         self.x += Hands::bit_of(c, k) * n as u64;
     }
+    #[inline]
     pub fn remove(&mut self, c: Color, k: Kind) {
         debug_assert!(self.count(c, k) > 0);
         self.x -= Hands::bit_of(c, k);
     }
+    #[inline]
     pub fn remove_n(&mut self, c: Color, k: Kind, n: usize) {
         debug_assert!(self.count(c, k) >= n);
         self.x -= Hands::bit_of(c, k) * n as u64;
@@ -87,11 +91,12 @@ impl Hands {
     fn area_of(c: Color, k: Kind) -> u64 {
         AREA[c.index() << 3 | k.index()]
     }
+#[inline]
+pub(crate) fn bit_of(c: Color, k: Kind) -> u64 {
+    1 << Hands::shift_of(c, k)
+}
 
-    fn bit_of(c: Color, k: Kind) -> u64 {
-        1 << Hands::shift_of(c, k)
-    }
-
+    #[inline]
     pub fn set_turn(&mut self, c: Color) {
         if c.is_white() {
             self.x |= TURN_FLAG;
@@ -103,6 +108,7 @@ impl Hands {
         Color::from_is_white(self.x & TURN_FLAG != 0)
     }
 
+    #[inline]
     pub fn set_pawn_drop(&mut self, x: bool) {
         if x {
             self.x |= PAWN_DROP_FLAG;

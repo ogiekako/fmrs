@@ -6,7 +6,7 @@ use crate::nohash::{NoHashMap64, NoHashSet64};
 
 use crate::piece::Color;
 use crate::position::position::PositionAux;
-use crate::position::{previous, Movement};
+use crate::position::{previous, previous_with_digest, Movement};
 
 use super::Solution;
 
@@ -179,7 +179,6 @@ impl<'a> Context<'a> {
         let mut res = vec![];
 
         let mut black_unmoves = vec![];
-        let mut white_unmoves = vec![];
         while let Some((mut white_position, step, following_movements)) = queue.pop_front() {
             debug_assert_eq!(white_position.turn(), Color::WHITE);
 
@@ -231,16 +230,16 @@ impl<'a> Context<'a> {
                     continue;
                 }
 
-                white_unmoves.clear();
-                previous(&mut black_position, true, &mut white_unmoves);
-
-                for white_unmove in white_unmoves.iter() {
-                    let digest = black_position.undo_digest(white_unmove);
-                    if self.memo_white_turn.get(&digest) != Some(step - 2) {
-                        continue;
+                let mut white_unmoves = vec![];
+                previous_with_digest(&mut black_position, true, |white_unmove, digest| {
+                    if self.memo_white_turn.get(&digest) == Some(step - 2) {
+                        white_unmoves.push(white_unmove);
                     }
+                });
+
+                for white_unmove in white_unmoves {
                     let mut prev_white_position = black_position.clone();
-                    let white_move = prev_white_position.undo_move(white_unmove);
+                    let white_move = prev_white_position.undo_move(&white_unmove);
                     queue.push_back((
                         prev_white_position,
                         step - 2,

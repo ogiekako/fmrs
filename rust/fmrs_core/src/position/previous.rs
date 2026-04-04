@@ -7,35 +7,45 @@ use super::{
 };
 
 pub fn previous(position: &mut PositionAux, allow_drop_pawn: bool, movements: &mut Vec<UndoMove>) {
-    let mut ctx = Context::new(position, allow_drop_pawn, movements);
+    previous_with_digest(position, allow_drop_pawn, |movement, _digest| {
+        movements.push(movement);
+    });
+}
+
+pub fn previous_with_digest<F: FnMut(UndoMove, u64)>(
+    position: &mut PositionAux,
+    allow_drop_pawn: bool,
+    f: F,
+) {
+    let mut ctx = Context::new(position, allow_drop_pawn, f);
     ctx.previous();
 }
 
-struct Context<'a> {
+struct Context<'a, F> {
     position: &'a mut PositionAux,
     allow_drop_pawn: bool,
     turn: Color,
-    movements: &'a mut Vec<UndoMove>,
+    f: F,
     pawn_mask: usize,
 }
 
-impl<'a> Context<'a> {
+impl<'a, F: FnMut(UndoMove, u64)> Context<'a, F> {
     fn new(
         position: &'a mut PositionAux,
         allow_drop_pawn: bool,
-        movements: &'a mut Vec<UndoMove>,
+        f: F,
     ) -> Self {
         let turn = position.turn();
         let mut pawn_mask = 0;
-        for pos in position.bitboard(position.turn(), Kind::Pawn) {
-            pawn_mask |= 1 << pos.col();
+        for pos in position.bitboard(turn, Kind::Pawn) {
+            pawn_mask |= 1 << pos.col()
         }
 
         Self {
             position,
             allow_drop_pawn,
             turn,
-            movements,
+            f,
             pawn_mask,
         }
     }
@@ -50,6 +60,7 @@ impl<'a> Context<'a> {
         }
     }
 
+    #[inline]
     fn add_undo_moves_to(&mut self, dest: Square, kind: Kind, was_pawn_drop: bool) {
         if self.position.pawn_drop() {
             if kind != Kind::Pawn || !self.allow_drop_pawn {
@@ -101,7 +112,7 @@ impl<'a> Context<'a> {
 }
 
 // Helper methods
-impl Context<'_> {
+impl<F: FnMut(UndoMove, u64)> Context<'_, F> {
     fn maybe_add_undo_move(&mut self, movement: UndoMove) {
         if let UndoMove::UnMove {
             source: from,
@@ -132,7 +143,8 @@ impl Context<'_> {
                 return;
             }
         }
-        self.movements.push(movement);
+        let digest = self.position.undo_digest(&movement);
+        (self.f)(movement, digest);
     }
 }
 
