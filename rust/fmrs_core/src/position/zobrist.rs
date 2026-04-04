@@ -1,7 +1,7 @@
 use crate::piece::{Color, Kind};
 use super::Square;
 
-include!("zobrist_data.rs");
+include!(concat!(env!("OUT_DIR"), "/zobrist_data.rs"));
 
 #[inline]
 pub(crate) fn zobrist(color: Color, pos: Square, kind: Kind) -> u64 {
