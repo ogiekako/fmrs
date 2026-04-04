@@ -26,11 +26,12 @@ export class BackwardSearch {
     }
     /**
      * @param {string} sfen
+     * @param {boolean} one_way_mate_mode
      */
-    constructor(sfen) {
-        const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    constructor(sfen, one_way_mate_mode) {
+        const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.backwardsearch_new(ptr0, len0);
+        const ret = wasm.backwardsearch_new(ptr0, len0, one_way_mate_mode);
         this.__wbg_ptr = ret >>> 0;
         BackwardSearchFinalization.register(this, this.__wbg_ptr, this);
         return this;
@@ -42,12 +43,16 @@ export class BackwardSearch {
         let deferred1_0;
         let deferred1_1;
         try {
-            const ret = wasm.backwardsearch_sfen(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.backwardsearch_sfen(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
         } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -59,6 +64,53 @@ export class BackwardSearch {
     }
 }
 if (Symbol.dispose) BackwardSearch.prototype[Symbol.dispose] = BackwardSearch.prototype.free;
+
+export class OneWayMateResult {
+    static __wrap(ptr) {
+        ptr = ptr >>> 0;
+        const obj = Object.create(OneWayMateResult.prototype);
+        obj.__wbg_ptr = ptr;
+        OneWayMateResultFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        OneWayMateResultFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_onewaymateresult_free(ptr, 0);
+    }
+    /**
+     * @returns {boolean}
+     */
+    get is_one_way() {
+        const ret = wasm.__wbg_get_onewaymateresult_is_one_way(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {number}
+     */
+    get steps() {
+        const ret = wasm.__wbg_get_onewaymateresult_steps(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @param {boolean} arg0
+     */
+    set is_one_way(arg0) {
+        wasm.__wbg_set_onewaymateresult_is_one_way(this.__wbg_ptr, arg0);
+    }
+    /**
+     * @param {number} arg0
+     */
+    set steps(arg0) {
+        wasm.__wbg_set_onewaymateresult_steps(this.__wbg_ptr, arg0);
+    }
+}
+if (Symbol.dispose) OneWayMateResult.prototype[Symbol.dispose] = OneWayMateResult.prototype.free;
 
 export class Solver {
     __destroy_into_raw() {
@@ -76,11 +128,19 @@ export class Solver {
      * @returns {number}
      */
     advance() {
-        const ret = wasm.solver_advance(this.__wbg_ptr);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.solver_advance(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            return r0 >>> 0;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
-        return ret[0] >>> 0;
     }
     /**
      * @returns {boolean}
@@ -95,15 +155,23 @@ export class Solver {
      * @param {Algorithm} algo
      */
     constructor(problem_sfen, solutions_upto, algo) {
-        const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.solver_new(ptr0, len0, solutions_upto, algo);
-        if (ret[2]) {
-            throw takeFromExternrefTable0(ret[1]);
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.solver_new(retptr, ptr0, len0, solutions_upto, algo);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+            if (r2) {
+                throw takeObject(r1);
+            }
+            this.__wbg_ptr = r0 >>> 0;
+            SolverFinalization.register(this, this.__wbg_ptr, this);
+            return this;
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
         }
-        this.__wbg_ptr = ret[0] >>> 0;
-        SolverFinalization.register(this, this.__wbg_ptr, this);
-        return this;
     }
     /**
      * @returns {boolean}
@@ -140,12 +208,16 @@ export class Solver {
         let deferred1_0;
         let deferred1_1;
         try {
-            const ret = wasm.solver_solutions_kif(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.solver_solutions_kif(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
         } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -156,25 +228,33 @@ export class Solver {
         let deferred1_0;
         let deferred1_1;
         try {
-            const ret = wasm.solver_solutions_sfen(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.solver_solutions_sfen(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
         } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
         }
     }
 }
 if (Symbol.dispose) Solver.prototype[Symbol.dispose] = Solver.prototype.free;
 
-export function greet() {
-    wasm.greet();
+/**
+ * @param {string} sfen
+ * @returns {OneWayMateResult | undefined}
+ */
+export function check_one_way_mate(sfen) {
+    const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.check_one_way_mate(ptr0, len0);
+    return ret === 0 ? undefined : OneWayMateResult.__wrap(ret);
 }
-export function __wbg___wbindgen_throw_5549492daedad139(arg0, arg1) {
+export function __wbg___wbindgen_throw_81fc77679af83bc6(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
-}
-export function __wbg_alert_f0d3a7bd83556ef2(arg0, arg1) {
-    alert(getStringFromWasm0(arg0, arg1));
 }
 export function __wbg_error_a6fa202b58aa1cd3(arg0, arg1) {
     let deferred0_0;
@@ -184,16 +264,16 @@ export function __wbg_error_a6fa202b58aa1cd3(arg0, arg1) {
         deferred0_1 = arg1;
         console.error(getStringFromWasm0(arg0, arg1));
     } finally {
-        wasm.__wbindgen_free(deferred0_0, deferred0_1, 1);
+        wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
     }
 }
 export function __wbg_new_227d7c05414eb861() {
     const ret = new Error();
-    return ret;
+    return addHeapObject(ret);
 }
 export function __wbg_stack_3b0d974bbf31e44f(arg0, arg1) {
-    const ret = arg1.stack;
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const ret = getObject(arg1).stack;
+    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
     const len1 = WASM_VECTOR_LEN;
     getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
     getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
@@ -201,23 +281,35 @@ export function __wbg_stack_3b0d974bbf31e44f(arg0, arg1) {
 export function __wbindgen_cast_0000000000000001(arg0, arg1) {
     // Cast intrinsic for `Ref(String) -> Externref`.
     const ret = getStringFromWasm0(arg0, arg1);
-    return ret;
+    return addHeapObject(ret);
 }
-export function __wbindgen_init_externref_table() {
-    const table = wasm.__wbindgen_externrefs;
-    const offset = table.grow(4);
-    table.set(0, undefined);
-    table.set(offset + 0, undefined);
-    table.set(offset + 1, null);
-    table.set(offset + 2, true);
-    table.set(offset + 3, false);
+export function __wbindgen_object_drop_ref(arg0) {
+    takeObject(arg0);
 }
 const BackwardSearchFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_backwardsearch_free(ptr >>> 0, 1));
+const OneWayMateResultFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_onewaymateresult_free(ptr >>> 0, 1));
 const SolverFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_solver_free(ptr >>> 0, 1));
+
+function addHeapObject(obj) {
+    if (heap_next === heap.length) heap.push(heap.length + 1);
+    const idx = heap_next;
+    heap_next = heap[idx];
+
+    heap[idx] = obj;
+    return idx;
+}
+
+function dropObject(idx) {
+    if (idx < 1028) return;
+    heap[idx] = heap_next;
+    heap_next = idx;
+}
 
 let cachedDataViewMemory0 = null;
 function getDataViewMemory0() {
@@ -239,6 +331,13 @@ function getUint8ArrayMemory0() {
     }
     return cachedUint8ArrayMemory0;
 }
+
+function getObject(idx) { return heap[idx]; }
+
+let heap = new Array(1024).fill(undefined);
+heap.push(undefined, null, true, false);
+
+let heap_next = heap.length;
 
 function passStringToWasm0(arg, malloc, realloc) {
     if (realloc === undefined) {
@@ -277,10 +376,10 @@ function passStringToWasm0(arg, malloc, realloc) {
     return ptr;
 }
 
-function takeFromExternrefTable0(idx) {
-    const value = wasm.__wbindgen_externrefs.get(idx);
-    wasm.__externref_table_dealloc(idx);
-    return value;
+function takeObject(idx) {
+    const ret = getObject(idx);
+    dropObject(idx);
+    return ret;
 }
 
 let cachedTextDecoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true });

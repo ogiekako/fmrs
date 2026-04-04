@@ -10,9 +10,17 @@ export class BackwardSearch {
     free(): void;
     [Symbol.dispose](): void;
     advance(): boolean;
-    constructor(sfen: string);
+    constructor(sfen: string, one_way_mate_mode: boolean);
     sfen(): string;
     step(): number;
+}
+
+export class OneWayMateResult {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    is_one_way: boolean;
+    steps: number;
 }
 
 export class Solver {
@@ -35,4 +43,4 @@ export class Solver {
     solutions_sfen(): string;
 }
 
-export function greet(): void;
+export function check_one_way_mate(sfen: string): OneWayMateResult | undefined;
