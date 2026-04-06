@@ -203,8 +203,30 @@ impl BackwardSearch {
                 pp.undo_move(m);
 
                 if pp.turn().is_white() {
-                    if !pp.checked_slow(Color::WHITE) || pp.checked_slow(Color::BLACK) {
+                    let Some(att) = crate::position::advance::attack_prevent::attacker(&mut pp, Color::WHITE, false) else {
                         continue;
+                    };
+                    if pp.checked_slow(Color::BLACK) {
+                        continue;
+                    }
+                    if let Some((pos2, kind2)) = att.double_check {
+                        let king_pos = pp.king_pos(Color::WHITE).unwrap();
+                        let (pos1, kind1) = (att.pos, att.kind);
+                        
+                        let dist = |pos: crate::position::Square| -> usize {
+                            let dx = (pos.col() as isize - king_pos.col() as isize).abs();
+                            let dy = (pos.row() as isize - king_pos.row() as isize).abs();
+                            std::cmp::max(dx, dy) as usize
+                        };
+                        
+                        let is_slider = |kind: crate::piece::Kind| -> bool {
+                            matches!(kind, crate::piece::Kind::Lance | crate::piece::Kind::Bishop | crate::piece::Kind::Rook | crate::piece::Kind::ProBishop | crate::piece::Kind::ProRook)
+                        };
+                        
+                        let possible = (is_slider(kind1) && dist(pos1) >= 2) || (is_slider(kind2) && dist(pos2) >= 2);
+                        if !possible {
+                            continue;
+                        }
                     }
                 } else if pp.checked_slow(Color::WHITE) {
                     continue;
