@@ -71,7 +71,7 @@ pub fn batch_square(filter_file: Option<String>) -> anyhow::Result<()> {
     let best_problems = Mutex::new((0, vec![]));
 
     mates.into_par_iter().for_each(|(_, mate)| {
-        let (step, problems) = backward_search(&mate, true, 0).unwrap();
+        let (step, problems) = backward_search(&mate, true, 0, false).unwrap();
 
         {
             let mut all_problems = all_problems.lock().unwrap();

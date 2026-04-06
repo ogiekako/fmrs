@@ -19,7 +19,7 @@ impl BackwardSearch {
         if position.checked_slow(Color::WHITE) {
             position.set_turn(Color::WHITE);
         }
-        let inner = BackwardSearchImpl::new(&position).unwrap();
+        let inner = BackwardSearchImpl::new(&position, one_way_mate_mode).unwrap();
         Self { inner, one_way_mate_mode }
     }
 

@@ -17,8 +17,9 @@ pub fn backward_search(
     initial_position: &PositionAux,
     black_position: bool,
     forward: usize,
+    one_way: bool,
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
-    let mut search = BackwardSearch::new(initial_position)?;
+    let mut search = BackwardSearch::new(initial_position, one_way)?;
 
     let initial_step = search.solution.len() as u16;
 
@@ -122,10 +123,11 @@ pub struct BackwardSearch {
     prev_memo: NoHashMap64<StepRange>,
     stone: Option<BitBoard>,
     step: u16,
+    one_way: bool,
 }
 
 impl BackwardSearch {
-    pub fn new(initial_position: &PositionAux) -> anyhow::Result<Self> {
+    pub fn new(initial_position: &PositionAux, one_way: bool) -> anyhow::Result<Self> {
         let mut solution = standard_solve(initial_position.clone(), 2, true)?.solutions();
         if solution.len() != 1 {
             bail!("Not unique: {}", solution.len());
@@ -172,6 +174,7 @@ impl BackwardSearch {
             prev_memo,
             stone: *initial_position.stone(),
             step,
+            one_way,
         })
     }
 
@@ -208,6 +211,21 @@ impl BackwardSearch {
                 }
 
                 if !filter(pp.core(), self.stone) {
+                    continue;
+                }
+
+                if self.one_way {
+                    let mut branches = vec![];
+                    let options = crate::position::AdvanceOptions { max_allowed_branches: Some(1) };
+                    if crate::position::advance::advance::advance_aux(&mut pp, &options, &mut branches).is_ok() {
+                        // In one-way mate, there must be exactly 1 move (or 1 move + 1 pawn drop which is illegal mate).
+                        // If it has >0 moves, we just trust it, because we already know `pp` can reach `position` which is a mate.
+                        // Actually, to be strictly one-way, we just check that advance_aux didn't fail (meaning <= 1 non-pawn-drop branch).
+                        if !branches.is_empty() {
+                            self.prev_positions.push(pp.core().clone());
+                            self.prev_memo.insert(pp.digest(), StepRange::exact(self.step + 1));
+                        }
+                    }
                     continue;
                 }
 
@@ -497,7 +515,7 @@ mod tests {
             ),
         ] {
             let initial_position = PositionAux::from_sfen(sfen).unwrap();
-            let (step, mut positions) = backward_search(&initial_position, true, 0).unwrap();
+            let (step, mut positions) = backward_search(&initial_position, true, 0, false).unwrap();
 
             assert_eq!(step, want_step, "{:?}", initial_position);
 
