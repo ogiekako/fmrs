@@ -13,14 +13,20 @@ export async function backwardSearchWasm(
   const bs = new BackwardSearch(sfen, oneWayMateMode);
 
   try {
+    let lastBlackSfen = bs.sfen();
     while (bs.advance()) {
       if (cancel.isCanceled()) {
         break;
       }
-      onStep(bs.step(), bs.sfen());
+      const currentStep = bs.step();
+      const currentSfen = bs.sfen();
+      if (currentStep === 0 || currentStep % 2 === 1) {
+        lastBlackSfen = currentSfen;
+      }
+      onStep(currentStep, currentSfen);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    return bs.sfen();
+    return lastBlackSfen;
   } finally {
     bs.free();
   }
