@@ -31,6 +31,7 @@ export type Selected = {
 export type Solving = {
   cancelToken: solve.CancellationToken;
   step: number;
+  sfen?: string;
 };
 
 export type SolveResponse = { millis: number } & (

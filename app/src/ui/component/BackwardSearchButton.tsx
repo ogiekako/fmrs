@@ -25,7 +25,7 @@ export function BackwardSearchButton(props: {
         const cancelToken = new CancellationToken();
         props.dispatch({
           ty: "set-solving",
-          solving: { cancelToken, step: 0 },
+          solving: { cancelToken, step: 0, sfen },
         });
         const newSfen = await backwardSearchWasm(
           sfen,
@@ -34,7 +34,7 @@ export function BackwardSearchButton(props: {
           (step, sfen) => {
             props.dispatch({
               ty: "set-solving",
-              solving: { cancelToken, step },
+              solving: { cancelToken, step, sfen },
             });
             props.dispatch({
               ty: "set-position",
