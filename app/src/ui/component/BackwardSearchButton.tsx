@@ -44,7 +44,6 @@ export function BackwardSearchButton(props: {
         );
         props.dispatch({ ty: "set-solving", solving: undefined });
         if (newSfen && sfenEqualsModuloColor(sfen, newSfen)) {
-          alert("これ以上逆算できません");
           return;
         }
         if (newSfen) {

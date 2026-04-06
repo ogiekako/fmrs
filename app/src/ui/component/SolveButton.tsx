@@ -96,9 +96,11 @@ export default function SolveButton(props: {
       {props.solving ? (
         <>
           <span style={{ fontSize: "0.8em" }}>
-            Step
-            <br />
-            {props.solving.step}
+            <a href={`?sfen=${encodeURIComponent(model.encodeSfen(props.position))}`} target="_blank" rel="noreferrer">
+              Step
+              <br />
+              {props.solving.step}
+            </a>
           </span>
           <Spinner animation="border" role="status">
             <span className="visually-hidden">Solving...</span>
