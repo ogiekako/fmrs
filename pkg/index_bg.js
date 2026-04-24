@@ -253,7 +253,7 @@ export function check_one_way_mate(sfen) {
     const ret = wasm.check_one_way_mate(ptr0, len0);
     return ret === 0 ? undefined : OneWayMateResult.__wrap(ret);
 }
-export function __wbg___wbindgen_throw_81fc77679af83bc6(arg0, arg1) {
+export function __wbg___wbindgen_throw_6b64449b9b9ed33c(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
 export function __wbg_error_a6fa202b58aa1cd3(arg0, arg1) {
