@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use fmrs_core::solve::one_way::one_way_mate_steps;
 use fmrs::solver::{solve, Algorithm};
 use fmrs_core::memo::Memo;
 use fmrs_core::piece::{Color, Kind};
@@ -12,6 +11,7 @@ use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
 use fmrs_core::sfen::decode_position;
+use fmrs_core::solve::one_way::one_way_mate_steps;
 use fmrs_core::solve::standard_solve::standard_solve;
 use pprof::criterion::{Output, PProfProfiler};
 use rand::Rng;
@@ -105,7 +105,10 @@ fn bench_oneway(c: &mut Criterion) {
     c.bench_function("oneway", |b| {
         b.iter(|| {
             positions.iter_mut().for_each(|(position, is_ok)| {
-                assert_eq!(one_way_mate_steps(black_box(position), &mut vec![]).is_ok(), *is_ok)
+                assert_eq!(
+                    one_way_mate_steps(black_box(position), &mut vec![]).is_ok(),
+                    *is_ok
+                )
             })
         })
     });

@@ -30,11 +30,7 @@ struct Context<'a, F> {
 }
 
 impl<'a, F: FnMut(UndoMove, u64)> Context<'a, F> {
-    fn new(
-        position: &'a mut PositionAux,
-        allow_drop_pawn: bool,
-        f: F,
-    ) -> Self {
+    fn new(position: &'a mut PositionAux, allow_drop_pawn: bool, f: F) -> Self {
         let turn = position.turn();
         let mut pawn_mask = 0;
         for pos in position.bitboard(turn, Kind::Pawn) {

@@ -174,7 +174,7 @@ impl PositionExt for Position {
     #[inline]
     fn undo_digest(&self, m: &UndoMove) -> u64 {
         use crate::position::hands::{Hands, PAWN_DROP_FLAG, TURN_FLAG};
-        
+
         match *m {
             UndoMove::UnDrop(pos, pawn_drop) => {
                 let kind = self.kind_bb().must_get(pos);

@@ -3,7 +3,12 @@ use fmrs_core::{piece::Color, position::position::PositionAux, search::backward:
 
 use super::parse_to_sfen;
 
-pub fn backward(sfen_like: &str, forward: usize, black_turn: bool, one_way: bool) -> anyhow::Result<()> {
+pub fn backward(
+    sfen_like: &str,
+    forward: usize,
+    black_turn: bool,
+    one_way: bool,
+) -> anyhow::Result<()> {
     let sfen = parse_to_sfen(sfen_like)?;
 
     let mut position = PositionAux::from_sfen(&sfen)?;

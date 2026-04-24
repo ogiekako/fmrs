@@ -91,10 +91,10 @@ impl Hands {
     fn area_of(c: Color, k: Kind) -> u64 {
         AREA[c.index() << 3 | k.index()]
     }
-#[inline]
-pub(crate) fn bit_of(c: Color, k: Kind) -> u64 {
-    1 << Hands::shift_of(c, k)
-}
+    #[inline]
+    pub(crate) fn bit_of(c: Color, k: Kind) -> u64 {
+        1 << Hands::shift_of(c, k)
+    }
 
     #[inline]
     pub fn set_turn(&mut self, c: Color) {

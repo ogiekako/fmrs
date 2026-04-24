@@ -319,7 +319,9 @@ impl Context<'_> {
             }
         );
 
-        if self.result[self.start_len..].contains(&movement) { return Ok(()); }
+        if self.result[self.start_len..].contains(&movement) {
+            return Ok(());
+        }
 
         if !movement.is_pawn_drop() {
             self.num_branches_without_pawn_drop += 1;

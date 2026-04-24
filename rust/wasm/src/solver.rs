@@ -62,17 +62,16 @@ impl Solver {
         }
 
         let inner: Box<dyn SolverTrait> = match algo {
-            Algorithm::Standard => match LowMemStandardSolver::new(
+            Algorithm::Standard => {
+                match LowMemStandardSolver::new(position.clone(), solutions_upto as usize, false) {
+                    Ok(x) => Box::new(x),
+                    Err(x) => return Err(x.to_string()),
+                }
+            }
+            Algorithm::Parallel => Box::new(ParallelSolver::new(
                 position.clone(),
                 solutions_upto as usize,
-                false,
-            ) {
-                Ok(x) => Box::new(x),
-                Err(x) => return Err(x.to_string()),
-            },
-            Algorithm::Parallel => {
-                Box::new(ParallelSolver::new(position.clone(), solutions_upto as usize))
-            }
+            )),
         };
 
         Ok(Self {

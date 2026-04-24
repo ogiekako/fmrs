@@ -25,7 +25,13 @@ pub fn check_one_way_mate(sfen: &str) -> Option<OneWayMateResult> {
         position.set_turn(fmrs_core::piece::Color::WHITE);
     }
     match fmrs_core::solve::one_way::one_way_mate_steps(&mut position, &mut vec![]) {
-        Ok(s) => Some(OneWayMateResult { is_one_way: true, steps: s as u32 }),
-        Err(s) => Some(OneWayMateResult { is_one_way: false, steps: s as u32 }),
+        Ok(s) => Some(OneWayMateResult {
+            is_one_way: true,
+            steps: s as u32,
+        }),
+        Err(s) => Some(OneWayMateResult {
+            is_one_way: false,
+            steps: s as u32,
+        }),
     }
 }

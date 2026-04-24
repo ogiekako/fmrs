@@ -1,5 +1,5 @@
-use crate::piece::{Color, Kind};
 use super::Square;
+use crate::piece::{Color, Kind};
 
 include!(concat!(env!("OUT_DIR"), "/zobrist_data.rs"));
 

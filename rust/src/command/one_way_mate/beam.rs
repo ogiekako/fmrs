@@ -14,8 +14,8 @@ use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use rustc_hash::FxHasher;
 
-use fmrs_core::solve::one_way::one_way_mate_steps;
 use super::action::Action;
+use fmrs_core::solve::one_way::one_way_mate_steps;
 
 #[derive(Debug, Clone, Copy)]
 struct BeamConfig {
@@ -28,7 +28,9 @@ impl BeamConfig {
     fn from_env() -> anyhow::Result<Self> {
         let weight_exponent = parse_f64_env("FMRS_BEAM_WEIGHT_EXPONENT")?.unwrap_or(0.50);
         let seen_cap = parse_usize_env("FMRS_BEAM_SEEN_CAP")?;
-        let use_mult = parse_usize_env("FMRS_BEAM_USE_MULT")?.unwrap_or(USE_MULT).max(1);
+        let use_mult = parse_usize_env("FMRS_BEAM_USE_MULT")?
+            .unwrap_or(USE_MULT)
+            .max(1);
         Ok(Self {
             weight_exponent,
             seen_cap,
