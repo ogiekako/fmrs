@@ -33,9 +33,10 @@ impl BackwardSearch {
 
     // Returns has next
     pub fn advance(&mut self) -> bool {
+        let one_way_mate_mode = self.one_way_mate_mode;
         self.inners
             .iter_mut()
-            .any(|inner| advance_inner(inner, self.one_way_mate_mode))
+            .any(|inner| advance_inner(inner, one_way_mate_mode))
     }
 
     pub fn step(&self) -> u32 {
