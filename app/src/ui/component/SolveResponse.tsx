@@ -52,7 +52,7 @@ export default function SolveResponse(props: {
 function getMessage(r: types.SolveResponse, limit: number) {
   switch (r.ty) {
     case "error":
-      return `Internal error: ${r.message}`;
+      return r.message;
     case "no-solution":
       return "No solution";
     case "solved":

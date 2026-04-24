@@ -10,14 +10,21 @@ export async function solveWasm(
   cancel: CancellationToken,
   onStep: (step: number) => void
 ): Promise<Response | undefined> {
-  const solver = new Solver(sfen, n + 1, Algorithm.Standard);
+  let solver: Solver | undefined;
   try {
+    solver = new Solver(sfen, n + 1, Algorithm.Standard);
     return await solveWasmInner(solver, cancel, onStep, sfen);
   } catch (e) {
     console.error(e);
-    throw e;
+    throw new Error(toJapaneseErrorMessage(e));
   } finally {
-    solver.free();
+    if (solver) {
+      try {
+        solver.free();
+      } catch (e) {
+        console.warn("failed to free solver", e);
+      }
+    }
   }
 }
 
@@ -30,12 +37,7 @@ async function solveWasmInner(
   let step = 0;
   let nextAwaitStep = nextAwait(step);
   while (!cancel.isCanceled()) {
-    try {
-      step = solver.advance();
-    } catch (e) {
-      console.error(e);
-      throw e;
-    }
+    step = solver.advance();
     onStep(step);
     if (solver.no_solution()) {
       return undefined;
@@ -65,4 +67,58 @@ function nextAwait(step: number) {
     return step + 10;
   }
   return step + 100;
+}
+
+function toJapaneseErrorMessage(error: unknown): string {
+  const message = extractErrorMessage(error);
+
+  if (
+    message.includes("memory") ||
+    message.includes("overflow") ||
+    message.includes("allocation") ||
+    message.includes("out of bounds") ||
+    message.includes("unreachable") ||
+    message.includes("borrowed")
+  ) {
+    return "ブラウザのメモリ不足により探索を継続できませんでした。";
+  }
+  if (
+    message.includes("両方の玉に王手がかかっています") ||
+    message.includes("初形が不正です") ||
+    message.includes("局面の読み込みに失敗しました")
+  ) {
+    return message;
+  }
+  if (message === "both checked") {
+    return "両方の玉に王手がかかっています。";
+  }
+  if (message === "Illegal initial position") {
+    return "初形が不正です。";
+  }
+  if (message === "double pawns") {
+    return "初形が不正です: 二歩があります。";
+  }
+  if (message === "unmovable") {
+    return "初形が不正です: 行きどころのない駒があります。";
+  }
+
+  return `内部エラー: ${message}`;
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === "string" && error.length > 0) {
+    return error;
+  }
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    return (error as { message: string }).message;
+  }
+  return "不明なエラーが発生しました。";
 }

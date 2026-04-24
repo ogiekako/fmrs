@@ -76,7 +76,12 @@ export default function SolveButton(props: {
               ty: "set-solve-response",
               response: {
                 ty: "error",
-                message: (e as Error).message,
+                message:
+                  e instanceof Error && e.message
+                    ? e.message
+                    : typeof e === "string"
+                      ? e
+                      : "不明なエラーが発生しました。",
                 millis,
               },
             });
