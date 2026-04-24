@@ -13,7 +13,48 @@ use crate::{
     solve::standard_solve::standard_solve,
 };
 
+pub fn backward_initial_variants(initial_position: &PositionAux) -> Vec<PositionAux> {
+    let mut variants = Vec::with_capacity(2);
+    for pawn_drop in [false, true] {
+        let mut position = initial_position.clone();
+        position.set_pawn_drop(pawn_drop);
+        if variants
+            .iter()
+            .all(|existing: &PositionAux| existing.digest() != position.digest())
+        {
+            variants.push(position);
+        }
+    }
+    variants
+}
+
 pub fn backward_search(
+    initial_position: &PositionAux,
+    black_position: bool,
+    forward: usize,
+    one_way: bool,
+) -> anyhow::Result<(u16, Vec<PositionAux>)> {
+    let mut best = (0, NoHashMap64::default());
+    let mut last_error = None;
+
+    for variant in backward_initial_variants(initial_position) {
+        match backward_search_single(&variant, black_position, forward, one_way) {
+            Ok((step, positions)) => merge_backward_results(&mut best, step, positions),
+            Err(err) if last_error.is_none() => last_error = Some(err),
+            Err(_) => {}
+        }
+    }
+
+    if best.1.is_empty() {
+        return Err(last_error.unwrap_or_else(|| anyhow::anyhow!("No backward search result")));
+    }
+
+    let mut positions = best.1.into_values().collect::<Vec<_>>();
+    positions.sort_by_key(|p| p.sfen());
+    Ok((best.0, positions))
+}
+
+fn backward_search_single(
     initial_position: &PositionAux,
     black_position: bool,
     forward: usize,
@@ -113,6 +154,23 @@ pub fn backward_search(
     Ok((best.0, positions))
 }
 
+fn merge_backward_results(
+    best: &mut (u16, NoHashMap64<PositionAux>),
+    step: u16,
+    positions: Vec<PositionAux>,
+) {
+    if step < best.0 {
+        return;
+    }
+    if step > best.0 {
+        best.0 = step;
+        best.1.clear();
+    }
+    for position in positions {
+        best.1.insert(position.digest(), position);
+    }
+}
+
 pub struct BackwardSearch {
     initial_position: PositionAux,
     solution: Vec<Movement>,
@@ -203,7 +261,11 @@ impl BackwardSearch {
                 pp.undo_move(m);
 
                 if pp.turn().is_white() {
-                    let Some(att) = crate::position::advance::attack_prevent::attacker(&mut pp, Color::WHITE, false) else {
+                    let Some(att) = crate::position::advance::attack_prevent::attacker(
+                        &mut pp,
+                        Color::WHITE,
+                        false,
+                    ) else {
                         continue;
                     };
                     if pp.checked_slow(Color::BLACK) {
@@ -212,18 +274,26 @@ impl BackwardSearch {
                     if let Some((pos2, kind2)) = att.double_check {
                         let king_pos = pp.king_pos(Color::WHITE).unwrap();
                         let (pos1, kind1) = (att.pos, att.kind);
-                        
+
                         let dist = |pos: crate::position::Square| -> usize {
                             let dx = (pos.col() as isize - king_pos.col() as isize).abs();
                             let dy = (pos.row() as isize - king_pos.row() as isize).abs();
                             std::cmp::max(dx, dy) as usize
                         };
-                        
+
                         let is_slider = |kind: crate::piece::Kind| -> bool {
-                            matches!(kind, crate::piece::Kind::Lance | crate::piece::Kind::Bishop | crate::piece::Kind::Rook | crate::piece::Kind::ProBishop | crate::piece::Kind::ProRook)
+                            matches!(
+                                kind,
+                                crate::piece::Kind::Lance
+                                    | crate::piece::Kind::Bishop
+                                    | crate::piece::Kind::Rook
+                                    | crate::piece::Kind::ProBishop
+                                    | crate::piece::Kind::ProRook
+                            )
                         };
-                        
-                        let possible = (is_slider(kind1) && dist(pos1) >= 2) || (is_slider(kind2) && dist(pos2) >= 2);
+
+                        let possible = (is_slider(kind1) && dist(pos1) >= 2)
+                            || (is_slider(kind2) && dist(pos2) >= 2);
                         if !possible {
                             continue;
                         }
@@ -238,14 +308,23 @@ impl BackwardSearch {
 
                 if self.one_way {
                     let mut branches = vec![];
-                    let options = crate::position::AdvanceOptions { max_allowed_branches: Some(1) };
-                    if crate::position::advance::advance::advance_aux(&mut pp, &options, &mut branches).is_ok() {
+                    let options = crate::position::AdvanceOptions {
+                        max_allowed_branches: Some(1),
+                    };
+                    if crate::position::advance::advance::advance_aux(
+                        &mut pp,
+                        &options,
+                        &mut branches,
+                    )
+                    .is_ok()
+                    {
                         // In one-way mate, there must be exactly 1 move (or 1 move + 1 pawn drop which is illegal mate).
                         // If it has >0 moves, we just trust it, because we already know `pp` can reach `position` which is a mate.
                         // Actually, to be strictly one-way, we just check that advance_aux didn't fail (meaning <= 1 non-pawn-drop branch).
                         if !branches.is_empty() {
                             self.prev_positions.push(pp.core().clone());
-                            self.prev_memo.insert(pp.digest(), StepRange::exact(self.step + 1));
+                            self.prev_memo
+                                .insert(pp.digest(), StepRange::exact(self.step + 1));
                         }
                     }
                     continue;
@@ -503,7 +582,10 @@ impl StepRange {
 
 #[cfg(test)]
 mod tests {
-    use crate::{position::position::PositionAux, search::backward::backward_search};
+    use crate::{
+        position::position::PositionAux,
+        search::backward::{backward_initial_variants, backward_search},
+    };
 
     #[test]
     fn test_backward_search() {
@@ -551,5 +633,20 @@ mod tests {
 
             assert_eq!(positions, want_positions)
         }
+    }
+
+    #[test]
+    fn test_backward_initial_variants() {
+        let position = PositionAux::from_sfen("9/9/9/9/9/9/9/9/4k4 b - 1").unwrap();
+        let variants = backward_initial_variants(&position);
+        assert_eq!(variants.len(), 2);
+        assert!(variants.iter().any(|p| !p.pawn_drop()));
+        assert!(variants.iter().any(|p| p.pawn_drop()));
+
+        let position = PositionAux::from_sfen("9/9/9/9/9/9/9/9/4k4 b - -1").unwrap();
+        let variants = backward_initial_variants(&position);
+        assert_eq!(variants.len(), 2);
+        assert!(variants.iter().any(|p| !p.pawn_drop()));
+        assert!(variants.iter().any(|p| p.pawn_drop()));
     }
 }
