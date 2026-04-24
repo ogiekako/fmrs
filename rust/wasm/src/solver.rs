@@ -3,7 +3,10 @@ use fmrs_core::{
     piece::Color,
     position::position::PositionAux,
     sfen,
-    solve::{parallel_solve::ParallelSolver, Solution, SolverStatus},
+    solve::{
+        low_mem_standard::LowMemStandardSolver, parallel_solve::ParallelSolver, Solution,
+        SolverStatus,
+    },
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -11,6 +14,12 @@ use crate::utils::set_panic_hook;
 
 pub trait SolverTrait {
     fn advance(&mut self) -> anyhow::Result<SolverStatus>;
+}
+
+impl SolverTrait for LowMemStandardSolver {
+    fn advance(&mut self) -> anyhow::Result<SolverStatus> {
+        LowMemStandardSolver::advance(self)
+    }
 }
 
 impl SolverTrait for ParallelSolver {
@@ -53,13 +62,17 @@ impl Solver {
         }
 
         let inner: Box<dyn SolverTrait> = match algo {
-            // Keep both enum values for compatibility, but in this wasm entrypoint always use the
-            // parallel solver. BATACO does not fit in the browser with the standard solver, and
-            // the current web UI does not expose algorithm selection.
-            Algorithm::Standard | Algorithm::Parallel => Box::new(ParallelSolver::new(
+            Algorithm::Standard => match LowMemStandardSolver::new(
                 position.clone(),
                 solutions_upto as usize,
-            )),
+                false,
+            ) {
+                Ok(x) => Box::new(x),
+                Err(x) => return Err(x.to_string()),
+            },
+            Algorithm::Parallel => {
+                Box::new(ParallelSolver::new(position.clone(), solutions_upto as usize))
+            }
         };
 
         Ok(Self {
