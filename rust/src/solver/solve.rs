@@ -2,11 +2,13 @@ use std::time::Instant;
 
 use crate::solver::parallel_solve;
 use fmrs_core::position::position::PositionAux;
+use fmrs_core::solve::low_mem_standard::low_mem_standard_solve;
 use fmrs_core::solve::standard_solve::standard_solve;
 use fmrs_core::solve::Solution;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
+    LowMemStandard,
     Standard,
     Parallel,
 }
@@ -14,7 +16,12 @@ pub enum Algorithm {
 impl Algorithm {
     #[cfg(test)]
     fn iter() -> impl Iterator<Item = Algorithm> {
-        [Algorithm::Standard, Algorithm::Parallel].into_iter()
+        [
+            Algorithm::Standard,
+            Algorithm::LowMemStandard,
+            Algorithm::Parallel,
+        ]
+        .into_iter()
     }
 }
 
@@ -47,6 +54,9 @@ pub fn solve_with_progress(
     match algorithm {
         Algorithm::Parallel => {
             Ok(parallel_solve::parallel_solve(position, solutions_upto, start)?.solutions())
+        }
+        Algorithm::LowMemStandard => {
+            Ok(low_mem_standard_solve(position, solutions_upto, false)?.solutions())
         }
         Algorithm::Standard => Ok(standard_solve(position, solutions_upto, false)?.solutions()),
     }

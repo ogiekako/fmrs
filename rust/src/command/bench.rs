@@ -13,12 +13,17 @@ pub enum BenchCommand {
     Solve,
 }
 
-pub fn bench(cmd: BenchCommand, algo: Algorithm, file: &str) -> anyhow::Result<()> {
+pub fn bench(
+    cmd: BenchCommand,
+    algo: Algorithm,
+    file: &str,
+    solutions_upto: Option<usize>,
+) -> anyhow::Result<()> {
     let guard = pprof::ProfilerGuard::new(100).unwrap();
 
     match cmd {
         BenchCommand::OneWay => bench_one_way()?,
-        BenchCommand::Solve => bench_solve(algo, file)?,
+        BenchCommand::Solve => bench_solve(algo, file, solutions_upto)?,
     }
 
     let report = guard.report().build().unwrap();
@@ -39,14 +44,14 @@ pub fn bench(cmd: BenchCommand, algo: Algorithm, file: &str) -> anyhow::Result<(
     Ok(())
 }
 
-fn bench_solve(algo: Algorithm, file: &str) -> anyhow::Result<()> {
+fn bench_solve(algo: Algorithm, file: &str, solutions_upto: Option<usize>) -> anyhow::Result<()> {
     let sfen = std::fs::read_to_string(file)?;
     let position = sfen::decode_position(&sfen).map_err(|_e| anyhow::anyhow!("parse failed"))?;
 
     let start = std::time::Instant::now();
 
-    let answer =
-        solver::solve(position, None, algo, start.into()).map_err(|e| anyhow::anyhow!("{}", e))?;
+    let answer = solver::solve(position, solutions_upto, algo, start.into())
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
     assert_eq!(answer.len(), 1);
 
     println!(

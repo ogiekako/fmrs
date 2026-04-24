@@ -3,7 +3,7 @@ use fmrs_core::{
     piece::Color,
     position::position::PositionAux,
     sfen,
-    solve::{parallel_solve::ParallelSolver, Solution, SolverStatus, StandardSolver},
+    solve::{parallel_solve::ParallelSolver, Solution, SolverStatus},
 };
 use wasm_bindgen::prelude::wasm_bindgen;
 
@@ -11,12 +11,6 @@ use crate::utils::set_panic_hook;
 
 pub trait SolverTrait {
     fn advance(&mut self) -> anyhow::Result<SolverStatus>;
-}
-
-impl SolverTrait for StandardSolver {
-    fn advance(&mut self) -> anyhow::Result<SolverStatus> {
-        StandardSolver::advance(self)
-    }
 }
 
 impl SolverTrait for ParallelSolver {
@@ -59,13 +53,10 @@ impl Solver {
         }
 
         let inner: Box<dyn SolverTrait> = match algo {
-            Algorithm::Standard => {
-                match StandardSolver::new(position.clone(), solutions_upto as usize, false) {
-                    Ok(x) => Box::new(x),
-                    Err(x) => return Err(x.to_string()),
-                }
-            }
-            Algorithm::Parallel => Box::new(ParallelSolver::new(
+            // Keep both enum values for compatibility, but in this wasm entrypoint always use the
+            // parallel solver. BATACO does not fit in the browser with the standard solver, and
+            // the current web UI does not expose algorithm selection.
+            Algorithm::Standard | Algorithm::Parallel => Box::new(ParallelSolver::new(
                 position.clone(),
                 solutions_upto as usize,
             )),
@@ -163,11 +154,13 @@ mod tests {
     #[test]
     fn test_solutions_to_kif() {
         for sfen in ["2k6/9/1R1l5/9/9/3+l5/9/9/2L1K4 b 4g3s3n 1"] {
-            let mut solver = Solver::new(sfen.into(), 1, super::Algorithm::Standard).unwrap();
-            while !solver.solutions_found() && !solver.no_solution() {
-                solver.advance().unwrap();
+            for algorithm in [super::Algorithm::Standard, super::Algorithm::Parallel] {
+                let mut solver = Solver::new(sfen.into(), 1, algorithm).unwrap();
+                while !solver.solutions_found() && !solver.no_solution() {
+                    solver.advance().unwrap();
+                }
+                solver.solutions_kif();
             }
-            solver.solutions_kif();
         }
     }
 }

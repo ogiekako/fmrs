@@ -30,6 +30,8 @@ enum Action {
         #[arg(long, default_value = "standard")]
         #[clap(value_enum)]
         algo: Algorithm,
+        #[arg(long)]
+        solutions_upto: Option<usize>,
     },
     Solve {
         #[clap(value_enum)]
@@ -71,7 +73,12 @@ pub async fn do_main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     match args.action {
-        Action::Bench { cmd, file, algo } => command::bench(cmd, algo, &file)?,
+        Action::Bench {
+            cmd,
+            file,
+            algo,
+            solutions_upto,
+        } => command::bench(cmd, algo, &file, solutions_upto)?,
         Action::Solve {
             algorithm,
             sfen_like,
