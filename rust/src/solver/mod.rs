@@ -1,4 +1,3 @@
-pub mod parallel_solve;
 pub mod solve;
 
 pub use solve::solve;

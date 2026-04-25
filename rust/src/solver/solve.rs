@@ -1,10 +1,10 @@
 use std::time::Instant;
 
-use crate::solver::parallel_solve;
 use fmrs_core::position::position::PositionAux;
-use fmrs_core::solve::low_mem_standard::low_mem_standard_solve;
-use fmrs_core::solve::standard_solve::standard_solve;
+use fmrs_core::solve::low_mem_standard::LowMemStandardSolver;
+use fmrs_core::solve::parallel_solve::ParallelSolver;
 use fmrs_core::solve::Solution;
+use fmrs_core::solve::SolverStatus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Algorithm {
@@ -36,11 +36,11 @@ pub fn solve(
 }
 
 pub fn solve_with_progress(
-    _progress: futures::channel::mpsc::UnboundedSender<usize>,
+    progress: futures::channel::mpsc::UnboundedSender<usize>,
     mut position: PositionAux,
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
-    start: Option<Instant>,
+    _start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
     if position.checked_slow(position.turn().opposite()) {
         anyhow::bail!(
@@ -53,12 +53,32 @@ pub fn solve_with_progress(
     let solutions_upto = solutions_upto.unwrap_or(usize::MAX);
     match algorithm {
         Algorithm::Parallel => {
-            Ok(parallel_solve::parallel_solve(position, solutions_upto, start)?.solutions())
+            if position.is_illegal_initial_position() {
+                anyhow::bail!("Illegal initial position");
+            }
+            let mut solver = ParallelSolver::new(position, solutions_upto);
+            loop {
+                match solver.advance()? {
+                    SolverStatus::Intermediate(step) => {
+                        let _ = progress.unbounded_send(step as usize);
+                    }
+                    SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
+                    SolverStatus::NoSolution => return Ok(vec![]),
+                }
+            }
         }
-        Algorithm::LowMemStandard => {
-            Ok(low_mem_standard_solve(position, solutions_upto, false)?.solutions())
+        Algorithm::LowMemStandard | Algorithm::Standard => {
+            let mut solver = LowMemStandardSolver::new(position, solutions_upto, false)?;
+            loop {
+                match solver.advance()? {
+                    SolverStatus::Intermediate(step) => {
+                        let _ = progress.unbounded_send(step as usize);
+                    }
+                    SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
+                    SolverStatus::NoSolution => return Ok(vec![]),
+                }
+            }
         }
-        Algorithm::Standard => Ok(standard_solve(position, solutions_upto, false)?.solutions()),
     }
 }
 

@@ -1,5 +1,5 @@
 import { CancellationToken, Response } from ".";
-import { Algorithm, Solver } from "../../../docs/pkg";
+import { Algorithm, Solver } from "../wasm_api";
 
 /**
  * @returns solutions or undefined if solution is not found.

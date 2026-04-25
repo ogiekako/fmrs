@@ -19,7 +19,8 @@
   "scripts": {
     "serve": "webpack serve --mode development",
     "serve-prod": "webpack serve --mode production",
-    "build": "webpack --mode production"
+    "build": "webpack --mode production",
+    "dev": "node ./rust/scripts/dev-server.js"
   },
   "eslintConfig": {
     "extends": [

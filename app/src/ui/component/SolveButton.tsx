@@ -36,7 +36,12 @@ export default function SolveButton(props: {
           });
           props.dispatch({ ty: "set-solve-response", response: undefined });
 
+          let nextStepUpdate = nextStepRender(0);
           const onStep = (step: number) => {
+            if (step < nextStepUpdate) {
+              return;
+            }
+            nextStepUpdate = nextStepRender(step);
             props.dispatch({
               ty: "set-solving",
               solving: { cancelToken, step },
@@ -159,4 +164,14 @@ export default function SolveButton(props: {
       )}
     </div>
   );
+}
+
+function nextStepRender(step: number) {
+  if (step < 100) {
+    return step + 1;
+  }
+  if (step < 1000) {
+    return step + 10;
+  }
+  return step + 100;
 }

@@ -1,6 +1,6 @@
 import * as types from "../types";
 import Solution from "./Solution";
-import { check_one_way_mate } from "../../../../docs/pkg";
+import { check_one_way_mate } from "../../wasm_api";
 
 export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;

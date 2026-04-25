@@ -47,10 +47,20 @@ module.exports = {
     hints: false,
   },
   devServer: {
+    compress: false,
     static: {
       directory: path.join(__dirname, "docs"),
     },
     port: 3000,
+    proxy: [
+      {
+        context: ["/solve", "/fmrs_alive"],
+        target: "http://127.0.0.1:1234",
+        onProxyReq(proxyReq) {
+          proxyReq.removeHeader("accept-encoding");
+        },
+      },
+    ],
   },
   resolve: {
     extensions: [".ts", ".tsx", ".js", ".json"],

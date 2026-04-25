@@ -1,5 +1,5 @@
 import { CancellationToken } from ".";
-import { BackwardSearch } from "../../../docs/pkg";
+import { BackwardSearch } from "../wasm_api";
 
 /**
  * @returns solutions or undefined if solution is not found.
