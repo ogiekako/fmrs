@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777127565117,
+  "lastUpdate": 1777127748898,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -27160,6 +27160,108 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_bataco",
             "value": 74999,
+            "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "946f80111d3cec233a9dd8a09cf34b646d720edf",
+          "message": "Remove API enable step from Cloud Run workflow",
+          "timestamp": "2026-04-25T23:29:11+09:00",
+          "tree_id": "cd9d3f4622e049dc6083b4e670b7534b4567233f",
+          "url": "https://github.com/ogiekako/fmrs/commit/946f80111d3cec233a9dd8a09cf34b646d720edf"
+        },
+        "date": 1777127745791,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 2362,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 4678,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 256,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 2447,
+            "range": "± 2032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 31457,
+            "range": "± 563",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1481,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4770,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1807223,
+            "range": "± 279",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13581,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 35713,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4381,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22495,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 75949,
             "range": "± 8",
             "unit": "ns/iter"
           }
