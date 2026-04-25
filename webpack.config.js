@@ -1,6 +1,7 @@
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
+const webpack = require("webpack");
 
 module.exports = {
   entry: "./app/src/index.tsx",
@@ -34,6 +35,9 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: "./app/public/index.html",
+    }),
+    new webpack.DefinePlugin({
+      FMRS_API_BASE_URL: JSON.stringify(process.env.FMRS_API_BASE_URL || ""),
     }),
     new WasmPackPlugin({
       crateDirectory: path.resolve(__dirname, "rust/wasm"),

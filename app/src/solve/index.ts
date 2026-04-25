@@ -18,7 +18,10 @@ export enum Algorithm {
   Server,
 }
 
-const ALIVE_URL = "/fmrs_alive";
+declare const FMRS_API_BASE_URL: string;
+
+const API_BASE_URL = resolveApiBaseUrl();
+const ALIVE_URL = apiUrl("/fmrs_alive");
 export async function isServerAvailable(): Promise<boolean> {
   try {
     const resp = await fetch(ALIVE_URL, { cache: "no-store" });
@@ -74,4 +77,17 @@ function isLocalDevServerBackedPage(): boolean {
     (window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1")
   );
+}
+
+export function apiUrl(path: string): string {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
+function resolveApiBaseUrl(): string {
+  const configured = FMRS_API_BASE_URL.trim();
+  if (configured) {
+    return configured.replace(/\/+$/, "");
+  }
+  return "";
 }
