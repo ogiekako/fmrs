@@ -29,10 +29,6 @@ jobs:
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Enable required services
-        run: |
-          gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
-
       - name: Deploy to Cloud Run
         env:
           SERVICE_NAME: fmrs-api

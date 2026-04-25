@@ -38,6 +38,7 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
 ## GitHub Actions で自動デプロイする場合
 
 `.github/workflows/cloud-run.yaml` を入れてあります。`main` への push で、`rust/` や `Dockerfile` に変更があれば Cloud Run を再デプロイします。
+この workflow は API 有効化までは行いません。`run.googleapis.com`, `cloudbuild.googleapis.com`, `artifactregistry.googleapis.com` は初回だけ手動で有効化しておく前提です。
 
 事前に GitHub repository secret `GCP_SA_KEY` を設定してください。値は Cloud Run と Cloud Build を実行できる service account の JSON キーです。
 
