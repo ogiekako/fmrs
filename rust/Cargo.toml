@@ -29,6 +29,7 @@ rand = { version = "0.8.5", features = ["small_rng"] }
 anyhow = "*"
 clap = { version = "*", features = ["derive"] }
 actix-web = "*"
+actix-cors = "*"
 serde_json = "*"
 futures = "*"
 actix-files = "*"

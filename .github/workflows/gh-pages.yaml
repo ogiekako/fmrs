@@ -18,6 +18,8 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Install & Build
+        env:
+          FMRS_API_BASE_URL: https://fmrs-api-1045417562870.asia-northeast1.run.app
         run: |
           npm i
           npm run build

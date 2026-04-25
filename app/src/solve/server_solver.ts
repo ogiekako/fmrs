@@ -1,4 +1,4 @@
-import { CancellationToken, Response } from ".";
+import { apiUrl, CancellationToken, Response } from ".";
 
 type ServerEvent =
   | {
@@ -31,7 +31,7 @@ export async function solveServer(
 ): Promise<Response | undefined> {
   let response: globalThis.Response;
   try {
-    response = await fetch(`/solve?solutions_upto=${solutionLimit + 1}`, {
+    response = await fetch(apiUrl(`/solve?solutions_upto=${solutionLimit + 1}`), {
       method: "POST",
       body: sfen,
     });

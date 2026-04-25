@@ -1,4 +1,5 @@
-use actix_web::{get, post, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_cors::Cors;
+use actix_web::{get, http::header, post, web, App, HttpRequest, HttpResponse, HttpServer};
 use fmrs_core::{
     piece::{Color, Kind},
     position::position::PositionAux,
@@ -10,27 +11,63 @@ use serde::Serialize;
 use crate::solver::Algorithm;
 
 pub async fn server(port: u16) -> anyhow::Result<()> {
-    let address = format!("localhost:{}", port);
-    eprintln!("Serving rsfm on http://{}", address);
+    let bind_host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let bind_port = std::env::var("PORT")
+        .ok()
+        .and_then(|x| x.parse::<u16>().ok())
+        .unwrap_or(port);
+    let address = format!("{}:{}", bind_host, bind_port);
+    eprintln!("Serving fmrs api on http://{}", address);
 
-    HttpServer::new(|| App::new().service(fmrs_alive).service(index).service(solve))
-        .bind(address)?
-        .run()
-        .await?;
+    HttpServer::new(|| {
+        App::new()
+            .wrap(build_cors())
+            .service(fmrs_alive)
+            .service(index)
+            .service(solve)
+    })
+    .bind(address)?
+    .run()
+    .await?;
     Ok(())
 }
 
-#[get("/{filename:.*}")]
-async fn index(req: HttpRequest) -> Result<actix_files::NamedFile, actix_web::Error> {
-    let name = req.match_info().query("filename");
-    static_file(if name.is_empty() { "index.html" } else { name })
+fn build_cors() -> Cors {
+    let origins = allowed_origins();
+    let mut cors = Cors::default()
+        .allowed_methods(["GET", "POST", "OPTIONS"])
+        .allowed_header(header::CONTENT_TYPE)
+        .max_age(3600);
+    if origins.is_empty() {
+        cors = cors.allow_any_origin();
+    } else {
+        for origin in origins {
+            cors = cors.allowed_origin(&origin);
+        }
+    }
+    cors
 }
 
-fn static_file(name: &str) -> Result<actix_files::NamedFile, actix_web::Error> {
-    let mut path: std::path::PathBuf = ["app", "build"].iter().collect();
-    path.push(name);
-    let file = actix_files::NamedFile::open(path)?;
-    Ok(file)
+fn allowed_origins() -> Vec<String> {
+    std::env::var("FMRS_ALLOWED_ORIGINS")
+        .unwrap_or_default()
+        .split(',')
+        .map(str::trim)
+        .filter(|x| !x.is_empty())
+        .map(ToOwned::to_owned)
+        .collect()
+}
+
+#[get("/")]
+async fn index(req: HttpRequest) -> HttpResponse {
+    let host = req.connection_info().host().to_string();
+    HttpResponse::Ok().json(serde_json::json!({
+        "service": "fmrs-api",
+        "status": "ok",
+        "host": host,
+        "endpoints": ["/fmrs_alive", "/solve"],
+        "note": "GitHub Pages から /solve を POST してください。"
+    }))
 }
 
 #[derive(Serialize)]

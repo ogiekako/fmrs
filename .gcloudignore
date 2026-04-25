@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+app/node_modules
+docs
+rust/target
+rust/prof
+prof
+.codex
+cachegrind.out.*
+package-lock.json

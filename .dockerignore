@@ -1,0 +1,7 @@
+.git
+.github
+docs
+node_modules
+app/node_modules
+rust/target
+**/.DS_Store
