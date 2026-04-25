@@ -1,4 +1,4 @@
-declare module "../../docs/pkg/index_bg.js" {
+declare module "../../docs/pkg" {
   export const Algorithm: typeof import("../../docs/pkg").Algorithm;
   export const BackwardSearch: typeof import("../../docs/pkg").BackwardSearch;
   export const Solver: typeof import("../../docs/pkg").Solver;
