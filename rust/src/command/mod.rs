@@ -5,11 +5,13 @@ pub mod magic;
 mod one_way_mate;
 mod server;
 mod solve;
+pub mod stone_sweep;
 
 pub use bench::bench;
 pub use one_way_mate::{one_way_mate, OneWayMateGenerator};
 pub use server::server;
 pub use solve::solve;
+pub use stone_sweep::stone_sweep;
 use url::Url;
 
 fn parse_to_sfen(sfen_or_file_or_url: &str) -> anyhow::Result<String> {

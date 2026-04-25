@@ -48,7 +48,7 @@ regex = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"
-criterion = { version = "*", features = ["html_reports"] }
+criterion = { version = "0.5.1", features = ["html_reports"] }
 
 [profile.dev]
 opt-level = 2

@@ -53,6 +53,17 @@ enum Action {
     BatchSquare {
         filter_file: Option<String>,
     },
+    StoneSweep {
+        #[arg(long, default_value_t = false)]
+        exact_too_many: bool,
+        #[arg(long, default_value_t = false)]
+        extended_pawns: bool,
+        #[arg(long, default_value_t = false)]
+        report_min_only: bool,
+        #[arg(long)]
+        log_file: Option<std::path::PathBuf>,
+        sfen_like: String,
+    },
     Backward {
         sfen_like: String,
         #[arg(long, default_value = "0")]
@@ -92,6 +103,21 @@ pub async fn do_main() -> anyhow::Result<()> {
         } => command::one_way_mate(algorithm, seed, parallel, goal)?,
         Action::BatchSquare { filter_file } => {
             batch_square(filter_file)?;
+        }
+        Action::StoneSweep {
+            exact_too_many,
+            extended_pawns,
+            report_min_only,
+            log_file,
+            sfen_like,
+        } => {
+            command::stone_sweep(
+                sfen_like,
+                exact_too_many,
+                extended_pawns,
+                report_min_only,
+                log_file,
+            )?;
         }
         Action::Backward {
             sfen_like,
