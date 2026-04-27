@@ -1,6 +1,9 @@
 use std::hash::Hash;
 
-use crate::{piece::Kind, sfen};
+use crate::{
+    piece::{Kind, NUM_KIND},
+    sfen,
+};
 
 use super::Square;
 
@@ -158,5 +161,66 @@ impl Movement {
 impl std::fmt::Debug for Movement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", sfen::encode_move(self))
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct MovementSet {
+    bits: [u64; Self::LIMBS],
+}
+
+impl Default for MovementSet {
+    fn default() -> Self {
+        Self {
+            bits: [0; Self::LIMBS],
+        }
+    }
+}
+
+impl MovementSet {
+    const SQUARES: usize = 81;
+    const MOVE_KEYS: usize = Self::SQUARES * Self::SQUARES * 2;
+    const DROP_KEYS: usize = Self::SQUARES * NUM_KIND;
+    const KEYS: usize = Self::MOVE_KEYS + Self::DROP_KEYS;
+    const LIMBS: usize = Self::KEYS.div_ceil(u64::BITS as usize);
+
+    pub(crate) fn contains(&self, movement: &Movement) -> bool {
+        let key = Self::key(movement);
+        self.bits[key / 64] & (1 << (key % 64)) != 0
+    }
+
+    pub(crate) fn insert(&mut self, movement: Movement) {
+        let key = Self::key(&movement);
+        self.bits[key / 64] |= 1 << (key % 64);
+    }
+
+    fn key(movement: &Movement) -> usize {
+        match *movement {
+            Movement::Drop(pos, kind) => Self::MOVE_KEYS + pos.index() * NUM_KIND + kind.index(),
+            Movement::Move {
+                source,
+                dest,
+                promote,
+                ..
+            } => (source.index() * Self::SQUARES + dest.index()) * 2 + promote as usize,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn movement_set_uses_movement_equality() {
+        let mut seen = MovementSet::default();
+        let movement = Movement::move_with_hint(Square::S11, Kind::Pawn, Square::S12, false, None);
+        let same_without_hint = Movement::move_without_hint(Square::S11, Square::S12, false);
+        let different_promote = Movement::move_without_hint(Square::S11, Square::S12, true);
+
+        seen.insert(movement);
+
+        assert!(seen.contains(&same_without_hint));
+        assert!(!seen.contains(&different_promote));
     }
 }

@@ -7,7 +7,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
-    Movement,
+    Movement, MovementSet,
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
@@ -36,7 +36,7 @@ struct Context<'a> {
     // Mutable fields
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
-    start_len: usize,
+    seen: MovementSet,
 }
 
 impl<'a> Context<'a> {
@@ -64,8 +64,6 @@ impl<'a> Context<'a> {
             mask
         };
 
-        let start_len = result.len();
-
         Ok(Self {
             position,
             attacker,
@@ -74,7 +72,7 @@ impl<'a> Context<'a> {
             result,
             num_branches_without_pawn_drop: 0,
             options,
-            start_len,
+            seen: MovementSet::default(),
         })
     }
 
@@ -319,7 +317,7 @@ impl Context<'_> {
             }
         );
 
-        if self.result[self.start_len..].contains(&movement) {
+        if self.seen.contains(&movement) {
             return Ok(());
         }
 
@@ -329,6 +327,7 @@ impl Context<'_> {
                 .check_allowed_branches(self.num_branches_without_pawn_drop)?;
         }
 
+        self.seen.insert(movement);
         self.result.push(movement);
 
         Ok(())

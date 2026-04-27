@@ -14,6 +14,7 @@ pub use bitboard::BitBoard;
 pub use bitboard::Square;
 pub use hands::Hands;
 pub use movement::Movement;
+pub(crate) use movement::MovementSet;
 pub use position::Position;
 pub use position_ext::PositionExt;
 pub use position_ext::UndoMove;
