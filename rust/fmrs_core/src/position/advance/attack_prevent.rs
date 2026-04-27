@@ -13,7 +13,7 @@ use crate::{
     piece::{Color, Kind},
     position::{
         bitboard::{self, power, rule::king_power, BitBoard},
-        Movement, MovementSet, Square,
+        Movement, Square,
     },
 };
 
@@ -53,7 +53,6 @@ struct Context<'a> {
     result: &'a mut Vec<Movement>,
     is_mate: bool,
     num_branches_without_pawn_drop: usize,
-    seen: MovementSet,
 
     options: &'a AdvanceOptions,
 }
@@ -88,7 +87,6 @@ impl<'a> Context<'a> {
             result,
             is_mate: true,
             num_branches_without_pawn_drop: 0,
-            seen: MovementSet::default(),
             options,
         })
     }
@@ -229,6 +227,14 @@ impl<'a> Context<'a> {
                 .pinned_area(source_pos)
                 .unwrap_or_else(|| bitboard::power(self.position.turn(), source_pos, source_kind));
             if source_power.contains(dest) {
+                if around_dest_move_is_generated_by_leap(
+                    source_pos,
+                    dest,
+                    source_kind,
+                    self.position.turn(),
+                ) {
+                    continue;
+                }
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
                         continue;
@@ -311,10 +317,6 @@ impl Context<'_> {
     }
 
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
-        if self.seen.contains(&movement) {
-            return Ok(());
-        }
-
         let is_king_move = kind == Kind::King;
 
         // TODO: check the second attacker
@@ -354,7 +356,6 @@ impl Context<'_> {
             }
         );
 
-        self.seen.insert(movement);
         self.result.push(movement);
 
         Ok(())
@@ -378,6 +379,27 @@ impl Context<'_> {
             attacker_kind.maybe_unpromote(),
             true,
         )
+    }
+}
+
+fn around_dest_move_is_generated_by_leap(
+    source: Square,
+    dest: Square,
+    source_kind: Kind,
+    turn: Color,
+) -> bool {
+    let dcol = source.col().abs_diff(dest.col());
+    let drow = source.row().abs_diff(dest.row());
+
+    match source_kind {
+        Kind::Bishop | Kind::ProBishop => dcol == 1 && drow == 1,
+        Kind::Rook | Kind::ProRook => dcol + drow == 1,
+        Kind::Lance => {
+            dcol == 0
+                && ((turn.is_black() && source.row() == dest.row() + 1)
+                    || (turn.is_white() && dest.row() == source.row() + 1))
+        }
+        _ => false,
     }
 }
 
