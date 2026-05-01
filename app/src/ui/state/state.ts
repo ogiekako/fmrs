@@ -233,6 +233,7 @@ function handleRightClick(
     return state;
   }
   if (mutablePiece === "O") {
+    state.position.board[pos[0]][pos[1]] = undefined;
     return state;
   }
   if (mutablePiece.kind === "G" || mutablePiece.kind === "K") {
