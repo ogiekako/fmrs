@@ -32,7 +32,7 @@ export class BackwardSearch {
         const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.backwardsearch_new(ptr0, len0, one_way_mate_mode);
-        this.__wbg_ptr = ret >>> 0;
+        this.__wbg_ptr = ret;
         BackwardSearchFinalization.register(this, this.__wbg_ptr, this);
         return this;
     }
@@ -67,7 +67,6 @@ if (Symbol.dispose) BackwardSearch.prototype[Symbol.dispose] = BackwardSearch.pr
 
 export class OneWayMateResult {
     static __wrap(ptr) {
-        ptr = ptr >>> 0;
         const obj = Object.create(OneWayMateResult.prototype);
         obj.__wbg_ptr = ptr;
         OneWayMateResultFinalization.register(obj, obj.__wbg_ptr, obj);
@@ -166,7 +165,7 @@ export class Solver {
             if (r2) {
                 throw takeObject(r1);
             }
-            this.__wbg_ptr = r0 >>> 0;
+            this.__wbg_ptr = r0;
             SolverFinalization.register(this, this.__wbg_ptr, this);
             return this;
         } finally {
@@ -253,7 +252,7 @@ export function check_one_way_mate(sfen) {
     const ret = wasm.check_one_way_mate(ptr0, len0);
     return ret === 0 ? undefined : OneWayMateResult.__wrap(ret);
 }
-export function __wbg___wbindgen_throw_6b64449b9b9ed33c(arg0, arg1) {
+export function __wbg___wbindgen_throw_9c75d47bf9e7731e(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
 export function __wbg_error_a6fa202b58aa1cd3(arg0, arg1) {
@@ -288,13 +287,13 @@ export function __wbindgen_object_drop_ref(arg0) {
 }
 const BackwardSearchFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_backwardsearch_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_backwardsearch_free(ptr, 1));
 const OneWayMateResultFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_onewaymateresult_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_onewaymateresult_free(ptr, 1));
 const SolverFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_solver_free(ptr >>> 0, 1));
+    : new FinalizationRegistry(ptr => wasm.__wbg_solver_free(ptr, 1));
 
 function addHeapObject(obj) {
     if (heap_next === heap.length) heap.push(heap.length + 1);
@@ -320,8 +319,7 @@ function getDataViewMemory0() {
 }
 
 function getStringFromWasm0(ptr, len) {
-    ptr = ptr >>> 0;
-    return decodeText(ptr, len);
+    return decodeText(ptr >>> 0, len);
 }
 
 let cachedUint8ArrayMemory0 = null;
