@@ -229,6 +229,7 @@ function handleRightClick(
   maybeClearSolveResponse(state);
   const mutablePiece = state.position.board[pos[0]][pos[1]];
   if (!mutablePiece) {
+    state.position.board[pos[0]][pos[1]] = "O";
     return state;
   }
   if (mutablePiece === "O") {
