@@ -243,16 +243,14 @@ impl<'a> Context<'a> {
                     {
                         continue;
                     }
-                    self.maybe_add_move(
-                        Movement::move_with_hint(
-                            source_pos,
-                            source_kind,
-                            dest,
-                            promote,
-                            capture_kind,
-                        ),
+                    let movement = Movement::move_with_hint(
+                        source_pos,
                         source_kind,
-                    )?;
+                        dest,
+                        promote,
+                        capture_kind,
+                    );
+                    self.maybe_add_move(movement, source_kind)?;
                 }
             }
         }
@@ -290,16 +288,14 @@ impl<'a> Context<'a> {
                     {
                         continue;
                     }
-                    self.maybe_add_move(
-                        Movement::move_with_hint(
-                            source_pos,
-                            source_kind,
-                            dest,
-                            promote,
-                            capture_kind,
-                        ),
+                    let movement = Movement::move_with_hint(
+                        source_pos,
                         source_kind,
-                    )?;
+                        dest,
+                        promote,
+                        capture_kind,
+                    );
+                    self.maybe_add_move(movement, source_kind)?;
                 }
             }
         }

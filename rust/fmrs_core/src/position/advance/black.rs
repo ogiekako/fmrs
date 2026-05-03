@@ -7,7 +7,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
-    Movement, MovementSet,
+    Movement,
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
@@ -36,7 +36,7 @@ struct Context<'a> {
     // Mutable fields
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
-    seen: MovementSet,
+    start_len: usize,
 }
 
 impl<'a> Context<'a> {
@@ -64,6 +64,8 @@ impl<'a> Context<'a> {
             mask
         };
 
+        let start_len = result.len();
+
         Ok(Self {
             position,
             attacker,
@@ -72,7 +74,7 @@ impl<'a> Context<'a> {
             result,
             num_branches_without_pawn_drop: 0,
             options,
-            seen: MovementSet::default(),
+            start_len,
         })
     }
 
@@ -207,6 +209,7 @@ impl<'a> Context<'a> {
                 .map(|k| reachable(self.position, Color::WHITE, white_king_pos, k, true));
 
             for attacker_pos in attackers {
+                let source_kind = self.position.must_get_kind(attacker_pos);
                 let attacker_reachable =
                     self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
                         bitboard::reachable_sub(
@@ -218,19 +221,36 @@ impl<'a> Context<'a> {
                     });
 
                 for dest in attacker_reachable & no_promotion_dest_cands {
+                    let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_without_hint(attacker_pos, dest, false),
-                        attacker_source_kind,
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            source_kind,
+                            dest,
+                            false,
+                            capture_kind,
+                        ),
+                        source_kind,
                     )?;
                 }
                 if let Some(mut dest_cands) = promotion_dest_cands {
+                    if !source_kind.can_promote() {
+                        continue;
+                    }
                     if !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
                         dest_cands &= BitBoard::BLACK_PROMOTABLE;
                     }
                     for dest in attacker_reachable & dest_cands {
+                        let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
-                            Movement::move_without_hint(attacker_pos, dest, true),
-                            attacker_source_kind,
+                            Movement::move_with_hint(
+                                attacker_pos,
+                                source_kind,
+                                dest,
+                                true,
+                                capture_kind,
+                            ),
+                            source_kind,
                         )?;
                     }
                 }
@@ -242,6 +262,15 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> Result<()> {
         let blockers = pinned(self.position, Color::WHITE, Color::BLACK);
+        if blockers.iter().next().is_none() {
+            return Ok(());
+        }
+
+        let mut seen = MoveSet::default();
+        for &movement in self.result[self.start_len..].iter() {
+            seen.insert_new(movement);
+        }
+
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
@@ -275,20 +304,56 @@ impl<'a> Context<'a> {
                     }
 
                     let capture_kind = self.position.get_kind(blocker_dest);
-                    self.maybe_add_move(
-                        Movement::move_with_hint(
-                            blocker_pos,
-                            blocker_kind,
-                            blocker_dest,
-                            promote,
-                            capture_kind,
-                        ),
+                    let movement = Movement::move_with_hint(
+                        blocker_pos,
                         blocker_kind,
-                    )?;
+                        blocker_dest,
+                        promote,
+                        capture_kind,
+                    );
+                    if seen.insert_new(movement) {
+                        self.maybe_add_move(movement, blocker_kind)?;
+                    }
                 }
             }
         }
         Ok(())
+    }
+}
+
+struct MoveSet {
+    bits: [u64; Self::LIMBS],
+}
+
+impl Default for MoveSet {
+    fn default() -> Self {
+        Self {
+            bits: [0; Self::LIMBS],
+        }
+    }
+}
+
+impl MoveSet {
+    const SQUARES: usize = 81;
+    const KEYS: usize = Self::SQUARES * Self::SQUARES * 2;
+    const LIMBS: usize = Self::KEYS.div_ceil(u64::BITS as usize);
+
+    fn insert_new(&mut self, movement: Movement) -> bool {
+        let Movement::Move {
+            source,
+            dest,
+            promote,
+            ..
+        } = movement
+        else {
+            return true;
+        };
+        let key = (source.index() * Self::SQUARES + dest.index()) * 2 + promote as usize;
+        let bit = 1 << (key % 64);
+        let limb = &mut self.bits[key / 64];
+        let inserted = *limb & bit == 0;
+        *limb |= bit;
+        inserted
     }
 }
 
@@ -317,17 +382,12 @@ impl Context<'_> {
             }
         );
 
-        if self.seen.contains(&movement) {
-            return Ok(());
-        }
-
         if !movement.is_pawn_drop() {
             self.num_branches_without_pawn_drop += 1;
             self.options
                 .check_allowed_branches(self.num_branches_without_pawn_drop)?;
         }
 
-        self.seen.insert(movement);
         self.result.push(movement);
 
         Ok(())

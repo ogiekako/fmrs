@@ -31,12 +31,21 @@ pub fn solve(
     algorithm: Algorithm,
     start: Option<Instant>,
 ) -> anyhow::Result<Vec<Solution>> {
-    let (tx, _rx) = futures::channel::mpsc::unbounded();
-    solve_with_progress(tx, board, solution_upto, algorithm, start)
+    solve_impl(None, board, solution_upto, algorithm, start)
 }
 
 pub fn solve_with_progress(
     progress: futures::channel::mpsc::UnboundedSender<usize>,
+    position: PositionAux,
+    solutions_upto: Option<usize>,
+    algorithm: Algorithm,
+    start: Option<Instant>,
+) -> anyhow::Result<Vec<Solution>> {
+    solve_impl(Some(progress), position, solutions_upto, algorithm, start)
+}
+
+fn solve_impl(
+    progress: Option<futures::channel::mpsc::UnboundedSender<usize>>,
     mut position: PositionAux,
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
@@ -60,7 +69,9 @@ pub fn solve_with_progress(
             loop {
                 match solver.advance()? {
                     SolverStatus::Intermediate(step) => {
-                        let _ = progress.unbounded_send(step as usize);
+                        if let Some(progress) = progress.as_ref() {
+                            let _ = progress.unbounded_send(step as usize);
+                        }
                     }
                     SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
                     SolverStatus::NoSolution => return Ok(vec![]),
@@ -72,7 +83,9 @@ pub fn solve_with_progress(
             loop {
                 match solver.advance()? {
                     SolverStatus::Intermediate(step) => {
-                        let _ = progress.unbounded_send(step as usize);
+                        if let Some(progress) = progress.as_ref() {
+                            let _ = progress.unbounded_send(step as usize);
+                        }
                     }
                     SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
                     SolverStatus::NoSolution => return Ok(vec![]),

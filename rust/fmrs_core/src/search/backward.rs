@@ -34,11 +34,27 @@ pub fn backward_search(
     forward: usize,
     one_way: bool,
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
+    backward_search_with_progress(
+        initial_position,
+        black_position,
+        forward,
+        one_way,
+        |_s, _c, _u| {},
+    )
+}
+
+pub fn backward_search_with_progress(
+    initial_position: &PositionAux,
+    black_position: bool,
+    forward: usize,
+    one_way: bool,
+    mut progress: impl FnMut(u16, usize, String),
+) -> anyhow::Result<(u16, Vec<PositionAux>)> {
     let mut best = (0, NoHashMap64::default());
     let mut last_error = None;
 
     for variant in backward_initial_variants(initial_position) {
-        match backward_search_single(&variant, black_position, forward, one_way) {
+        match backward_search_single(&variant, black_position, forward, one_way, &mut progress) {
             Ok((step, positions)) => merge_backward_results(&mut best, step, positions),
             Err(err) if last_error.is_none() => last_error = Some(err),
             Err(_) => {}
@@ -59,10 +75,12 @@ fn backward_search_single(
     black_position: bool,
     forward: usize,
     one_way: bool,
+    progress: &mut impl FnMut(u16, usize, String),
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
     let mut search = BackwardSearch::new(initial_position, one_way)?;
 
     let initial_step = search.solution.len() as u16;
+    let mut last_logged_step = search.step;
 
     let mut best = (0, NoHashMap64::default());
 
@@ -74,6 +92,15 @@ fn backward_search_single(
         loop {
             if !search.advance()? {
                 break;
+            }
+            if search.step != last_logged_step {
+                last_logged_step = search.step;
+                progress(
+                    search.step,
+                    search.positions.len(),
+                    PositionAux::new(search.positions[0].clone(), *initial_position.stone())
+                        .sfen_url(),
+                );
             }
             if search.step > initial_step && search.step % 40 == 0 {
                 info!(
@@ -251,9 +278,10 @@ impl BackwardSearch {
     ) -> anyhow::Result<bool> {
         let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
         self.seen_positions = range.end;
+        let mut undo_moves = vec![];
         for core in self.positions[range].iter() {
             let mut position = PositionAux::new(core.clone(), self.stone);
-            let mut undo_moves = vec![];
+            undo_moves.clear();
             previous(&mut position, self.step > 0, &mut undo_moves);
 
             for m in undo_moves.iter() {
@@ -406,6 +434,17 @@ fn solutions(
     next_memo: &mut NoHashMap64<StepRange>,
     mate_in: u16,
 ) -> StepRange {
+    let mut scratch = vec![Vec::new(); mate_in as usize + 1];
+    solutions_inner(position, memo, next_memo, mate_in, &mut scratch)
+}
+
+fn solutions_inner(
+    position: &mut PositionAux,
+    memo: &mut NoHashMap64<StepRange>,
+    next_memo: &mut NoHashMap64<StepRange>,
+    mate_in: u16,
+    scratch: &mut [Vec<Movement>],
+) -> StepRange {
     let mut ans = StepRange::unknown();
     if let Some(a) = memo.get(&position.digest()) {
         if !a.needs_investigation(mate_in) {
@@ -414,7 +453,32 @@ fn solutions(
         ans = a.clone();
     }
 
-    let mut movements = vec![];
+    if mate_in == 0 {
+        let mut movements = std::mem::take(&mut scratch[0]);
+        movements.clear();
+        let options = crate::position::AdvanceOptions {
+            max_allowed_branches: Some(0),
+        };
+        let advance_result = advance_aux(position, &options, &mut movements);
+        let hint = if advance_result.is_err() {
+            StepRange::non_zero()
+        } else if advance_result.unwrap() {
+            StepRange::exact(0)
+        } else if movements.is_empty() {
+            StepRange::unsolvable()
+        } else {
+            StepRange::non_zero()
+        };
+        let ans = ans.intersection(&hint);
+        debug_assert!(!ans.needs_investigation(mate_in));
+        memo.insert(position.digest(), ans.clone());
+        scratch[0] = movements;
+        return ans;
+    }
+
+    let scratch_index = mate_in as usize;
+    let mut movements = std::mem::take(&mut scratch[scratch_index]);
+    movements.clear();
     let is_mate = advance_aux(position, &Default::default(), &mut movements).unwrap();
 
     let mut hint = StepRange::unknown();
@@ -430,6 +494,7 @@ fn solutions(
     ans = ans.intersection(&hint);
     if !ans.needs_investigation(mate_in) {
         memo.insert(position.digest(), ans.clone());
+        scratch[scratch_index] = movements;
         return ans;
     }
 
@@ -439,7 +504,7 @@ fn solutions(
         let mut np = position.clone();
         np.do_move(m);
 
-        let a = solutions(&mut np, next_memo, memo, mate_in - 1).inc();
+        let a = solutions_inner(&mut np, next_memo, memo, mate_in - 1, scratch).inc();
         debug_assert!(!a.needs_investigation(mate_in));
 
         res.update_with_child(&a);
@@ -463,6 +528,7 @@ fn solutions(
     );
 
     memo.insert(position.digest(), res.clone());
+    scratch[scratch_index] = movements;
     res
 }
 

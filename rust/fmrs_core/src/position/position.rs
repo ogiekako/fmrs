@@ -59,6 +59,7 @@ impl Position {
     }
 
     /// Returns a bitboard of pieces of the specified color and kind.
+    #[inline(always)]
     pub fn bitboard(&self, color: Color, kind: Kind) -> BitBoard {
         if color.is_black() {
             self.kind_bb.bitboard(kind) & self.black_bb
@@ -69,6 +70,7 @@ impl Position {
     pub fn kind_bb(&self) -> &KindBitBoard {
         &self.kind_bb
     }
+    #[inline(always)]
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         let kind = self.kind_bb.get(pos)?;
         Some(if self.black().contains(pos) {
@@ -77,6 +79,7 @@ impl Position {
             (Color::WHITE, kind)
         })
     }
+    #[inline(always)]
     pub fn set(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), None);
 
@@ -87,6 +90,7 @@ impl Position {
 
         self.digest ^= self.hash_at(pos);
     }
+    #[inline(always)]
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), Some((c, k)));
 
@@ -216,6 +220,7 @@ impl PositionAux {
         self.core.kind_bb().bitboard(kind)
     }
 
+    #[inline(always)]
     pub fn bitboard(&self, color: Color, kind: Kind) -> BitBoard {
         self.kind_bb(kind) & self.color_bb(color)
     }
@@ -264,15 +269,18 @@ impl PositionAux {
         self.core.hands()
     }
 
+    #[inline(always)]
     pub(crate) fn must_get_kind(&self, pos: Square) -> Kind {
         // TODO: consider having pos -> kind mapping
         self.core.kind_bb().must_get(pos)
     }
 
+    #[inline(always)]
     pub(crate) fn get_kind(&self, dest: Square) -> Option<Kind> {
         self.core.kind_bb().get(dest)
     }
 
+    #[inline(always)]
     pub fn get(&self, pos: Square) -> Option<(Color, Kind)> {
         if self.has_stone(pos) {
             return None;
@@ -366,6 +374,7 @@ impl PositionAux {
         self.core.digest() ^ self.stone_digest
     }
 
+    #[inline(always)]
     pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
         self.occupied.unset(pos);
         if color.is_white() {
@@ -383,6 +392,7 @@ impl PositionAux {
         self.core.unset(pos, color, kind);
     }
 
+    #[inline(always)]
     pub fn set(&mut self, pos: Square, color: Color, kind: Kind) {
         debug_assert!(!self.has_stone(pos));
         self.occupied.set(pos);

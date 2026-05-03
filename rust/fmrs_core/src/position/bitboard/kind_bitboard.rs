@@ -104,6 +104,7 @@ impl KindBitBoard {
         )
     }
 
+    #[inline(always)]
     pub fn bitboard(&self, kind: Kind) -> BitBoard {
         let (promote, i) = Self::ids(kind);
 
@@ -124,6 +125,7 @@ impl KindBitBoard {
         }
     }
     // #[inline(never)]
+    #[inline(always)]
     pub fn must_get(&self, pos: Square) -> Kind {
         let mut i = 0;
         if self.kind0.contains(pos) {
@@ -142,6 +144,7 @@ impl KindBitBoard {
         KINDS[i]
     }
     // #[inline(never)]
+    #[inline(always)]
     pub fn set(&mut self, pos: Square, kind: Kind) {
         let (promote, i) = Self::ids(kind);
 
@@ -159,6 +162,7 @@ impl KindBitBoard {
         }
     }
     // #[inline(never)]
+    #[inline(always)]
     pub fn unset(&mut self, pos: Square, kind: Kind) {
         let (promote, i) = Self::ids(kind);
 
@@ -184,6 +188,7 @@ impl KindBitBoard {
     }
 
     // #[inline(never)]
+    #[inline(always)]
     pub fn get(&self, pos: Square) -> Option<Kind> {
         let mut i = 0;
         if self.kind0.contains(pos) {
