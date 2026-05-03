@@ -57,6 +57,8 @@ enum Action {
         sfen_like: String,
         #[arg(long, default_value = "0")]
         forward: usize,
+        #[arg(long, default_value = "1")]
+        parallel: usize,
         #[arg(long, default_value_t = false)]
         allow_white: bool,
         #[arg(long, default_value_t = false)]
@@ -96,9 +98,10 @@ pub async fn do_main() -> anyhow::Result<()> {
         Action::Backward {
             sfen_like,
             forward,
+            parallel,
             allow_white,
             one_way,
-        } => backward(&sfen_like, forward, !allow_white, one_way)?,
+        } => backward(&sfen_like, forward, parallel, !allow_white, one_way)?,
         Action::GenMagic { attr } => gen_magic(attr)?,
     }
     Ok(())

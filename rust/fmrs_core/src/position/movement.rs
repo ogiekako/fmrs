@@ -184,14 +184,13 @@ impl MovementSet {
     const KEYS: usize = Self::MOVE_KEYS + Self::DROP_KEYS;
     const LIMBS: usize = Self::KEYS.div_ceil(u64::BITS as usize);
 
-    pub(crate) fn contains(&self, movement: &Movement) -> bool {
-        let key = Self::key(movement);
-        self.bits[key / 64] & (1 << (key % 64)) != 0
-    }
-
-    pub(crate) fn insert(&mut self, movement: Movement) {
+    pub(crate) fn insert_new(&mut self, movement: Movement) -> bool {
         let key = Self::key(&movement);
-        self.bits[key / 64] |= 1 << (key % 64);
+        let bit = 1 << (key % 64);
+        let limb = &mut self.bits[key / 64];
+        let inserted = *limb & bit == 0;
+        *limb |= bit;
+        inserted
     }
 
     fn key(movement: &Movement) -> usize {
@@ -228,9 +227,8 @@ mod tests {
         let same_without_hint = Movement::move_without_hint(Square::S11, Square::S12, false);
         let different_promote = Movement::move_without_hint(Square::S11, Square::S12, true);
 
-        seen.insert(movement);
-
-        assert!(seen.contains(&same_without_hint));
-        assert!(!seen.contains(&different_promote));
+        assert!(seen.insert_new(movement));
+        assert!(!seen.insert_new(same_without_hint));
+        assert!(seen.insert_new(different_promote));
     }
 }

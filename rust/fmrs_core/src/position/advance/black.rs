@@ -390,11 +390,9 @@ impl Context<'_> {
                 .check_allowed_branches(self.num_branches_without_pawn_drop)?;
         }
 
-        if self.seen.contains(&movement) {
-            return Ok(());
+        if self.seen.insert_new(movement) {
+            self.result.push(movement);
         }
-        self.seen.insert(movement);
-        self.result.push(movement);
 
         Ok(())
     }

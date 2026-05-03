@@ -1,6 +1,8 @@
 use anyhow::Ok;
 use fmrs_core::{
-    piece::Color, position::position::PositionAux, search::backward::backward_search_with_progress,
+    piece::Color,
+    position::position::PositionAux,
+    search::backward::backward_search_with_progress_and_parallel,
 };
 
 use super::parse_to_sfen;
@@ -8,6 +10,7 @@ use super::parse_to_sfen;
 pub fn backward(
     sfen_like: &str,
     forward: usize,
+    parallel: usize,
     black_turn: bool,
     one_way: bool,
 ) -> anyhow::Result<()> {
@@ -20,10 +23,11 @@ pub fn backward(
 
     let builder = std::thread::Builder::new().stack_size(32 * 1024 * 1024); // 32 MB
     let handler = builder.spawn(move || {
-        let (step, positions) = backward_search_with_progress(
+        let (step, positions) = backward_search_with_progress_and_parallel(
             &position,
             black_turn,
             forward,
+            parallel,
             one_way,
             |step, count, url| {
                 eprintln!("backward step={} count={} {}", step, count, url);

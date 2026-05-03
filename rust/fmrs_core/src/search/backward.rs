@@ -1,7 +1,8 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use anyhow::bail;
 use log::{debug, info};
+use rayon::prelude::*;
 
 use crate::{
     nohash::NoHashMap64,
@@ -12,6 +13,8 @@ use crate::{
     },
     solve::standard_solve::standard_solve,
 };
+
+const MAX_BACKWARD_PARALLEL: usize = 32;
 
 pub fn backward_initial_variants(initial_position: &PositionAux) -> Vec<PositionAux> {
     let mut variants = Vec::with_capacity(2);
@@ -48,13 +51,38 @@ pub fn backward_search_with_progress(
     black_position: bool,
     forward: usize,
     one_way: bool,
+    progress: impl FnMut(u16, usize, String),
+) -> anyhow::Result<(u16, Vec<PositionAux>)> {
+    backward_search_with_progress_and_parallel(
+        initial_position,
+        black_position,
+        forward,
+        1,
+        one_way,
+        progress,
+    )
+}
+
+pub fn backward_search_with_progress_and_parallel(
+    initial_position: &PositionAux,
+    black_position: bool,
+    forward: usize,
+    parallel: usize,
+    one_way: bool,
     mut progress: impl FnMut(u16, usize, String),
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
     let mut best = (0, NoHashMap64::default());
     let mut last_error = None;
 
     for variant in backward_initial_variants(initial_position) {
-        match backward_search_single(&variant, black_position, forward, one_way, &mut progress) {
+        match backward_search_single(
+            &variant,
+            black_position,
+            forward,
+            parallel,
+            one_way,
+            &mut progress,
+        ) {
             Ok((step, positions)) => merge_backward_results(&mut best, step, positions),
             Err(err) if last_error.is_none() => last_error = Some(err),
             Err(_) => {}
@@ -74,10 +102,11 @@ fn backward_search_single(
     initial_position: &PositionAux,
     black_position: bool,
     forward: usize,
+    parallel: usize,
     one_way: bool,
     progress: &mut impl FnMut(u16, usize, String),
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
-    let mut search = BackwardSearch::new(initial_position, one_way)?;
+    let mut search = BackwardSearch::new_with_parallel(initial_position, one_way, parallel)?;
 
     let initial_step = search.solution.len() as u16;
     let mut last_logged_step = search.step;
@@ -209,10 +238,20 @@ pub struct BackwardSearch {
     stone: Option<BitBoard>,
     step: u16,
     one_way: bool,
+    parallel: usize,
+    pool: Option<rayon::ThreadPool>,
 }
 
 impl BackwardSearch {
     pub fn new(initial_position: &PositionAux, one_way: bool) -> anyhow::Result<Self> {
+        Self::new_with_parallel(initial_position, one_way, 1)
+    }
+
+    pub fn new_with_parallel(
+        initial_position: &PositionAux,
+        one_way: bool,
+        parallel: usize,
+    ) -> anyhow::Result<Self> {
         let mut solution = standard_solve(initial_position.clone(), 2, true)?.solutions();
         if solution.len() != 1 {
             bail!("Not unique: {}", solution.len());
@@ -249,6 +288,17 @@ impl BackwardSearch {
 
         let step = solution.len() as u16;
 
+        let parallel = parallel.clamp(1, MAX_BACKWARD_PARALLEL);
+        let pool = if parallel > 1 {
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(parallel)
+                    .build()?,
+            )
+        } else {
+            None
+        };
+
         Ok(BackwardSearch {
             initial_position: initial_position.clone(),
             solution,
@@ -260,10 +310,15 @@ impl BackwardSearch {
             stone: *initial_position.stone(),
             step,
             one_way,
+            parallel,
+            pool,
         })
     }
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
+        if !self.one_way && self.parallel > 1 && self.seen_positions == 0 {
+            return self.advance_parallel();
+        }
         self.advance_upto(usize::MAX / 2)
     }
 
@@ -279,6 +334,7 @@ impl BackwardSearch {
         let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
         self.seen_positions = range.end;
         let mut undo_moves = vec![];
+        let mut solution_scratch = vec![];
         for core in self.positions[range].iter() {
             let mut position = PositionAux::new(core.clone(), self.stone);
             undo_moves.clear();
@@ -288,45 +344,7 @@ impl BackwardSearch {
                 let mut pp = position.clone();
                 pp.undo_move(m);
 
-                if pp.turn().is_white() {
-                    let Some(att) = crate::position::advance::attack_prevent::attacker(
-                        &mut pp,
-                        Color::WHITE,
-                        false,
-                    ) else {
-                        continue;
-                    };
-                    if pp.checked_slow(Color::BLACK) {
-                        continue;
-                    }
-                    if let Some((pos2, kind2)) = att.double_check {
-                        let king_pos = pp.king_pos(Color::WHITE).unwrap();
-                        let (pos1, kind1) = (att.pos, att.kind);
-
-                        let dist = |pos: crate::position::Square| -> usize {
-                            let dx = (pos.col() as isize - king_pos.col() as isize).abs();
-                            let dy = (pos.row() as isize - king_pos.row() as isize).abs();
-                            std::cmp::max(dx, dy) as usize
-                        };
-
-                        let is_slider = |kind: crate::piece::Kind| -> bool {
-                            matches!(
-                                kind,
-                                crate::piece::Kind::Lance
-                                    | crate::piece::Kind::Bishop
-                                    | crate::piece::Kind::Rook
-                                    | crate::piece::Kind::ProBishop
-                                    | crate::piece::Kind::ProRook
-                            )
-                        };
-
-                        let possible = (is_slider(kind1) && dist(pos1) >= 2)
-                            || (is_slider(kind2) && dist(pos2) >= 2);
-                        if !possible {
-                            continue;
-                        }
-                    }
-                } else if pp.checked_slow(Color::WHITE) {
+                if !is_backward_candidate_legal(&mut pp) {
                     continue;
                 }
 
@@ -358,7 +376,21 @@ impl BackwardSearch {
                     continue;
                 }
 
-                let ans = solutions(&mut pp, &mut self.prev_memo, &mut self.memo, self.step + 1);
+                let pp_digest = pp.digest();
+                let ans =
+                    if let Some(ans) = self.prev_memo.get(&pp_digest).filter(|ans| {
+                        !ans.needs_investigation(self.step + 1)
+                    }) {
+                        *ans
+                    } else {
+                        solutions(
+                            &mut pp,
+                            &mut self.prev_memo,
+                            &mut self.memo,
+                            self.step + 1,
+                            &mut solution_scratch,
+                        )
+                    };
                 if ans.is_uniquely(self.step + 1) {
                     #[cfg(debug_assertions)]
                     {
@@ -404,6 +436,127 @@ impl BackwardSearch {
         Ok(true)
     }
 
+    fn advance_parallel(&mut self) -> anyhow::Result<bool> {
+        if self.positions.is_empty() {
+            return Ok(false);
+        }
+
+        let step = self.step;
+        let stone = self.stone;
+        let position_parallel = self.parallel.min(self.positions.len());
+        let position_chunk_size = self
+            .positions
+            .len()
+            .div_ceil(position_parallel * 8)
+            .max(1);
+        let pool = self.pool.as_ref().expect("parallel pool");
+        let candidate_chunks = pool.install(|| {
+            self.positions
+                .par_chunks(position_chunk_size)
+                .map(|chunk| {
+                    let mut undo_moves = vec![];
+                    let mut candidates = vec![];
+
+                    for core in chunk.iter() {
+                        let mut position = PositionAux::new(core.clone(), stone);
+                        undo_moves.clear();
+                        previous(&mut position, step > 0, &mut undo_moves);
+
+                        for m in undo_moves.iter() {
+                            let mut pp = position.clone();
+                            pp.undo_move(m);
+                            if !is_backward_candidate_legal(&mut pp) {
+                                continue;
+                            }
+                            candidates.push(pp.core().clone());
+                        }
+                    }
+
+                    candidates
+                })
+                .collect::<Vec<_>>()
+        });
+        let candidate_len = candidate_chunks.iter().map(Vec::len).sum::<usize>();
+        let mut candidates = Vec::with_capacity(candidate_len);
+        for chunk in candidate_chunks {
+            candidates.extend(chunk);
+        }
+
+        if candidates.is_empty() {
+            return Ok(false);
+        }
+
+        let parallel = self.parallel.min(candidates.len());
+        let chunk_size = candidates.len().div_ceil(parallel * 8).max(1);
+        let memo = Arc::new(std::mem::take(&mut self.memo));
+        let prev_memo = Arc::new(std::mem::take(&mut self.prev_memo));
+
+        let results = pool.install(|| {
+            candidates
+                .par_chunks(chunk_size)
+                .map(|chunk| {
+                    let memo = Arc::clone(&memo);
+                    let prev_memo = Arc::clone(&prev_memo);
+                    let mut memo_delta = NoHashMap64::default();
+                    let mut prev_memo_delta = NoHashMap64::default();
+                    let mut prev_positions = vec![];
+                    let mut solution_scratch = vec![];
+
+                    for core in chunk.iter() {
+                        let mut pp = PositionAux::new(core.clone(), stone);
+                        let pp_digest = pp.digest();
+                        if let Some(ans) =
+                            get_overlay(&prev_memo_delta, &prev_memo, pp_digest)
+                                .filter(|ans| !ans.needs_investigation(step + 1))
+                        {
+                            if ans.is_uniquely(step + 1) {
+                                prev_positions.push(core.clone());
+                            }
+                            continue;
+                        }
+
+                        let ans = solutions_overlay(
+                            &mut pp,
+                            &prev_memo,
+                            &mut prev_memo_delta,
+                            &memo,
+                            &mut memo_delta,
+                            step + 1,
+                            &mut solution_scratch,
+                        );
+                        if ans.is_uniquely(step + 1) {
+                            prev_positions.push(core.clone());
+                        }
+                    }
+
+                    (prev_positions, memo_delta, prev_memo_delta)
+                })
+                .collect::<Vec<_>>()
+        });
+
+        let mut next_positions = vec![];
+        self.memo = Arc::try_unwrap(memo).ok().unwrap();
+        self.prev_memo = Arc::try_unwrap(prev_memo).ok().unwrap();
+
+        for (positions, memo_delta, prev_memo_delta) in results {
+            next_positions.extend(positions);
+            self.memo.extend(memo_delta);
+            self.prev_memo.extend(prev_memo_delta);
+        }
+
+        if next_positions.is_empty() {
+            return Ok(false);
+        }
+
+        self.positions = next_positions;
+        self.prev_positions.clear();
+        std::mem::swap(&mut self.memo, &mut self.prev_memo);
+        self.seen_positions = 0;
+        self.step += 1;
+
+        Ok(true)
+    }
+
     pub fn step(&self) -> u16 {
         self.step
     }
@@ -425,6 +578,50 @@ impl BackwardSearch {
     }
 }
 
+#[inline(always)]
+fn is_backward_candidate_legal(position: &mut PositionAux) -> bool {
+    if position.turn().is_white() {
+        let Some(att) =
+            crate::position::advance::attack_prevent::attacker(position, Color::WHITE, false)
+        else {
+            return false;
+        };
+        if position.checked_slow(Color::BLACK) {
+            return false;
+        }
+        if let Some((pos2, kind2)) = att.double_check {
+            let king_pos = position.king_pos(Color::WHITE).unwrap();
+            let (pos1, kind1) = (att.pos, att.kind);
+
+            let dist = |pos: crate::position::Square| -> usize {
+                let dx = (pos.col() as isize - king_pos.col() as isize).abs();
+                let dy = (pos.row() as isize - king_pos.row() as isize).abs();
+                std::cmp::max(dx, dy) as usize
+            };
+
+            let is_slider = |kind: crate::piece::Kind| -> bool {
+                matches!(
+                    kind,
+                    crate::piece::Kind::Lance
+                        | crate::piece::Kind::Bishop
+                        | crate::piece::Kind::Rook
+                        | crate::piece::Kind::ProBishop
+                        | crate::piece::Kind::ProRook
+                )
+            };
+
+            let possible =
+                (is_slider(kind1) && dist(pos1) >= 2) || (is_slider(kind2) && dist(pos2) >= 2);
+            if !possible {
+                return false;
+            }
+        }
+    } else if position.checked_slow(Color::WHITE) {
+        return false;
+    }
+    true
+}
+
 const INF_START: u16 = u16::MAX - 2;
 const INF_END: u16 = u16::MAX - 1;
 
@@ -433,9 +630,12 @@ fn solutions(
     memo: &mut NoHashMap64<StepRange>,
     next_memo: &mut NoHashMap64<StepRange>,
     mate_in: u16,
+    scratch: &mut Vec<Vec<Movement>>,
 ) -> StepRange {
-    let mut scratch = vec![Vec::new(); mate_in as usize + 1];
-    solutions_inner(position, memo, next_memo, mate_in, &mut scratch)
+    if scratch.len() <= mate_in as usize {
+        scratch.resize_with(mate_in as usize + 1, Vec::new);
+    }
+    solutions_inner(position, memo, next_memo, mate_in, scratch)
 }
 
 fn solutions_inner(
@@ -448,9 +648,9 @@ fn solutions_inner(
     let mut ans = StepRange::unknown();
     if let Some(a) = memo.get(&position.digest()) {
         if !a.needs_investigation(mate_in) {
-            return a.clone();
+            return *a;
         }
-        ans = a.clone();
+        ans = *a;
     }
 
     if mate_in == 0 {
@@ -471,7 +671,7 @@ fn solutions_inner(
         };
         let ans = ans.intersection(&hint);
         debug_assert!(!ans.needs_investigation(mate_in));
-        memo.insert(position.digest(), ans.clone());
+        memo.insert(position.digest(), ans);
         scratch[0] = movements;
         return ans;
     }
@@ -493,7 +693,7 @@ fn solutions_inner(
     }
     ans = ans.intersection(&hint);
     if !ans.needs_investigation(mate_in) {
-        memo.insert(position.digest(), ans.clone());
+        memo.insert(position.digest(), ans);
         scratch[scratch_index] = movements;
         return ans;
     }
@@ -501,17 +701,25 @@ fn solutions_inner(
     let mut res = StepRange::unsolvable();
 
     for m in movements.iter() {
-        let mut np = position.clone();
-        np.do_move(m);
-
-        let a = solutions_inner(&mut np, next_memo, memo, mate_in - 1, scratch).inc();
+        let child_digest = position.moved_digest(m);
+        let child = next_memo
+            .get(&child_digest)
+            .filter(|a| !a.needs_investigation(mate_in - 1))
+            .cloned();
+        let a = if let Some(child) = child {
+            child.inc()
+        } else {
+            let mut np = position.clone();
+            np.do_move(m);
+            solutions_inner(&mut np, next_memo, memo, mate_in - 1, scratch).inc()
+        };
         debug_assert!(!a.needs_investigation(mate_in));
 
         res.update_with_child(&a);
 
         if res.definitely_shorter_or_non_unique(mate_in) {
-            res.shortest.start = 1;
-            res.next.start = 1;
+            res.shortest_start = 1;
+            res.next_start = 1;
             break;
         }
     }
@@ -527,41 +735,200 @@ fn solutions_inner(
         mate_in
     );
 
-    memo.insert(position.digest(), res.clone());
+    memo.insert(position.digest(), res);
     scratch[scratch_index] = movements;
     res
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StepRange {
-    // Second shortest solution range
-    next: Range<u16>,
-    // Shortest solution range
-    shortest: Range<u16>,
+#[inline(always)]
+fn get_overlay(
+    delta: &NoHashMap64<StepRange>,
+    base: &NoHashMap64<StepRange>,
+    digest: u64,
+) -> Option<StepRange> {
+    delta.get(&digest).copied().or_else(|| base.get(&digest).copied())
 }
 
-fn intersection(a: &Range<u16>, b: &Range<u16>) -> Range<u16> {
-    let res = a.start.max(b.start)..a.end.min(b.end);
-    if res.is_empty() {
-        Range::default()
+fn solutions_overlay(
+    position: &mut PositionAux,
+    memo_base: &NoHashMap64<StepRange>,
+    memo_delta: &mut NoHashMap64<StepRange>,
+    next_memo_base: &NoHashMap64<StepRange>,
+    next_memo_delta: &mut NoHashMap64<StepRange>,
+    mate_in: u16,
+    scratch: &mut Vec<Vec<Movement>>,
+) -> StepRange {
+    if scratch.len() <= mate_in as usize {
+        scratch.resize_with(mate_in as usize + 1, Vec::new);
+    }
+    solutions_overlay_inner(
+        position,
+        memo_base,
+        memo_delta,
+        next_memo_base,
+        next_memo_delta,
+        mate_in,
+        scratch,
+    )
+}
+
+fn solutions_overlay_inner(
+    position: &mut PositionAux,
+    memo_base: &NoHashMap64<StepRange>,
+    memo_delta: &mut NoHashMap64<StepRange>,
+    next_memo_base: &NoHashMap64<StepRange>,
+    next_memo_delta: &mut NoHashMap64<StepRange>,
+    mate_in: u16,
+    scratch: &mut [Vec<Movement>],
+) -> StepRange {
+    let digest = position.digest();
+    let mut ans = StepRange::unknown();
+    if let Some(a) = get_overlay(memo_delta, memo_base, digest) {
+        if !a.needs_investigation(mate_in) {
+            return a;
+        }
+        ans = a;
+    }
+
+    if mate_in == 0 {
+        let mut movements = std::mem::take(&mut scratch[0]);
+        movements.clear();
+        let options = crate::position::AdvanceOptions {
+            max_allowed_branches: Some(0),
+        };
+        let advance_result = advance_aux(position, &options, &mut movements);
+        let hint = if advance_result.is_err() {
+            StepRange::non_zero()
+        } else if advance_result.unwrap() {
+            StepRange::exact(0)
+        } else if movements.is_empty() {
+            StepRange::unsolvable()
+        } else {
+            StepRange::non_zero()
+        };
+        let ans = ans.intersection(&hint);
+        debug_assert!(!ans.needs_investigation(mate_in));
+        memo_delta.insert(digest, ans);
+        scratch[0] = movements;
+        return ans;
+    }
+
+    let scratch_index = mate_in as usize;
+    let mut movements = std::mem::take(&mut scratch[scratch_index]);
+    movements.clear();
+    let is_mate = advance_aux(position, &Default::default(), &mut movements).unwrap();
+
+    let mut hint = StepRange::unknown();
+    if is_mate {
+        hint = StepRange::exact(0);
+        debug_assert!(!hint.needs_investigation(mate_in));
+    } else if movements.is_empty() {
+        hint = StepRange::unsolvable();
+        debug_assert!(!hint.needs_investigation(mate_in));
+    } else if mate_in == 0 {
+        hint = StepRange::non_zero();
+    }
+    ans = ans.intersection(&hint);
+    if !ans.needs_investigation(mate_in) {
+        memo_delta.insert(digest, ans);
+        scratch[scratch_index] = movements;
+        return ans;
+    }
+
+    let mut res = StepRange::unsolvable();
+
+    for m in movements.iter() {
+        let child_digest = position.moved_digest(m);
+        let child = get_overlay(next_memo_delta, next_memo_base, child_digest)
+            .filter(|a| !a.needs_investigation(mate_in - 1));
+        let a = if let Some(child) = child {
+            child.inc()
+        } else {
+            let mut np = position.clone();
+            np.do_move(m);
+            solutions_overlay_inner(
+                &mut np,
+                next_memo_base,
+                next_memo_delta,
+                memo_base,
+                memo_delta,
+                mate_in - 1,
+                scratch,
+            )
+            .inc()
+        };
+        debug_assert!(!a.needs_investigation(mate_in));
+
+        res.update_with_child(&a);
+
+        if res.definitely_shorter_or_non_unique(mate_in) {
+            res.shortest_start = 1;
+            res.next_start = 1;
+            break;
+        }
+    }
+
+    res = res.intersection(&ans);
+
+    debug_assert!(
+        !res.needs_investigation(mate_in),
+        "{:?} {:?} {:?} {}",
+        res,
+        hint,
+        position,
+        mate_in
+    );
+
+    memo_delta.insert(digest, res);
+    scratch[scratch_index] = movements;
+    res
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct StepRange {
+    // Second shortest solution range
+    next_start: u16,
+    next_end: u16,
+    // Shortest solution range
+    shortest_start: u16,
+    shortest_end: u16,
+}
+
+#[inline(always)]
+fn intersection_bounds(
+    a_start: u16,
+    a_end: u16,
+    b_start: u16,
+    b_end: u16,
+) -> (u16, u16) {
+    let start = a_start.max(b_start);
+    let end = a_end.min(b_end);
+    if start >= end {
+        (0, 0)
     } else {
-        res
+        (start, end)
     }
 }
 
-fn definitely_shorter(r: &Range<u16>, step: u16) -> bool {
-    intersection(r, &(step..INF_END)).is_empty()
+#[inline(always)]
+fn definitely_shorter(start: u16, end: u16, step: u16) -> bool {
+    let (start, end) = intersection_bounds(start, end, step, INF_END);
+    start >= end
 }
 
-fn definitely_longer(r: &Range<u16>, step: u16) -> bool {
-    intersection(r, &(0..step + 1)).is_empty()
+#[inline(always)]
+fn definitely_longer(start: u16, end: u16, step: u16) -> bool {
+    let (start, end) = intersection_bounds(start, end, 0, step + 1);
+    start >= end
 }
 
-fn exactly(r: &Range<u16>, step: u16) -> bool {
-    r.start == step && r.end == step + 1
+#[inline(always)]
+fn exactly(start: u16, end: u16, step: u16) -> bool {
+    start == step && end == step + 1
 }
 
 impl StepRange {
+    #[inline(always)]
     fn new(mut shortest: Range<u16>, mut next: Range<u16>) -> Self {
         debug_assert!(shortest.start <= next.start);
         debug_assert!(shortest.end <= next.end);
@@ -571,78 +938,111 @@ impl StepRange {
         next.start = next.start.min(INF_START);
         next.end = next.end.min(INF_END);
 
-        StepRange { shortest, next }
+        StepRange {
+            shortest_start: shortest.start,
+            shortest_end: shortest.end,
+            next_start: next.start,
+            next_end: next.end,
+        }
     }
 
+    #[inline(always)]
     fn exact(step: u16) -> Self {
         Self::new(step..step + 1, step + 1..INF_END)
     }
 
+    #[inline(always)]
     fn unsolvable() -> Self {
         Self::new(INF_START..INF_END, INF_START..INF_END)
     }
 
+    #[inline(always)]
     fn unknown() -> Self {
         Self::new(0..INF_END, 0..INF_END)
     }
 
+    #[inline(always)]
     fn non_zero() -> Self {
         Self::new(1..INF_END, 1..INF_END)
     }
 
+    #[inline(always)]
     fn inc(&self) -> Self {
         Self::new(
-            self.shortest.start + 1..self.shortest.end + 1,
-            self.next.start + 1..self.next.end + 1,
+            self.shortest_start + 1..self.shortest_end + 1,
+            self.next_start + 1..self.next_end + 1,
         )
     }
 
+    #[inline(always)]
     fn definitely_shorter_or_non_unique(&self, step: u16) -> bool {
-        self.shortest.end <= step || self.shortest.end == step + 1 && self.next.end == step + 1
+        self.shortest_end <= step || self.shortest_end == step + 1 && self.next_end == step + 1
     }
 
+    #[inline(always)]
     fn needs_investigation(&self, mate_in: u16) -> bool {
         if self.definitely_shorter_or_non_unique(mate_in)
-            || definitely_longer(&self.shortest, mate_in)
+            || definitely_longer(self.shortest_start, self.shortest_end, mate_in)
         {
             return false;
         }
-        if exactly(&self.shortest, mate_in) {
-            debug_assert!(!definitely_shorter(&self.next, mate_in));
-            if definitely_longer(&self.next, mate_in) || exactly(&self.next, mate_in) {
+        if exactly(self.shortest_start, self.shortest_end, mate_in) {
+            debug_assert!(!definitely_shorter(self.next_start, self.next_end, mate_in));
+            if definitely_longer(self.next_start, self.next_end, mate_in)
+                || exactly(self.next_start, self.next_end, mate_in)
+            {
                 return false;
             }
         }
         true
     }
 
+    #[inline(always)]
     fn intersection(&self, hint: &StepRange) -> StepRange {
+        let (shortest_start, shortest_end) = intersection_bounds(
+            self.shortest_start,
+            self.shortest_end,
+            hint.shortest_start,
+            hint.shortest_end,
+        );
+        let (next_start, next_end) = intersection_bounds(
+            self.next_start,
+            self.next_end,
+            hint.next_start,
+            hint.next_end,
+        );
         Self::new(
-            intersection(&self.shortest, &hint.shortest),
-            intersection(&self.next, &hint.next),
+            shortest_start..shortest_end,
+            next_start..next_end,
         )
     }
 
+    #[inline(always)]
     fn update_with_child(&mut self, c: &StepRange) {
-        for &Range { start, end } in [&c.shortest, &c.next] {
-            if start < self.shortest.start {
-                self.next.start = self.shortest.start;
-                self.shortest.start = start;
-            } else if start < self.next.start {
-                self.next.start = start;
+        for (start, end) in [
+            (c.shortest_start, c.shortest_end),
+            (c.next_start, c.next_end),
+        ] {
+            if start < self.shortest_start {
+                self.next_start = self.shortest_start;
+                self.shortest_start = start;
+            } else if start < self.next_start {
+                self.next_start = start;
             }
 
-            if end < self.shortest.end {
-                self.next.end = self.shortest.end;
-                self.shortest.end = end;
-            } else if end < self.next.end {
-                self.next.end = end;
+            if end < self.shortest_end {
+                self.next_end = self.shortest_end;
+                self.shortest_end = end;
+            } else if end < self.next_end {
+                self.next_end = end;
             }
         }
     }
 
+    #[inline(always)]
     fn is_uniquely(&self, step: u16) -> bool {
-        exactly(&self.shortest, step) && definitely_longer(&self.next, step)
+        exactly(self.shortest_start, self.shortest_end, step)
+            && definitely_longer(self.next_start, self.next_end, step)
     }
 }
 
