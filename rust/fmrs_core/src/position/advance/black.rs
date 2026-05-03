@@ -7,7 +7,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
-    Movement,
+    Movement, MovementSet,
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
@@ -37,6 +37,7 @@ struct Context<'a> {
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
     start_len: usize,
+    seen: MovementSet,
 }
 
 impl<'a> Context<'a> {
@@ -75,6 +76,7 @@ impl<'a> Context<'a> {
             num_branches_without_pawn_drop: 0,
             options,
             start_len,
+            seen: MovementSet::default(),
         })
     }
 
@@ -388,6 +390,10 @@ impl Context<'_> {
                 .check_allowed_branches(self.num_branches_without_pawn_drop)?;
         }
 
+        if self.seen.contains(&movement) {
+            return Ok(());
+        }
+        self.seen.insert(movement);
         self.result.push(movement);
 
         Ok(())
