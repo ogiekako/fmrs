@@ -432,7 +432,7 @@ impl BackwardSearch {
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
         if !self.one_way && self.parallel > 1 && self.seen_positions == 0 {
-            return self.advance_parallel();
+            return self.advance_parallel_filtered(&|_, _| true, &|_, _| true);
         }
         self.advance_upto(usize::MAX / 2)
     }
@@ -502,9 +502,6 @@ impl BackwardSearch {
                     )
                     .is_ok()
                     {
-                        // In one-way mate, there must be exactly 1 move (or 1 move + 1 pawn drop which is illegal mate).
-                        // If it has >0 moves, we just trust it, because we already know `pp` can reach `position` which is a mate.
-                        // Actually, to be strictly one-way, we just check that advance_aux didn't fail (meaning <= 1 non-pawn-drop branch).
                         if !branches.is_empty() {
                             self.prev_positions.push(pp.core().clone());
                             self.prev_memo
@@ -577,16 +574,23 @@ impl BackwardSearch {
         Ok(true)
     }
 
-    fn advance_parallel(&mut self) -> anyhow::Result<bool> {
+    pub fn advance_parallel_filtered(
+        &mut self,
+        candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
+        filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+    ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             return Ok(false);
         }
 
         let step = self.step;
         let stone = self.stone;
+        let no_black_goldish = self.no_black_goldish;
         let position_parallel = self.parallel.min(self.positions.len());
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
         let pool = self.pool.as_ref().expect("parallel pool");
+
+        // Phase 1: generate candidates in parallel (with filters)
         let candidate_chunks = pool.install(|| {
             self.positions
                 .par_chunks(position_chunk_size)
@@ -600,12 +604,18 @@ impl BackwardSearch {
                         previous(&mut position, step > 0, &mut undo_moves);
 
                         for m in undo_moves.iter() {
+                            if !candidate_filter(&position, m) {
+                                continue;
+                            }
                             let mut pp = position.clone();
                             pp.undo_move(m);
                             if !is_backward_candidate_legal(&mut pp) {
                                 continue;
                             }
-                            if !satisfies_backward_constraints(&pp, self.no_black_goldish) {
+                            if !satisfies_backward_constraints(&pp, no_black_goldish) {
+                                continue;
+                            }
+                            if !filter(pp.core(), stone) {
                                 continue;
                             }
                             candidates.push(pp.core().clone());
@@ -626,6 +636,7 @@ impl BackwardSearch {
             return Ok(false);
         }
 
+        // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
         let chunk_size = candidates.len().div_ceil(parallel * 8).max(1);
         let memo = Arc::new(std::mem::take(&mut self.memo));
@@ -695,6 +706,8 @@ impl BackwardSearch {
 
         Ok(true)
     }
+
+
 
     pub fn step(&self) -> u16 {
         self.step
