@@ -49,8 +49,8 @@ pub enum SingleKingSmokeCommand {
         random_seed: Option<u64>,
         #[arg(long)]
         max_step: Option<u16>,
-        #[arg(long, default_value_t = 50_000_000)]
-        max_memo_entries: usize,
+        #[arg(long)]
+        max_memo_entries: Option<usize>,
         #[arg(long)]
         max_frontier: Option<usize>,
         #[arg(long, default_value_t = false)]
@@ -541,7 +541,7 @@ fn pieces_in_play_after_undo(position: &PositionAux, undo_move: &UndoMove) -> u3
 
 #[derive(Clone, Copy)]
 struct KillerSeedLimits {
-    max_memo_entries: usize,
+    max_memo_entries: Option<usize>,
     max_frontier: Option<usize>,
 }
 
@@ -805,8 +805,8 @@ fn search_single_seed(
             }
         }
     };
-    if limits.max_memo_entries > 0 {
-        search.set_memo_entry_limit(Some(limits.max_memo_entries));
+    if let Some(max_memo_entries) = limits.max_memo_entries {
+        search.set_memo_entry_limit(Some(max_memo_entries));
     }
     if mem_trace {
         eprintln!(
