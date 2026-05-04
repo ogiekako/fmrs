@@ -49,8 +49,9 @@ pub enum SingleKingSmokeCommand {
         random_seed: Option<u64>,
         #[arg(long)]
         max_step: Option<u16>,
+        /// Memo entry limit per seed. "auto" = memory/cores, "full" = memory/parallel.
         #[arg(long)]
-        max_memo_entries: Option<usize>,
+        max_memo_entries: Option<String>,
         #[arg(long)]
         max_frontier: Option<usize>,
         #[arg(long, default_value_t = false)]
@@ -65,6 +66,8 @@ pub enum SingleKingSmokeCommand {
         inner_parallel: usize,
         #[arg(long, default_value_t = false)]
         mem_trace: bool,
+        #[arg(long, default_value_t = 0)]
+        slack: u16,
     },
 }
 
@@ -92,26 +95,32 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             allow_white_pieces,
             inner_parallel,
             mem_trace,
-        } => ideal_backward(
-            parallel,
-            seed_sfen,
-            seed_limit,
-            seed_result_log,
-            random_seed,
-            max_step,
-            KillerSeedLimits {
-                max_memo_entries,
-                max_frontier,
-            },
+            slack,
+        } => {
+            let parallel = parallel.unwrap_or_else(default_parallelism);
+            let max_memo_entries = parse_max_memo_entries(max_memo_entries.as_deref(), parallel)?;
+            ideal_backward(
+                parallel,
+                seed_sfen,
+                seed_limit,
+                seed_result_log,
+                random_seed,
+                max_step,
+                KillerSeedLimits {
+                    max_memo_entries,
+                    max_frontier,
+                },
             SearchConstraints {
                 no_gold,
                 no_pawn,
                 max_file,
                 allow_white_pieces,
+                slack,
             },
             inner_parallel,
             mem_trace,
-        ),
+        )
+        }
     }
 }
 
@@ -133,7 +142,7 @@ fn enumerate_final_2(
 }
 
 fn ideal_backward(
-    parallel: Option<usize>,
+    parallel: usize,
     seed_sfen: Option<String>,
     seed_limit: Option<usize>,
     seed_result_log: PathBuf,
@@ -144,7 +153,6 @@ fn ideal_backward(
     inner_parallel: usize,
     mem_trace: bool,
 ) -> anyhow::Result<()> {
-    let parallel = parallel.unwrap_or_else(default_parallelism);
     if parallel == 0 {
         bail!("parallel must be positive");
     }
@@ -171,7 +179,7 @@ fn ideal_backward(
     let seed_records =
         load_seed_result_log(&seed_result_log, max_step, limits.max_frontier, constraints)?;
     let mut pending_seeds = Vec::with_capacity(seeds.len());
-    let mut initial_best = (0u16, FxHashSet::default(), 0usize);
+    let mut initial_best = (0u32, FxHashSet::default(), 0usize);
     let mut loaded_records = 0usize;
     for (seed_index, seed) in seeds {
         if let Some(record) = seed_records
@@ -201,7 +209,7 @@ fn ideal_backward(
         .context("failed to build rayon thread pool")?;
     let completed = AtomicUsize::new(loaded_records);
     let next_heartbeat_index = AtomicUsize::new(0);
-    let global_best_step = AtomicUsize::new(0);
+    let global_best_piece_count = AtomicUsize::new(0);
     let heartbeat_marks = [1usize, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     let best = Mutex::new(initial_best);
     let skipped = Mutex::new(Vec::new());
@@ -218,7 +226,7 @@ fn ideal_backward(
                     constraints,
                     inner_parallel,
                     mem_trace,
-                    &global_best_step,
+                    &global_best_piece_count,
                     &seed_result_log_path,
                 );
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
@@ -260,14 +268,14 @@ fn ideal_backward(
                     ),
                 )?;
                 remove_seed_checkpoint(&seed_result_log_path, *seed_index);
-                if let Some((step, positions)) = result.best {
+                if let Some((piece_count, positions)) = result.best {
                     let mut best = best.lock().unwrap();
                     best.2 += 1;
-                    if step > best.0 {
-                        best.0 = step;
+                    if piece_count > best.0 {
+                        best.0 = piece_count;
                         best.1.clear();
                     }
-                    if step == best.0 {
+                    if piece_count == best.0 {
                         for position in positions {
                             best.1.insert(position.sfen());
                         }
@@ -277,7 +285,7 @@ fn ideal_backward(
             })
     })?;
 
-    let (best_step, best_positions, succeeded) = best.into_inner().unwrap();
+    let (best_piece_count, best_positions, succeeded) = best.into_inner().unwrap();
     let mut skipped = skipped.into_inner().unwrap();
     skipped.sort_by_key(|killer| killer.seed_index);
 
@@ -288,8 +296,8 @@ fn ideal_backward(
     let mut positions = best_positions.into_iter().collect::<Vec<_>>();
     positions.sort();
     eprintln!(
-        "mate in {}: positions={} succeeded_seeds={}",
-        best_step,
+        "best_pieces={}: positions={} succeeded_seeds={}",
+        best_piece_count,
         positions.len(),
         succeeded
     );
@@ -554,6 +562,8 @@ struct SearchConstraints {
     max_file: Option<u8>,
     #[serde(default)]
     allow_white_pieces: bool,
+    #[serde(default)]
+    slack: u16,
 }
 
 impl SearchConstraints {
@@ -563,7 +573,7 @@ impl SearchConstraints {
 }
 
 struct SingleSeedResult {
-    best: Option<(u16, Vec<PositionAux>)>,
+    best: Option<(u32, Vec<PositionAux>)>,  // (piece_count, positions)
     killer: Option<KillerSeed>,
 }
 
@@ -575,7 +585,7 @@ struct SeedCheckpoint {
     max_frontier: Option<usize>,
     constraints: SearchConstraints,
     resume_state: BackwardSearchResumeState,
-    best_step: u16,
+    best_piece_count: u32,
     best_sfens: Vec<String>,
 }
 
@@ -636,6 +646,8 @@ struct SeedResultRecord {
     seed_index: usize,
     seed_sfen: String,
     best_step: u16,
+    #[serde(default)]
+    best_piece_count: u32,
     positions: usize,
     representative_sfen: Option<String>,
     skipped: bool,
@@ -705,11 +717,11 @@ fn seed_result_record(
     constraints: SearchConstraints,
     result: &SingleSeedResult,
 ) -> SeedResultRecord {
-    let (best_step, positions, representative_sfen) =
-        if let Some((best_step, positions)) = result.best.as_ref() {
+    let (best_piece_count, positions, representative_sfen) =
+        if let Some((piece_count, positions)) = result.best.as_ref() {
             let mut sfens = positions.iter().map(PositionAux::sfen).collect::<Vec<_>>();
             sfens.sort();
-            (*best_step, sfens.len(), sfens.into_iter().next())
+            (*piece_count, sfens.len(), sfens.into_iter().next())
         } else {
             (0, 0, None)
         };
@@ -720,23 +732,33 @@ fn seed_result_record(
         constraints,
         seed_index,
         seed_sfen: seed.sfen(),
-        best_step,
+        best_step: 0, // deprecated, kept for compat
+        best_piece_count,
         positions,
         representative_sfen,
         skipped: result.killer.is_some(),
     }
 }
 
-fn merge_seed_result_record(best: &mut (u16, FxHashSet<String>, usize), record: &SeedResultRecord) {
+fn merge_seed_result_record(
+    best: &mut (u32, FxHashSet<String>, usize),
+    record: &SeedResultRecord,
+) {
     let Some(sfen) = record.representative_sfen.as_ref() else {
         return;
     };
+    // Fallback for old records that only have best_step
+    let piece_count = if record.best_piece_count > 0 {
+        record.best_piece_count
+    } else {
+        record.best_step as u32 / 2 + 3
+    };
     best.2 += 1;
-    if record.best_step > best.0 {
-        best.0 = record.best_step;
+    if piece_count > best.0 {
+        best.0 = piece_count;
         best.1.clear();
     }
-    if record.best_step == best.0 {
+    if piece_count == best.0 {
         best.1.insert(sfen.clone());
     }
 }
@@ -744,7 +766,7 @@ fn merge_seed_result_record(best: &mut (u16, FxHashSet<String>, usize), record: 
 #[derive(Clone)]
 struct KillerSeed {
     seed_index: usize,
-    best_step: u16,
+    best_piece_count: u32,
     best_positions: usize,
     reason: KillerReason,
     stats: BackwardSearchStats,
@@ -765,7 +787,7 @@ fn search_single_seed(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
-    global_best_step: &AtomicUsize,
+    global_best_piece_count: &AtomicUsize,
     seed_result_log_path: &Path,
 ) -> anyhow::Result<SingleSeedResult> {
     // Try to resume from checkpoint
@@ -817,10 +839,10 @@ fn search_single_seed(
             ProcStatus::current()
         );
     }
-    let mut best_step = 0u16;
+    let mut best_piece_count = 0u32;
     let mut best_positions: Vec<PositionAux> = vec![];
     if let Some(ref cp) = checkpoint {
-        best_step = cp.best_step;
+        best_piece_count = cp.best_piece_count;
         best_positions = cp
             .best_sfens
             .iter()
@@ -850,21 +872,27 @@ fn search_single_seed(
                     })
                     .collect::<Vec<_>>();
                 let filtered_len = filtered.len();
-                if !filtered.is_empty() && step >= best_step {
-                    let improved = step > best_step;
-                    if step > best_step {
-                        best_step = step;
+                let mut improved = false;
+                for position in filtered {
+                    let pc = board_piece_count(&position);
+                    if pc > best_piece_count {
+                        best_piece_count = pc;
                         best_positions.clear();
+                        improved = true;
                     }
-                    best_positions.extend(filtered);
+                    if pc == best_piece_count {
+                        best_positions.push(position);
+                    }
+                }
+                if improved {
                     best_positions = dedup_positions(best_positions);
-                    if improved && step >= 11 && step % 2 == 1 {
+                    if best_piece_count >= 8 {
                         let url = best_positions[0].sfen_url();
                         let stats = search.stats();
                         log_global_best_if_improved(
-                            global_best_step,
+                            global_best_piece_count,
                             seed_index,
-                            step,
+                            best_piece_count,
                             best_positions.len(),
                             &url,
                             stats,
@@ -910,7 +938,7 @@ fn search_single_seed(
         if let Some(detected) = detect_killer_seed(
             seed_index,
             seed,
-            best_step,
+            best_piece_count,
             best_positions.len(),
             &search,
             limits,
@@ -967,14 +995,14 @@ fn search_single_seed(
             max_frontier: limits.max_frontier,
             constraints,
             resume_state: search.resume_state(),
-            best_step,
+            best_piece_count,
             best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
         });
 
         if let Some(detected) = detect_killer_seed(
             seed_index,
             seed,
-            best_step,
+            best_piece_count,
             best_positions.len(),
             &search,
             limits,
@@ -987,9 +1015,9 @@ fn search_single_seed(
 
     if mem_trace {
         eprintln!(
-            "mem_trace seed={} before_drop best={} positions={} {} {}",
+            "mem_trace seed={} before_drop best_pieces={} positions={} {} {}",
             seed_index,
-            best_step,
+            best_piece_count,
             best_positions.len(),
             SearchStatsDisplay(search.stats()),
             ProcStatus::current()
@@ -998,9 +1026,9 @@ fn search_single_seed(
     drop(search);
     if mem_trace {
         eprintln!(
-            "mem_trace seed={} after_drop best={} positions={} {}",
+            "mem_trace seed={} after_drop best_pieces={} positions={} {}",
             seed_index,
-            best_step,
+            best_piece_count,
             best_positions.len(),
             ProcStatus::current()
         );
@@ -1009,7 +1037,7 @@ fn search_single_seed(
     let best = if best_positions.is_empty() {
         None
     } else {
-        Some((best_step, best_positions))
+        Some((best_piece_count, best_positions))
     };
     Ok(SingleSeedResult { best, killer })
 }
@@ -1017,7 +1045,7 @@ fn search_single_seed(
 fn detect_killer_seed(
     seed_index: usize,
     seed: &PositionAux,
-    best_step: u16,
+    best_piece_count: u32,
     best_positions: usize,
     search: &BackwardSearch,
     limits: KillerSeedLimits,
@@ -1038,13 +1066,18 @@ fn detect_killer_seed(
 
     Some(KillerSeed {
         seed_index,
-        best_step,
+        best_piece_count,
         best_positions,
         reason,
         stats,
         proc_status: ProcStatus::current(),
         seed_sfen: seed.sfen(),
     })
+}
+
+fn expected_pieces_range(step: u16, slack: u16) -> (u32, u32) {
+    let expected = step as u32 / 2 + 3;
+    (expected.saturating_sub(slack as u32), expected)
 }
 
 fn satisfies_ideal_smoke_constraints(
@@ -1058,11 +1091,13 @@ fn satisfies_ideal_smoke_constraints(
     if position.turn() != Color::BLACK {
         return false;
     }
-    // Output must always have no black hand pieces and exact board count.
+    // Output must always have no black hand pieces.
     if !position.hands().is_empty(Color::BLACK) {
         return false;
     }
-    if board_piece_count(position) != step as u32 / 2 + 3 {
+    let board = board_piece_count(position);
+    let (min, max) = expected_pieces_range(step, constraints.slack);
+    if board < min || board > max {
         return false;
     }
     satisfies_search_constraints(position, constraints)
@@ -1079,7 +1114,9 @@ fn satisfies_ideal_smoke_generation_constraints(
     if !constraints.allow_white_pieces && !position.hands().is_empty(Color::BLACK) {
         return false;
     }
-    if pieces_in_play(position) != step as u32 / 2 + 3 {
+    let pip = pieces_in_play(position);
+    let (min, max) = expected_pieces_range(step, constraints.slack);
+    if pip < min || pip > max {
         return false;
     }
     satisfies_search_constraints(position, constraints)
@@ -1106,7 +1143,9 @@ fn satisfies_ideal_smoke_undo_candidate(
     if undo_creates_out_of_file_piece(undo_move, constraints.max_file) {
         return false;
     }
-    if pieces_in_play_after_undo(position, undo_move) != next_step as u32 / 2 + 3 {
+    let pip = pieces_in_play_after_undo(position, undo_move);
+    let (min, max) = expected_pieces_range(next_step, constraints.slack);
+    if pip < min || pip > max {
         return false;
     }
     constraints.allow_white_pieces || black_hand_empty_after_undo(position, undo_move)
@@ -1261,26 +1300,26 @@ fn black_hand_is_exactly(position: &PositionAux, expected: Kind) -> bool {
 }
 
 fn log_global_best_if_improved(
-    global_best_step: &AtomicUsize,
+    global_best_piece_count: &AtomicUsize,
     seed_index: usize,
-    step: u16,
+    piece_count: u32,
     positions_len: usize,
     url: &str,
     stats: BackwardSearchStats,
 ) {
-    let step_usize = step as usize;
-    let mut current = global_best_step.load(Ordering::Relaxed);
-    while step_usize > current {
-        match global_best_step.compare_exchange(
+    let pc = piece_count as usize;
+    let mut current = global_best_piece_count.load(Ordering::Relaxed);
+    while pc > current {
+        match global_best_piece_count.compare_exchange(
             current,
-            step_usize,
+            pc,
             Ordering::Relaxed,
             Ordering::Relaxed,
         ) {
             Ok(_) => {
                 eprintln!(
-                    "global_best={} seed={} positions={} {} {} {}",
-                    step,
+                    "global_best_pieces={} seed={} positions={} {} {} {}",
+                    piece_count,
                     seed_index,
                     positions_len,
                     url,
@@ -1371,9 +1410,9 @@ impl fmt::Display for KillerSeedDisplay {
         let killer = &self.0;
         write!(
             f,
-            "seed={} best={} positions={} reason={} {} {} sfen={}",
+            "seed={} best_pieces={} positions={} reason={} {} {} sfen={}",
             killer.seed_index,
-            killer.best_step,
+            killer.best_piece_count,
             killer.best_positions,
             KillerReasonDisplay(&killer.reason),
             SearchStatsDisplay(killer.stats),
@@ -1432,6 +1471,58 @@ impl fmt::Display for ProcStatus {
 
 fn parse_kib_field(value: &str) -> Option<usize> {
     value.split_whitespace().next()?.parse().ok()
+}
+
+fn parse_max_memo_entries(
+    value: Option<&str>,
+    parallel: usize,
+) -> anyhow::Result<Option<usize>> {
+    match value {
+        None => Ok(None),
+        Some("auto") => {
+            let total_cores = default_parallelism();
+            let entries = memo_entries_for_memory(total_cores);
+            eprintln!(
+                "auto max_memo_entries={} (parallel={} total_cores={})",
+                entries, parallel, total_cores
+            );
+            Ok(Some(entries))
+        }
+        Some("full") => {
+            let entries = memo_entries_for_memory(parallel);
+            eprintln!("full max_memo_entries={} (parallel={})", entries, parallel);
+            Ok(Some(entries))
+        }
+        Some(s) => Ok(Some(
+            s.parse::<usize>()
+                .context("max-memo-entries must be a number, \"auto\", or \"full\"")?,
+        )),
+    }
+}
+
+fn memo_entries_for_memory(divisor: usize) -> usize {
+    let total_bytes = total_memory_bytes();
+    // Reserve 20% for OS, frontier, positions, etc.
+    let available = total_bytes * 4 / 5;
+    let per_worker = available / divisor.max(1);
+    // Each BackwardSearch has memo + prev_memo.
+    // NoHashMap64<StepRange> entry: u64 key (8B) + StepRange (8B) + HashMap overhead ≈ 32B
+    let bytes_per_entry = 32;
+    per_worker / bytes_per_entry
+}
+
+fn total_memory_bytes() -> usize {
+    let Ok(content) = fs::read_to_string("/proc/meminfo") else {
+        return 8 * 1024 * 1024 * 1024; // fallback 8GB
+    };
+    for line in content.lines() {
+        if let Some(value) = line.strip_prefix("MemTotal:") {
+            if let Some(kb) = parse_kib_field(value) {
+                return kb * 1024;
+            }
+        }
+    }
+    8 * 1024 * 1024 * 1024
 }
 
 #[cfg(test)]
