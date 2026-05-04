@@ -31,6 +31,8 @@ pub enum SingleKingSmokeCommand {
         parallel: Option<usize>,
         #[arg(long)]
         max_file: Option<u8>,
+        #[arg(long)]
+        max_rank: Option<u8>,
     },
     #[command(name = "ideal-backward")]
     IdealBackward {
@@ -60,6 +62,8 @@ pub enum SingleKingSmokeCommand {
         no_pawn: bool,
         #[arg(long)]
         max_file: Option<u8>,
+        #[arg(long)]
+        max_rank: Option<u8>,
         #[arg(long, default_value_t = false)]
         allow_white_pieces: bool,
         #[arg(long, default_value_t = 1)]
@@ -73,10 +77,15 @@ pub enum SingleKingSmokeCommand {
 
 pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
     match cmd {
-        SingleKingSmokeCommand::Final2 { parallel, max_file } => enumerate_final_2(
+        SingleKingSmokeCommand::Final2 {
+            parallel,
+            max_file,
+            max_rank,
+        } => enumerate_final_2(
             parallel,
             SearchConstraints {
                 max_file,
+                max_rank,
                 ..Default::default()
             },
         ),
@@ -92,6 +101,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             no_gold,
             no_pawn,
             max_file,
+            max_rank,
             allow_white_pieces,
             inner_parallel,
             mem_trace,
@@ -114,6 +124,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 no_gold,
                 no_pawn,
                 max_file,
+                max_rank,
                 allow_white_pieces,
                 slack,
             },
@@ -363,7 +374,7 @@ fn enumerate_for_white_king(
         max_allowed_branches: Some(0),
     };
 
-    if !square_satisfies_file_constraint(white_king, constraints.max_file) {
+    if !square_in_bounds(white_king, constraints) {
         return results;
     }
     for &(kind1, kind2) in kind_pairs {
@@ -373,7 +384,7 @@ fn enumerate_for_white_king(
             if sq1 == white_king {
                 continue;
             }
-            if !square_satisfies_file_constraint(sq1, constraints.max_file) {
+            if !square_in_bounds(sq1, constraints) {
                 continue;
             }
             let sq2_iter: Box<dyn Iterator<Item = Square>> = if kind1 == kind2 {
@@ -385,7 +396,7 @@ fn enumerate_for_white_king(
                 if sq2 == white_king || sq2 == sq1 {
                     continue;
                 }
-                if !square_satisfies_file_constraint(sq2, constraints.max_file) {
+                if !square_in_bounds(sq2, constraints) {
                     continue;
                 }
                 if kind1 == Kind::Pawn && kind2 == Kind::Pawn && sq1.col() == sq2.col() {
@@ -560,6 +571,8 @@ struct SearchConstraints {
     no_pawn: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     max_file: Option<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_rank: Option<u8>,
     #[serde(default)]
     allow_white_pieces: bool,
     #[serde(default)]
@@ -1140,7 +1153,7 @@ fn satisfies_ideal_smoke_undo_candidate(
     if constraints.no_pawn && undo_creates_pawn(position, undo_move) {
         return false;
     }
-    if undo_creates_out_of_file_piece(undo_move, constraints.max_file) {
+    if undo_creates_out_of_bounds_piece(undo_move, constraints) {
         return false;
     }
     let pip = pieces_in_play_after_undo(position, undo_move);
@@ -1157,6 +1170,11 @@ fn validate_search_constraints(constraints: SearchConstraints) -> anyhow::Result
             bail!("max-file must be between 1 and 9");
         }
     }
+    if let Some(max_rank) = constraints.max_rank {
+        if !(1..=9).contains(&max_rank) {
+            bail!("max-rank must be between 1 and 9");
+        }
+    }
     Ok(())
 }
 
@@ -1168,17 +1186,24 @@ fn satisfies_search_constraints(position: &PositionAux, constraints: SearchConst
         return false;
     }
     for square in Square::iter() {
-        if position.get(square).is_some()
-            && !square_satisfies_file_constraint(square, constraints.max_file)
-        {
+        if position.get(square).is_some() && !square_in_bounds(square, constraints) {
             return false;
         }
     }
     true
 }
 
+fn square_in_bounds(square: Square, constraints: SearchConstraints) -> bool {
+    square_satisfies_file_constraint(square, constraints.max_file)
+        && square_satisfies_rank_constraint(square, constraints.max_rank)
+}
+
 fn square_satisfies_file_constraint(square: Square, max_file: Option<u8>) -> bool {
     max_file.is_none_or(|max_file| square.col() < max_file as usize)
+}
+
+fn square_satisfies_rank_constraint(square: Square, max_rank: Option<u8>) -> bool {
+    max_rank.is_none_or(|max_rank| square.row() >= 9 - max_rank as usize)
 }
 
 fn board_gold_count(position: &PositionAux) -> u32 {
@@ -1241,10 +1266,13 @@ fn undo_creates_pawn(position: &PositionAux, undo_move: &UndoMove) -> bool {
     }
 }
 
-fn undo_creates_out_of_file_piece(undo_move: &UndoMove, max_file: Option<u8>) -> bool {
+fn undo_creates_out_of_bounds_piece(
+    undo_move: &UndoMove,
+    constraints: SearchConstraints,
+) -> bool {
     match undo_move {
         UndoMove::UnDrop(_, _) => false,
-        UndoMove::UnMove { source, .. } => !square_satisfies_file_constraint(*source, max_file),
+        UndoMove::UnMove { source, .. } => !square_in_bounds(*source, constraints),
     }
 }
 
@@ -1505,9 +1533,10 @@ fn memo_entries_for_memory(divisor: usize) -> usize {
     // Reserve 20% for OS, frontier, positions, etc.
     let available = total_bytes * 4 / 5;
     let per_worker = available / divisor.max(1);
-    // Each BackwardSearch has memo + prev_memo.
-    // NoHashMap64<StepRange> entry: u64 key (8B) + StepRange (8B) + HashMap overhead ≈ 32B
-    let bytes_per_entry = 32;
+    // Each entry: u64 key (8B) + StepRange (8B) + HashMap overhead (~10B avg).
+    // Use 64B/entry to account for rehash peak (old + new table coexist) and
+    // miscellaneous overhead (frontier vec, candidate buffer, etc.).
+    let bytes_per_entry = 64;
     per_worker / bytes_per_entry
 }
 
@@ -1686,6 +1715,23 @@ mod tests {
         inside.set(Square::S19, Color::WHITE, Kind::King);
         let mut outside = inside.clone();
         outside.set(Square::S51, Color::BLACK, Kind::Bishop);
+
+        assert!(satisfies_search_constraints(&inside, constraints));
+        assert!(!satisfies_search_constraints(&outside, constraints));
+    }
+
+    #[test]
+    fn max_rank_constraint_restricts_board_squares() {
+        // max_rank=7 keeps ranks 3-9 (rows 2-8). S11 is rank 1 (row 0) -> outside.
+        let constraints = SearchConstraints {
+            max_rank: Some(7),
+            ..Default::default()
+        };
+        let mut inside = PositionAux::default();
+        inside.set(Square::S13, Color::BLACK, Kind::Bishop);
+        inside.set(Square::S19, Color::WHITE, Kind::King);
+        let mut outside = inside.clone();
+        outside.set(Square::S11, Color::BLACK, Kind::Bishop);
 
         assert!(satisfies_search_constraints(&inside, constraints));
         assert!(!satisfies_search_constraints(&outside, constraints));
