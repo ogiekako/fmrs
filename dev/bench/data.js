@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777879816896,
+  "lastUpdate": 1777889814095,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -27977,6 +27977,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 83332,
             "range": "± 15",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "a119b3bb97b0332f1a4efe9a3931ecbaac5dc9b5",
+          "message": "max-memo-entries をデフォルト無制限に変更\n\n指定なしなら shrink_memo が走らないようにする。\n従来のデフォルト 50M entries での暗黙的な eviction をやめ、\n明示的に --max-memo-entries を指定した場合のみ発動する。\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-04T19:09:31+09:00",
+          "tree_id": "b33ddc49d73cee05264678e1addd4031043b8288",
+          "url": "https://github.com/ogiekako/fmrs/commit/a119b3bb97b0332f1a4efe9a3931ecbaac5dc9b5"
+        },
+        "date": 1777889811823,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 987,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3539,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 317,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 978,
+            "range": "± 1729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 35099,
+            "range": "± 143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1428,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5412,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1999816,
+            "range": "± 187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13582,
+            "range": "± 106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 38512,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4757,
+            "range": "± 58",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23809,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83774,
+            "range": "± 6",
             "unit": "ns/iter"
           }
         ]
