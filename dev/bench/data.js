@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777814505932,
+  "lastUpdate": 1777879816896,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -27875,6 +27875,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 82370,
             "range": "± 26",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "e5b755b35c1172929329e33d8c38aadd4f5a8924",
+          "message": "単玉煙逆算コマンドを整理",
+          "timestamp": "2026-05-04T16:21:57+09:00",
+          "tree_id": "3178f71513f3dfc7088aa9ad8c1f0144ea63b15a",
+          "url": "https://github.com/ogiekako/fmrs/commit/e5b755b35c1172929329e33d8c38aadd4f5a8924"
+        },
+        "date": 1777879814524,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 943,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3791,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 319,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 989,
+            "range": "± 1840",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 36291,
+            "range": "± 212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1504,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5698,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 2021873,
+            "range": "± 160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 14244,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 38651,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4720,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 24701,
+            "range": "± 192",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83332,
+            "range": "± 15",
             "unit": "ns/iter"
           }
         ]
