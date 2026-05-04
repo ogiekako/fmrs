@@ -14,7 +14,7 @@ pub use single_king_smoke::{single_king_smoke, SingleKingSmokeCommand};
 pub use solve::solve;
 use url::Url;
 
-fn parse_to_sfen(sfen_or_file_or_url: &str) -> anyhow::Result<String> {
+pub(crate) fn parse_to_sfen(sfen_or_file_or_url: &str) -> anyhow::Result<String> {
     Ok(match sfen_or_file_or_url {
         x if x.ends_with(".sfen") => std::fs::read_to_string(x)?,
         x if x.starts_with("http") => {

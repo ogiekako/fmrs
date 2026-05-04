@@ -149,7 +149,8 @@ fn ideal_backward(
         bail!("parallel must be positive");
     }
     validate_search_constraints(constraints)?;
-    let seeds = if let Some(sfen) = seed_sfen {
+    let seeds = if let Some(sfen_like) = seed_sfen {
+        let sfen = super::parse_to_sfen(&sfen_like)?;
         let position = PositionAux::from_sfen(&sfen)
             .with_context(|| format!("invalid seed sfen: {sfen}"))?;
         vec![(0, position)]
@@ -1075,17 +1076,11 @@ fn satisfies_ideal_smoke_generation_constraints(
     if step == 0 {
         return satisfies_search_constraints(position, constraints);
     }
-    if constraints.allow_white_pieces {
-        if pieces_in_play(position) != step as u32 / 2 + 3 {
-            return false;
-        }
-    } else {
-        if !position.hands().is_empty(Color::BLACK) {
-            return false;
-        }
-        if board_piece_count(position) != step as u32 / 2 + 3 {
-            return false;
-        }
+    if !constraints.allow_white_pieces && !position.hands().is_empty(Color::BLACK) {
+        return false;
+    }
+    if pieces_in_play(position) != step as u32 / 2 + 3 {
+        return false;
     }
     satisfies_search_constraints(position, constraints)
 }
@@ -1111,17 +1106,10 @@ fn satisfies_ideal_smoke_undo_candidate(
     if undo_creates_out_of_file_piece(undo_move, constraints.max_file) {
         return false;
     }
-    if constraints.allow_white_pieces {
-        if pieces_in_play_after_undo(position, undo_move) != next_step as u32 / 2 + 3 {
-            return false;
-        }
-        true
-    } else {
-        if board_piece_count_after_undo(position, undo_move) != next_step as u32 / 2 + 3 {
-            return false;
-        }
-        black_hand_empty_after_undo(position, undo_move)
+    if pieces_in_play_after_undo(position, undo_move) != next_step as u32 / 2 + 3 {
+        return false;
     }
+    constraints.allow_white_pieces || black_hand_empty_after_undo(position, undo_move)
 }
 
 fn validate_search_constraints(constraints: SearchConstraints) -> anyhow::Result<()> {

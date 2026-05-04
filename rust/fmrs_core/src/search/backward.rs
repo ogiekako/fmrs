@@ -707,8 +707,6 @@ impl BackwardSearch {
         Ok(true)
     }
 
-
-
     pub fn step(&self) -> u16 {
         self.step
     }
