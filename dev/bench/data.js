@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777889814095,
+  "lastUpdate": 1777892286141,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28079,6 +28079,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 83774,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "786dca81d00f81feb13c4618258fd65cbe0b4061",
+          "message": "slack モードと max-memo-entries auto/full を追加\n\n- --slack N: 玉方が攻め方の駒を取らない手を N 回まで許容。\n  制約を pieces_in_play == exact から range [exact-N, exact] に緩和。\n  最適化対象を手数から初期局面の駒数(board_piece_count)に変更。\n- --max-memo-entries auto: メモリの parallel/total_cores 分を使用。\n  残りコアで別プロセスが走っても OOM しない。\n- --max-memo-entries full: メモリ全体(80%)をこのプロセスが占有。\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-04T19:50:39+09:00",
+          "tree_id": "8340a234b394733e6a346eb7fb94d636c66e5995",
+          "url": "https://github.com/ogiekako/fmrs/commit/786dca81d00f81feb13c4618258fd65cbe0b4061"
+        },
+        "date": 1777892283747,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 908,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3398,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 313,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1075,
+            "range": "± 1871",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32374,
+            "range": "± 168",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1424,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5271,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1848627,
+            "range": "± 262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13536,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37036,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4504,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22838,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81732,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
