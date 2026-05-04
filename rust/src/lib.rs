@@ -6,7 +6,7 @@ use command::{
     batch_square::batch_square,
     bench::BenchCommand,
     magic::{gen_magic, MagicAttribute},
-    OneWayMateGenerator,
+    OneWayMateGenerator, SingleKingSmokeCommand,
 };
 use solver::Algorithm;
 
@@ -54,18 +54,30 @@ enum Action {
         filter_file: Option<String>,
     },
     Backward {
-        sfen_like: String,
+        sfen_like: Option<String>,
         #[arg(long, default_value = "0")]
         forward: usize,
-        #[arg(long, default_value = "1")]
-        parallel: usize,
+        #[arg(long)]
+        parallel: Option<usize>,
         #[arg(long, default_value_t = false)]
         allow_white: bool,
         #[arg(long, default_value_t = false)]
         one_way: bool,
+        #[arg(long, default_value_t = false)]
+        no_black_goldish: bool,
+        #[arg(long, default_value_t = false)]
+        bare_white_king: bool,
+        #[arg(long)]
+        dump_frontier_dir: Option<String>,
+        #[arg(long)]
+        resume_frontier: Option<String>,
     },
     GenMagic {
         attr: MagicAttribute,
+    },
+    SingleKingSmoke {
+        #[command(subcommand)]
+        cmd: SingleKingSmokeCommand,
     },
 }
 
@@ -101,8 +113,23 @@ pub async fn do_main() -> anyhow::Result<()> {
             parallel,
             allow_white,
             one_way,
-        } => backward(&sfen_like, forward, parallel, !allow_white, one_way)?,
+            no_black_goldish,
+            bare_white_king,
+            dump_frontier_dir,
+            resume_frontier,
+        } => backward(
+            sfen_like.as_deref(),
+            forward,
+            parallel,
+            !allow_white,
+            one_way,
+            no_black_goldish,
+            bare_white_king,
+            dump_frontier_dir.as_deref(),
+            resume_frontier.as_deref(),
+        )?,
         Action::GenMagic { attr } => gen_magic(attr)?,
+        Action::SingleKingSmoke { cmd } => command::single_king_smoke(cmd)?,
     }
     Ok(())
 }

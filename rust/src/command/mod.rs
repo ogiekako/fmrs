@@ -4,11 +4,13 @@ pub mod bench;
 pub mod magic;
 mod one_way_mate;
 mod server;
+mod single_king_smoke;
 mod solve;
 
 pub use bench::bench;
 pub use one_way_mate::{one_way_mate, OneWayMateGenerator};
 pub use server::server;
+pub use single_king_smoke::{single_king_smoke, SingleKingSmokeCommand};
 pub use solve::solve;
 use url::Url;
 

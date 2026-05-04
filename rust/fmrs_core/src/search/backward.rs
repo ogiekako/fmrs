@@ -3,13 +3,14 @@ use std::{ops::Range, sync::Arc};
 use anyhow::bail;
 use log::{debug, info};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     nohash::NoHashMap64,
-    piece::Color,
+    piece::{Color, Kind},
     position::{
         advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
-        Position,
+        Position, UndoMove,
     },
     solve::standard_solve::standard_solve,
 };
@@ -59,6 +60,8 @@ pub fn backward_search_with_progress(
         forward,
         1,
         one_way,
+        false,
+        false,
         progress,
     )
 }
@@ -69,6 +72,8 @@ pub fn backward_search_with_progress_and_parallel(
     forward: usize,
     parallel: usize,
     one_way: bool,
+    no_black_goldish: bool,
+    bare_white_king: bool,
     mut progress: impl FnMut(u16, usize, String),
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
     let mut best = (0, NoHashMap64::default());
@@ -81,6 +86,8 @@ pub fn backward_search_with_progress_and_parallel(
             forward,
             parallel,
             one_way,
+            no_black_goldish,
+            bare_white_king,
             &mut progress,
         ) {
             Ok((step, positions)) => merge_backward_results(&mut best, step, positions),
@@ -104,9 +111,12 @@ fn backward_search_single(
     forward: usize,
     parallel: usize,
     one_way: bool,
+    no_black_goldish: bool,
+    bare_white_king: bool,
     progress: &mut impl FnMut(u16, usize, String),
 ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
-    let mut search = BackwardSearch::new_with_parallel(initial_position, one_way, parallel)?;
+    let mut search =
+        BackwardSearch::new_with_parallel(initial_position, one_way, parallel, no_black_goldish)?;
 
     let initial_step = search.solution.len() as u16;
     let mut last_logged_step = search.step;
@@ -155,7 +165,56 @@ fn backward_search_single(
         } else {
             search.step
         };
-        if step < best.0 {
+
+        let mut positions = search
+            .positions
+            .iter()
+            .filter(|p| !p.pawn_drop())
+            .map(|p| PositionAux::new(p.clone(), *initial_position.stone()))
+            .collect::<Vec<_>>();
+
+        let mut output_positions = Vec::new();
+        if !black_position || search.step % 2 == 1 || search.step == 0 {
+            for p in positions.iter_mut() {
+                if !satisfies_backward_constraints(p, no_black_goldish) {
+                    continue;
+                }
+                if !satisfies_output_constraints(p, bare_white_king) {
+                    continue;
+                }
+                output_positions.push(p.clone());
+            }
+        } else {
+            let mut black_positions = vec![];
+            for p in positions.iter_mut() {
+                debug_assert_eq!(p.turn(), Color::WHITE);
+                let mut movements = vec![];
+                advance_aux(p, &Default::default(), &mut movements)?;
+                for m in movements.iter() {
+                    let digest = p.moved_digest(m);
+                    if search
+                        .prev_memo
+                        .get(&digest)
+                        .map_or(false, |x| x.is_uniquely(search.step - 1))
+                    {
+                        let mut np = p.clone();
+                        np.do_move(m);
+                        if !satisfies_backward_constraints(&np, no_black_goldish) {
+                            continue;
+                        }
+                        if !satisfies_output_constraints(&np, bare_white_king) {
+                            continue;
+                        }
+                        black_positions.push(np);
+                    }
+                }
+            }
+            for p in black_positions {
+                output_positions.push(p);
+            }
+        }
+
+        if output_positions.is_empty() || step < best.0 {
             continue;
         }
         if step > best.0 {
@@ -168,41 +227,8 @@ fn backward_search_single(
                 PositionAux::new(search.positions[0].clone(), *initial_position.stone()).sfen_url()
             );
         }
-
-        let mut positions = search
-            .positions
-            .iter()
-            .filter(|p| !p.pawn_drop())
-            .map(|p| PositionAux::new(p.clone(), *initial_position.stone()))
-            .collect::<Vec<_>>();
-
-        if !black_position || search.step % 2 == 1 || search.step == 0 {
-            for p in positions.iter_mut() {
-                best.1.insert(p.digest(), p.clone());
-            }
-            continue;
-        }
-
-        let mut black_positions = vec![];
-        for p in positions.iter_mut() {
-            debug_assert_eq!(p.turn(), Color::WHITE);
-            let mut movements = vec![];
-            advance_aux(p, &Default::default(), &mut movements)?;
-            for m in movements.iter() {
-                let digest = p.moved_digest(m);
-                if search
-                    .prev_memo
-                    .get(&digest)
-                    .map_or(false, |x| x.is_uniquely(search.step - 1))
-                {
-                    let mut np = p.clone();
-                    np.do_move(m);
-                    black_positions.push(np);
-                }
-            }
-        }
-        for p in black_positions.iter_mut() {
-            best.1.insert(p.digest(), p.clone());
+        for p in output_positions {
+            best.1.insert(p.digest(), p);
         }
     }
     let mut positions = best.1.into_values().collect::<Vec<_>>();
@@ -238,20 +264,47 @@ pub struct BackwardSearch {
     stone: Option<BitBoard>,
     step: u16,
     one_way: bool,
+    no_black_goldish: bool,
     parallel: usize,
     pool: Option<rayon::ThreadPool>,
+    memo_entry_limit: Option<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackwardSearchStats {
+    pub step: u16,
+    pub seen_positions: usize,
+    pub positions_len: usize,
+    pub prev_positions_len: usize,
+    pub memo_len: usize,
+    pub prev_memo_len: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BackwardSearchResumeState {
+    pub initial_position_sfen: String,
+    pub remaining_solution_moves: Vec<String>,
+    pub frontier_sfens: Vec<String>,
+    pub step: u16,
+    pub one_way: bool,
+    pub no_black_goldish: bool,
 }
 
 impl BackwardSearch {
     pub fn new(initial_position: &PositionAux, one_way: bool) -> anyhow::Result<Self> {
-        Self::new_with_parallel(initial_position, one_way, 1)
+        Self::new_with_parallel(initial_position, one_way, 1, false)
     }
 
     pub fn new_with_parallel(
         initial_position: &PositionAux,
         one_way: bool,
         parallel: usize,
+        no_black_goldish: bool,
     ) -> anyhow::Result<Self> {
+        if !satisfies_backward_constraints(initial_position, no_black_goldish) {
+            bail!("Initial position has a black goldish piece");
+        }
+
         let mut solution = standard_solve(initial_position.clone(), 2, true)?.solutions();
         if solution.len() != 1 {
             bail!("Not unique: {}", solution.len());
@@ -310,9 +363,71 @@ impl BackwardSearch {
             stone: *initial_position.stone(),
             step,
             one_way,
+            no_black_goldish,
             parallel,
             pool,
+            memo_entry_limit: None,
         })
+    }
+
+    pub fn from_resume_state(
+        state: &BackwardSearchResumeState,
+        parallel: usize,
+    ) -> anyhow::Result<Self> {
+        let initial_position = PositionAux::from_sfen(&state.initial_position_sfen)?;
+        let positions = state
+            .frontier_sfens
+            .iter()
+            .map(|sfen| PositionAux::from_sfen(sfen).map(|p| p.core().clone()))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let solution = state
+            .remaining_solution_moves
+            .iter()
+            .map(|mv| crate::sfen::decode_move(mv))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+
+        let parallel = parallel.clamp(1, MAX_BACKWARD_PARALLEL);
+        let pool = if parallel > 1 {
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(parallel)
+                    .build()?,
+            )
+        } else {
+            None
+        };
+
+        Ok(BackwardSearch {
+            initial_position: initial_position.clone(),
+            solution,
+            seen_positions: 0,
+            positions,
+            prev_positions: vec![],
+            memo: NoHashMap64::default(),
+            prev_memo: NoHashMap64::default(),
+            stone: *initial_position.stone(),
+            step: state.step,
+            one_way: state.one_way,
+            no_black_goldish: state.no_black_goldish,
+            parallel,
+            pool,
+            memo_entry_limit: None,
+        })
+    }
+
+    pub fn resume_state(&self) -> BackwardSearchResumeState {
+        BackwardSearchResumeState {
+            initial_position_sfen: self.initial_position.sfen(),
+            remaining_solution_moves: self.solution.iter().map(crate::sfen::encode_move).collect(),
+            frontier_sfens: self
+                .positions
+                .iter()
+                .map(|p| PositionAux::new(p.clone(), self.stone).sfen())
+                .collect(),
+            step: self.step,
+            one_way: self.one_way,
+            no_black_goldish: self.no_black_goldish,
+        }
     }
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
@@ -322,6 +437,10 @@ impl BackwardSearch {
         self.advance_upto(usize::MAX / 2)
     }
 
+    pub fn set_memo_entry_limit(&mut self, max_entries: Option<usize>) {
+        self.memo_entry_limit = max_entries.map(|limit| (limit / 2).max(1));
+    }
+
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
         self.advance_upto_with_filter(upto, |_, _| true)
     }
@@ -329,6 +448,19 @@ impl BackwardSearch {
     pub fn advance_upto_with_filter(
         &mut self,
         upto: usize,
+        mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
+    ) -> anyhow::Result<bool> {
+        self.advance_upto_with_candidate_filter(
+            upto,
+            |_, _| true,
+            |position, stone| filter(position, stone),
+        )
+    }
+
+    pub fn advance_upto_with_candidate_filter(
+        &mut self,
+        upto: usize,
+        mut candidate_filter: impl FnMut(&PositionAux, &UndoMove) -> bool,
         mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
     ) -> anyhow::Result<bool> {
         let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
@@ -341,10 +473,16 @@ impl BackwardSearch {
             previous(&mut position, self.step > 0, &mut undo_moves);
 
             for m in undo_moves.iter() {
+                if !candidate_filter(&position, m) {
+                    continue;
+                }
                 let mut pp = position.clone();
                 pp.undo_move(m);
 
                 if !is_backward_candidate_legal(&mut pp) {
+                    continue;
+                }
+                if !satisfies_backward_constraints(&pp, self.no_black_goldish) {
                     continue;
                 }
 
@@ -376,22 +514,25 @@ impl BackwardSearch {
                     continue;
                 }
 
+                let mate_in = self.step + 1;
                 let pp_digest = pp.digest();
-                let ans =
-                    if let Some(ans) = self.prev_memo.get(&pp_digest).filter(|ans| {
-                        !ans.needs_investigation(self.step + 1)
-                    }) {
-                        *ans
-                    } else {
-                        solutions(
-                            &mut pp,
-                            &mut self.prev_memo,
-                            &mut self.memo,
-                            self.step + 1,
-                            &mut solution_scratch,
-                        )
-                    };
-                if ans.is_uniquely(self.step + 1) {
+                let ans = if let Some(ans) = self
+                    .prev_memo
+                    .get(&pp_digest)
+                    .filter(|ans| !ans.needs_investigation(mate_in))
+                {
+                    *ans
+                } else {
+                    solutions(
+                        &mut pp,
+                        &mut self.prev_memo,
+                        &mut self.memo,
+                        mate_in,
+                        &mut solution_scratch,
+                        self.memo_entry_limit,
+                    )
+                };
+                if ans.is_uniquely(mate_in) {
                     #[cfg(debug_assertions)]
                     {
                         let sol = standard_solve(pp.clone(), 2, true).unwrap().solutions();
@@ -444,11 +585,7 @@ impl BackwardSearch {
         let step = self.step;
         let stone = self.stone;
         let position_parallel = self.parallel.min(self.positions.len());
-        let position_chunk_size = self
-            .positions
-            .len()
-            .div_ceil(position_parallel * 8)
-            .max(1);
+        let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
         let pool = self.pool.as_ref().expect("parallel pool");
         let candidate_chunks = pool.install(|| {
             self.positions
@@ -466,6 +603,9 @@ impl BackwardSearch {
                             let mut pp = position.clone();
                             pp.undo_move(m);
                             if !is_backward_candidate_legal(&mut pp) {
+                                continue;
+                            }
+                            if !satisfies_backward_constraints(&pp, self.no_black_goldish) {
                                 continue;
                             }
                             candidates.push(pp.core().clone());
@@ -505,9 +645,8 @@ impl BackwardSearch {
                     for core in chunk.iter() {
                         let mut pp = PositionAux::new(core.clone(), stone);
                         let pp_digest = pp.digest();
-                        if let Some(ans) =
-                            get_overlay(&prev_memo_delta, &prev_memo, pp_digest)
-                                .filter(|ans| !ans.needs_investigation(step + 1))
+                        if let Some(ans) = get_overlay(&prev_memo_delta, &prev_memo, pp_digest)
+                            .filter(|ans| !ans.needs_investigation(step + 1))
                         {
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
@@ -563,6 +702,156 @@ impl BackwardSearch {
 
     pub fn positions(&self) -> (/* stone */ Option<BitBoard>, &[Position]) {
         (self.stone, &self.positions)
+    }
+
+    pub fn stats(&self) -> BackwardSearchStats {
+        BackwardSearchStats {
+            step: self.step,
+            seen_positions: self.seen_positions,
+            positions_len: self.positions.len(),
+            prev_positions_len: self.prev_positions.len(),
+            memo_len: self.memo.len(),
+            prev_memo_len: self.prev_memo.len(),
+        }
+    }
+
+    pub fn output_positions(
+        &self,
+        black_position: bool,
+        bare_white_king: bool,
+    ) -> anyhow::Result<(u16, Vec<PositionAux>)> {
+        let step = if self.step > 0 && self.step % 2 == 0 && black_position {
+            self.step - 1
+        } else {
+            self.step
+        };
+
+        let positions = self
+            .positions
+            .iter()
+            .filter(|p| !p.pawn_drop())
+            .map(|p| PositionAux::new(p.clone(), self.stone))
+            .collect::<Vec<_>>();
+
+        let mut output_positions = vec![];
+        if !black_position || self.step % 2 == 1 || self.step == 0 {
+            if let Some(pool) = self.pool.as_ref().filter(|_| positions.len() > 1) {
+                let parallel = self.parallel.min(positions.len());
+                let chunk_size = positions.len().div_ceil(parallel * 8).max(1);
+                let chunks = pool.install(|| {
+                    positions
+                        .par_chunks(chunk_size)
+                        .map(|chunk| {
+                            let mut out = Vec::new();
+                            for p in chunk.iter() {
+                                if !satisfies_backward_constraints(p, self.no_black_goldish) {
+                                    continue;
+                                }
+                                if !satisfies_output_constraints(p, bare_white_king) {
+                                    continue;
+                                }
+                                out.push(p.clone());
+                            }
+                            out
+                        })
+                        .collect::<Vec<_>>()
+                });
+                for chunk in chunks {
+                    output_positions.extend(chunk);
+                }
+            } else {
+                for p in positions.iter() {
+                    if !satisfies_backward_constraints(p, self.no_black_goldish) {
+                        continue;
+                    }
+                    if !satisfies_output_constraints(p, bare_white_king) {
+                        continue;
+                    }
+                    output_positions.push(p.clone());
+                }
+            }
+        } else {
+            let desired_step = self.step - 1;
+            if let Some(pool) = self.pool.as_ref().filter(|_| positions.len() > 1) {
+                let parallel = self.parallel.min(positions.len());
+                let chunk_size = positions.len().div_ceil(parallel * 8).max(1);
+                let prev_memo = &self.prev_memo;
+                let chunks = pool.install(|| {
+                    positions
+                        .par_chunks(chunk_size)
+                        .map(|chunk| -> anyhow::Result<Vec<PositionAux>> {
+                            let mut out = Vec::new();
+                            for p in chunk.iter() {
+                                debug_assert_eq!(p.turn(), Color::WHITE);
+                                let mut position = p.clone();
+                                let mut movements = vec![];
+                                advance_aux(&mut position, &Default::default(), &mut movements)?;
+                                for m in movements.iter() {
+                                    let digest = position.moved_digest(m);
+                                    let unique = if let Some(range) = prev_memo.get(&digest) {
+                                        range.is_uniquely(desired_step)
+                                    } else {
+                                        let mut np = position.clone();
+                                        np.do_move(m);
+                                        let sols = standard_solve(np, 2, true)?.solutions();
+                                        sols.len() == 1 && sols[0].len() == desired_step as usize
+                                    };
+                                    if !unique {
+                                        continue;
+                                    }
+                                    let mut np = position.clone();
+                                    np.do_move(m);
+                                    if !satisfies_backward_constraints(&np, self.no_black_goldish) {
+                                        continue;
+                                    }
+                                    if !satisfies_output_constraints(&np, bare_white_king) {
+                                        continue;
+                                    }
+                                    out.push(np);
+                                }
+                            }
+                            Ok(out)
+                        })
+                        .collect::<Vec<_>>()
+                });
+                for chunk in chunks {
+                    output_positions.extend(chunk?);
+                }
+            } else {
+                for p in positions.iter() {
+                    debug_assert_eq!(p.turn(), Color::WHITE);
+                    let mut position = p.clone();
+                    let mut movements = vec![];
+                    advance_aux(&mut position, &Default::default(), &mut movements)?;
+                    for m in movements.iter() {
+                        let digest = position.moved_digest(m);
+                        let unique = if let Some(range) = self.prev_memo.get(&digest) {
+                            range.is_uniquely(desired_step)
+                        } else {
+                            let mut np = position.clone();
+                            np.do_move(m);
+                            let sols = standard_solve(np, 2, true)?.solutions();
+                            sols.len() == 1 && sols[0].len() == desired_step as usize
+                        };
+                        if !unique {
+                            continue;
+                        }
+                        let mut np = position.clone();
+                        np.do_move(m);
+                        if !satisfies_backward_constraints(&np, self.no_black_goldish) {
+                            continue;
+                        }
+                        if !satisfies_output_constraints(&np, bare_white_king) {
+                            continue;
+                        }
+                        output_positions.push(np);
+                    }
+                }
+            }
+        }
+
+        output_positions.sort_by_key(|p| p.sfen());
+        Ok((step, output_positions))
     }
 
     pub fn forward(&mut self) {
@@ -622,6 +911,30 @@ fn is_backward_candidate_legal(position: &mut PositionAux) -> bool {
     true
 }
 
+#[inline(always)]
+fn satisfies_backward_constraints(position: &PositionAux, no_black_goldish: bool) -> bool {
+    !no_black_goldish || black_goldish(position).is_empty()
+}
+
+#[inline(always)]
+fn black_goldish(position: &PositionAux) -> BitBoard {
+    position.bitboard(Color::BLACK, Kind::Gold)
+        | position.bitboard(Color::BLACK, Kind::ProPawn)
+        | position.bitboard(Color::BLACK, Kind::ProLance)
+        | position.bitboard(Color::BLACK, Kind::ProKnight)
+        | position.bitboard(Color::BLACK, Kind::ProSilver)
+}
+
+#[inline(always)]
+fn satisfies_output_constraints(position: &PositionAux, bare_white_king: bool) -> bool {
+    !bare_white_king || is_bare_white_king(position)
+}
+
+#[inline(always)]
+fn is_bare_white_king(position: &PositionAux) -> bool {
+    position.white_bb() == position.bitboard(Color::WHITE, Kind::King)
+}
+
 const INF_START: u16 = u16::MAX - 2;
 const INF_END: u16 = u16::MAX - 1;
 
@@ -631,11 +944,19 @@ fn solutions(
     next_memo: &mut NoHashMap64<StepRange>,
     mate_in: u16,
     scratch: &mut Vec<Vec<Movement>>,
+    memo_entry_limit: Option<usize>,
 ) -> StepRange {
     if scratch.len() <= mate_in as usize {
         scratch.resize_with(mate_in as usize + 1, Vec::new);
     }
-    solutions_inner(position, memo, next_memo, mate_in, scratch)
+    solutions_inner(
+        position,
+        memo,
+        next_memo,
+        mate_in,
+        scratch,
+        memo_entry_limit,
+    )
 }
 
 fn solutions_inner(
@@ -644,6 +965,7 @@ fn solutions_inner(
     next_memo: &mut NoHashMap64<StepRange>,
     mate_in: u16,
     scratch: &mut [Vec<Movement>],
+    memo_entry_limit: Option<usize>,
 ) -> StepRange {
     let mut ans = StepRange::unknown();
     if let Some(a) = memo.get(&position.digest()) {
@@ -671,7 +993,7 @@ fn solutions_inner(
         };
         let ans = ans.intersection(&hint);
         debug_assert!(!ans.needs_investigation(mate_in));
-        memo.insert(position.digest(), ans);
+        memo_insert(memo, position.digest(), ans, memo_entry_limit);
         scratch[0] = movements;
         return ans;
     }
@@ -693,7 +1015,7 @@ fn solutions_inner(
     }
     ans = ans.intersection(&hint);
     if !ans.needs_investigation(mate_in) {
-        memo.insert(position.digest(), ans);
+        memo_insert(memo, position.digest(), ans, memo_entry_limit);
         scratch[scratch_index] = movements;
         return ans;
     }
@@ -711,7 +1033,15 @@ fn solutions_inner(
         } else {
             let mut np = position.clone();
             np.do_move(m);
-            solutions_inner(&mut np, next_memo, memo, mate_in - 1, scratch).inc()
+            solutions_inner(
+                &mut np,
+                next_memo,
+                memo,
+                mate_in - 1,
+                scratch,
+                memo_entry_limit,
+            )
+            .inc()
         };
         debug_assert!(!a.needs_investigation(mate_in));
 
@@ -735,9 +1065,55 @@ fn solutions_inner(
         mate_in
     );
 
-    memo.insert(position.digest(), res);
+    memo_insert(memo, position.digest(), res, memo_entry_limit);
     scratch[scratch_index] = movements;
     res
+}
+
+#[inline(always)]
+fn memo_insert(
+    memo: &mut NoHashMap64<StepRange>,
+    digest: u64,
+    value: StepRange,
+    memo_entry_limit: Option<usize>,
+) {
+    if memo_entry_limit.is_some_and(|limit| memo.len() >= limit) {
+        shrink_memo(memo, memo_entry_limit.unwrap() / 2);
+    }
+    memo.insert(digest, value);
+}
+
+fn shrink_memo(memo: &mut NoHashMap64<StepRange>, target_len: usize) {
+    if memo.len() <= target_len {
+        return;
+    }
+    let mut entries = memo
+        .iter()
+        .map(|(&digest, &range)| (memo_retention_score(digest, range), digest))
+        .collect::<Vec<_>>();
+    entries.sort_unstable_by_key(|&(score, _)| score);
+    for &(_, key) in entries.iter().take(memo.len() - target_len) {
+        memo.remove(&key);
+    }
+}
+
+fn memo_retention_score(digest: u64, range: StepRange) -> u64 {
+    let class = if range.is_unknown() {
+        0
+    } else if range.is_non_zero_hint() {
+        1
+    } else if range.is_unsolvable() {
+        5
+    } else if range.is_exact_shortest() {
+        6
+    } else if range.has_finite_shortest() {
+        4
+    } else {
+        3
+    };
+    let specificity = u32::MAX - range.uncertainty_width();
+    let tie_breaker = digest.wrapping_mul(0x9E37_79B9_7F4A_7C15) >> 48;
+    (class << 56) | ((specificity as u64) << 16) | tie_breaker
 }
 
 #[inline(always)]
@@ -746,7 +1122,10 @@ fn get_overlay(
     base: &NoHashMap64<StepRange>,
     digest: u64,
 ) -> Option<StepRange> {
-    delta.get(&digest).copied().or_else(|| base.get(&digest).copied())
+    delta
+        .get(&digest)
+        .copied()
+        .or_else(|| base.get(&digest).copied())
 }
 
 fn solutions_overlay(
@@ -895,12 +1274,7 @@ struct StepRange {
 }
 
 #[inline(always)]
-fn intersection_bounds(
-    a_start: u16,
-    a_end: u16,
-    b_start: u16,
-    b_end: u16,
-) -> (u16, u16) {
+fn intersection_bounds(a_start: u16, a_end: u16, b_start: u16, b_end: u16) -> (u16, u16) {
     let start = a_start.max(b_start);
     let end = a_end.min(b_end);
     if start >= end {
@@ -967,6 +1341,43 @@ impl StepRange {
     }
 
     #[inline(always)]
+    fn is_unknown(&self) -> bool {
+        self.shortest_start == 0
+            && self.shortest_end == INF_END
+            && self.next_start == 0
+            && self.next_end == INF_END
+    }
+
+    #[inline(always)]
+    fn is_non_zero_hint(&self) -> bool {
+        self.shortest_start == 1
+            && self.shortest_end == INF_END
+            && self.next_start == 1
+            && self.next_end == INF_END
+    }
+
+    #[inline(always)]
+    fn is_unsolvable(&self) -> bool {
+        self.shortest_start >= INF_START && self.next_start >= INF_START
+    }
+
+    #[inline(always)]
+    fn has_finite_shortest(&self) -> bool {
+        self.shortest_start < INF_START
+    }
+
+    #[inline(always)]
+    fn is_exact_shortest(&self) -> bool {
+        self.has_finite_shortest() && self.shortest_end == self.shortest_start + 1
+    }
+
+    #[inline(always)]
+    fn uncertainty_width(&self) -> u32 {
+        u32::from(self.shortest_end - self.shortest_start)
+            + u32::from(self.next_end - self.next_start)
+    }
+
+    #[inline(always)]
     fn inc(&self) -> Self {
         Self::new(
             self.shortest_start + 1..self.shortest_end + 1,
@@ -1011,10 +1422,7 @@ impl StepRange {
             hint.next_start,
             hint.next_end,
         );
-        Self::new(
-            shortest_start..shortest_end,
-            next_start..next_end,
-        )
+        Self::new(shortest_start..shortest_end, next_start..next_end)
     }
 
     #[inline(always)]
@@ -1048,10 +1456,31 @@ impl StepRange {
 
 #[cfg(test)]
 mod tests {
+    use super::{memo_retention_score, shrink_memo, StepRange};
     use crate::{
+        nohash::NoHashMap64,
         position::position::PositionAux,
         search::backward::{backward_initial_variants, backward_search},
     };
+
+    #[test]
+    fn memo_shrink_keeps_more_informative_entries() {
+        let mut memo = NoHashMap64::default();
+        memo.insert(1, StepRange::unknown());
+        memo.insert(2, StepRange::non_zero());
+        memo.insert(3, StepRange::unsolvable());
+        memo.insert(4, StepRange::exact(7));
+
+        assert!(
+            memo_retention_score(4, StepRange::exact(7))
+                > memo_retention_score(1, StepRange::unknown())
+        );
+        shrink_memo(&mut memo, 2);
+
+        assert_eq!(memo.len(), 2);
+        assert!(memo.contains_key(&3));
+        assert!(memo.contains_key(&4));
+    }
 
     #[test]
     fn test_backward_search() {
