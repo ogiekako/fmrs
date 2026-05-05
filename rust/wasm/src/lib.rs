@@ -19,6 +19,14 @@ pub struct OneWayMateResult {
 }
 
 #[wasm_bindgen]
+pub fn is_white_in_check(sfen: &str) -> bool {
+    let Ok(mut position) = fmrs_core::position::position::PositionAux::from_sfen(sfen) else {
+        return false;
+    };
+    position.checked_slow(fmrs_core::piece::Color::WHITE)
+}
+
+#[wasm_bindgen]
 pub fn check_one_way_mate(sfen: &str) -> Option<OneWayMateResult> {
     let mut position = fmrs_core::position::position::PositionAux::from_sfen(sfen).ok()?;
     if position.checked_slow(fmrs_core::piece::Color::WHITE) {

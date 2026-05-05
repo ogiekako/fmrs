@@ -1,15 +1,23 @@
 import { Board, Color, Hands, Kind, Piece, Position } from "..";
+import { is_white_in_check } from "../../wasm_api";
 
 export function encodeSfen(position: Position): string {
   const board = encodeBoard(position.board);
-  const turn = "b";
   let hands =
     encodeHands("black", position.hands["black"]) +
     encodeHands("white", position.hands["white"]);
   if (!hands) {
     hands = "-";
   }
-  return [board, turn, hands].join(" ") + " 1";
+  const sfenBlack = [board, "b", hands].join(" ") + " 1";
+  try {
+    if (is_white_in_check(sfenBlack)) {
+      return [board, "w", hands].join(" ") + " 1";
+    }
+  } catch {
+    // wasm not yet initialized
+  }
+  return sfenBlack;
 }
 
 function encodeBoard(b: Board): string {
