@@ -87,6 +87,10 @@ pub enum SingleKingSmokeCommand {
         /// E.g. --allowed-kinds pawn,lance,knight. Overrides --no-gold/--no-pawn/--only-pawn.
         #[arg(long, value_delimiter = ',')]
         allowed_kinds: Option<Vec<String>>,
+        /// Enforce per-kind piece count limits (board + black hand):
+        /// R,B <= 1; L,N,S,G <= 2; P <= 9.
+        #[arg(long, default_value_t = false)]
+        natural_piece_limit: bool,
         #[arg(long)]
         max_file: Option<u8>,
         #[arg(long)]
@@ -181,6 +185,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             no_pawn,
             only_pawn,
             allowed_kinds,
+            natural_piece_limit,
             max_file,
             max_rank,
             allow_white_pieces,
@@ -217,6 +222,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     no_pawn,
                     only_pawn,
                     allowed_kinds_mask,
+                    natural_piece_limit,
                     max_file,
                     max_rank,
                     allow_white_pieces,
@@ -927,6 +933,8 @@ struct SearchConstraints {
     /// King is always implicitly allowed regardless of this mask.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     allowed_kinds_mask: Option<u16>,
+    #[serde(default)]
+    natural_piece_limit: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     max_file: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1680,6 +1688,9 @@ fn satisfies_ideal_smoke_constraints(
     if board < min || board > max {
         return false;
     }
+    if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
+        return false;
+    }
     satisfies_search_constraints(position, constraints)
 }
 
@@ -1700,6 +1711,9 @@ fn satisfies_ideal_smoke_generation_constraints(
         return false;
     }
     if !satisfies_promoted_pct(position, step, constraints) {
+        return false;
+    }
+    if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
         return false;
     }
     satisfies_search_constraints(position, constraints)
@@ -1852,6 +1866,25 @@ fn satisfies_promoted_pct(
     }
     let promoted = board_promoted_count(position);
     promoted * 100 <= max_pct as u32 * total
+}
+
+fn satisfies_natural_piece_limit(position: &PositionAux) -> bool {
+    let hands = position.hands();
+    let count = |kind: Kind| -> u32 {
+        position.bitboard(Color::BLACK, kind).count_ones()
+            + position.bitboard(Color::WHITE, kind).count_ones()
+            + if kind.is_hand_piece() { hands.count(Color::BLACK, kind) as u32 } else { 0 }
+    };
+    let count_with_promoted = |base: Kind, promoted: Kind| -> u32 {
+        count(base) + count(promoted)
+    };
+    count_with_promoted(Kind::Pawn, Kind::ProPawn) <= 9
+        && count_with_promoted(Kind::Lance, Kind::ProLance) <= 2
+        && count_with_promoted(Kind::Knight, Kind::ProKnight) <= 2
+        && count_with_promoted(Kind::Silver, Kind::ProSilver) <= 2
+        && count(Kind::Gold) <= 2
+        && count_with_promoted(Kind::Bishop, Kind::ProBishop) <= 1
+        && count_with_promoted(Kind::Rook, Kind::ProRook) <= 1
 }
 
 fn board_only_pawn(position: &PositionAux) -> bool {
