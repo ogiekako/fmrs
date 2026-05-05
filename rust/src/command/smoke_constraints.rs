@@ -35,6 +35,10 @@ pub(super) struct SearchConstraints {
     pub(super) max_promoted_pct: Option<u16>,
     #[serde(default)]
     pub(super) max_promoted_pct_after_step: u16,
+    /// Bitmask of allowed white king squares at mate (bit i = square index i).
+    /// 0 = no restriction.
+    #[serde(default, skip_serializing_if = "is_zero_u128")]
+    pub(super) mate_squares: u128,
 }
 
 impl SearchConstraints {
@@ -159,6 +163,30 @@ pub(super) fn validate_search_constraints(constraints: SearchConstraints) -> any
     Ok(())
 }
 
+fn is_zero_u128(v: &u128) -> bool {
+    *v == 0
+}
+
+pub(super) fn parse_mate_squares(specs: &[String]) -> anyhow::Result<u128> {
+    use anyhow::bail;
+    let mut mask = 0u128;
+    for s in specs {
+        if s.len() != 2 {
+            bail!("--mate-square requires 2-digit shogi notation (e.g. 11, 55), got: {s}");
+        }
+        let file = s.as_bytes()[0].wrapping_sub(b'0');
+        let rank = s.as_bytes()[1].wrapping_sub(b'0');
+        if !(1..=9).contains(&file) || !(1..=9).contains(&rank) {
+            bail!("--mate-square digits must be 1-9, got: {s}");
+        }
+        let col = 9 - file as usize;
+        let row = (rank - 1) as usize;
+        let sq = Square::new(col, row);
+        mask |= 1u128 << sq.index();
+    }
+    Ok(mask)
+}
+
 pub(super) fn parse_allowed_kinds(names: &[String]) -> anyhow::Result<u16> {
     use anyhow::bail;
     let mut mask = 0u16;
@@ -184,6 +212,18 @@ pub(super) fn parse_allowed_kinds(names: &[String]) -> anyhow::Result<u16> {
 pub(super) fn kind_allowed_by_mask(kind: Kind, mask: Option<u16>) -> bool {
     let Some(mask) = mask else { return true };
     kind == Kind::King || (mask >> kind.index()) & 1 == 1
+}
+
+pub(super) fn satisfies_mate_square(position: &PositionAux, mate_squares: u128) -> bool {
+    if mate_squares == 0 {
+        return true;
+    }
+    let king_bb = position.bitboard(Color::WHITE, Kind::King);
+    if let Some(kp) = king_bb.into_iter().next() {
+        (mate_squares >> kp.index()) & 1 != 0
+    } else {
+        false
+    }
 }
 
 pub(super) fn satisfies_search_constraints(

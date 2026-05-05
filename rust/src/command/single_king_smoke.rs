@@ -23,9 +23,10 @@ use std::time::Instant;
 use super::smoke_features::{extract_features, LinearModel};
 use super::smoke_constraints::{
     board_piece_count, canonical_position, canonical_sfen, parse_allowed_kinds,
-    satisfies_ideal_smoke_constraints, satisfies_ideal_smoke_generation_constraints,
-    satisfies_ideal_smoke_undo_candidate, satisfies_search_constraints, square_in_bounds,
-    validate_search_constraints, with_white_complement, KillerSeedLimits, SearchConstraints,
+    parse_mate_squares, satisfies_ideal_smoke_constraints, satisfies_mate_square,
+    satisfies_ideal_smoke_generation_constraints, satisfies_ideal_smoke_undo_candidate,
+    satisfies_search_constraints, square_in_bounds, validate_search_constraints,
+    with_white_complement, KillerSeedLimits, SearchConstraints,
 };
 use super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, load_seed_checkpoint,
@@ -109,6 +110,12 @@ pub enum SingleKingSmokeCommand {
         mem_trace: bool,
         #[arg(long, default_value_t = 0)]
         slack: u16,
+        /// Filter seeds by white king position at mate. Shogi notation:
+        /// first digit = file (筋, 1=right .. 9=left), second digit = rank
+        /// (段, 1=top .. 9=bottom). E.g. 11 = 1一, 55 = 5五.
+        /// Multiple squares can be specified: --mate-square 11 --mate-square 19
+        #[arg(long)]
+        mate_square: Vec<String>,
         /// Append per-step frontier samples (with extracted features) to
         /// this JSONL file. Used to build training data for the beam model.
         #[arg(long)]
@@ -181,6 +188,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             inner_parallel,
             mem_trace,
             slack,
+            mate_square,
             feature_log,
             feature_sample_per_step,
             beam_width,
@@ -192,6 +200,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
                 None => None,
             };
+            let mate_squares = parse_mate_squares(&mate_square)?;
             ideal_backward(
                 parallel,
                 seed_sfen,
@@ -215,6 +224,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     slack,
                     max_promoted_pct,
                     max_promoted_pct_after_step,
+                    mate_squares,
                 },
                 inner_parallel,
                 mem_trace,
@@ -486,7 +496,10 @@ fn ideal_backward(
         let mut seeds = enumerate_final_2_positions(parallel, constraints)?
             .into_iter()
             .enumerate()
-            .filter(|(_, seed)| satisfies_search_constraints(seed, constraints))
+            .filter(|(_, seed)| {
+                satisfies_search_constraints(seed, constraints)
+                    && satisfies_mate_square(seed, constraints.mate_squares)
+            })
             .collect::<Vec<_>>();
         seeds.shuffle(&mut rng);
         if let Some(limit) = seed_limit {
@@ -705,6 +718,11 @@ fn enumerate_for_white_king(
     };
 
     if !square_in_bounds(white_king, constraints) {
+        return results;
+    }
+    if constraints.mate_squares != 0
+        && (constraints.mate_squares >> white_king.index()) & 1 == 0
+    {
         return results;
     }
     for &(kind1, kind2) in kind_pairs {
