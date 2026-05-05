@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777980549373,
+  "lastUpdate": 1777984769211,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28793,6 +28793,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 81080,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "0de7e382e9d5dbb9ce2567e6a62e8c24965e001f",
+          "message": "リファクタリング: Final2 削除、single_king_smoke.rs を3ファイルに分割\n\n- Final2 サブコマンドを削除\n- smoke_constraints.rs: 制約チェック関数群\n- smoke_persistence.rs: seed result log / checkpoint I/O\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-05T21:25:06+09:00",
+          "tree_id": "c852ef77b005416233c58f472ed57de79bb08f5e",
+          "url": "https://github.com/ogiekako/fmrs/commit/0de7e382e9d5dbb9ce2567e6a62e8c24965e001f"
+        },
+        "date": 1777984767068,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 893,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3536,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 327,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1062,
+            "range": "± 1846",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 35127,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1494,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5362,
+            "range": "± 77",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 2033339,
+            "range": "± 178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13799,
+            "range": "± 1105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 38582,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4711,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 24105,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81630,
+            "range": "± 1",
             "unit": "ns/iter"
           }
         ]
