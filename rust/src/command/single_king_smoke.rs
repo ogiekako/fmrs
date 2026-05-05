@@ -102,10 +102,9 @@ pub enum SingleKingSmokeCommand {
         /// positions ranked by `--beam-model` (or a default heuristic).
         #[arg(long)]
         beam_width: Option<usize>,
-        /// Path to a linear scoring model (JSON) produced by
-        /// scripts/train_beam_model.py.
+        /// Beam scoring: path to model JSON, or "handcraft". Omit for random.
         #[arg(long)]
-        beam_model: Option<PathBuf>,
+        beam_model: Option<String>,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -911,20 +910,27 @@ struct FeatureLogConfig {
 }
 
 #[derive(Clone)]
+enum BeamScorer {
+    Random,
+    Handcraft,
+    Model(LinearModel),
+}
+
 struct BeamConfig {
     width: Option<usize>,
-    model: Option<LinearModel>,
+    scorer: BeamScorer,
 }
 
 fn build_beam_config(
     width: Option<usize>,
-    model_path: Option<&Path>,
+    model_spec: Option<&str>,
 ) -> anyhow::Result<BeamConfig> {
-    let model = match model_path {
-        Some(path) => Some(LinearModel::load(path)?),
-        None => None,
+    let scorer = match model_spec {
+        None => BeamScorer::Random,
+        Some("handcraft") => BeamScorer::Handcraft,
+        Some(path) => BeamScorer::Model(LinearModel::load(Path::new(path))?),
     };
-    Ok(BeamConfig { width, model })
+    Ok(BeamConfig { width, scorer })
 }
 
 fn open_feature_log(path: &Path) -> anyhow::Result<fs::File> {
@@ -940,15 +946,28 @@ fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: usize) {
     if positions.len() <= width || width == 0 {
         return;
     }
-    match beam.model.as_ref() {
-        Some(model) => {
+    match &beam.scorer {
+        BeamScorer::Random => {
+            let (_, positions) = search.positions();
+            let n = positions.len();
+            let mut indices: Vec<usize> = (0..n).collect();
+            let mut rng = SmallRng::from_entropy();
+            indices.partial_shuffle(&mut rng, width);
+            let kept: Vec<Position> =
+                indices[..width].iter().map(|&i| positions[i].clone()).collect();
+            search.replace_positions(kept);
+        }
+        scorer => {
             let (stone, positions) = search.positions();
             let mut scored: Vec<(f32, Position)> = positions
                 .par_iter()
                 .map(|p| {
                     let aux = PositionAux::new(p.clone(), stone);
                     let features = extract_features(&aux);
-                    let score = model.score(&features);
+                    let score = match scorer {
+                        BeamScorer::Model(m) => m.score(&features),
+                        _ => handcraft_beam_score(&features),
+                    };
                     (score, p.clone())
                 })
                 .collect();
@@ -959,17 +978,23 @@ fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: usize) {
                 scored.into_iter().take(width).map(|(_, p)| p).collect();
             search.replace_positions(truncated);
         }
-        None => {
-            let (_, positions) = search.positions();
-            let n = positions.len();
-            let mut indices: Vec<usize> = (0..n).collect();
-            let mut rng = SmallRng::from_entropy();
-            indices.partial_shuffle(&mut rng, width);
-            let kept: Vec<Position> =
-                indices[..width].iter().map(|&i| positions[i].clone()).collect();
-            search.replace_positions(kept);
-        }
     }
+}
+
+fn handcraft_beam_score(features: &[f32]) -> f32 {
+    let names = super::smoke_features::feature_names();
+    let get = |n: &str| -> f32 {
+        names
+            .iter()
+            .position(|x| *x == n)
+            .map(|i| features[i])
+            .unwrap_or(0.0)
+    };
+    2.0 * get("board_total")
+        + 0.5 * get("hand_black_total")
+        + 0.05 * get("total_black_kiki")
+        + 0.3 * get("king_white_neighbors_attacked")
+        - 0.2 * get("king_white_min_edge_dist")
 }
 
 fn sample_features_to_log(
