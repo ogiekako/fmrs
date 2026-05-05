@@ -1299,15 +1299,18 @@ fn search_single_seed(
     feature_samples_per_step: usize,
     beam: &BeamConfig,
 ) -> anyhow::Result<SingleSeedResult> {
-    // Try to resume from checkpoint
-    let checkpoint = load_seed_checkpoint(
-        seed_result_log_path,
-        seed_index,
-        &seed.sfen(),
-        max_step,
-        limits.max_frontier,
-        constraints,
-    );
+    let checkpoint = if beam.width.is_some() {
+        None
+    } else {
+        load_seed_checkpoint(
+            seed_result_log_path,
+            seed_index,
+            &seed.sfen(),
+            max_step,
+            limits.max_frontier,
+            constraints,
+        )
+    };
 
     let mut search = if let Some(ref cp) = checkpoint {
         match BackwardSearch::from_resume_state(&cp.resume_state, inner_parallel) {
@@ -1512,17 +1515,18 @@ fn search_single_seed(
             break;
         }
 
-        // Save checkpoint after each successful advance
-        let _ = write_seed_checkpoint(seed_result_log_path, &SeedCheckpoint {
-            seed_index,
-            seed_sfen: seed.sfen(),
-            max_step,
-            max_frontier: limits.max_frontier,
-            constraints,
-            resume_state: search.resume_state(),
-            best_piece_count,
-            best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
-        });
+        if beam.width.is_none() {
+            let _ = write_seed_checkpoint(seed_result_log_path, &SeedCheckpoint {
+                seed_index,
+                seed_sfen: seed.sfen(),
+                max_step,
+                max_frontier: limits.max_frontier,
+                constraints,
+                resume_state: search.resume_state(),
+                best_piece_count,
+                best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
+            });
+        }
 
         if let Some(detected) = detect_killer_seed(
             seed_index,
