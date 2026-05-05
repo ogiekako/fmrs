@@ -51,9 +51,10 @@ pub enum SingleKingSmokeCommand {
         random_seed: Option<u64>,
         #[arg(long)]
         max_step: Option<u16>,
-        /// Memo entry limit per seed. "auto" = memory/cores, "full" = memory/parallel.
-        #[arg(long)]
-        max_memo_entries: Option<String>,
+        /// Memo entry limit per seed. "auto" (default) = memory/cores,
+        /// "full" = memory/parallel, "none" = unlimited, or a number.
+        #[arg(long, default_value = "auto")]
+        max_memo_entries: String,
         #[arg(long)]
         max_frontier: Option<usize>,
         #[arg(long, default_value_t = false)]
@@ -108,7 +109,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             slack,
         } => {
             let parallel = parallel.unwrap_or_else(default_parallelism);
-            let max_memo_entries = parse_max_memo_entries(max_memo_entries.as_deref(), parallel)?;
+            let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             ideal_backward(
                 parallel,
                 seed_sfen,
@@ -1545,13 +1546,9 @@ fn parse_kib_field(value: &str) -> Option<usize> {
     value.split_whitespace().next()?.parse().ok()
 }
 
-fn parse_max_memo_entries(
-    value: Option<&str>,
-    parallel: usize,
-) -> anyhow::Result<Option<usize>> {
+fn parse_max_memo_entries(value: &str, parallel: usize) -> anyhow::Result<Option<usize>> {
     match value {
-        None => Ok(None),
-        Some("auto") => {
+        "auto" => {
             let total_cores = default_parallelism();
             let entries = memo_entries_for_memory(total_cores);
             eprintln!(
@@ -1560,15 +1557,15 @@ fn parse_max_memo_entries(
             );
             Ok(Some(entries))
         }
-        Some("full") => {
+        "full" => {
             let entries = memo_entries_for_memory(parallel);
             eprintln!("full max_memo_entries={} (parallel={})", entries, parallel);
             Ok(Some(entries))
         }
-        Some(s) => Ok(Some(
-            s.parse::<usize>()
-                .context("max-memo-entries must be a number, \"auto\", or \"full\"")?,
-        )),
+        "none" => Ok(None),
+        s => Ok(Some(s.parse::<usize>().context(
+            "max-memo-entries must be a number, \"auto\", \"full\", or \"none\"",
+        )?)),
     }
 }
 
