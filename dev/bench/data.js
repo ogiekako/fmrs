@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777954097975,
+  "lastUpdate": 1777965199412,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28385,6 +28385,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 84113,
             "range": "± 12",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "ca1b9e408d95f8a71378e97820d66148ee7a9084",
+          "message": "最終出力を seed ごとの代表局面1つに絞る\n\n同じ seed から派生した複数局面をすべて出していたのを、\n辞書順最小の SFEN 1つだけに。異なる seed からの結果はそれぞれ残る。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-05T15:39:00+09:00",
+          "tree_id": "652071f3c05f51497e9151f8287773d8435b79a2",
+          "url": "https://github.com/ogiekako/fmrs/commit/ca1b9e408d95f8a71378e97820d66148ee7a9084"
+        },
+        "date": 1777965196161,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 913,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3380,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 332,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1150,
+            "range": "± 1897",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32819,
+            "range": "± 169",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1471,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5350,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1898713,
+            "range": "± 531",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13627,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37037,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4447,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22727,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83332,
+            "range": "± 17",
             "unit": "ns/iter"
           }
         ]
