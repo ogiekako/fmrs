@@ -86,6 +86,13 @@ pub enum SingleKingSmokeCommand {
         max_rank: Option<u8>,
         #[arg(long, default_value_t = false)]
         allow_white_pieces: bool,
+        /// Max % of promoted pieces on the board (0–100), enforced at
+        /// steps >= --max-promoted-pct-after-step.  E.g. --max-promoted-pct 20
+        #[arg(long)]
+        max_promoted_pct: Option<u16>,
+        /// Step threshold for --max-promoted-pct (default: 6 ≈ 7手詰以上).
+        #[arg(long, default_value_t = 6)]
+        max_promoted_pct_after_step: u16,
         #[arg(long, default_value_t = 1)]
         inner_parallel: usize,
         #[arg(long, default_value_t = false)]
@@ -168,6 +175,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             max_file,
             max_rank,
             allow_white_pieces,
+            max_promoted_pct,
+            max_promoted_pct_after_step,
             inner_parallel,
             mem_trace,
             slack,
@@ -197,6 +206,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     max_rank,
                     allow_white_pieces,
                     slack,
+                    max_promoted_pct,
+                    max_promoted_pct_after_step,
                 },
                 inner_parallel,
                 mem_trace,
@@ -903,6 +914,10 @@ struct SearchConstraints {
     allow_white_pieces: bool,
     #[serde(default)]
     slack: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_promoted_pct: Option<u16>,
+    #[serde(default)]
+    max_promoted_pct_after_step: u16,
 }
 
 impl SearchConstraints {
@@ -1656,6 +1671,9 @@ fn satisfies_ideal_smoke_generation_constraints(
     if pip < min || pip > max {
         return false;
     }
+    if !satisfies_promoted_pct(position, step, constraints) {
+        return false;
+    }
     satisfies_search_constraints(position, constraints)
 }
 
@@ -1685,6 +1703,9 @@ fn satisfies_ideal_smoke_undo_candidate(
     if pip < min || pip > max {
         return false;
     }
+    if !satisfies_promoted_pct(position, next_step, constraints) {
+        return false;
+    }
     constraints.allow_white_pieces || black_hand_empty_after_undo(position, undo_move)
 }
 
@@ -1697,6 +1718,11 @@ fn validate_search_constraints(constraints: SearchConstraints) -> anyhow::Result
     if let Some(max_rank) = constraints.max_rank {
         if !(1..=9).contains(&max_rank) {
             bail!("max-rank must be between 1 and 9");
+        }
+    }
+    if let Some(p) = constraints.max_promoted_pct {
+        if p > 100 {
+            bail!("max-promoted-pct must be between 0 and 100");
         }
     }
     Ok(())
@@ -1733,6 +1759,43 @@ fn square_satisfies_rank_constraint(square: Square, max_rank: Option<u8>) -> boo
 fn board_gold_count(position: &PositionAux) -> u32 {
     position.bitboard(Color::BLACK, Kind::Gold).count_ones()
         + position.bitboard(Color::WHITE, Kind::Gold).count_ones()
+}
+
+fn satisfies_promoted_pct(
+    position: &PositionAux,
+    step: u16,
+    constraints: SearchConstraints,
+) -> bool {
+    let Some(max_pct) = constraints.max_promoted_pct else {
+        return true;
+    };
+    if step < constraints.max_promoted_pct_after_step {
+        return true;
+    }
+    let total = position.occupied_bb().count_ones();
+    if total == 0 {
+        return true;
+    }
+    let promoted = board_promoted_count(position);
+    promoted * 100 <= max_pct as u32 * total
+}
+
+fn board_promoted_count(position: &PositionAux) -> u32 {
+    const PROMOTED: [Kind; 6] = [
+        Kind::ProPawn,
+        Kind::ProLance,
+        Kind::ProKnight,
+        Kind::ProSilver,
+        Kind::ProBishop,
+        Kind::ProRook,
+    ];
+    PROMOTED
+        .iter()
+        .map(|&k| {
+            position.bitboard(Color::BLACK, k).count_ones()
+                + position.bitboard(Color::WHITE, k).count_ones()
+        })
+        .sum()
 }
 
 fn board_pawn_count(position: &PositionAux) -> u32 {
