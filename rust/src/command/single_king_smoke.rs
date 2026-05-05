@@ -55,8 +55,8 @@ pub enum SingleKingSmokeCommand {
     ///       --beam-width 1000 --beam-model target/beam_model.json ...
     #[command(name = "ideal-backward")]
     IdealBackward {
-        #[arg(long)]
-        parallel: Option<usize>,
+        #[arg(long, default_value_t = 1)]
+        parallel: usize,
         #[arg(long)]
         seed_sfen: Option<String>,
         #[arg(long)]
@@ -199,7 +199,6 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             beam_width,
             beam_model,
         } => {
-            let parallel = parallel.unwrap_or_else(default_parallelism);
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
             let allowed_kinds_mask = match allowed_kinds {
