@@ -21,6 +21,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
 
+use super::smoke_features::{extract_features, LinearModel};
+
 const IDEAL_BACKWARD_SEED_LOG_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Subcommand)]
@@ -34,6 +36,23 @@ pub enum SingleKingSmokeCommand {
         #[arg(long)]
         max_rank: Option<u8>,
     },
+    /// Backward-search for ideal-smoke initial positions.
+    ///
+    /// Beam-search workflow (data-driven):
+    ///   # 1) Collect training samples while running normally:
+    ///   cargo run --release -- single-king-smoke ideal-backward \
+    ///       --feature-log target/features.jsonl ...
+    ///   # 2) Convert samples + seed results to a CSV (filter by best_piece_count):
+    ///   cargo run --release -- single-king-smoke export-features \
+    ///       --feature-log target/features.jsonl \
+    ///       --seed-result-log target/single-king-smoke-ideal-backward-seeds.jsonl \
+    ///       -o target/training.csv --min-label 16
+    ///   # 3) Train the linear model offline:
+    ///   python3 scripts/train_beam_model.py \
+    ///       --csv target/training.csv --out target/beam_model.json --standardize
+    ///   # 4) Re-run with beam pruning:
+    ///   cargo run --release -- single-king-smoke ideal-backward \
+    ///       --beam-width 1000 --beam-model target/beam_model.json ...
     #[command(name = "ideal-backward")]
     IdealBackward {
         #[arg(long)]
@@ -73,6 +92,36 @@ pub enum SingleKingSmokeCommand {
         mem_trace: bool,
         #[arg(long, default_value_t = 0)]
         slack: u16,
+        /// Append per-step frontier samples (with extracted features) to
+        /// this JSONL file. Used to build training data for the beam model.
+        #[arg(long)]
+        feature_log: Option<PathBuf>,
+        #[arg(long, default_value_t = 5)]
+        feature_sample_per_step: usize,
+        /// Beam width: after each search step, keep only the top K frontier
+        /// positions ranked by `--beam-model` (or a default heuristic).
+        #[arg(long)]
+        beam_width: Option<usize>,
+        /// Path to a linear scoring model (JSON) produced by
+        /// scripts/train_beam_model.py.
+        #[arg(long)]
+        beam_model: Option<PathBuf>,
+    },
+    /// Join feature samples with seed results to produce a CSV for offline training.
+    #[command(name = "export-features")]
+    ExportFeatures {
+        /// Feature log produced by --feature-log during ideal-backward.
+        #[arg(long)]
+        feature_log: PathBuf,
+        /// Seed result log (jsonl) — used to look up best_piece_count per seed.
+        #[arg(long)]
+        seed_result_log: PathBuf,
+        /// Output CSV path.
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Only include seeds whose best_piece_count >= this threshold.
+        #[arg(long, default_value_t = 16)]
+        min_label: u32,
     },
 }
 
@@ -107,9 +156,14 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             inner_parallel,
             mem_trace,
             slack,
+            feature_log,
+            feature_sample_per_step,
+            beam_width,
+            beam_model,
         } => {
             let parallel = parallel.unwrap_or_else(default_parallelism);
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
+            let beam = build_beam_config(beam_width, beam_model.as_deref())?;
             ideal_backward(
                 parallel,
                 seed_sfen,
@@ -121,19 +175,131 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     max_memo_entries,
                     max_frontier,
                 },
-            SearchConstraints {
-                no_gold,
-                no_pawn,
-                max_file,
-                max_rank,
-                allow_white_pieces,
-                slack,
-            },
-            inner_parallel,
-            mem_trace,
-        )
+                SearchConstraints {
+                    no_gold,
+                    no_pawn,
+                    max_file,
+                    max_rank,
+                    allow_white_pieces,
+                    slack,
+                },
+                inner_parallel,
+                mem_trace,
+                FeatureLogConfig {
+                    path: feature_log,
+                    samples_per_step: feature_sample_per_step,
+                },
+                beam,
+            )
+        }
+        SingleKingSmokeCommand::ExportFeatures {
+            feature_log,
+            seed_result_log,
+            out,
+            min_label,
+        } => export_features(&feature_log, &seed_result_log, &out, min_label),
+    }
+}
+
+fn export_features(
+    feature_log: &Path,
+    seed_result_log: &Path,
+    out: &Path,
+    min_label: u32,
+) -> anyhow::Result<()> {
+    use super::smoke_features::feature_names;
+
+    // Build seed_index → best_piece_count map from seed result log.
+    let mut labels: FxHashMap<usize, u32> = FxHashMap::default();
+    let file = fs::File::open(seed_result_log)
+        .with_context(|| format!("open seed_result_log {}", seed_result_log.display()))?;
+    for (i, line) in BufReader::new(file).lines().enumerate() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let record: SeedResultRecord = match serde_json::from_str(&line) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("skip malformed seed_result line {}: {e}", i + 1);
+                continue;
+            }
+        };
+        let piece_count = if record.best_piece_count > 0 {
+            record.best_piece_count
+        } else {
+            record.best_step as u32 / 2 + 3
+        };
+        // Keep the max in case of duplicates.
+        let entry = labels.entry(record.seed_index).or_insert(0);
+        if piece_count > *entry {
+            *entry = piece_count;
         }
     }
+
+    let names = feature_names();
+    let mut writer = std::io::BufWriter::new(
+        fs::File::create(out).with_context(|| format!("create {}", out.display()))?,
+    );
+    write!(writer, "seed_index,step,label")?;
+    for n in names.iter() {
+        write!(writer, ",{}", n)?;
+    }
+    writeln!(writer)?;
+
+    let file = fs::File::open(feature_log)
+        .with_context(|| format!("open feature_log {}", feature_log.display()))?;
+    let mut total = 0usize;
+    let mut kept = 0usize;
+    for (i, line) in BufReader::new(file).lines().enumerate() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        total += 1;
+        let v: serde_json::Value = match serde_json::from_str(&line) {
+            Ok(v) => v,
+            Err(e) => {
+                eprintln!("skip malformed feature line {}: {e}", i + 1);
+                continue;
+            }
+        };
+        let seed_index = v["seed_index"].as_u64().unwrap_or(0) as usize;
+        let step = v["step"].as_u64().unwrap_or(0) as u16;
+        let Some(&label) = labels.get(&seed_index) else {
+            continue;
+        };
+        if label < min_label {
+            continue;
+        }
+        let features = match v["features"].as_array() {
+            Some(arr) => arr,
+            None => continue,
+        };
+        if features.len() != names.len() {
+            eprintln!(
+                "skip line {}: expected {} features, got {}",
+                i + 1,
+                names.len(),
+                features.len()
+            );
+            continue;
+        }
+        write!(writer, "{seed_index},{step},{label}")?;
+        for f in features {
+            write!(writer, ",{}", f.as_f64().unwrap_or(0.0))?;
+        }
+        writeln!(writer)?;
+        kept += 1;
+    }
+    writer.flush()?;
+    eprintln!(
+        "export-features: wrote {} rows (out of {} samples) to {}",
+        kept,
+        total,
+        out.display()
+    );
+    Ok(())
 }
 
 fn enumerate_final_2(
@@ -164,6 +330,8 @@ fn ideal_backward(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
+    feature_log: FeatureLogConfig,
+    beam: BeamConfig,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
@@ -214,6 +382,11 @@ fn ideal_backward(
     );
     let seed_result_log_path = seed_result_log.clone();
     let seed_result_log = Mutex::new(open_seed_result_log(&seed_result_log)?);
+    let feature_log_handle = match feature_log.path.as_deref() {
+        Some(path) => Some(Mutex::new(open_feature_log(path)?)),
+        None => None,
+    };
+    let feature_samples_per_step = feature_log.samples_per_step;
 
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(parallel)
@@ -240,6 +413,9 @@ fn ideal_backward(
                     mem_trace,
                     &global_best_piece_count,
                     &seed_result_log_path,
+                    feature_log_handle.as_ref(),
+                    feature_samples_per_step,
+                    &beam,
                 );
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
                 loop {
@@ -592,6 +768,132 @@ impl SearchConstraints {
     }
 }
 
+#[derive(Clone, Default)]
+struct FeatureLogConfig {
+    path: Option<PathBuf>,
+    samples_per_step: usize,
+}
+
+#[derive(Clone)]
+struct BeamConfig {
+    width: Option<usize>,
+    model: Option<LinearModel>,
+}
+
+fn build_beam_config(
+    width: Option<usize>,
+    model_path: Option<&Path>,
+) -> anyhow::Result<BeamConfig> {
+    let model = match model_path {
+        Some(path) => Some(LinearModel::load(path)?),
+        None => None,
+    };
+    Ok(BeamConfig { width, model })
+}
+
+fn open_feature_log(path: &Path) -> anyhow::Result<fs::File> {
+    fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .with_context(|| format!("open feature log {}", path.display()))
+}
+
+fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: usize) {
+    let (stone, positions) = search.positions();
+    if positions.len() <= width || width == 0 {
+        return;
+    }
+    // Score in parallel for large frontiers; rayon's global pool is fine here.
+    let mut scored: Vec<(f32, Position)> = positions
+        .par_iter()
+        .map(|p| {
+            let aux = PositionAux::new(p.clone(), stone);
+            let features = extract_features(&aux);
+            let score = match beam.model.as_ref() {
+                Some(m) => m.score(&features),
+                None => default_beam_heuristic(&features),
+            };
+            (score, p.clone())
+        })
+        .collect();
+
+    // Higher score = more promising. Partition so the top `width` are first.
+    if width > 0 && width < scored.len() {
+        scored.select_nth_unstable_by(width - 1, |a, b| {
+            b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+        });
+    }
+    let truncated: Vec<Position> = scored.into_iter().take(width).map(|(_, p)| p).collect();
+    search.replace_positions(truncated);
+}
+
+// Fallback heuristic when no learned model is provided. Hand-tuned to favor
+// frontier positions that look like they have room (and motivation) to
+// extend further backward.
+//
+// Indices match feature_names() order: see smoke_features.rs.
+fn default_beam_heuristic(features: &[f32]) -> f32 {
+    let names = super::smoke_features::feature_names();
+    let get = |n: &str| -> f32 {
+        names
+            .iter()
+            .position(|x| *x == n)
+            .map(|i| features[i])
+            .unwrap_or(0.0)
+    };
+    // Hand-tuned: more pieces in play and more attacking surface = more
+    // promising for further backward extension.
+    2.0 * get("board_total")
+        + 0.5 * get("hand_black_total")
+        + 0.05 * get("total_black_kiki")
+        + 0.3 * get("king_white_neighbors_attacked")
+        - 0.2 * get("king_white_min_edge_dist")
+}
+
+fn sample_features_to_log(
+    log: &Mutex<fs::File>,
+    samples_per_step: usize,
+    seed_index: usize,
+    search: &BackwardSearch,
+) {
+    if samples_per_step == 0 {
+        return;
+    }
+    let step = search.step();
+    if step == 0 || step % 2 == 0 {
+        // Sample only black-to-move frontiers (== smoke initial positions).
+        return;
+    }
+    let (stone, positions) = search.positions();
+    if positions.is_empty() {
+        return;
+    }
+    let n = positions.len();
+    let k = samples_per_step.min(n);
+    let mut rng =
+        SmallRng::seed_from_u64((seed_index as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ step as u64);
+    let mut lines = Vec::with_capacity(k);
+    for _ in 0..k {
+        let idx = rng.gen_range(0..n);
+        let aux = PositionAux::new(positions[idx].clone(), stone);
+        let features = extract_features(&aux);
+        let sfen = aux.sfen();
+        let line = serde_json::json!({
+            "seed_index": seed_index,
+            "step": step,
+            "sfen": sfen,
+            "features": features,
+        })
+        .to_string();
+        lines.push(line);
+    }
+    let mut file = log.lock().unwrap();
+    for line in lines {
+        let _ = writeln!(file, "{}", line);
+    }
+}
+
 struct SingleSeedResult {
     best: Option<(u32, Vec<PositionAux>)>,  // (piece_count, positions)
     killer: Option<KillerSeed>,
@@ -847,6 +1149,9 @@ fn search_single_seed(
     mem_trace: bool,
     global_best_piece_count: &AtomicUsize,
     seed_result_log_path: &Path,
+    feature_log: Option<&Mutex<fs::File>>,
+    feature_samples_per_step: usize,
+    beam: &BeamConfig,
 ) -> anyhow::Result<SingleSeedResult> {
     // Try to resume from checkpoint
     let checkpoint = load_seed_checkpoint(
@@ -1006,6 +1311,15 @@ fn search_single_seed(
             break;
         }
 
+        if let Some(log) = feature_log {
+            sample_features_to_log(
+                log,
+                feature_samples_per_step,
+                seed_index,
+                &search,
+            );
+        }
+
         if search_limit.is_some_and(|limit| search.step() >= limit) {
             break;
         }
@@ -1013,6 +1327,11 @@ fn search_single_seed(
         if search_limit.is_some_and(|limit| next_step > limit) {
             break;
         }
+
+        if let Some(width) = beam.width {
+            apply_beam(&mut search, beam, width);
+        }
+
         let advance_start = Instant::now();
         let candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
             satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)

@@ -717,6 +717,14 @@ impl BackwardSearch {
         (self.stone, &self.positions)
     }
 
+    /// Replace the current frontier with `new`. Used by beam search to
+    /// prune the frontier between steps. Resets the per-step processed
+    /// counter so the next `advance()` starts fresh.
+    pub fn replace_positions(&mut self, new: Vec<Position>) {
+        self.positions = new;
+        self.seen_positions = 0;
+    }
+
     pub fn stats(&self) -> BackwardSearchStats {
         BackwardSearchStats {
             step: self.step,
