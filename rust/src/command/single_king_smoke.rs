@@ -1671,8 +1671,7 @@ fn satisfies_ideal_smoke_constraints(
     if position.turn() != Color::BLACK {
         return false;
     }
-    // Output must always have no black hand pieces.
-    if !position.hands().is_empty(Color::BLACK) {
+    if !constraints.allow_white_pieces && !position.hands().is_empty(Color::BLACK) {
         return false;
     }
     let board = board_piece_count(position);
