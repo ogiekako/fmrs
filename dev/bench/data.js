@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777984769211,
+  "lastUpdate": 1777991096857,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28895,6 +28895,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 81630,
             "range": "± 1",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "75e4cdc0de024e86a9689f5963bbdbd2ad363a92",
+          "message": "SFEN の手番を後手玉に王手がかかっている場合は白番にする\n\nwasm に is_white_in_check を追加し、encodeSfen で自動判定。\nweb frontend からコピペした SFEN が正しい手番になる。\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-05T23:17:46+09:00",
+          "tree_id": "f21c301c174dc3a679326b0b2ace8fe3a8d1f217",
+          "url": "https://github.com/ogiekako/fmrs/commit/75e4cdc0de024e86a9689f5963bbdbd2ad363a92"
+        },
+        "date": 1777991094395,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 984,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3350,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 335,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 982,
+            "range": "± 1707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32286,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1464,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5439,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1830795,
+            "range": "± 170",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13746,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 36659,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4524,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22558,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 80644,
+            "range": "± 13",
             "unit": "ns/iter"
           }
         ]
