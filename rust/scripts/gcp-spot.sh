@@ -22,7 +22,7 @@
 #
 #   up       インスタンスを作成または再起動
 #   push     rsync でローカル → インスタンスへソースを転送
-#   run CMD  インスタンス上でコマンドをフォアグラウンド実行
+#   run CMD  インスタンス上でコマンドをフォアグラウンド実行 (preempt 時に自動再開)
 #   run-bg CMD  tmux 経由でバックグラウンド実行
 #   tail     バックグラウンドジョブのログを tail -f
 #   pull     rsync でインスタンス → ローカルへ結果を同期
@@ -41,6 +41,9 @@
 #
 # - SPOT + STOP ポリシーなので、preempt されてもインスタンスは消えず
 #   再度 `up` で復帰できる (ディスクも残る)。
+# - `run` は preempt 検知時に自動で start を試行し (stockout 時は backoff
+#   付きで再試行)、SSH 復帰後にコマンドを再実行する。コマンド側が
+#   checkpoint 経由で restart 可能であることが前提。
 # - push/pull は rsync over `gcloud compute ssh --plain` で差分転送。
 # - `run-bg` は tmux セッション "job" で実行。`ssh` してから
 #   `tmux attach -t job` で直接アタッチもできる。
@@ -104,6 +107,38 @@ wait_for_ssh() {
     sleep 5
   done
   echo "SSH ready."
+}
+
+instance_status() {
+  gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" \
+    --format="value(status)" 2>/dev/null || echo "NOT_FOUND"
+}
+
+# Try `gcloud compute instances start` until success, retrying on stockout
+# (ZONE_RESOURCE_POOL_EXHAUSTED) and other transient errors with backoff.
+wait_for_capacity_and_start() {
+  local backoff=30 max=600
+  while true; do
+    local status
+    status=$(instance_status)
+    if [ "$status" = "RUNNING" ]; then
+      return 0
+    fi
+    local err rc=0
+    err=$(gcloud compute instances start "$INSTANCE_NAME" --zone="$ZONE" 2>&1) || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      return 0
+    fi
+    if echo "$err" | grep -q "ZONE_RESOURCE_POOL_EXHAUSTED"; then
+      echo ">>> Stockout in $ZONE. Retrying in ${backoff}s..." >&2
+    else
+      echo ">>> Start failed (rc=$rc): $err" >&2
+      echo ">>> Retrying in ${backoff}s..." >&2
+    fi
+    sleep "$backoff"
+    backoff=$((backoff * 2))
+    [ "$backoff" -gt "$max" ] && backoff="$max"
+  done
 }
 
 provision_rust() {
@@ -188,12 +223,65 @@ cmd_run() {
     echo "Usage: $0 run 'command'" >&2
     exit 1
   fi
-  local remote_cmd="cd $REMOTE_DIR && source ~/.cargo/env && $*"
-  echo "Running on $INSTANCE_NAME: $*"
-  # --ssh-flag=-t allocates a PTY so that Ctrl-C / SSH disconnect
-  # sends SIGHUP to the remote process group, killing it cleanly.
-  gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" \
-    --ssh-flag=-t --command="$remote_cmd"
+  local user_cmd="$*"
+  local remote_cmd="cd $REMOTE_DIR && source ~/.cargo/env && $user_cmd"
+  trap 'echo ">>> Interrupted. Exiting." >&2; exit 130' INT
+  while true; do
+    echo ">>> Running on $INSTANCE_NAME: $user_cmd"
+    local rc=0
+    local supervisor_pid=$$
+
+    # Watchdog: gcloud ssh's TCP connection often hangs after preempt
+    # rather than returning an error. Poll the instance status and SIGTERM
+    # the ssh subprocess if the instance is no longer RUNNING.
+    (
+      while sleep 20; do
+        kill -0 "$supervisor_pid" 2>/dev/null || exit 0
+        local s
+        s=$(gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" \
+              --format="value(status)" 2>/dev/null || echo "UNKNOWN")
+        if [ "$s" != "RUNNING" ]; then
+          for child in $(pgrep -P "$supervisor_pid" 2>/dev/null); do
+            [ "$child" = "$BASHPID" ] && continue
+            kill -TERM "$child" 2>/dev/null || true
+          done
+          exit 0
+        fi
+      done
+    ) &
+    local watchdog_pid=$!
+
+    # --ssh-flag=-t allocates a PTY so that Ctrl-C / SSH disconnect
+    # sends SIGHUP to the remote process group. ServerAlive* makes SSH
+    # detect a dead TCP connection within ~60s as a backup to the watchdog.
+    gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" \
+      --ssh-flag=-t \
+      --ssh-flag=-oServerAliveInterval=15 \
+      --ssh-flag=-oServerAliveCountMax=4 \
+      --command="$remote_cmd" || rc=$?
+
+    kill -TERM "$watchdog_pid" 2>/dev/null || true
+    wait "$watchdog_pid" 2>/dev/null || true
+
+    local status
+    status=$(instance_status)
+    case "$status" in
+      RUNNING)
+        # Command finished (success or failure) without preemption.
+        exit "$rc"
+        ;;
+      TERMINATED|STOPPING|STOPPED|PROVISIONING|STAGING|REPAIRING)
+        echo ">>> Instance not RUNNING (status=$status, rc=$rc). Auto-recovering..." >&2
+        wait_for_capacity_and_start
+        wait_for_ssh
+        echo ">>> Resumed. Re-running command (assumes restart-safe)." >&2
+        ;;
+      *)
+        echo ">>> Unexpected instance status=$status, rc=$rc. Aborting." >&2
+        exit "$rc"
+        ;;
+    esac
+  done
 }
 
 cmd_run_bg() {
@@ -360,7 +448,7 @@ case "${1:-help}" in
     echo "Commands:"
     echo "  up       Create/start the spot instance"
     echo "  push     Sync local source to instance (excludes target/)"
-    echo "  run CMD  Run a command on the instance (foreground)"
+    echo "  run CMD  Run a command on the instance (foreground, auto-restart on preempt)"
     echo "  run-bg CMD  Run a command in background (tmux)"
     echo "  tail     Tail the background job log"
     echo "  pull     Sync instance results back to local"
