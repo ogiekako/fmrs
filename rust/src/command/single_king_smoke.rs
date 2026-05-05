@@ -80,6 +80,9 @@ pub enum SingleKingSmokeCommand {
         no_gold: bool,
         #[arg(long, default_value_t = false)]
         no_pawn: bool,
+        /// 豆腐図式: only Pawn/ProPawn (+ King) allowed on board.
+        #[arg(long, default_value_t = false)]
+        only_pawn: bool,
         #[arg(long)]
         max_file: Option<u8>,
         #[arg(long)]
@@ -172,6 +175,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             max_frontier,
             no_gold,
             no_pawn,
+            only_pawn,
             max_file,
             max_rank,
             allow_white_pieces,
@@ -202,6 +206,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 SearchConstraints {
                     no_gold,
                     no_pawn,
+                    only_pawn,
                     max_file,
                     max_rank,
                     allow_white_pieces,
@@ -906,6 +911,8 @@ struct SearchConstraints {
     no_gold: bool,
     #[serde(default)]
     no_pawn: bool,
+    #[serde(default)]
+    only_pawn: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     max_file: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1702,6 +1709,9 @@ fn satisfies_ideal_smoke_undo_candidate(
     if constraints.no_pawn && undo_creates_pawn(position, undo_move) {
         return false;
     }
+    if constraints.only_pawn && undo_creates_non_pawn(position, undo_move) {
+        return false;
+    }
     if undo_creates_out_of_bounds_piece(undo_move, constraints) {
         return false;
     }
@@ -1740,6 +1750,9 @@ fn satisfies_search_constraints(position: &PositionAux, constraints: SearchConst
         return false;
     }
     if constraints.no_pawn && board_pawn_count(position) != 0 {
+        return false;
+    }
+    if constraints.only_pawn && !board_only_pawn(position) {
         return false;
     }
     for square in Square::iter() {
@@ -1787,6 +1800,35 @@ fn satisfies_promoted_pct(
     promoted * 100 <= max_pct as u32 * total
 }
 
+fn board_only_pawn(position: &PositionAux) -> bool {
+    const FORBIDDEN: [Kind; 10] = [
+        Kind::Lance,
+        Kind::Knight,
+        Kind::Silver,
+        Kind::Gold,
+        Kind::Bishop,
+        Kind::Rook,
+        Kind::ProLance,
+        Kind::ProKnight,
+        Kind::ProSilver,
+        Kind::ProBishop,
+    ];
+    for &kind in &FORBIDDEN {
+        if position.bitboard(Color::BLACK, kind).count_ones() > 0
+            || position.bitboard(Color::WHITE, kind).count_ones() > 0
+        {
+            return false;
+        }
+    }
+    // ProRook also forbidden
+    if position.bitboard(Color::BLACK, Kind::ProRook).count_ones() > 0
+        || position.bitboard(Color::WHITE, Kind::ProRook).count_ones() > 0
+    {
+        return false;
+    }
+    true
+}
+
 fn board_promoted_count(position: &PositionAux) -> u32 {
     const PROMOTED: [Kind; 6] = [
         Kind::ProPawn,
@@ -1831,6 +1873,31 @@ fn undo_creates_gold(position: &PositionAux, undo_move: &UndoMove) -> bool {
                         kind
                     };
                     previous_kind == Kind::Gold
+                })
+        }
+    }
+}
+
+fn undo_creates_non_pawn(position: &PositionAux, undo_move: &UndoMove) -> bool {
+    let is_pawn_kind = |k: Kind| k == Kind::Pawn || k == Kind::ProPawn;
+    match undo_move {
+        UndoMove::UnDrop(square, _) => position
+            .get(*square)
+            .is_some_and(|(_, kind)| !is_pawn_kind(kind) && kind != Kind::King),
+        UndoMove::UnMove {
+            dest,
+            promote,
+            capture,
+            ..
+        } => {
+            capture.is_some_and(|kind| !is_pawn_kind(kind) && kind != Kind::King)
+                || position.get(*dest).is_some_and(|(_, kind)| {
+                    let previous_kind = if *promote {
+                        kind.unpromote().unwrap()
+                    } else {
+                        kind
+                    };
+                    !is_pawn_kind(previous_kind) && previous_kind != Kind::King
                 })
         }
     }
