@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777965199412,
+  "lastUpdate": 1777969881926,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28487,6 +28487,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 83332,
             "range": "± 17",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "078998ae3501befa70c5f225d0057716ead053bd",
+          "message": "ogiekako-no-pawn-smoke-43: 歩なし煙詰 43手\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-05T17:24:04+09:00",
+          "tree_id": "a91c65e04a1a61f6a0671cc00e41f2c878dbdb76",
+          "url": "https://github.com/ogiekako/fmrs/commit/078998ae3501befa70c5f225d0057716ead053bd"
+        },
+        "date": 1777969879452,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 951,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3386,
+            "range": "± 115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 332,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1134,
+            "range": "± 1941",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33663,
+            "range": "± 113",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1510,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5322,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1893570,
+            "range": "± 214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13780,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37502,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4546,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23255,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81734,
+            "range": "± 27",
             "unit": "ns/iter"
           }
         ]
