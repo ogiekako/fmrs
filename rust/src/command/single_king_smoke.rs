@@ -123,6 +123,22 @@ pub enum SingleKingSmokeCommand {
         #[arg(long, default_value_t = 16)]
         min_label: u32,
     },
+    /// Train a beam model from the seed result log (no --feature-log needed).
+    ///
+    /// Solves each representative_sfen to collect intermediate positions,
+    /// extracts features, and writes a CSV + trained model JSON.
+    #[command(name = "train-model")]
+    TrainModel {
+        /// Seed result log (jsonl).
+        #[arg(long, default_value = "target/single-king-smoke-ideal-backward-seeds.jsonl")]
+        seed_result_log: PathBuf,
+        /// Output model JSON path.
+        #[arg(long, short = 'o', default_value = "models/beam_model.json")]
+        out: PathBuf,
+        /// Only include seeds whose best_piece_count >= this threshold.
+        #[arg(long, default_value_t = 0)]
+        min_label: u32,
+    },
 }
 
 pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
@@ -198,6 +214,11 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             out,
             min_label,
         } => export_features(&feature_log, &seed_result_log, &out, min_label),
+        SingleKingSmokeCommand::TrainModel {
+            seed_result_log,
+            out,
+            min_label,
+        } => train_model(&seed_result_log, &out, min_label),
     }
 }
 
@@ -299,6 +320,121 @@ fn export_features(
         total,
         out.display()
     );
+    Ok(())
+}
+
+fn train_model(seed_result_log: &Path, model_out: &Path, min_label: u32) -> anyhow::Result<()> {
+    use super::smoke_features::feature_names;
+    use fmrs_core::solve::standard_solve::standard_solve;
+
+    let file = fs::File::open(seed_result_log)
+        .with_context(|| format!("open {}", seed_result_log.display()))?;
+    let mut records: Vec<SeedResultRecord> = Vec::new();
+    for line in BufReader::new(file).lines() {
+        let line = line?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let Ok(record) = serde_json::from_str::<SeedResultRecord>(&line) else {
+            continue;
+        };
+        if record.best_piece_count >= min_label && record.representative_sfen.is_some() {
+            records.push(record);
+        }
+    }
+    records.sort_by(|a, b| b.best_piece_count.cmp(&a.best_piece_count));
+    records.dedup_by_key(|r| r.seed_index);
+    eprintln!(
+        "train-model: {} seeds with best_piece_count >= {}",
+        records.len(),
+        min_label
+    );
+
+    let names = feature_names();
+    let csv_path = model_out.with_extension("csv");
+    let mut writer = std::io::BufWriter::new(
+        fs::File::create(&csv_path)
+            .with_context(|| format!("create {}", csv_path.display()))?,
+    );
+    write!(writer, "seed_index,step,label")?;
+    for n in names.iter() {
+        write!(writer, ",{n}")?;
+    }
+    writeln!(writer)?;
+
+    let mut total_rows = 0usize;
+    let mut solved = 0usize;
+    let mut failed = 0usize;
+    for record in &records {
+        let sfen = record.representative_sfen.as_deref().unwrap();
+        let Ok(pos) = PositionAux::from_sfen(sfen) else {
+            failed += 1;
+            continue;
+        };
+        let Ok(reconstructor) = standard_solve(pos.clone(), 1, true) else {
+            failed += 1;
+            continue;
+        };
+        let solutions = reconstructor.solutions();
+        let Some(movements) = solutions.first() else {
+            failed += 1;
+            continue;
+        };
+        solved += 1;
+
+        let mut pos = pos;
+        let label = record.best_piece_count;
+        for (i, mv) in movements.iter().enumerate() {
+            if pos.turn().is_black() {
+                let features = extract_features(&pos);
+                write!(writer, "{},{i},{label}", record.seed_index)?;
+                for f in &features {
+                    write!(writer, ",{f}")?;
+                }
+                writeln!(writer)?;
+                total_rows += 1;
+            }
+            pos.do_move(mv);
+        }
+        if pos.turn().is_black() {
+            let features = extract_features(&pos);
+            write!(writer, "{},{},{label}", record.seed_index, movements.len())?;
+            for f in &features {
+                write!(writer, ",{f}")?;
+            }
+            writeln!(writer)?;
+            total_rows += 1;
+        }
+    }
+    writer.flush()?;
+    eprintln!(
+        "train-model: {} rows from {} solved seeds ({} failed) → {}",
+        total_rows,
+        solved,
+        failed,
+        csv_path.display()
+    );
+
+    let script = Path::new("scripts/train_beam_model.py");
+    if !script.exists() {
+        bail!("training script not found: {}", script.display());
+    }
+    if let Some(parent) = model_out.parent().filter(|p| !p.as_os_str().is_empty()) {
+        fs::create_dir_all(parent)?;
+    }
+    let status = std::process::Command::new("python3")
+        .arg(script)
+        .arg("--csv")
+        .arg(&csv_path)
+        .arg("--out")
+        .arg(model_out)
+        .arg("--standardize")
+        .status()
+        .context("failed to run python3")?;
+    if !status.success() {
+        bail!("training script failed with {status}");
+    }
+    eprintln!("train-model: model saved to {}", model_out.display());
     Ok(())
 }
 
