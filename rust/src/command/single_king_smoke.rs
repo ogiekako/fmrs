@@ -491,20 +491,26 @@ fn ideal_backward(
         }
         seeds
     };
-    let seed_records =
-        load_seed_result_log(&seed_result_log, max_step, limits.max_frontier, constraints)?;
     let mut pending_seeds = Vec::with_capacity(seeds.len());
     let mut initial_best = (0u32, FxHashSet::default(), 0usize);
     let mut loaded_records = 0usize;
-    for (seed_index, seed) in seeds {
-        if let Some(record) = seed_records
-            .get(&seed_index)
-            .filter(|record| record.seed_sfen == seed.sfen())
-        {
-            loaded_records += 1;
-            merge_seed_result_record(&mut initial_best, record);
-        } else {
+    if beam.width.is_some() {
+        for (seed_index, seed) in seeds {
             pending_seeds.push((seed_index, seed));
+        }
+    } else {
+        let seed_records =
+            load_seed_result_log(&seed_result_log, max_step, limits.max_frontier, constraints)?;
+        for (seed_index, seed) in seeds {
+            if let Some(record) = seed_records
+                .get(&seed_index)
+                .filter(|record| record.seed_sfen == seed.sfen())
+            {
+                loaded_records += 1;
+                merge_seed_result_record(&mut initial_best, record);
+            } else {
+                pending_seeds.push((seed_index, seed));
+            }
         }
     }
     let total_seeds = loaded_records + pending_seeds.len();
@@ -579,24 +585,26 @@ fn ideal_backward(
                 if let Some(killer) = result.killer.as_ref() {
                     skipped.lock().unwrap().push(killer.clone());
                 }
-                append_seed_result_record(
-                    &mut seed_result_log.lock().unwrap(),
-                    seed_result_record(
+                if beam.width.is_none() {
+                    append_seed_result_record(
+                        &mut seed_result_log.lock().unwrap(),
+                        seed_result_record(
+                            *seed_index,
+                            seed,
+                            max_step,
+                            limits.max_frontier,
+                            constraints,
+                            &result,
+                        ),
+                    )?;
+                    remove_seed_checkpoint(
+                        &seed_result_log_path,
                         *seed_index,
-                        seed,
                         max_step,
                         limits.max_frontier,
                         constraints,
-                        &result,
-                    ),
-                )?;
-                remove_seed_checkpoint(
-                    &seed_result_log_path,
-                    *seed_index,
-                    max_step,
-                    limits.max_frontier,
-                    constraints,
-                );
+                    );
+                }
                 if let Some((piece_count, positions)) = result.best {
                     let mut best = best.lock().unwrap();
                     best.2 += 1;
