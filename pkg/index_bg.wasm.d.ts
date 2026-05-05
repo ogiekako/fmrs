@@ -17,6 +17,7 @@ export const __wbg_onewaymateresult_free: (a: number, b: number) => void;
 export const __wbg_set_onewaymateresult_is_one_way: (a: number, b: number) => void;
 export const __wbg_set_onewaymateresult_steps: (a: number, b: number) => void;
 export const check_one_way_mate: (a: number, b: number) => number;
+export const is_white_in_check: (a: number, b: number) => number;
 export const __wbg_backwardsearch_free: (a: number, b: number) => void;
 export const backwardsearch_advance: (a: number) => number;
 export const backwardsearch_new: (a: number, b: number, c: number) => number;

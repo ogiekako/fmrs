@@ -252,6 +252,17 @@ export function check_one_way_mate(sfen) {
     const ret = wasm.check_one_way_mate(ptr0, len0);
     return ret === 0 ? undefined : OneWayMateResult.__wrap(ret);
 }
+
+/**
+ * @param {string} sfen
+ * @returns {boolean}
+ */
+export function is_white_in_check(sfen) {
+    const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+    const len0 = WASM_VECTOR_LEN;
+    const ret = wasm.is_white_in_check(ptr0, len0);
+    return ret !== 0;
+}
 export function __wbg___wbindgen_throw_9c75d47bf9e7731e(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
