@@ -936,55 +936,40 @@ fn open_feature_log(path: &Path) -> anyhow::Result<fs::File> {
 }
 
 fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: usize) {
-    let (stone, positions) = search.positions();
+    let (_, positions) = search.positions();
     if positions.len() <= width || width == 0 {
         return;
     }
-    // Score in parallel for large frontiers; rayon's global pool is fine here.
-    let mut scored: Vec<(f32, Position)> = positions
-        .par_iter()
-        .map(|p| {
-            let aux = PositionAux::new(p.clone(), stone);
-            let features = extract_features(&aux);
-            let score = match beam.model.as_ref() {
-                Some(m) => m.score(&features),
-                None => default_beam_heuristic(&features),
-            };
-            (score, p.clone())
-        })
-        .collect();
-
-    // Higher score = more promising. Partition so the top `width` are first.
-    if width > 0 && width < scored.len() {
-        scored.select_nth_unstable_by(width - 1, |a, b| {
-            b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
-        });
+    match beam.model.as_ref() {
+        Some(model) => {
+            let (stone, positions) = search.positions();
+            let mut scored: Vec<(f32, Position)> = positions
+                .par_iter()
+                .map(|p| {
+                    let aux = PositionAux::new(p.clone(), stone);
+                    let features = extract_features(&aux);
+                    let score = model.score(&features);
+                    (score, p.clone())
+                })
+                .collect();
+            scored.select_nth_unstable_by(width - 1, |a, b| {
+                b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let truncated: Vec<Position> =
+                scored.into_iter().take(width).map(|(_, p)| p).collect();
+            search.replace_positions(truncated);
+        }
+        None => {
+            let (_, positions) = search.positions();
+            let n = positions.len();
+            let mut indices: Vec<usize> = (0..n).collect();
+            let mut rng = SmallRng::from_entropy();
+            indices.partial_shuffle(&mut rng, width);
+            let kept: Vec<Position> =
+                indices[..width].iter().map(|&i| positions[i].clone()).collect();
+            search.replace_positions(kept);
+        }
     }
-    let truncated: Vec<Position> = scored.into_iter().take(width).map(|(_, p)| p).collect();
-    search.replace_positions(truncated);
-}
-
-// Fallback heuristic when no learned model is provided. Hand-tuned to favor
-// frontier positions that look like they have room (and motivation) to
-// extend further backward.
-//
-// Indices match feature_names() order: see smoke_features.rs.
-fn default_beam_heuristic(features: &[f32]) -> f32 {
-    let names = super::smoke_features::feature_names();
-    let get = |n: &str| -> f32 {
-        names
-            .iter()
-            .position(|x| *x == n)
-            .map(|i| features[i])
-            .unwrap_or(0.0)
-    };
-    // Hand-tuned: more pieces in play and more attacking surface = more
-    // promising for further backward extension.
-    2.0 * get("board_total")
-        + 0.5 * get("hand_black_total")
-        + 0.05 * get("total_black_kiki")
-        + 0.3 * get("king_white_neighbors_attacked")
-        - 0.2 * get("king_white_min_edge_dist")
 }
 
 fn sample_features_to_log(
