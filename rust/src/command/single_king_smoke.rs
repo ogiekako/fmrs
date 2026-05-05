@@ -1589,7 +1589,14 @@ fn search_single_seed(
     let best = if best_positions.is_empty() {
         None
     } else {
-        Some((best_piece_count, best_positions))
+        let mut sfens = best_positions.iter().map(PositionAux::sfen).collect::<Vec<_>>();
+        sfens.sort();
+        let representative = sfens.into_iter().next().unwrap();
+        let representative_pos = best_positions
+            .into_iter()
+            .find(|p| p.sfen() == representative)
+            .unwrap();
+        Some((best_piece_count, vec![representative_pos]))
     };
     Ok(SingleSeedResult { best, killer })
 }
