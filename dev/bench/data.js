@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777969881926,
+  "lastUpdate": 1777976080285,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28589,6 +28589,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 81734,
             "range": "± 27",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "1f5344b6f4a8fe1b3d640ffb35555d348abb8ee6",
+          "message": "Revert \"allow_white_pieces 時に先手持ち駒があっても出力フィルタを通す\"\n\nThis reverts commit d67231ee0bf98bb427df749721c5c79a641aaf74.",
+          "timestamp": "2026-05-05T19:07:20+09:00",
+          "tree_id": "4a976ea253da45c7469d548e52b8d24d431c3676",
+          "url": "https://github.com/ogiekako/fmrs/commit/1f5344b6f4a8fe1b3d640ffb35555d348abb8ee6"
+        },
+        "date": 1777976077235,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 897,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3395,
+            "range": "± 77",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 315,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1058,
+            "range": "± 1839",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32878,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1477,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5290,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1904094,
+            "range": "± 233",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13593,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 38081,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4609,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23809,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 87729,
+            "range": "± 13",
             "unit": "ns/iter"
           }
         ]
