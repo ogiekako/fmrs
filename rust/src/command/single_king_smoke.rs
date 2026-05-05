@@ -83,6 +83,10 @@ pub enum SingleKingSmokeCommand {
         /// 豆腐図式: only Pawn/ProPawn (+ King) allowed on board.
         #[arg(long, default_value_t = false)]
         only_pawn: bool,
+        /// Comma-separated list of allowed piece kinds on the board (+ King always allowed).
+        /// E.g. --allowed-kinds pawn,lance,knight. Overrides --no-gold/--no-pawn/--only-pawn.
+        #[arg(long, value_delimiter = ',')]
+        allowed_kinds: Option<Vec<String>>,
         #[arg(long)]
         max_file: Option<u8>,
         #[arg(long)]
@@ -176,6 +180,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             no_gold,
             no_pawn,
             only_pawn,
+            allowed_kinds,
             max_file,
             max_rank,
             allow_white_pieces,
@@ -192,6 +197,10 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             let parallel = parallel.unwrap_or_else(default_parallelism);
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
+            let allowed_kinds_mask = match allowed_kinds {
+                Some(names) => Some(parse_allowed_kinds(&names)?),
+                None => None,
+            };
             ideal_backward(
                 parallel,
                 seed_sfen,
@@ -207,6 +216,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     no_gold,
                     no_pawn,
                     only_pawn,
+                    allowed_kinds_mask,
                     max_file,
                     max_rank,
                     allow_white_pieces,
@@ -913,6 +923,10 @@ struct SearchConstraints {
     no_pawn: bool,
     #[serde(default)]
     only_pawn: bool,
+    /// Bitmask of allowed piece kinds (bit i = Kind index i). None = all allowed.
+    /// King is always implicitly allowed regardless of this mask.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    allowed_kinds_mask: Option<u16>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     max_file: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -1712,6 +1726,11 @@ fn satisfies_ideal_smoke_undo_candidate(
     if constraints.only_pawn && undo_creates_non_pawn(position, undo_move) {
         return false;
     }
+    if constraints.allowed_kinds_mask.is_some()
+        && undo_creates_forbidden_kind(position, undo_move, constraints.allowed_kinds_mask)
+    {
+        return false;
+    }
     if undo_creates_out_of_bounds_piece(undo_move, constraints) {
         return false;
     }
@@ -1745,6 +1764,32 @@ fn validate_search_constraints(constraints: SearchConstraints) -> anyhow::Result
     Ok(())
 }
 
+fn parse_allowed_kinds(names: &[String]) -> anyhow::Result<u16> {
+    let mut mask = 0u16;
+    for name in names {
+        let kind = match name.to_lowercase().as_str() {
+            "pawn" | "p" => Kind::Pawn,
+            "lance" | "l" => Kind::Lance,
+            "knight" | "n" => Kind::Knight,
+            "silver" | "s" => Kind::Silver,
+            "gold" | "g" => Kind::Gold,
+            "bishop" | "b" => Kind::Bishop,
+            "rook" | "r" => Kind::Rook,
+            other => bail!("unknown kind: {other}"),
+        };
+        mask |= 1u16 << kind.index();
+        if let Some(promoted) = kind.promote() {
+            mask |= 1u16 << promoted.index();
+        }
+    }
+    Ok(mask)
+}
+
+fn kind_allowed_by_mask(kind: Kind, mask: Option<u16>) -> bool {
+    let Some(mask) = mask else { return true };
+    kind == Kind::King || (mask >> kind.index()) & 1 == 1
+}
+
 fn satisfies_search_constraints(position: &PositionAux, constraints: SearchConstraints) -> bool {
     if constraints.no_gold && board_gold_count(position) != 0 {
         return false;
@@ -1754,6 +1799,15 @@ fn satisfies_search_constraints(position: &PositionAux, constraints: SearchConst
     }
     if constraints.only_pawn && !board_only_pawn(position) {
         return false;
+    }
+    if let Some(mask) = constraints.allowed_kinds_mask {
+        for square in Square::iter() {
+            if let Some((_, kind)) = position.get(square) {
+                if !kind_allowed_by_mask(kind, Some(mask)) {
+                    return false;
+                }
+            }
+        }
     }
     for square in Square::iter() {
         if position.get(square).is_some() && !square_in_bounds(square, constraints) {
@@ -1874,6 +1928,36 @@ fn undo_creates_gold(position: &PositionAux, undo_move: &UndoMove) -> bool {
                     };
                     previous_kind == Kind::Gold
                 })
+        }
+    }
+}
+
+fn undo_creates_forbidden_kind(
+    position: &PositionAux,
+    undo_move: &UndoMove,
+    mask: Option<u16>,
+) -> bool {
+    match undo_move {
+        UndoMove::UnDrop(square, _) => position
+            .get(*square)
+            .is_some_and(|(_, kind)| !kind_allowed_by_mask(kind, mask)),
+        UndoMove::UnMove {
+            dest,
+            promote,
+            capture,
+            ..
+        } => {
+            if capture.is_some_and(|kind| !kind_allowed_by_mask(kind, mask)) {
+                return true;
+            }
+            position.get(*dest).is_some_and(|(_, kind)| {
+                let previous_kind = if *promote {
+                    kind.unpromote().unwrap()
+                } else {
+                    kind
+                };
+                !kind_allowed_by_mask(previous_kind, mask)
+            })
         }
     }
 }
