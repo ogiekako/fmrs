@@ -375,9 +375,11 @@ impl BackwardSearch {
         parallel: usize,
     ) -> anyhow::Result<Self> {
         let initial_position = PositionAux::from_sfen(&state.initial_position_sfen)?;
+        // Frontier can have millions of SFENs; SFEN→Position is independent so
+        // parse in parallel to cut resume time.
         let positions = state
             .frontier_sfens
-            .iter()
+            .par_iter()
             .map(|sfen| PositionAux::from_sfen(sfen).map(|p| p.core().clone()))
             .collect::<anyhow::Result<Vec<_>>>()?;
         let solution = state
