@@ -1,18 +1,17 @@
 use anyhow::{bail, Context as _};
 use clap::Subcommand;
 use fmrs_core::{
-    piece::{Color, Kind, KINDS, NUM_HAND_KIND},
+    piece::{Color, Kind, KINDS},
     position::{
         advance::{advance::advance_aux, AdvanceOptions},
         position::PositionAux,
         BitBoard, Position, Square, UndoMove,
     },
-    search::backward::{BackwardSearch, BackwardSearchResumeState, BackwardSearchStats},
+    search::backward::{BackwardSearch, BackwardSearchStats},
 };
 use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
@@ -22,20 +21,20 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use super::smoke_features::{extract_features, LinearModel};
-
-const IDEAL_BACKWARD_SEED_LOG_VERSION: u32 = 1;
+use super::smoke_constraints::{
+    board_piece_count, canonical_position, canonical_sfen, parse_allowed_kinds,
+    satisfies_ideal_smoke_constraints, satisfies_ideal_smoke_generation_constraints,
+    satisfies_ideal_smoke_undo_candidate, satisfies_search_constraints, square_in_bounds,
+    validate_search_constraints, with_white_complement, KillerSeedLimits, SearchConstraints,
+};
+use super::smoke_persistence::{
+    append_seed_result_record, build_seed_result_record, load_seed_checkpoint,
+    load_seed_result_log, merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint,
+    write_seed_checkpoint, SeedCheckpoint,
+};
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum SingleKingSmokeCommand {
-    #[command(name = "final-2")]
-    Final2 {
-        #[arg(long)]
-        parallel: Option<usize>,
-        #[arg(long)]
-        max_file: Option<u8>,
-        #[arg(long)]
-        max_rank: Option<u8>,
-    },
     /// Backward-search for ideal-smoke initial positions.
     ///
     /// Beam-search workflow (data-driven):
@@ -160,18 +159,6 @@ pub enum SingleKingSmokeCommand {
 
 pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
     match cmd {
-        SingleKingSmokeCommand::Final2 {
-            parallel,
-            max_file,
-            max_rank,
-        } => enumerate_final_2(
-            parallel,
-            SearchConstraints {
-                max_file,
-                max_rank,
-                ..Default::default()
-            },
-        ),
         SingleKingSmokeCommand::IdealBackward {
             parallel,
             seed_sfen,
@@ -259,6 +246,7 @@ fn export_features(
     min_label: u32,
 ) -> anyhow::Result<()> {
     use super::smoke_features::feature_names;
+    use super::smoke_persistence::SeedResultRecord;
 
     // Build seed_index → best_piece_count map from seed result log.
     let mut labels: FxHashMap<usize, u32> = FxHashMap::default();
@@ -355,6 +343,7 @@ fn export_features(
 
 fn train_model(seed_result_log: &Path, model_out: &Path, min_label: u32) -> anyhow::Result<()> {
     use super::smoke_features::feature_names;
+    use super::smoke_persistence::SeedResultRecord;
     use fmrs_core::solve::standard_solve::standard_solve;
 
     let file = fs::File::open(seed_result_log)
@@ -465,23 +454,6 @@ fn train_model(seed_result_log: &Path, model_out: &Path, min_label: u32) -> anyh
         bail!("training script failed with {status}");
     }
     eprintln!("train-model: model saved to {}", model_out.display());
-    Ok(())
-}
-
-fn enumerate_final_2(
-    parallel: Option<usize>,
-    constraints: SearchConstraints,
-) -> anyhow::Result<()> {
-    let parallel = parallel.unwrap_or_else(default_parallelism);
-    if parallel == 0 {
-        bail!("parallel must be positive");
-    }
-    validate_search_constraints(constraints)?;
-    let sfens = enumerate_final_2_sfens(parallel, constraints)?;
-    eprintln!("count: {}", sfens.len());
-    for sfen in sfens {
-        println!("{sfen}");
-    }
     Ok(())
 }
 
@@ -619,13 +591,14 @@ fn ideal_backward(
                 if beam.width.is_none() {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),
-                        seed_result_record(
+                        build_seed_result_record(
                             *seed_index,
                             seed,
                             max_step,
                             limits.max_frontier,
                             constraints,
-                            &result,
+                            &result.best,
+                            result.killer.is_some(),
                         ),
                     )?;
                     remove_seed_checkpoint(
@@ -815,60 +788,6 @@ fn black_piece_can_stand_on(kind: Kind, sq: Square) -> bool {
     }
 }
 
-fn canonical_lr_sfen(position: &PositionAux) -> String {
-    let sfen = position.sfen();
-    let reflected = reflect_left_right(position).sfen();
-    if sfen <= reflected {
-        sfen
-    } else {
-        reflected
-    }
-}
-
-fn canonical_sfen(position: &PositionAux, constraints: SearchConstraints) -> String {
-    if constraints.breaks_lr_symmetry() {
-        position.sfen()
-    } else {
-        canonical_lr_sfen(position)
-    }
-}
-
-fn reflect_left_right(position: &PositionAux) -> PositionAux {
-    let mut reflected = PositionAux::default();
-    reflected.set_turn(position.turn());
-    reflected.set_pawn_drop(position.pawn_drop());
-    for color in Color::iter() {
-        for kind in KINDS[..NUM_HAND_KIND].iter().copied() {
-            reflected
-                .hands_mut()
-                .add_n(color, kind, position.hands().count(color, kind));
-        }
-    }
-    for sq in Square::iter() {
-        if let Some((color, kind)) = position.get(sq) {
-            reflected.set(Square::new(8 - sq.col(), sq.row()), color, kind);
-        }
-    }
-    reflected
-}
-
-fn canonical_lr_position(position: &PositionAux) -> PositionAux {
-    let reflected = reflect_left_right(position);
-    if position.sfen() <= reflected.sfen() {
-        position.clone()
-    } else {
-        reflected
-    }
-}
-
-fn canonical_position(position: &PositionAux, constraints: SearchConstraints) -> PositionAux {
-    if constraints.breaks_lr_symmetry() {
-        position.clone()
-    } else {
-        canonical_lr_position(position)
-    }
-}
-
 fn dedup_positions(positions: Vec<PositionAux>) -> Vec<PositionAux> {
     let mut seen = FxHashSet::default();
     let mut deduped = vec![];
@@ -880,78 +799,6 @@ fn dedup_positions(positions: Vec<PositionAux>) -> Vec<PositionAux> {
     }
     deduped.sort_by_key(PositionAux::sfen);
     deduped
-}
-
-fn board_piece_count(position: &PositionAux) -> u32 {
-    position.occupied_bb().count_ones()
-}
-
-fn black_hand_count(position: &PositionAux) -> u32 {
-    KINDS[..NUM_HAND_KIND]
-        .iter()
-        .map(|&kind| position.hands().count(Color::BLACK, kind) as u32)
-        .sum()
-}
-
-fn pieces_in_play(position: &PositionAux) -> u32 {
-    board_piece_count(position) + black_hand_count(position)
-}
-
-fn pieces_in_play_after_undo(position: &PositionAux, undo_move: &UndoMove) -> u32 {
-    let board = board_piece_count_after_undo(position, undo_move);
-    let prev_turn = position.turn().opposite();
-    let hand = if prev_turn == Color::BLACK {
-        let current = black_hand_count(position);
-        match undo_move {
-            UndoMove::UnDrop(_, _) => current + 1,
-            UndoMove::UnMove {
-                capture: Some(_), ..
-            } => current - 1,
-            UndoMove::UnMove { capture: None, .. } => current,
-        }
-    } else {
-        black_hand_count(position)
-    };
-    board + hand
-}
-
-#[derive(Clone, Copy)]
-struct KillerSeedLimits {
-    max_memo_entries: Option<usize>,
-    max_frontier: Option<usize>,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-struct SearchConstraints {
-    no_gold: bool,
-    #[serde(default)]
-    no_pawn: bool,
-    #[serde(default)]
-    only_pawn: bool,
-    /// Bitmask of allowed piece kinds (bit i = Kind index i). None = all allowed.
-    /// King is always implicitly allowed regardless of this mask.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    allowed_kinds_mask: Option<u16>,
-    #[serde(default)]
-    natural_piece_limit: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_file: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_rank: Option<u8>,
-    #[serde(default)]
-    allow_white_pieces: bool,
-    #[serde(default)]
-    slack: u16,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_promoted_pct: Option<u16>,
-    #[serde(default)]
-    max_promoted_pct_after_step: u16,
-}
-
-impl SearchConstraints {
-    fn breaks_lr_symmetry(self) -> bool {
-        self.max_file.is_some()
-    }
 }
 
 #[derive(Clone, Default)]
@@ -1068,8 +915,9 @@ fn sample_features_to_log(
     }
     let n = positions.len();
     let k = samples_per_step.min(n);
-    let mut rng =
-        SmallRng::seed_from_u64((seed_index as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ step as u64);
+    let mut rng = SmallRng::seed_from_u64(
+        (seed_index as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ step as u64,
+    );
     let mut lines = Vec::with_capacity(k);
     for _ in 0..k {
         let idx = rng.gen_range(0..n);
@@ -1092,232 +940,8 @@ fn sample_features_to_log(
 }
 
 struct SingleSeedResult {
-    best: Option<(u32, Vec<PositionAux>)>,  // (piece_count, positions)
+    best: Option<(u32, Vec<PositionAux>)>, // (piece_count, positions)
     killer: Option<KillerSeed>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct SeedCheckpoint {
-    seed_index: usize,
-    seed_sfen: String,
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-    resume_state: BackwardSearchResumeState,
-    best_piece_count: u32,
-    best_sfens: Vec<String>,
-}
-
-fn checkpoint_dir(seed_result_log: &Path) -> PathBuf {
-    let mut dir = seed_result_log.as_os_str().to_owned();
-    dir.push(".checkpoints");
-    PathBuf::from(dir)
-}
-
-// 16-hex-char digest of (max_step, max_frontier, constraints). Embedded in
-// the checkpoint filename so that incompatible runs don't even open each
-// other's files. Stable within a single binary build.
-fn condition_key(
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-) -> String {
-    use std::hash::{DefaultHasher, Hasher};
-    let s = serde_json::to_string(&(max_step, max_frontier, &constraints))
-        .expect("constraints serialize");
-    let mut hasher = DefaultHasher::new();
-    hasher.write(s.as_bytes());
-    format!("{:016x}", hasher.finish())
-}
-
-fn checkpoint_path(seed_result_log: &Path, seed_index: usize, key: &str) -> PathBuf {
-    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}.json"))
-}
-
-fn write_seed_checkpoint(seed_result_log: &Path, checkpoint: &SeedCheckpoint) -> anyhow::Result<()> {
-    let dir = checkpoint_dir(seed_result_log);
-    fs::create_dir_all(&dir)?;
-    let key = condition_key(checkpoint.max_step, checkpoint.max_frontier, checkpoint.constraints);
-    let path = checkpoint_path(seed_result_log, checkpoint.seed_index, &key);
-    let tmp_path = dir.join(format!(".seed_{}_{}.json.tmp", checkpoint.seed_index, key));
-    serde_json::to_writer(fs::File::create(&tmp_path)?, checkpoint)?;
-    fs::rename(&tmp_path, &path)?;
-    Ok(())
-}
-
-fn load_seed_checkpoint(
-    seed_result_log: &Path,
-    seed_index: usize,
-    seed_sfen: &str,
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-) -> Option<SeedCheckpoint> {
-    let key = condition_key(max_step, max_frontier, constraints);
-    let new_path = checkpoint_path(seed_result_log, seed_index, &key);
-    if let Ok(file) = fs::File::open(&new_path) {
-        if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(file) {
-            if cp.seed_index == seed_index && cp.seed_sfen == seed_sfen {
-                return Some(cp);
-            }
-        }
-    }
-
-    // Legacy fallback: older runs used seed_{i}.json without the condition
-    // key. Open it, verify conditions match, and migrate by renaming to the
-    // new path so future loads stay fast.
-    let legacy_path = checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}.json"));
-    let file = fs::File::open(&legacy_path).ok()?;
-    let checkpoint: SeedCheckpoint = serde_json::from_reader(file).ok()?;
-    if checkpoint.seed_index == seed_index
-        && checkpoint.seed_sfen == seed_sfen
-        && checkpoint.max_step == max_step
-        && checkpoint.max_frontier == max_frontier
-        && checkpoint.constraints == constraints
-    {
-        let _ = fs::rename(&legacy_path, &new_path);
-        Some(checkpoint)
-    } else {
-        None
-    }
-}
-
-fn remove_seed_checkpoint(
-    seed_result_log: &Path,
-    seed_index: usize,
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-) {
-    let key = condition_key(max_step, max_frontier, constraints);
-    let _ = fs::remove_file(checkpoint_path(seed_result_log, seed_index, &key));
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct SeedResultRecord {
-    version: u32,
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    #[serde(default)]
-    constraints: SearchConstraints,
-    seed_index: usize,
-    seed_sfen: String,
-    best_step: u16,
-    #[serde(default)]
-    best_piece_count: u32,
-    positions: usize,
-    representative_sfen: Option<String>,
-    skipped: bool,
-}
-
-fn load_seed_result_log(
-    path: &Path,
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-) -> anyhow::Result<FxHashMap<usize, SeedResultRecord>> {
-    let Ok(file) = fs::File::open(path) else {
-        return Ok(FxHashMap::default());
-    };
-    let mut records = FxHashMap::default();
-    for (line_index, line) in BufReader::new(file).lines().enumerate() {
-        let line = line?;
-        if line.trim().is_empty() {
-            continue;
-        }
-        let Ok(record) = serde_json::from_str::<SeedResultRecord>(&line) else {
-            eprintln!(
-                "warning: ignoring malformed seed result log line {} in {}",
-                line_index + 1,
-                path.display()
-            );
-            continue;
-        };
-        if record.version == IDEAL_BACKWARD_SEED_LOG_VERSION
-            && record.max_step == max_step
-            && record.max_frontier == max_frontier
-            && record.constraints == constraints
-        {
-            records.insert(record.seed_index, record);
-        }
-    }
-    Ok(records)
-}
-
-fn open_seed_result_log(path: &Path) -> anyhow::Result<fs::File> {
-    if let Some(parent) = path
-        .parent()
-        .filter(|parent| !parent.as_os_str().is_empty())
-    {
-        fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create {}", parent.display()))?;
-    }
-    fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .with_context(|| format!("failed to open {}", path.display()))
-}
-
-fn append_seed_result_record(file: &mut fs::File, record: SeedResultRecord) -> anyhow::Result<()> {
-    serde_json::to_writer(&mut *file, &record)?;
-    writeln!(file)?;
-    file.flush()?;
-    Ok(())
-}
-
-fn seed_result_record(
-    seed_index: usize,
-    seed: &PositionAux,
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-    result: &SingleSeedResult,
-) -> SeedResultRecord {
-    let (best_piece_count, positions, representative_sfen) =
-        if let Some((piece_count, positions)) = result.best.as_ref() {
-            let mut sfens = positions.iter().map(PositionAux::sfen).collect::<Vec<_>>();
-            sfens.sort();
-            (*piece_count, sfens.len(), sfens.into_iter().next())
-        } else {
-            (0, 0, None)
-        };
-    SeedResultRecord {
-        version: IDEAL_BACKWARD_SEED_LOG_VERSION,
-        max_step,
-        max_frontier,
-        constraints,
-        seed_index,
-        seed_sfen: seed.sfen(),
-        best_step: 0, // deprecated, kept for compat
-        best_piece_count,
-        positions,
-        representative_sfen,
-        skipped: result.killer.is_some(),
-    }
-}
-
-fn merge_seed_result_record(
-    best: &mut (u32, FxHashSet<String>, usize),
-    record: &SeedResultRecord,
-) {
-    let Some(sfen) = record.representative_sfen.as_ref() else {
-        return;
-    };
-    // Fallback for old records that only have best_step
-    let piece_count = if record.best_piece_count > 0 {
-        record.best_piece_count
-    } else {
-        record.best_step as u32 / 2 + 3
-    };
-    best.2 += 1;
-    if piece_count > best.0 {
-        best.0 = piece_count;
-        best.1.clear();
-    }
-    if piece_count == best.0 {
-        best.1.insert(sfen.clone());
-    }
 }
 
 #[derive(Clone)]
@@ -1513,12 +1137,7 @@ fn search_single_seed(
 
         if beam.width.is_none() {
             if let Some(log) = feature_log {
-                sample_features_to_log(
-                    log,
-                    feature_samples_per_step,
-                    seed_index,
-                    &search,
-                );
+                sample_features_to_log(log, feature_samples_per_step, seed_index, &search);
             }
         }
 
@@ -1567,16 +1186,19 @@ fn search_single_seed(
         }
 
         if beam.width.is_none() {
-            let _ = write_seed_checkpoint(seed_result_log_path, &SeedCheckpoint {
-                seed_index,
-                seed_sfen: seed.sfen(),
-                max_step,
-                max_frontier: limits.max_frontier,
-                constraints,
-                resume_state: search.resume_state(),
-                best_piece_count,
-                best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
-            });
+            let _ = write_seed_checkpoint(
+                seed_result_log_path,
+                &SeedCheckpoint {
+                    seed_index,
+                    seed_sfen: seed.sfen(),
+                    max_step,
+                    max_frontier: limits.max_frontier,
+                    constraints,
+                    resume_state: search.resume_state(),
+                    best_piece_count,
+                    best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
+                },
+            );
         }
 
         if let Some(detected) = detect_killer_seed(
@@ -1662,448 +1284,6 @@ fn detect_killer_seed(
     })
 }
 
-fn expected_pieces_range(step: u16, slack: u16) -> (u32, u32) {
-    let expected = step as u32 / 2 + 3;
-    (expected.saturating_sub(slack as u32), expected)
-}
-
-fn satisfies_ideal_smoke_constraints(
-    position: &PositionAux,
-    step: u16,
-    constraints: SearchConstraints,
-) -> bool {
-    if step == 0 || step % 2 == 0 {
-        return false;
-    }
-    if position.turn() != Color::BLACK {
-        return false;
-    }
-    // Output must always have no black hand pieces.
-    if !position.hands().is_empty(Color::BLACK) {
-        return false;
-    }
-    let board = board_piece_count(position);
-    let (min, max) = expected_pieces_range(step, constraints.slack);
-    if board < min || board > max {
-        return false;
-    }
-    if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
-        return false;
-    }
-    satisfies_search_constraints(position, constraints)
-}
-
-fn satisfies_ideal_smoke_generation_constraints(
-    position: &PositionAux,
-    step: u16,
-    constraints: SearchConstraints,
-) -> bool {
-    if step == 0 {
-        return satisfies_search_constraints(position, constraints);
-    }
-    if !constraints.allow_white_pieces && !position.hands().is_empty(Color::BLACK) {
-        return false;
-    }
-    let pip = pieces_in_play(position);
-    let (min, max) = expected_pieces_range(step, constraints.slack);
-    if pip < min || pip > max {
-        return false;
-    }
-    if !satisfies_promoted_pct(position, step, constraints) {
-        return false;
-    }
-    if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
-        return false;
-    }
-    satisfies_search_constraints(position, constraints)
-}
-
-fn satisfies_ideal_smoke_undo_candidate(
-    position: &PositionAux,
-    undo_move: &UndoMove,
-    next_step: u16,
-    constraints: SearchConstraints,
-) -> bool {
-    if next_step == 0 {
-        return true;
-    }
-    if !constraints.allow_white_pieces && undo_spawns_white_piece(position, undo_move) {
-        return false;
-    }
-    if constraints.no_gold && undo_creates_gold(position, undo_move) {
-        return false;
-    }
-    if constraints.no_pawn && undo_creates_pawn(position, undo_move) {
-        return false;
-    }
-    if constraints.only_pawn && undo_creates_non_pawn(position, undo_move) {
-        return false;
-    }
-    if constraints.allowed_kinds_mask.is_some()
-        && undo_creates_forbidden_kind(position, undo_move, constraints.allowed_kinds_mask)
-    {
-        return false;
-    }
-    if undo_creates_out_of_bounds_piece(undo_move, constraints) {
-        return false;
-    }
-    let pip = pieces_in_play_after_undo(position, undo_move);
-    let (min, max) = expected_pieces_range(next_step, constraints.slack);
-    if pip < min || pip > max {
-        return false;
-    }
-    if !satisfies_promoted_pct(position, next_step, constraints) {
-        return false;
-    }
-    constraints.allow_white_pieces || black_hand_empty_after_undo(position, undo_move)
-}
-
-fn validate_search_constraints(constraints: SearchConstraints) -> anyhow::Result<()> {
-    if let Some(max_file) = constraints.max_file {
-        if !(1..=9).contains(&max_file) {
-            bail!("max-file must be between 1 and 9");
-        }
-    }
-    if let Some(max_rank) = constraints.max_rank {
-        if !(1..=9).contains(&max_rank) {
-            bail!("max-rank must be between 1 and 9");
-        }
-    }
-    if let Some(p) = constraints.max_promoted_pct {
-        if p > 100 {
-            bail!("max-promoted-pct must be between 0 and 100");
-        }
-    }
-    Ok(())
-}
-
-fn parse_allowed_kinds(names: &[String]) -> anyhow::Result<u16> {
-    let mut mask = 0u16;
-    for name in names {
-        let kind = match name.to_lowercase().as_str() {
-            "pawn" | "p" => Kind::Pawn,
-            "lance" | "l" => Kind::Lance,
-            "knight" | "n" => Kind::Knight,
-            "silver" | "s" => Kind::Silver,
-            "gold" | "g" => Kind::Gold,
-            "bishop" | "b" => Kind::Bishop,
-            "rook" | "r" => Kind::Rook,
-            other => bail!("unknown kind: {other}"),
-        };
-        mask |= 1u16 << kind.index();
-        if let Some(promoted) = kind.promote() {
-            mask |= 1u16 << promoted.index();
-        }
-    }
-    Ok(mask)
-}
-
-fn kind_allowed_by_mask(kind: Kind, mask: Option<u16>) -> bool {
-    let Some(mask) = mask else { return true };
-    kind == Kind::King || (mask >> kind.index()) & 1 == 1
-}
-
-fn satisfies_search_constraints(position: &PositionAux, constraints: SearchConstraints) -> bool {
-    if constraints.no_gold && board_gold_count(position) != 0 {
-        return false;
-    }
-    if constraints.no_pawn && board_pawn_count(position) != 0 {
-        return false;
-    }
-    if constraints.only_pawn && !board_only_pawn(position) {
-        return false;
-    }
-    if let Some(mask) = constraints.allowed_kinds_mask {
-        for square in Square::iter() {
-            if let Some((_, kind)) = position.get(square) {
-                if !kind_allowed_by_mask(kind, Some(mask)) {
-                    return false;
-                }
-            }
-        }
-    }
-    for square in Square::iter() {
-        if position.get(square).is_some() && !square_in_bounds(square, constraints) {
-            return false;
-        }
-    }
-    true
-}
-
-fn square_in_bounds(square: Square, constraints: SearchConstraints) -> bool {
-    square_satisfies_file_constraint(square, constraints.max_file)
-        && square_satisfies_rank_constraint(square, constraints.max_rank)
-}
-
-fn square_satisfies_file_constraint(square: Square, max_file: Option<u8>) -> bool {
-    max_file.is_none_or(|max_file| square.col() < max_file as usize)
-}
-
-fn square_satisfies_rank_constraint(square: Square, max_rank: Option<u8>) -> bool {
-    max_rank.is_none_or(|max_rank| square.row() >= 9 - max_rank as usize)
-}
-
-fn board_gold_count(position: &PositionAux) -> u32 {
-    position.bitboard(Color::BLACK, Kind::Gold).count_ones()
-        + position.bitboard(Color::WHITE, Kind::Gold).count_ones()
-}
-
-fn satisfies_promoted_pct(
-    position: &PositionAux,
-    step: u16,
-    constraints: SearchConstraints,
-) -> bool {
-    let Some(max_pct) = constraints.max_promoted_pct else {
-        return true;
-    };
-    if step < constraints.max_promoted_pct_after_step {
-        return true;
-    }
-    let total = position.occupied_bb().count_ones();
-    if total == 0 {
-        return true;
-    }
-    let promoted = board_promoted_count(position);
-    promoted * 100 <= max_pct as u32 * total
-}
-
-fn satisfies_natural_piece_limit(position: &PositionAux) -> bool {
-    let hands = position.hands();
-    let count = |kind: Kind| -> u32 {
-        position.bitboard(Color::BLACK, kind).count_ones()
-            + position.bitboard(Color::WHITE, kind).count_ones()
-            + if kind.is_hand_piece() { hands.count(Color::BLACK, kind) as u32 } else { 0 }
-    };
-    let count_with_promoted = |base: Kind, promoted: Kind| -> u32 {
-        count(base) + count(promoted)
-    };
-    count_with_promoted(Kind::Pawn, Kind::ProPawn) <= 9
-        && count_with_promoted(Kind::Lance, Kind::ProLance) <= 2
-        && count_with_promoted(Kind::Knight, Kind::ProKnight) <= 2
-        && count_with_promoted(Kind::Silver, Kind::ProSilver) <= 2
-        && count(Kind::Gold) <= 2
-        && count_with_promoted(Kind::Bishop, Kind::ProBishop) <= 1
-        && count_with_promoted(Kind::Rook, Kind::ProRook) <= 1
-}
-
-fn board_only_pawn(position: &PositionAux) -> bool {
-    const FORBIDDEN: [Kind; 10] = [
-        Kind::Lance,
-        Kind::Knight,
-        Kind::Silver,
-        Kind::Gold,
-        Kind::Bishop,
-        Kind::Rook,
-        Kind::ProLance,
-        Kind::ProKnight,
-        Kind::ProSilver,
-        Kind::ProBishop,
-    ];
-    for &kind in &FORBIDDEN {
-        if position.bitboard(Color::BLACK, kind).count_ones() > 0
-            || position.bitboard(Color::WHITE, kind).count_ones() > 0
-        {
-            return false;
-        }
-    }
-    // ProRook also forbidden
-    if position.bitboard(Color::BLACK, Kind::ProRook).count_ones() > 0
-        || position.bitboard(Color::WHITE, Kind::ProRook).count_ones() > 0
-    {
-        return false;
-    }
-    true
-}
-
-fn board_promoted_count(position: &PositionAux) -> u32 {
-    const PROMOTED: [Kind; 6] = [
-        Kind::ProPawn,
-        Kind::ProLance,
-        Kind::ProKnight,
-        Kind::ProSilver,
-        Kind::ProBishop,
-        Kind::ProRook,
-    ];
-    PROMOTED
-        .iter()
-        .map(|&k| {
-            position.bitboard(Color::BLACK, k).count_ones()
-                + position.bitboard(Color::WHITE, k).count_ones()
-        })
-        .sum()
-}
-
-fn board_pawn_count(position: &PositionAux) -> u32 {
-    position.bitboard(Color::BLACK, Kind::Pawn).count_ones()
-        + position.bitboard(Color::WHITE, Kind::Pawn).count_ones()
-        + position.bitboard(Color::BLACK, Kind::ProPawn).count_ones()
-        + position.bitboard(Color::WHITE, Kind::ProPawn).count_ones()
-}
-
-fn undo_creates_gold(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| kind == Kind::Gold),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            capture.is_some_and(|kind| kind == Kind::Gold)
-                || position.get(*dest).is_some_and(|(_, kind)| {
-                    let previous_kind = if *promote {
-                        kind.unpromote().unwrap()
-                    } else {
-                        kind
-                    };
-                    previous_kind == Kind::Gold
-                })
-        }
-    }
-}
-
-fn undo_creates_forbidden_kind(
-    position: &PositionAux,
-    undo_move: &UndoMove,
-    mask: Option<u16>,
-) -> bool {
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| !kind_allowed_by_mask(kind, mask)),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            if capture.is_some_and(|kind| !kind_allowed_by_mask(kind, mask)) {
-                return true;
-            }
-            position.get(*dest).is_some_and(|(_, kind)| {
-                let previous_kind = if *promote {
-                    kind.unpromote().unwrap()
-                } else {
-                    kind
-                };
-                !kind_allowed_by_mask(previous_kind, mask)
-            })
-        }
-    }
-}
-
-fn undo_creates_non_pawn(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    let is_pawn_kind = |k: Kind| k == Kind::Pawn || k == Kind::ProPawn;
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| !is_pawn_kind(kind) && kind != Kind::King),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            capture.is_some_and(|kind| !is_pawn_kind(kind) && kind != Kind::King)
-                || position.get(*dest).is_some_and(|(_, kind)| {
-                    let previous_kind = if *promote {
-                        kind.unpromote().unwrap()
-                    } else {
-                        kind
-                    };
-                    !is_pawn_kind(previous_kind) && previous_kind != Kind::King
-                })
-        }
-    }
-}
-
-fn undo_creates_pawn(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| kind == Kind::Pawn || kind == Kind::ProPawn),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            capture.is_some_and(|kind| kind == Kind::Pawn || kind == Kind::ProPawn)
-                || position.get(*dest).is_some_and(|(_, kind)| {
-                    let previous_kind = if *promote {
-                        kind.unpromote().unwrap()
-                    } else {
-                        kind
-                    };
-                    previous_kind == Kind::Pawn || previous_kind == Kind::ProPawn
-                })
-        }
-    }
-}
-
-fn undo_creates_out_of_bounds_piece(
-    undo_move: &UndoMove,
-    constraints: SearchConstraints,
-) -> bool {
-    match undo_move {
-        UndoMove::UnDrop(_, _) => false,
-        UndoMove::UnMove { source, .. } => !square_in_bounds(*source, constraints),
-    }
-}
-
-fn undo_spawns_white_piece(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    matches!(
-        undo_move,
-        UndoMove::UnMove {
-            capture: Some(_),
-            ..
-        } if position.turn() == Color::WHITE
-    )
-}
-
-fn board_piece_count_after_undo(position: &PositionAux, undo_move: &UndoMove) -> u32 {
-    let count = board_piece_count(position);
-    match undo_move {
-        UndoMove::UnDrop(_, _) => count - 1,
-        UndoMove::UnMove {
-            capture: Some(_), ..
-        } => count + 1,
-        UndoMove::UnMove { capture: None, .. } => count,
-    }
-}
-
-fn black_hand_empty_after_undo(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    let prev_turn = position.turn().opposite();
-    match undo_move {
-        UndoMove::UnDrop(_, _) => {
-            prev_turn != Color::BLACK && position.hands().is_empty(Color::BLACK)
-        }
-        UndoMove::UnMove {
-            capture: Some(capture),
-            ..
-        } if prev_turn == Color::BLACK => {
-            black_hand_is_exactly(position, capture.maybe_unpromote())
-        }
-        UndoMove::UnMove { .. } => position.hands().is_empty(Color::BLACK),
-    }
-}
-
-fn black_hand_is_exactly(position: &PositionAux, expected: Kind) -> bool {
-    for &kind in &KINDS[..NUM_HAND_KIND] {
-        let count = position.hands().count(Color::BLACK, kind);
-        if kind == expected {
-            if count != 1 {
-                return false;
-            }
-        } else if count != 0 {
-            return false;
-        }
-    }
-    true
-}
-
 fn log_global_best_if_improved(
     global_best_piece_count: &AtomicUsize,
     seed_index: usize,
@@ -2136,51 +1316,6 @@ fn log_global_best_if_improved(
             Err(next) => current = next,
         }
     }
-}
-
-#[cfg(test)]
-fn white_hands_are_complement(position: &PositionAux) -> bool {
-    KINDS[..NUM_HAND_KIND].iter().copied().all(|kind| {
-        let board_used = count_kind_on_board(position, kind);
-        let black_hands = position.hands().count(Color::BLACK, kind) as u32;
-        let white_hands = position.hands().count(Color::WHITE, kind) as u32;
-        board_used + black_hands + white_hands == kind.max_count()
-            && white_hands == kind.max_count() - board_used - black_hands
-    })
-}
-
-fn with_white_complement(position: &PositionAux) -> PositionAux {
-    let mut position = position.clone();
-    for kind in KINDS[..NUM_HAND_KIND].iter().copied() {
-        let board_used = count_kind_on_board(&position, kind);
-        let black_hands = position.hands().count(Color::BLACK, kind) as u32;
-        let white_hands = position.hands().count(Color::WHITE, kind) as u32;
-        let total_used = board_used + black_hands + white_hands;
-        let missing = kind
-            .max_count()
-            .checked_sub(total_used)
-            .expect("piece count should not exceed max");
-        position
-            .hands_mut()
-            .add_n(Color::WHITE, kind, missing as usize);
-    }
-    position
-}
-
-fn count_kind_on_board(position: &PositionAux, kind: Kind) -> u32 {
-    let mut count = position.bitboard(Color::BLACK, kind).count_ones()
-        + position.bitboard(Color::WHITE, kind).count_ones();
-    if let Some(promoted) = kind.promote() {
-        count += position.bitboard(Color::BLACK, promoted).count_ones()
-            + position.bitboard(Color::WHITE, promoted).count_ones();
-    }
-    count
-}
-
-fn default_parallelism() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1)
 }
 
 #[derive(Clone, Default)]
@@ -2327,38 +1462,17 @@ fn total_memory_bytes() -> usize {
     8 * 1024 * 1024 * 1024
 }
 
+fn default_parallelism() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(1)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{
-        board_piece_count, checkpoint_dir, condition_key, count_kind_on_board,
-        enumerate_final_2_sfens, load_seed_checkpoint, reflect_left_right,
-        satisfies_ideal_smoke_constraints, satisfies_ideal_smoke_generation_constraints,
-        satisfies_ideal_smoke_undo_candidate, satisfies_search_constraints, undo_creates_gold,
-        undo_spawns_white_piece, white_hands_are_complement, with_white_complement,
-        write_seed_checkpoint, SearchConstraints, SeedCheckpoint,
-    };
-    use fmrs_core::search::backward::BackwardSearchResumeState;
-    use std::fs;
-    use std::path::PathBuf;
-    use std::sync::atomic::{AtomicU64, Ordering};
-    use fmrs_core::{
-        piece::{Color, Kind},
-        position::{position::PositionAux, previous, Square, UndoMove},
-    };
-
-    #[test]
-    fn reflect_left_right_is_involution() {
-        let mut position = PositionAux::default();
-        position.set_turn(Color::WHITE);
-        position.set(Square::S19, Color::WHITE, Kind::King);
-        position.set(Square::S38, Color::BLACK, Kind::ProRook);
-        position.set(Square::S72, Color::BLACK, Kind::Silver);
-
-        assert_eq!(
-            reflect_left_right(&reflect_left_right(&position)).sfen(),
-            position.sfen()
-        );
-    }
+    use super::super::smoke_constraints::with_white_complement;
+    use super::{enumerate_final_2_sfens, SearchConstraints};
+    use fmrs_core::position::position::PositionAux;
 
     #[test]
     fn enumerate_final_2_contains_known_single_king_smoke_final() {
@@ -2372,312 +1486,5 @@ mod tests {
             .sfen(),
             "6k1+R/4R4/9/9/9/9/9/9/9 w 2b4g4s4n4l18p 1"
         );
-    }
-
-    #[test]
-    fn with_white_complement_fills_remaining_pieces_to_white_hand() {
-        let position = PositionAux::from_sfen("+R1k6/4R4/9/9/9/9/9/9/9 w - 1").unwrap();
-        let position = with_white_complement(&position);
-        assert!(position.hands().is_empty(Color::BLACK));
-        assert!(white_hands_are_complement(&position));
-        assert_eq!(count_kind_on_board(&position, Kind::Rook), 2);
-        assert_eq!(position.hands().count(Color::WHITE, Kind::Rook), 0);
-        assert_eq!(position.hands().count(Color::WHITE, Kind::Pawn), 18);
-    }
-
-    #[test]
-    fn smoke_constraint_rejects_even_step() {
-        let position = PositionAux::from_sfen("+R1k6/4R4/9/9/9/9/9/9/9 b - 1").unwrap();
-        assert_eq!(board_piece_count(&position), 3);
-        assert!(!satisfies_ideal_smoke_constraints(
-            &position,
-            2,
-            SearchConstraints::default()
-        ));
-    }
-
-    #[test]
-    fn smoke_undo_prefilter_matches_full_generation_constraint() {
-        let mut position =
-            PositionAux::from_sfen("+B8/9/9/9/9/9/9/7+B1/7k1 w 2r4g4s4n4l18p 1").unwrap();
-        let mut undo_moves = vec![];
-        previous(&mut position, false, &mut undo_moves);
-
-        for undo_move in undo_moves {
-            let mut previous_position = position.clone();
-            previous_position.undo_move(&undo_move);
-            assert_eq!(
-                satisfies_ideal_smoke_undo_candidate(
-                    &position,
-                    &undo_move,
-                    1,
-                    SearchConstraints::default()
-                ),
-                satisfies_ideal_smoke_generation_constraints(
-                    &previous_position,
-                    1,
-                    SearchConstraints::default()
-                ),
-                "{undo_move:?}"
-            );
-        }
-    }
-
-    #[test]
-    fn smoke_undo_prefilter_rejects_white_piece_spawn() {
-        let position =
-            PositionAux::from_sfen("+B8/9/9/9/9/9/9/7+B1/7k1 w 2r4g4s4n4l18p 1").unwrap();
-        let undo_move = UndoMove::UnMove {
-            source: Square::S11,
-            dest: Square::S19,
-            promote: false,
-            capture: Some(Kind::Pawn),
-            pawn_drop: false,
-        };
-        assert!(undo_spawns_white_piece(&position, &undo_move));
-        assert!(!satisfies_ideal_smoke_undo_candidate(
-            &position,
-            &undo_move,
-            3,
-            SearchConstraints::default()
-        ));
-    }
-
-    #[test]
-    fn no_gold_rejects_gold_but_allows_promoted_goldish() {
-        let constraints = SearchConstraints {
-            no_gold: true,
-            ..Default::default()
-        };
-        let gold = PositionAux::from_sfen("9/9/9/9/9/9/9/9/G6k1 b - 1").unwrap();
-        let pro_pawn = PositionAux::from_sfen("9/9/9/9/9/9/9/9/+P6k1 b - 1").unwrap();
-
-        assert!(!satisfies_search_constraints(&gold, constraints));
-        assert!(satisfies_search_constraints(&pro_pawn, constraints));
-    }
-
-    #[test]
-    fn no_gold_undo_prefilter_rejects_gold_creation() {
-        let constraints = SearchConstraints {
-            no_gold: true,
-            ..Default::default()
-        };
-        let position =
-            PositionAux::from_sfen("+B8/9/9/9/9/9/9/7+B1/7k1 w 2r4g4s4n4l18p 1").unwrap();
-        let undo_move = UndoMove::UnMove {
-            source: Square::S11,
-            dest: Square::S19,
-            promote: false,
-            capture: Some(Kind::Gold),
-            pawn_drop: false,
-        };
-
-        assert!(undo_creates_gold(&position, &undo_move));
-        assert!(!satisfies_ideal_smoke_undo_candidate(
-            &position,
-            &undo_move,
-            3,
-            constraints
-        ));
-    }
-
-    #[test]
-    fn max_file_constraint_restricts_board_squares() {
-        let constraints = SearchConstraints {
-            max_file: Some(4),
-            ..Default::default()
-        };
-        let mut inside = PositionAux::default();
-        inside.set(Square::S11, Color::BLACK, Kind::Bishop);
-        inside.set(Square::S41, Color::BLACK, Kind::Bishop);
-        inside.set(Square::S19, Color::WHITE, Kind::King);
-        let mut outside = inside.clone();
-        outside.set(Square::S51, Color::BLACK, Kind::Bishop);
-
-        assert!(satisfies_search_constraints(&inside, constraints));
-        assert!(!satisfies_search_constraints(&outside, constraints));
-    }
-
-    #[test]
-    fn max_rank_constraint_restricts_board_squares() {
-        // max_rank=7 keeps ranks 3-9 (rows 2-8). S11 is rank 1 (row 0) -> outside.
-        let constraints = SearchConstraints {
-            max_rank: Some(7),
-            ..Default::default()
-        };
-        let mut inside = PositionAux::default();
-        inside.set(Square::S13, Color::BLACK, Kind::Bishop);
-        inside.set(Square::S19, Color::WHITE, Kind::King);
-        let mut outside = inside.clone();
-        outside.set(Square::S11, Color::BLACK, Kind::Bishop);
-
-        assert!(satisfies_search_constraints(&inside, constraints));
-        assert!(!satisfies_search_constraints(&outside, constraints));
-    }
-
-    static TEST_DIR_COUNTER: AtomicU64 = AtomicU64::new(0);
-
-    fn unique_test_dir(tag: &str) -> PathBuf {
-        let id = TEST_DIR_COUNTER.fetch_add(1, Ordering::Relaxed);
-        let pid = std::process::id();
-        let mut p = std::env::temp_dir();
-        p.push(format!("fmrs-checkpoint-test-{tag}-{pid}-{id}"));
-        let _ = fs::remove_dir_all(&p);
-        fs::create_dir_all(&p).unwrap();
-        p
-    }
-
-    fn dummy_checkpoint(
-        seed_index: usize,
-        seed_sfen: &str,
-        max_step: Option<u16>,
-        max_frontier: Option<usize>,
-        constraints: SearchConstraints,
-        marker: u32,
-    ) -> SeedCheckpoint {
-        SeedCheckpoint {
-            seed_index,
-            seed_sfen: seed_sfen.to_string(),
-            max_step,
-            max_frontier,
-            constraints,
-            resume_state: BackwardSearchResumeState {
-                initial_position_sfen: "test-init".to_string(),
-                remaining_solution_moves: vec![],
-                frontier_sfens: vec![],
-                step: 0,
-                one_way: true,
-                no_black_goldish: false,
-            },
-            best_piece_count: marker,
-            best_sfens: vec![],
-        }
-    }
-
-    #[test]
-    fn condition_key_is_deterministic_and_distinct() {
-        let a = SearchConstraints::default();
-        let b = SearchConstraints {
-            no_pawn: true,
-            ..SearchConstraints::default()
-        };
-        assert_eq!(condition_key(None, None, a), condition_key(None, None, a));
-        assert_ne!(condition_key(None, None, a), condition_key(None, None, b));
-        assert_ne!(
-            condition_key(None, None, a),
-            condition_key(Some(7), None, a)
-        );
-        assert_ne!(
-            condition_key(None, None, a),
-            condition_key(None, Some(1), a)
-        );
-    }
-
-    #[test]
-    fn checkpoint_roundtrips_with_matching_conditions() {
-        let dir = unique_test_dir("roundtrip");
-        let log = dir.join("log.jsonl");
-        let constraints = SearchConstraints::default();
-        let cp = dummy_checkpoint(7, "sfen-x", Some(5), None, constraints, 42);
-        write_seed_checkpoint(&log, &cp).unwrap();
-
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), None, constraints);
-        assert!(loaded.is_some());
-        assert_eq!(loaded.unwrap().best_piece_count, 42);
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn checkpoint_with_different_conditions_is_isolated() {
-        let dir = unique_test_dir("isolated");
-        let log = dir.join("log.jsonl");
-        let a = SearchConstraints::default();
-        let b = SearchConstraints {
-            no_pawn: true,
-            ..SearchConstraints::default()
-        };
-
-        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, None, a, 1)).unwrap();
-        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, None, b, 2)).unwrap();
-
-        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, None, a).unwrap();
-        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, None, b).unwrap();
-        assert_eq!(la.best_piece_count, 1);
-        assert_eq!(lb.best_piece_count, 2);
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn legacy_checkpoint_migrates_when_conditions_match() {
-        let dir = unique_test_dir("migrate");
-        let log = dir.join("log.jsonl");
-        let cp_dir = checkpoint_dir(&log);
-        fs::create_dir_all(&cp_dir).unwrap();
-
-        let constraints = SearchConstraints::default();
-        let cp = dummy_checkpoint(7, "sfen-x", None, None, constraints, 99);
-        let legacy_path = cp_dir.join("seed_7.json");
-        serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
-
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, None, constraints);
-        assert!(loaded.is_some());
-        assert_eq!(loaded.unwrap().best_piece_count, 99);
-
-        let key = condition_key(None, None, constraints);
-        let new_path = cp_dir.join(format!("seed_7_{key}.json"));
-        assert!(new_path.exists(), "new-format file should exist after migrate");
-        assert!(!legacy_path.exists(), "legacy file should be renamed");
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn legacy_checkpoint_skipped_and_kept_when_conditions_mismatch() {
-        let dir = unique_test_dir("mismatch");
-        let log = dir.join("log.jsonl");
-        let cp_dir = checkpoint_dir(&log);
-        fs::create_dir_all(&cp_dir).unwrap();
-
-        let a = SearchConstraints::default();
-        let b = SearchConstraints {
-            no_pawn: true,
-            ..SearchConstraints::default()
-        };
-        let cp = dummy_checkpoint(7, "sfen-x", None, None, a, 99);
-        let legacy_path = cp_dir.join("seed_7.json");
-        serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
-
-        // Loading with mismatched conditions should not migrate or use it.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, None, b);
-        assert!(loaded.is_none());
-        assert!(legacy_path.exists(), "legacy file must remain for future runs");
-
-        // Subsequent load with matching conditions still picks it up.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, None, a);
-        assert!(loaded.is_some());
-        assert!(!legacy_path.exists(), "legacy file should now be migrated");
-
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn seed_log_constraints_treat_missing_and_null_max_file_as_none() {
-        let missing = serde_json::from_str::<SearchConstraints>(r#"{"no_gold":true}"#).unwrap();
-        let null = serde_json::from_str::<SearchConstraints>(r#"{"no_gold":true,"max_file":null}"#)
-            .unwrap();
-        let explicit = SearchConstraints {
-            no_gold: true,
-            ..Default::default()
-        };
-
-        assert_eq!(missing, explicit);
-        assert_eq!(null, explicit);
-        let value = serde_json::to_value(explicit).unwrap();
-        assert_eq!(value["no_gold"], true);
-        assert_eq!(value["no_pawn"], false);
-        assert_eq!(value["allow_white_pieces"], false);
-        assert!(value.get("max_file").is_none());
     }
 }

@@ -5,7 +5,9 @@ pub mod magic;
 mod one_way_mate;
 mod server;
 mod single_king_smoke;
+mod smoke_constraints;
 pub(crate) mod smoke_features;
+mod smoke_persistence;
 mod solve;
 
 pub use bench::bench;
