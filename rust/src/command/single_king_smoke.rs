@@ -1457,13 +1457,15 @@ fn search_single_seed(
             break;
         }
 
-        if let Some(log) = feature_log {
-            sample_features_to_log(
-                log,
-                feature_samples_per_step,
-                seed_index,
-                &search,
-            );
+        if beam.width.is_none() {
+            if let Some(log) = feature_log {
+                sample_features_to_log(
+                    log,
+                    feature_samples_per_step,
+                    seed_index,
+                    &search,
+                );
+            }
         }
 
         if search_limit.is_some_and(|limit| search.step() >= limit) {
