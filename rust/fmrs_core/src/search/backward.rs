@@ -1098,12 +1098,15 @@ fn shrink_memo(memo: &mut NoHashMap64<StepRange>, target_len: usize) {
     if memo.len() <= target_len {
         return;
     }
+    let to_remove = memo.len() - target_len;
     let mut entries = memo
         .iter()
         .map(|(&digest, &range)| (memo_retention_score(digest, range), digest))
         .collect::<Vec<_>>();
-    entries.sort_unstable_by_key(|&(score, _)| score);
-    for &(_, key) in entries.iter().take(memo.len() - target_len) {
+    // Partition so that entries[..to_remove] holds the lowest-scored items.
+    // We don't need a full sort, only the partition.
+    entries.select_nth_unstable_by_key(to_remove - 1, |&(score, _)| score);
+    for &(_, key) in &entries[..to_remove] {
         memo.remove(&key);
     }
 }
