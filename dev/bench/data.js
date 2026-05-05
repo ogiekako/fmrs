@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777892286141,
+  "lastUpdate": 1777946873883,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28181,6 +28181,108 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 81732,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "f43ae20f58231e73c2ec32df66e6f3114d3a11d8",
+          "message": "gcp-spot.sh run の preempt 自動復旧\n\n- preempt 検知時、stockout を backoff 付きで再試行して start。\n  SSH 復帰後、コマンドを再実行する (restart-safe 前提)。\n- gcloud ssh の TCP が preempt 後に hang する問題を回避するため、\n  status を 20s 周期で polling する watchdog を追加。\n  非 RUNNING を検知したら ssh 子プロセスに SIGTERM。\n- ServerAliveInterval/CountMax を ssh-flag で渡し、TCP 死活検知\n  も ~60s で効くようにした (watchdog のフォールバック)。",
+          "timestamp": "2026-05-05T11:00:35+09:00",
+          "tree_id": "0412060d2b61e158c337e20f6c0a0741954440aa",
+          "url": "https://github.com/ogiekako/fmrs/commit/f43ae20f58231e73c2ec32df66e6f3114d3a11d8"
+        },
+        "date": 1777946871510,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 993,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3546,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 320,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 968,
+            "range": "± 1728",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34152,
+            "range": "± 201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1406,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5222,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1905535,
+            "range": "± 786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13153,
+            "range": "± 270",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37317,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4609,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23628,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 85383,
+            "range": "± 902",
             "unit": "ns/iter"
           }
         ]
