@@ -48,7 +48,9 @@ impl Hands {
         }
     }
     pub fn count(&self, c: Color, k: Kind) -> usize {
-        debug_assert!(k.is_hand_piece());
+        if !k.is_hand_piece() {
+            return 0;
+        }
         (self.x >> Hands::shift_of(c, k)) as usize & Hands::max_count(k)
     }
     #[inline]
