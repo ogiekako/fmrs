@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778065946632,
+  "lastUpdate": 1778075368704,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -29291,6 +29291,156 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 84846,
             "range": "± 20",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "1465b3f833c0ffee0dcaa9497f1ef381729da0a1",
+          "message": "backward search: 1.5x 高速化への大規模リアーキテクチャ\n\n3 つの主要な変更:\n\n1. enumerate_final_2_positions の並列化 (最大の単一改善)\n   --parallel=1 でも inner_parallel スレッドを enumeration に流用。\n   6.20s → 0.94s (8並列時, -5.26s wall)。\n\n2. DashMap → ShardedFlatMemo (8シャード)\n   ・各シャードはロックフリーな open-addressing flat hash table。\n     reads は atomic ops 不要、配列インデックスと線形探索のみ。\n   ・マージは shard 単位で 8並列 (rayon::par_iter)。各 shard は単一\n     writer なので同期不要。\n   ・alloc_zeroed で lazy zero pages を獲得。empty key sentinel に\n     0 を使うことで pre-allocate 時の物理ページ commit を回避\n     (capacity 確保は仮想アドレス空間のみ)。\n   ・madvise(MADV_HUGEPAGE) で TLB 圧を削減。\n\n3. set_memo_entry_limit で memo を pre-allocate\n   resize/rehash 由来のページフォールトを排除。\n   user time が ~6s 削減 (グロウサイクルでの再ハッシュコストが消える)。\n\nベンチマーク (single-king-smoke ideal-backward, --inner-parallel 8,\n--seed-limit 15, --random-seed 42, --no-pawn, --max-promoted-pct 15):\n  before: 22.4s wall (mean)\n  after:  15.71s mean / 14.50s best / 16.79s worst\n          → mean 1.43x / best 1.55x\n\nベスト個別ランは 1.5x を達成。中央値は 1.41x で、CPU スケジューリング\n由来の variance が ±1s 程度残る (user time は安定しており parallelism\nの出方で wall が分布)。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-06T22:26:03+09:00",
+          "tree_id": "894e05b896b139c96a915ec6c3069398047d6468",
+          "url": "https://github.com/ogiekako/fmrs/commit/1465b3f833c0ffee0dcaa9497f1ef381729da0a1"
+        },
+        "date": 1778075365573,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 897,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3461,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 317,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1085,
+            "range": "± 2013",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32209,
+            "range": "± 397",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1481,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5629,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1873977,
+            "range": "± 464",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13579,
+            "range": "± 201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 200689,
+            "range": "± 1845",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 84834,
+            "range": "± 323",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 76662,
+            "range": "± 242",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 25179,
+            "range": "± 197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 71480,
+            "range": "± 197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21483,
+            "range": "± 177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1262,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37058,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4503,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23255,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 82100,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 62629,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
