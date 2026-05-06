@@ -108,8 +108,6 @@ pub enum SingleKingSmokeCommand {
         inner_parallel: usize,
         #[arg(long, default_value_t = false)]
         mem_trace: bool,
-        #[arg(long, default_value_t = false)]
-        no_dashmap: bool,
         #[arg(long, default_value_t = 0)]
         slack: u16,
         /// Filter seeds by white king position at mate. Shogi notation:
@@ -198,7 +196,6 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             max_promoted_pct_after_step,
             inner_parallel,
             mem_trace,
-            no_dashmap,
             slack,
             mate_square,
             miyako,
@@ -247,7 +244,6 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 },
                 inner_parallel,
                 mem_trace,
-                !no_dashmap,
                 FeatureLogConfig {
                     path: feature_log,
                     samples_per_step: feature_sample_per_step,
@@ -500,7 +496,6 @@ fn ideal_backward(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
-    use_dashmap: bool,
     feature_log: FeatureLogConfig,
     beam: BeamConfig,
 ) -> anyhow::Result<()> {
@@ -592,7 +587,7 @@ fn ideal_backward(
     let feature_samples_per_step = feature_log.samples_per_step;
 
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(parallel)
+        .num_threads(parallel * inner_parallel.max(1))
         .build()
         .context("failed to build rayon thread pool")?;
     let completed = AtomicUsize::new(loaded_records);
@@ -614,7 +609,6 @@ fn ideal_backward(
                     constraints,
                     inner_parallel,
                     mem_trace,
-                    use_dashmap,
                     &global_best_piece_count,
                     &seed_result_log_path,
                     feature_log_handle.as_ref(),
@@ -1184,7 +1178,6 @@ fn search_single_seed(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
-    use_dashmap: bool,
     global_best_piece_count: &AtomicUsize,
     seed_result_log_path: &Path,
     feature_log: Option<&Mutex<fs::File>>,
@@ -1205,11 +1198,10 @@ fn search_single_seed(
     };
 
     let mut search = if let Some(ref cp) = checkpoint {
-        match BackwardSearch::from_resume_state(&cp.resume_state, inner_parallel) {
+        match BackwardSearch::from_resume_state(&cp.resume_state, 1) {
             Ok(search) => search,
             Err(_) => {
-                // Checkpoint is stale or corrupt; start fresh
-                match BackwardSearch::new_with_parallel(seed, false, inner_parallel, false) {
+                match BackwardSearch::new_with_parallel(seed, false, 1, false) {
                     Ok(search) => search,
                     Err(_) => {
                         return Ok(SingleSeedResult {
@@ -1221,7 +1213,7 @@ fn search_single_seed(
             }
         }
     } else {
-        match BackwardSearch::new_with_parallel(seed, false, inner_parallel, false) {
+        match BackwardSearch::new_with_parallel(seed, false, 1, false) {
             Ok(search) => search,
             Err(_) => {
                 return Ok(SingleSeedResult {
@@ -1231,11 +1223,13 @@ fn search_single_seed(
             }
         }
     };
+    if inner_parallel > 1 {
+        search.set_parallel(inner_parallel);
+    }
     if let Some(max_memo_entries) = limits.max_memo_entries {
         search.set_memo_entry_limit(Some(max_memo_entries));
     }
     search.set_delta_trace(mem_trace);
-    search.set_use_dashmap(use_dashmap);
     if mem_trace {
         eprintln!(
             "mem_trace seed={} start resumed={} {} {}",

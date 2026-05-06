@@ -1,4 +1,4 @@
-use std::{ops::Range, sync::Arc};
+use std::{ops::Range, sync::atomic::AtomicBool, sync::Arc};
 
 use anyhow::bail;
 use dashmap::DashMap;
@@ -271,7 +271,6 @@ pub struct BackwardSearch {
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
     delta_trace: bool,
-    use_dashmap: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -372,7 +371,6 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
-            use_dashmap: true,
         })
     }
 
@@ -421,7 +419,6 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
-            use_dashmap: true,
         })
     }
 
@@ -455,8 +452,26 @@ impl BackwardSearch {
         self.delta_trace = enabled;
     }
 
-    pub fn set_use_dashmap(&mut self, enabled: bool) {
-        self.use_dashmap = enabled;
+
+    pub fn set_pool(&mut self, pool: rayon::ThreadPool) {
+        self.parallel = pool.current_num_threads();
+        self.pool = Some(pool);
+    }
+
+    pub fn take_pool(&mut self) -> Option<rayon::ThreadPool> {
+        self.pool.take()
+    }
+
+    pub fn set_parallel(&mut self, parallel: usize) {
+        self.parallel = parallel.max(1);
+    }
+
+    fn install_or_run<T: Send>(&self, f: impl FnOnce() -> T + Send) -> T {
+        if let Some(pool) = &self.pool {
+            pool.install(f)
+        } else {
+            f()
+        }
     }
 
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
@@ -605,11 +620,11 @@ impl BackwardSearch {
         let no_black_goldish = self.no_black_goldish;
         let position_parallel = self.parallel.min(self.positions.len());
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
-        let pool = self.pool.as_ref().expect("parallel pool");
 
         // Phase 1: generate candidates in parallel (with filters)
-        let candidate_chunks = pool.install(|| {
-            self.positions
+        let positions = &self.positions;
+        let candidate_chunks = self.install_or_run(|| {
+            positions
                 .par_chunks(position_chunk_size)
                 .map(|chunk| {
                     let mut undo_moves = vec![];
@@ -661,21 +676,27 @@ impl BackwardSearch {
 
         let phase2_start = std::time::Instant::now();
 
-        let all_positions = if self.use_dashmap {
-            // DashMap path: threads read/write directly to shared DashMap
-            let next_positions: Vec<Vec<Position>> = pool.install(|| {
+        let memo_arc = Arc::new(&memo);
+        let prev_memo_arc = Arc::new(&prev_memo);
+
+        let results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> =
+            self.install_or_run(|| {
                 candidates
                     .par_chunks(chunk_size)
                     .map(|chunk| {
+                        let memo_ref = &**memo_arc;
+                        let prev_memo_ref = &**prev_memo_arc;
+                        let mut memo_delta = NoHashMap64::default();
+                        let mut prev_memo_delta = NoHashMap64::default();
                         let mut prev_positions = vec![];
                         let mut solution_scratch = vec![];
 
                         for core in chunk.iter() {
                             let mut pp = PositionAux::new(core.clone(), stone);
                             let pp_digest = pp.digest();
-                            if let Some(ans) = prev_memo
-                                .get(&pp_digest)
-                                .filter(|ans| !ans.needs_investigation(step + 1))
+                            if let Some(ans) =
+                                get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
+                                    .filter(|ans| !ans.needs_investigation(step + 1))
                             {
                                 if ans.is_uniquely(step + 1) {
                                     prev_positions.push(core.clone());
@@ -683,114 +704,73 @@ impl BackwardSearch {
                                 continue;
                             }
 
-                            let ans = solutions(
+                            let ans = solutions_overlay(
                                 &mut pp,
-                                &prev_memo,
-                                &memo,
+                                prev_memo_ref,
+                                &mut prev_memo_delta,
+                                memo_ref,
+                                &mut memo_delta,
                                 step + 1,
                                 &mut solution_scratch,
-                                None,
                             );
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
                             }
                         }
 
-                        prev_positions
+                        (prev_positions, memo_delta, prev_memo_delta)
                     })
                     .collect()
             });
-            next_positions.into_iter().flatten().collect()
-        } else {
-            // Legacy path: thread-local deltas + merge
-            let memo_arc = Arc::new(&memo);
-            let prev_memo_arc = Arc::new(&prev_memo);
 
-            let results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> =
-                pool.install(|| {
-                    candidates
-                        .par_chunks(chunk_size)
-                        .map(|chunk| {
-                            let memo_ref = &**memo_arc;
-                            let prev_memo_ref = &**prev_memo_arc;
-                            let mut memo_delta = NoHashMap64::default();
-                            let mut prev_memo_delta = NoHashMap64::default();
-                            let mut prev_positions = vec![];
-                            let mut solution_scratch = vec![];
+        let mut all_positions = vec![];
+        let mut memo_deltas = vec![];
+        let mut prev_memo_deltas = vec![];
+        for (positions, memo_delta, prev_memo_delta) in results {
+            all_positions.extend(positions);
+            memo_deltas.push(memo_delta);
+            prev_memo_deltas.push(prev_memo_delta);
+        }
 
-                            for core in chunk.iter() {
-                                let mut pp = PositionAux::new(core.clone(), stone);
-                                let pp_digest = pp.digest();
-                                if let Some(ans) =
-                                    get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
-                                        .filter(|ans| !ans.needs_investigation(step + 1))
-                                {
-                                    if ans.is_uniquely(step + 1) {
-                                        prev_positions.push(core.clone());
-                                    }
-                                    continue;
-                                }
+        self.install_or_run(|| {
+            rayon::join(
+                || {
+                    memo_deltas.into_par_iter().for_each(|delta| {
+                        for (k, v) in delta {
+                            memo.insert(k, v);
+                        }
+                    });
+                },
+                || {
+                    prev_memo_deltas.into_par_iter().for_each(|delta| {
+                        for (k, v) in delta {
+                            prev_memo.insert(k, v);
+                        }
+                    });
+                },
+            );
+        });
 
-                                let ans = solutions_overlay(
-                                    &mut pp,
-                                    prev_memo_ref,
-                                    &mut prev_memo_delta,
-                                    memo_ref,
-                                    &mut memo_delta,
-                                    step + 1,
-                                    &mut solution_scratch,
-                                );
-                                if ans.is_uniquely(step + 1) {
-                                    prev_positions.push(core.clone());
-                                }
-                            }
-
-                            (prev_positions, memo_delta, prev_memo_delta)
-                        })
-                        .collect()
-                });
-
-            let mut all_positions = vec![];
-            let mut memo_deltas = vec![];
-            let mut prev_memo_deltas = vec![];
-            for (positions, memo_delta, prev_memo_delta) in results {
-                all_positions.extend(positions);
-                memo_deltas.push(memo_delta);
-                prev_memo_deltas.push(prev_memo_delta);
+        if let Some(limit) = self.memo_entry_limit {
+            if memo.len() >= limit {
+                shrink_memo(&memo, limit / 2);
             }
+            if prev_memo.len() >= limit {
+                shrink_memo(&prev_memo, limit / 2);
+            }
+        }
 
-            pool.install(|| {
-                rayon::join(
-                    || {
-                        memo_deltas.into_par_iter().for_each(|delta| {
-                            for (k, v) in delta {
-                                memo.insert(k, v);
-                            }
-                        });
-                    },
-                    || {
-                        prev_memo_deltas.into_par_iter().for_each(|delta| {
-                            for (k, v) in delta {
-                                prev_memo.insert(k, v);
-                            }
-                        });
-                    },
-                );
-            });
-
-            all_positions
-        };
+        let all_positions = all_positions;
 
         if self.delta_trace {
             eprintln!(
                 "delta_trace step={} candidates={} phase2_elapsed_ms={} \
-                 memo_size={} prev_memo_size={} use_dashmap={}",
+                 memo_size={} prev_memo_size={}",
                 step,
                 candidate_len,
                 phase2_start.elapsed().as_millis(),
                 memo.len(),
                 prev_memo.len(),
-                self.use_dashmap,
             );
         }
 
@@ -856,17 +836,18 @@ impl BackwardSearch {
             .collect::<Vec<_>>();
 
         let mut output_positions = vec![];
+        let no_black_goldish = self.no_black_goldish;
         if !black_position || self.step % 2 == 1 || self.step == 0 {
-            if let Some(pool) = self.pool.as_ref().filter(|_| positions.len() > 1) {
+            if self.parallel > 1 && positions.len() > 1 {
                 let parallel = self.parallel.min(positions.len());
                 let chunk_size = positions.len().div_ceil(parallel * 8).max(1);
-                let chunks = pool.install(|| {
+                let chunks = self.install_or_run(|| {
                     positions
                         .par_chunks(chunk_size)
                         .map(|chunk| {
                             let mut out = Vec::new();
                             for p in chunk.iter() {
-                                if !satisfies_backward_constraints(p, self.no_black_goldish) {
+                                if !satisfies_backward_constraints(p, no_black_goldish) {
                                     continue;
                                 }
                                 if !satisfies_output_constraints(p, bare_white_king) {
@@ -894,11 +875,11 @@ impl BackwardSearch {
             }
         } else {
             let desired_step = self.step - 1;
-            if let Some(pool) = self.pool.as_ref().filter(|_| positions.len() > 1) {
+            if self.parallel > 1 && positions.len() > 1 {
                 let parallel = self.parallel.min(positions.len());
                 let chunk_size = positions.len().div_ceil(parallel * 8).max(1);
                 let prev_memo = &self.prev_memo;
-                let chunks = pool.install(|| {
+                let chunks = self.install_or_run(|| {
                     positions
                         .par_chunks(chunk_size)
                         .map(|chunk| -> anyhow::Result<Vec<PositionAux>> {
@@ -923,7 +904,7 @@ impl BackwardSearch {
                                     }
                                     let mut np = position.clone();
                                     np.do_move(m);
-                                    if !satisfies_backward_constraints(&np, self.no_black_goldish) {
+                                    if !satisfies_backward_constraints(&np, no_black_goldish) {
                                         continue;
                                     }
                                     if !satisfies_output_constraints(&np, bare_white_king) {
@@ -1194,8 +1175,13 @@ fn solutions_inner(
 
 #[inline(always)]
 fn memo_insert(memo: &Memo, digest: u64, value: StepRange, memo_entry_limit: Option<usize>) {
-    if memo_entry_limit.is_some_and(|limit| memo.len() >= limit) {
-        shrink_memo(memo, memo_entry_limit.unwrap() / 2);
+    use std::sync::atomic::Ordering::Relaxed;
+    static SHRINKING: AtomicBool = AtomicBool::new(false);
+    if let Some(limit) = memo_entry_limit {
+        if memo.len() >= limit && !SHRINKING.swap(true, Relaxed) {
+            shrink_memo(memo, limit / 2);
+            SHRINKING.store(false, Relaxed);
+        }
     }
     memo.insert(digest, value);
 }
@@ -1648,22 +1634,17 @@ mod tests {
         let sfen = "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1";
         let initial_position = PositionAux::from_sfen(sfen).unwrap();
 
-        let mut steps = vec![];
-        for use_dashmap in [true, false] {
-            let mut search = super::BackwardSearch::new_with_parallel(
-                &initial_position,
-                false,
-                2,
-                false,
-            )
-            .unwrap();
-            search.set_use_dashmap(use_dashmap);
+        let mut search = super::BackwardSearch::new_with_parallel(
+            &initial_position,
+            false,
+            2,
+            false,
+        )
+        .unwrap();
 
-            while search.advance().unwrap() {}
+        while search.advance().unwrap() {}
 
-            steps.push(search.step());
-        }
-        assert_eq!(steps[0], steps[1], "dashmap={} vs legacy={}", steps[0], steps[1]);
+        assert!(search.step() > 0);
     }
 
     #[test]
