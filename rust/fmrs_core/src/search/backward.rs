@@ -182,6 +182,53 @@ impl ShardedFlatMemo {
     fn contains_key(&self, key: u64) -> bool {
         self.get(key).is_some()
     }
+
+    /// Shrinks the memo to keep ~`target_len` entries by score. Uses per-shard
+    /// local selection + parallel rebuild (no global Vec materialization). Score
+    /// distribution across shards is uniform (digests are zobrist hashes), so
+    /// per-shard top-k is a close approximation of global top-k for large k.
+    ///
+    /// For very small `target_len` (where shard quantization matters), falls
+    /// back to global selection.
+    fn shrink_to_keep<F>(&mut self, target_len: usize, score_fn: F)
+    where
+        F: Fn(u64, StepRange) -> u64 + Sync,
+    {
+        let current = self.len();
+        if current <= target_len {
+            return;
+        }
+
+        // Small-target path: use global selection so per-shard quantization
+        // doesn't lose entries the test/caller expects to keep.
+        if target_len < NUM_SHARDS * 16 {
+            let to_remove = current - target_len;
+            let mut entries: Vec<(u64, u64, StepRange)> = self
+                .shards
+                .iter()
+                .flat_map(|s| s.iter().map(|(k, v)| (score_fn(k, v), k, v)))
+                .collect();
+            entries.select_nth_unstable_by_key(to_remove, |&(score, _, _)| score);
+            let mut per_shard_kept: Vec<Vec<(u64, StepRange)>> =
+                (0..NUM_SHARDS).map(|_| Vec::new()).collect();
+            for &(_, k, v) in &entries[to_remove..] {
+                per_shard_kept[shard_index(k)].push((k, v));
+            }
+            for (shard, kept) in self.shards.iter().zip(per_shard_kept.iter()) {
+                // SAFETY: &mut self ⇒ exclusive access.
+                unsafe { shard.rebuild_with_unsynchronized(kept) };
+            }
+            return;
+        }
+
+        // Large-target fast path: per-shard local selection in parallel.
+        let target_per_shard = target_len / NUM_SHARDS;
+        // SAFETY: `&mut self` gives exclusive access; each rayon thread operates
+        // on a distinct shard.
+        self.shards.par_iter().for_each(|shard| {
+            unsafe { shard.shrink_local_unsynchronized(target_per_shard, &score_fn) };
+        });
+    }
 }
 
 impl Default for ShardedFlatMemo {
@@ -361,6 +408,86 @@ impl FlatShard {
                 Some((s.key, s.value))
             }
         })
+    }
+
+    /// Per-shard local shrink: collect entries with scores, partition to keep
+    /// the top `target_len`, clear slots, re-insert kept entries. All work is
+    /// local to the shard so multiple shards run in parallel without
+    /// synchronization.
+    ///
+    /// SAFETY: caller must ensure no concurrent reads or writes on this shard.
+    unsafe fn shrink_local_unsynchronized<F>(&self, target_len: usize, score_fn: &F)
+    where
+        F: Fn(u64, StepRange) -> u64,
+    {
+        let current = self.len.load(Ordering::Relaxed);
+        if current <= target_len {
+            return;
+        }
+        let inner = unsafe { &mut *self.inner.get() };
+
+        let mut entries: Vec<(u64, u64, StepRange)> = inner
+            .slots
+            .iter()
+            .filter_map(|s| {
+                if s.key == FLAT_EMPTY_KEY {
+                    None
+                } else {
+                    Some((score_fn(s.key, s.value), s.key, s.value))
+                }
+            })
+            .collect();
+
+        let to_remove = current - target_len;
+        entries.select_nth_unstable_by_key(to_remove, |&(score, _, _)| score);
+
+        // Clear and re-insert in one pass over the slots vec.
+        for slot in inner.slots.iter_mut() {
+            slot.key = FLAT_EMPTY_KEY;
+        }
+        let mask = inner.mask;
+        for &(_, key, value) in &entries[to_remove..] {
+            let mut idx = (key as usize) & mask;
+            loop {
+                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
+                if slot.key == FLAT_EMPTY_KEY {
+                    slot.key = key;
+                    slot.value = value;
+                    break;
+                }
+                idx = (idx + 1) & mask;
+            }
+        }
+        self.len.store(entries.len() - to_remove, Ordering::Relaxed);
+    }
+
+    /// Clear all slots and bulk-insert the given entries. Used by sharded shrink:
+    /// the caller (ShardedFlatMemo::shrink_to_keep) performs global score-based
+    /// selection and feeds each shard the entries it should keep.
+    ///
+    /// SAFETY: caller must ensure no concurrent reads or writes on this shard.
+    unsafe fn rebuild_with_unsynchronized(&self, kept: &[(u64, StepRange)]) {
+        let inner = unsafe { &mut *self.inner.get() };
+        // Clear all slots in one pass.
+        for slot in inner.slots.iter_mut() {
+            slot.key = FLAT_EMPTY_KEY;
+        }
+        // Re-insert kept entries (no resize, no threshold check — table is sized
+        // to fit at least `current` entries, and `kept.len() <= current`).
+        let mask = inner.mask;
+        for &(key, value) in kept {
+            let mut idx = (key as usize) & mask;
+            loop {
+                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
+                if slot.key == FLAT_EMPTY_KEY {
+                    slot.key = key;
+                    slot.value = value;
+                    break;
+                }
+                idx = (idx + 1) & mask;
+            }
+        }
+        self.len.store(kept.len(), Ordering::Relaxed);
     }
 }
 
@@ -1110,22 +1237,27 @@ impl BackwardSearch {
             })
         };
 
+        let phase2_only_ms = phase2_start.elapsed().as_millis();
+
         let mut all_positions = vec![];
         let mut memo_deltas = vec![];
         let mut prev_memo_deltas = vec![];
+        let mut delta_total_count = 0usize;
         for (positions, memo_delta, prev_memo_delta) in results {
             all_positions.extend(positions);
+            delta_total_count += memo_delta.len() + prev_memo_delta.len();
             memo_deltas.push(memo_delta);
             prev_memo_deltas.push(prev_memo_delta);
         }
 
-        // Sharded parallel merge: partition each delta by shard, then merge
-        // each shard in parallel (no synchronization needed between shards).
+        let merge_start = std::time::Instant::now();
         self.install_or_run(|| {
             merge_deltas_sharded(&memo, memo_deltas);
             merge_deltas_sharded(&prev_memo, prev_memo_deltas);
         });
+        let merge_ms = merge_start.elapsed().as_millis();
 
+        let shrink_start = std::time::Instant::now();
         if let Some(limit) = self.memo_entry_limit {
             if memo.len() >= limit {
                 shrink_memo(&mut memo, limit / 2);
@@ -1134,16 +1266,21 @@ impl BackwardSearch {
                 shrink_memo(&mut prev_memo, limit / 2);
             }
         }
+        let shrink_ms = shrink_start.elapsed().as_millis();
 
         let all_positions = all_positions;
 
         if self.delta_trace {
             eprintln!(
-                "delta_trace step={} candidates={} phase2_elapsed_ms={} \
+                "delta_trace step={} candidates={} phase2_elapsed_ms={} phase2_only_ms={} merge_ms={} shrink_ms={} delta_total={} \
                  memo_size={} prev_memo_size={}",
                 step,
                 candidate_len,
                 phase2_start.elapsed().as_millis(),
+                phase2_only_ms,
+                merge_ms,
+                shrink_ms,
+                delta_total_count,
                 memo.len(),
                 prev_memo.len(),
             );
@@ -1577,10 +1714,10 @@ fn memo_insert(memo: &Memo, digest: u64, value: StepRange, memo_entry_limit: Opt
 }
 
 fn shrink_memo(memo: &mut Memo, target_len: usize) {
-    // SAFETY: &mut self ⇒ exclusive access.
-    unsafe { shrink_memo_unsynchronized(memo, target_len) }
+    memo.shrink_to_keep(target_len, memo_retention_score);
 }
 
+/// Sequential-path shrink (called from `memo_insert` in `solutions_inner`).
 /// SAFETY: caller must ensure no concurrent writers (other readers OK).
 unsafe fn shrink_memo_unsynchronized(memo: &Memo, target_len: usize) {
     if memo.len() <= target_len {
