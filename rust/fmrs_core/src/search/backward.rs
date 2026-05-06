@@ -1,4 +1,4 @@
-use std::ops::Range;
+use std::{ops::Range, sync::Arc};
 
 use anyhow::bail;
 use dashmap::DashMap;
@@ -18,7 +18,6 @@ use crate::{
 
 type Memo = DashMap<u64, StepRange, BuildNoHasher>;
 
-const MAX_BACKWARD_PARALLEL: usize = 32;
 
 pub fn backward_initial_variants(initial_position: &PositionAux) -> Vec<PositionAux> {
     let mut variants = Vec::with_capacity(2);
@@ -272,6 +271,7 @@ pub struct BackwardSearch {
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
     delta_trace: bool,
+    use_dashmap: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -345,7 +345,7 @@ impl BackwardSearch {
 
         let step = solution.len() as u16;
 
-        let parallel = parallel.clamp(1, MAX_BACKWARD_PARALLEL);
+        let parallel = parallel.max(1);
         let pool = if parallel > 1 {
             Some(
                 rayon::ThreadPoolBuilder::new()
@@ -372,6 +372,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            use_dashmap: true,
         })
     }
 
@@ -393,7 +394,7 @@ impl BackwardSearch {
             .map(|mv| crate::sfen::decode_move(mv))
             .collect::<anyhow::Result<Vec<_>>>()?;
 
-        let parallel = parallel.clamp(1, MAX_BACKWARD_PARALLEL);
+        let parallel = parallel.max(1);
         let pool = if parallel > 1 {
             Some(
                 rayon::ThreadPoolBuilder::new()
@@ -420,6 +421,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            use_dashmap: true,
         })
     }
 
@@ -451,6 +453,10 @@ impl BackwardSearch {
 
     pub fn set_delta_trace(&mut self, enabled: bool) {
         self.delta_trace = enabled;
+    }
+
+    pub fn set_use_dashmap(&mut self, enabled: bool) {
+        self.use_dashmap = enabled;
     }
 
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
@@ -647,7 +653,7 @@ impl BackwardSearch {
             return Ok(false);
         }
 
-        // Phase 2: verify uniqueness in parallel using DashMap directly
+        // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
         let chunk_size = candidates.len().div_ceil(parallel * 8).max(1);
         let memo = std::mem::replace(&mut self.memo, Memo::with_hasher(BuildNoHasher));
@@ -655,59 +661,137 @@ impl BackwardSearch {
 
         let phase2_start = std::time::Instant::now();
 
-        let next_positions: Vec<Vec<Position>> = pool.install(|| {
-            candidates
-                .par_chunks(chunk_size)
-                .map(|chunk| {
-                    let mut prev_positions = vec![];
-                    let mut solution_scratch = vec![];
+        let all_positions = if self.use_dashmap {
+            // DashMap path: threads read/write directly to shared DashMap
+            let next_positions: Vec<Vec<Position>> = pool.install(|| {
+                candidates
+                    .par_chunks(chunk_size)
+                    .map(|chunk| {
+                        let mut prev_positions = vec![];
+                        let mut solution_scratch = vec![];
 
-                    for core in chunk.iter() {
-                        let mut pp = PositionAux::new(core.clone(), stone);
-                        let pp_digest = pp.digest();
-                        if let Some(ans) = prev_memo
-                            .get(&pp_digest)
-                            .filter(|ans| !ans.needs_investigation(step + 1))
-                        {
+                        for core in chunk.iter() {
+                            let mut pp = PositionAux::new(core.clone(), stone);
+                            let pp_digest = pp.digest();
+                            if let Some(ans) = prev_memo
+                                .get(&pp_digest)
+                                .filter(|ans| !ans.needs_investigation(step + 1))
+                            {
+                                if ans.is_uniquely(step + 1) {
+                                    prev_positions.push(core.clone());
+                                }
+                                continue;
+                            }
+
+                            let ans = solutions(
+                                &mut pp,
+                                &prev_memo,
+                                &memo,
+                                step + 1,
+                                &mut solution_scratch,
+                                None,
+                            );
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
                             }
-                            continue;
                         }
 
-                        let ans = solutions(
-                            &mut pp,
-                            &prev_memo,
-                            &memo,
-                            step + 1,
-                            &mut solution_scratch,
-                            None,
-                        );
-                        if ans.is_uniquely(step + 1) {
-                            prev_positions.push(core.clone());
-                        }
-                    }
+                        prev_positions
+                    })
+                    .collect()
+            });
+            next_positions.into_iter().flatten().collect()
+        } else {
+            // Legacy path: thread-local deltas + merge
+            let memo_arc = Arc::new(&memo);
+            let prev_memo_arc = Arc::new(&prev_memo);
 
-                    prev_positions
-                })
-                .collect()
-        });
+            let results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> =
+                pool.install(|| {
+                    candidates
+                        .par_chunks(chunk_size)
+                        .map(|chunk| {
+                            let memo_ref = &**memo_arc;
+                            let prev_memo_ref = &**prev_memo_arc;
+                            let mut memo_delta = NoHashMap64::default();
+                            let mut prev_memo_delta = NoHashMap64::default();
+                            let mut prev_positions = vec![];
+                            let mut solution_scratch = vec![];
+
+                            for core in chunk.iter() {
+                                let mut pp = PositionAux::new(core.clone(), stone);
+                                let pp_digest = pp.digest();
+                                if let Some(ans) =
+                                    get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
+                                        .filter(|ans| !ans.needs_investigation(step + 1))
+                                {
+                                    if ans.is_uniquely(step + 1) {
+                                        prev_positions.push(core.clone());
+                                    }
+                                    continue;
+                                }
+
+                                let ans = solutions_overlay(
+                                    &mut pp,
+                                    prev_memo_ref,
+                                    &mut prev_memo_delta,
+                                    memo_ref,
+                                    &mut memo_delta,
+                                    step + 1,
+                                    &mut solution_scratch,
+                                );
+                                if ans.is_uniquely(step + 1) {
+                                    prev_positions.push(core.clone());
+                                }
+                            }
+
+                            (prev_positions, memo_delta, prev_memo_delta)
+                        })
+                        .collect()
+                });
+
+            let mut all_positions = vec![];
+            let mut memo_deltas = vec![];
+            let mut prev_memo_deltas = vec![];
+            for (positions, memo_delta, prev_memo_delta) in results {
+                all_positions.extend(positions);
+                memo_deltas.push(memo_delta);
+                prev_memo_deltas.push(prev_memo_delta);
+            }
+
+            pool.install(|| {
+                rayon::join(
+                    || {
+                        memo_deltas.into_par_iter().for_each(|delta| {
+                            for (k, v) in delta {
+                                memo.insert(k, v);
+                            }
+                        });
+                    },
+                    || {
+                        prev_memo_deltas.into_par_iter().for_each(|delta| {
+                            for (k, v) in delta {
+                                prev_memo.insert(k, v);
+                            }
+                        });
+                    },
+                );
+            });
+
+            all_positions
+        };
 
         if self.delta_trace {
             eprintln!(
                 "delta_trace step={} candidates={} phase2_elapsed_ms={} \
-                 memo_size={} prev_memo_size={}",
+                 memo_size={} prev_memo_size={} use_dashmap={}",
                 step,
                 candidate_len,
                 phase2_start.elapsed().as_millis(),
                 memo.len(),
                 prev_memo.len(),
+                self.use_dashmap,
             );
-        }
-
-        let mut all_positions = vec![];
-        for positions in next_positions {
-            all_positions.extend(positions);
         }
 
         self.memo = memo;
@@ -1150,6 +1234,146 @@ fn memo_retention_score(digest: u64, range: StepRange) -> u64 {
     (class << 56) | ((specificity as u64) << 16) | tie_breaker
 }
 
+#[inline(always)]
+fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Option<StepRange> {
+    delta
+        .get(&digest)
+        .copied()
+        .or_else(|| base.get(&digest).map(|r| *r))
+}
+
+fn solutions_overlay(
+    position: &mut PositionAux,
+    memo_base: &Memo,
+    memo_delta: &mut NoHashMap64<StepRange>,
+    next_memo_base: &Memo,
+    next_memo_delta: &mut NoHashMap64<StepRange>,
+    mate_in: u16,
+    scratch: &mut Vec<Vec<Movement>>,
+) -> StepRange {
+    if scratch.len() <= mate_in as usize {
+        scratch.resize_with(mate_in as usize + 1, Vec::new);
+    }
+    solutions_overlay_inner(
+        position,
+        memo_base,
+        memo_delta,
+        next_memo_base,
+        next_memo_delta,
+        mate_in,
+        scratch,
+    )
+}
+
+fn solutions_overlay_inner(
+    position: &mut PositionAux,
+    memo_base: &Memo,
+    memo_delta: &mut NoHashMap64<StepRange>,
+    next_memo_base: &Memo,
+    next_memo_delta: &mut NoHashMap64<StepRange>,
+    mate_in: u16,
+    scratch: &mut [Vec<Movement>],
+) -> StepRange {
+    let digest = position.digest();
+    let mut ans = StepRange::unknown();
+    if let Some(a) = get_overlay(memo_delta, memo_base, digest) {
+        if !a.needs_investigation(mate_in) {
+            return a;
+        }
+        ans = a;
+    }
+
+    if mate_in == 0 {
+        let mut movements = std::mem::take(&mut scratch[0]);
+        movements.clear();
+        let options = crate::position::AdvanceOptions {
+            max_allowed_branches: Some(0),
+        };
+        let advance_result = advance_aux(position, &options, &mut movements);
+        let hint = if advance_result.is_err() {
+            StepRange::non_zero()
+        } else if advance_result.unwrap() {
+            StepRange::exact(0)
+        } else if movements.is_empty() {
+            StepRange::unsolvable()
+        } else {
+            StepRange::non_zero()
+        };
+        let ans = ans.intersection(&hint);
+        debug_assert!(!ans.needs_investigation(mate_in));
+        memo_delta.insert(digest, ans);
+        scratch[0] = movements;
+        return ans;
+    }
+
+    let scratch_index = mate_in as usize;
+    let mut movements = std::mem::take(&mut scratch[scratch_index]);
+    movements.clear();
+    let is_mate = advance_aux(position, &Default::default(), &mut movements).unwrap();
+
+    let mut hint = StepRange::unknown();
+    if is_mate {
+        hint = StepRange::exact(0);
+    } else if movements.is_empty() {
+        hint = StepRange::unsolvable();
+    } else if mate_in == 0 {
+        hint = StepRange::non_zero();
+    }
+    ans = ans.intersection(&hint);
+    if !ans.needs_investigation(mate_in) {
+        memo_delta.insert(digest, ans);
+        scratch[scratch_index] = movements;
+        return ans;
+    }
+
+    let mut res = StepRange::unsolvable();
+
+    for m in movements.iter() {
+        let child_digest = position.moved_digest(m);
+        let child = get_overlay(next_memo_delta, next_memo_base, child_digest)
+            .filter(|a| !a.needs_investigation(mate_in - 1));
+        let a = if let Some(child) = child {
+            child.inc()
+        } else {
+            let mut np = position.clone();
+            np.do_move(m);
+            solutions_overlay_inner(
+                &mut np,
+                next_memo_base,
+                next_memo_delta,
+                memo_base,
+                memo_delta,
+                mate_in - 1,
+                scratch,
+            )
+            .inc()
+        };
+        debug_assert!(!a.needs_investigation(mate_in));
+
+        res.update_with_child(&a);
+
+        if res.definitely_shorter_or_non_unique(mate_in) {
+            res.shortest_start = 1;
+            res.next_start = 1;
+            break;
+        }
+    }
+
+    res = res.intersection(&ans);
+
+    debug_assert!(
+        !res.needs_investigation(mate_in),
+        "{:?} {:?} {:?} {}",
+        res,
+        hint,
+        position,
+        mate_in
+    );
+
+    memo_delta.insert(digest, res);
+    scratch[scratch_index] = movements;
+    res
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct StepRange {
@@ -1417,6 +1641,29 @@ mod tests {
 
             assert_eq!(positions, want_positions)
         }
+    }
+
+    #[test]
+    fn test_backward_parallel_dashmap_vs_legacy() {
+        let sfen = "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1";
+        let initial_position = PositionAux::from_sfen(sfen).unwrap();
+
+        let mut steps = vec![];
+        for use_dashmap in [true, false] {
+            let mut search = super::BackwardSearch::new_with_parallel(
+                &initial_position,
+                false,
+                2,
+                false,
+            )
+            .unwrap();
+            search.set_use_dashmap(use_dashmap);
+
+            while search.advance().unwrap() {}
+
+            steps.push(search.step());
+        }
+        assert_eq!(steps[0], steps[1], "dashmap={} vs legacy={}", steps[0], steps[1]);
     }
 
     #[test]

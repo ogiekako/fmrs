@@ -108,6 +108,8 @@ pub enum SingleKingSmokeCommand {
         inner_parallel: usize,
         #[arg(long, default_value_t = false)]
         mem_trace: bool,
+        #[arg(long, default_value_t = false)]
+        no_dashmap: bool,
         #[arg(long, default_value_t = 0)]
         slack: u16,
         /// Filter seeds by white king position at mate. Shogi notation:
@@ -187,6 +189,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             max_promoted_pct_after_step,
             inner_parallel,
             mem_trace,
+            no_dashmap,
             slack,
             mate_square,
             feature_log,
@@ -229,6 +232,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 },
                 inner_parallel,
                 mem_trace,
+                !no_dashmap,
                 FeatureLogConfig {
                     path: feature_log,
                     samples_per_step: feature_sample_per_step,
@@ -479,6 +483,7 @@ fn ideal_backward(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
+    use_dashmap: bool,
     feature_log: FeatureLogConfig,
     beam: BeamConfig,
 ) -> anyhow::Result<()> {
@@ -569,6 +574,7 @@ fn ideal_backward(
                     constraints,
                     inner_parallel,
                     mem_trace,
+                    use_dashmap,
                     &global_best_piece_count,
                     &seed_result_log_path,
                     feature_log_handle.as_ref(),
@@ -987,6 +993,7 @@ fn search_single_seed(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
+    use_dashmap: bool,
     global_best_piece_count: &AtomicUsize,
     seed_result_log_path: &Path,
     feature_log: Option<&Mutex<fs::File>>,
@@ -1037,6 +1044,7 @@ fn search_single_seed(
         search.set_memo_entry_limit(Some(max_memo_entries));
     }
     search.set_delta_trace(mem_trace);
+    search.set_use_dashmap(use_dashmap);
     if mem_trace {
         eprintln!(
             "mem_trace seed={} start resumed={} {} {}",
