@@ -1,13 +1,16 @@
-use std::{ops::Range, sync::atomic::AtomicBool, sync::Arc};
+use std::{
+    cell::UnsafeCell,
+    ops::Range,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use anyhow::bail;
-use dashmap::DashMap;
 use log::{debug, info};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    nohash::{BuildNoHasher, NoHashMap64},
+    nohash::NoHashMap64,
     piece::{Color, Kind},
     position::{
         advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
@@ -16,7 +19,386 @@ use crate::{
     solve::standard_solve::standard_solve,
 };
 
-type Memo = DashMap<u64, StepRange, BuildNoHasher>;
+type Memo = ShardedFlatMemo;
+
+// ===== ShardedFlatMemo: lock-free sharded hash table for backward search =====
+//
+// Designed for backward search workload:
+//  * Reads during Phase 2 are massively concurrent and read-only on the base
+//    (writes go to per-thread NoHashMap64 deltas). With this table, reads
+//    require zero atomic ops — just an array index and linear probe.
+//  * Merges happen single-threaded *per shard* but in parallel *across shards*,
+//    giving 8-way merge parallelism without any locks.
+//  * `alloc_zeroed` produces lazy zero pages on Linux (mmap MAP_ANONYMOUS),
+//    so pre-allocating capacity that won't be filled costs no resident memory.
+//  * `madvise(MADV_HUGEPAGE)` requests transparent huge pages, cutting TLB
+//    pressure for the multi-GB tables.
+//  * Empty-slot sentinel is `u64::MAX` (not 0) — but the slot vector is
+//    allocated zeroed, so a separate `initialized` flag isn't needed: we
+//    treat key==0 OR key==SENTINEL_INVALID as empty during the rare case.
+//    Actually we use 0 as the empty sentinel so zeroed pages = empty.
+//    Inserts of key==0 are silently skipped (probability ≈ 2^-64).
+
+const SHARD_BITS: u32 = 3;
+const NUM_SHARDS: usize = 1 << SHARD_BITS;
+const SHARD_SHIFT: u32 = 64 - SHARD_BITS;
+const FLAT_EMPTY_KEY: u64 = 0;
+
+struct ShardedFlatMemo {
+    shards: Box<[FlatShard]>,
+}
+
+struct FlatShard {
+    inner: UnsafeCell<FlatShardInner>,
+    len: AtomicUsize,
+}
+
+struct FlatShardInner {
+    slots: Box<[FlatSlot]>,
+    mask: usize,
+    capacity_threshold: usize,
+}
+
+#[derive(Copy, Clone)]
+#[repr(C)]
+struct FlatSlot {
+    key: u64,
+    value: StepRange,
+}
+
+unsafe impl Sync for ShardedFlatMemo {}
+unsafe impl Send for ShardedFlatMemo {}
+unsafe impl Sync for FlatShard {}
+unsafe impl Send for FlatShard {}
+
+#[inline(always)]
+fn shard_index(key: u64) -> usize {
+    (key >> SHARD_SHIFT) as usize
+}
+
+fn alloc_slots(size: usize) -> Box<[FlatSlot]> {
+    use std::alloc::{alloc_zeroed, Layout};
+    debug_assert!(size > 0);
+    debug_assert!(size.is_power_of_two());
+    let layout = Layout::array::<FlatSlot>(size).expect("FlatMemo layout");
+    // SAFETY: FlatSlot is plain old data; zeroed bytes form a valid `FlatSlot`
+    // (key=0 = empty sentinel; value bytes unused while empty).
+    unsafe {
+        let ptr = alloc_zeroed(layout) as *mut FlatSlot;
+        if ptr.is_null() {
+            std::alloc::handle_alloc_error(layout);
+        }
+        // Hint transparent huge pages — beneficial for multi-GB tables.
+        #[cfg(target_os = "linux")]
+        {
+            let bytes = layout.size();
+            // ignore errors (kernel may not support, alignment may not match)
+            let _ = libc::madvise(ptr.cast(), bytes, libc::MADV_HUGEPAGE);
+        }
+        Box::from_raw(std::slice::from_raw_parts_mut(ptr, size))
+    }
+}
+
+impl ShardedFlatMemo {
+    fn with_per_shard_capacity(per_shard: usize) -> Self {
+        let mut shards = Vec::with_capacity(NUM_SHARDS);
+        for _ in 0..NUM_SHARDS {
+            shards.push(FlatShard::with_capacity(per_shard));
+        }
+        Self {
+            shards: shards.into_boxed_slice(),
+        }
+    }
+
+    fn new() -> Self {
+        Self::with_per_shard_capacity(8)
+    }
+
+    fn pre_allocate(&mut self, total_capacity: usize) {
+        let per_shard = total_capacity.div_ceil(NUM_SHARDS);
+        for shard in self.shards.iter_mut() {
+            shard.pre_allocate(per_shard);
+        }
+    }
+
+    #[inline(always)]
+    fn get(&self, key: u64) -> Option<StepRange> {
+        if key == FLAT_EMPTY_KEY {
+            return None;
+        }
+        let shard = unsafe { self.shards.get_unchecked(shard_index(key)) };
+        shard.get(key)
+    }
+
+    #[inline(always)]
+    fn insert(&mut self, key: u64, value: StepRange) {
+        if key == FLAT_EMPTY_KEY {
+            return;
+        }
+        // SAFETY: &mut self ⇒ exclusive access.
+        let idx = shard_index(key);
+        unsafe { self.shards.get_unchecked(idx).insert_unsynchronized(key, value) };
+    }
+
+    /// SAFETY: caller must ensure no concurrent insert/remove targets the same
+    /// shard (i.e. same shard_index(key)). Concurrent ops on different shards
+    /// are safe; concurrent reads are always safe.
+    #[inline(always)]
+    unsafe fn insert_unsynchronized(&self, key: u64, value: StepRange) {
+        if key == FLAT_EMPTY_KEY {
+            return;
+        }
+        let shard = unsafe { self.shards.get_unchecked(shard_index(key)) };
+        unsafe { shard.insert_unsynchronized(key, value) };
+    }
+
+    /// SAFETY: same as `insert_unsynchronized`.
+    unsafe fn remove_unsynchronized(&self, key: u64) -> Option<StepRange> {
+        if key == FLAT_EMPTY_KEY {
+            return None;
+        }
+        let shard = unsafe { self.shards.get_unchecked(shard_index(key)) };
+        unsafe { shard.remove_unsynchronized(key) }
+    }
+
+    fn remove(&mut self, key: u64) -> Option<StepRange> {
+        // SAFETY: &mut self ⇒ exclusive access.
+        unsafe { self.remove_unsynchronized(key) }
+    }
+
+    fn len(&self) -> usize {
+        self.shards.iter().map(|s| s.len.load(Ordering::Relaxed)).sum()
+    }
+
+    #[allow(dead_code)]
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn iter(&self) -> impl Iterator<Item = (u64, StepRange)> + '_ {
+        self.shards.iter().flat_map(|s| s.iter())
+    }
+
+    fn contains_key(&self, key: u64) -> bool {
+        self.get(key).is_some()
+    }
+}
+
+impl Default for ShardedFlatMemo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl FlatShard {
+    fn with_capacity(capacity: usize) -> Self {
+        let min_size = capacity.saturating_mul(2).max(8);
+        let size = min_size.next_power_of_two();
+        Self {
+            inner: UnsafeCell::new(FlatShardInner {
+                slots: alloc_slots(size),
+                mask: size - 1,
+                capacity_threshold: size * 7 / 10,
+            }),
+            len: AtomicUsize::new(0),
+        }
+    }
+
+    fn pre_allocate(&mut self, capacity: usize) {
+        let needed_size = capacity.saturating_mul(2).max(8).next_power_of_two();
+        // SAFETY: &mut self ⇒ exclusive access.
+        let inner = unsafe { &mut *self.inner.get() };
+        if needed_size <= inner.slots.len() {
+            return;
+        }
+        let old_slots = std::mem::replace(&mut inner.slots, alloc_slots(needed_size));
+        inner.mask = needed_size - 1;
+        inner.capacity_threshold = needed_size * 7 / 10;
+        let new_mask = inner.mask;
+        for old in old_slots.iter() {
+            if old.key == FLAT_EMPTY_KEY {
+                continue;
+            }
+            let mut idx = (old.key as usize) & new_mask;
+            loop {
+                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
+                if slot.key == FLAT_EMPTY_KEY {
+                    *slot = *old;
+                    break;
+                }
+                idx = (idx + 1) & new_mask;
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn get(&self, key: u64) -> Option<StepRange> {
+        debug_assert!(key != FLAT_EMPTY_KEY);
+        // SAFETY: when `&self` is held, the public API requires `&mut self` for
+        // mutations (`insert`/`remove`); the unsafe `*_unsynchronized` variants
+        // document that callers must serialize with respect to other writers
+        // for *this* shard.
+        let inner = unsafe { &*self.inner.get() };
+        let mask = inner.mask;
+        let mut idx = (key as usize) & mask;
+        loop {
+            let slot = unsafe { inner.slots.get_unchecked(idx) };
+            if slot.key == FLAT_EMPTY_KEY {
+                return None;
+            }
+            if slot.key == key {
+                return Some(slot.value);
+            }
+            idx = (idx + 1) & mask;
+        }
+    }
+
+    /// SAFETY: caller must ensure no concurrent writer on this shard.
+    #[inline(always)]
+    unsafe fn insert_unsynchronized(&self, key: u64, value: StepRange) {
+        debug_assert!(key != FLAT_EMPTY_KEY);
+        let inner = unsafe { &mut *self.inner.get() };
+        let len_before = self.len.load(Ordering::Relaxed);
+        if len_before >= inner.capacity_threshold {
+            unsafe { Self::grow(inner) };
+        }
+        let mask = inner.mask;
+        let mut idx = (key as usize) & mask;
+        loop {
+            let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
+            if slot.key == FLAT_EMPTY_KEY {
+                slot.key = key;
+                slot.value = value;
+                self.len.fetch_add(1, Ordering::Relaxed);
+                return;
+            }
+            if slot.key == key {
+                slot.value = value;
+                return;
+            }
+            idx = (idx + 1) & mask;
+        }
+    }
+
+    #[cold]
+    unsafe fn grow(inner: &mut FlatShardInner) {
+        let new_size = (inner.slots.len() * 2).max(16);
+        let new_slots = alloc_slots(new_size);
+        let new_mask = new_size - 1;
+        let old_slots = std::mem::replace(&mut inner.slots, new_slots);
+        inner.mask = new_mask;
+        inner.capacity_threshold = new_size * 7 / 10;
+        for old in old_slots.iter() {
+            if old.key == FLAT_EMPTY_KEY {
+                continue;
+            }
+            let mut idx = (old.key as usize) & new_mask;
+            loop {
+                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
+                if slot.key == FLAT_EMPTY_KEY {
+                    *slot = *old;
+                    break;
+                }
+                idx = (idx + 1) & new_mask;
+            }
+        }
+    }
+
+    /// SAFETY: caller must ensure no concurrent writer on this shard.
+    unsafe fn remove_unsynchronized(&self, key: u64) -> Option<StepRange> {
+        debug_assert!(key != FLAT_EMPTY_KEY);
+        let inner = unsafe { &mut *self.inner.get() };
+        let mask = inner.mask;
+        let mut idx = (key as usize) & mask;
+        let mut hole_idx;
+        let removed_value;
+        loop {
+            let slot = unsafe { inner.slots.get_unchecked(idx) };
+            if slot.key == FLAT_EMPTY_KEY {
+                return None;
+            }
+            if slot.key == key {
+                removed_value = slot.value;
+                hole_idx = idx;
+                break;
+            }
+            idx = (idx + 1) & mask;
+        }
+        unsafe { inner.slots.get_unchecked_mut(hole_idx).key = FLAT_EMPTY_KEY };
+
+        // Backward shift deletion to preserve linear-probe invariants.
+        let mut probe_idx = (hole_idx + 1) & mask;
+        loop {
+            let candidate = unsafe { *inner.slots.get_unchecked(probe_idx) };
+            if candidate.key == FLAT_EMPTY_KEY {
+                break;
+            }
+            let preferred = (candidate.key as usize) & mask;
+            let belongs = if preferred <= probe_idx {
+                hole_idx >= preferred && hole_idx < probe_idx
+            } else {
+                hole_idx >= preferred || hole_idx < probe_idx
+            };
+            if belongs {
+                unsafe {
+                    *inner.slots.get_unchecked_mut(hole_idx) = candidate;
+                    inner.slots.get_unchecked_mut(probe_idx).key = FLAT_EMPTY_KEY;
+                }
+                hole_idx = probe_idx;
+            }
+            probe_idx = (probe_idx + 1) & mask;
+        }
+        self.len.fetch_sub(1, Ordering::Relaxed);
+        Some(removed_value)
+    }
+
+    fn iter(&self) -> impl Iterator<Item = (u64, StepRange)> + '_ {
+        let inner = unsafe { &*self.inner.get() };
+        inner.slots.iter().filter_map(|s| {
+            if s.key == FLAT_EMPTY_KEY {
+                None
+            } else {
+                Some((s.key, s.value))
+            }
+        })
+    }
+}
+
+/// Sharded parallel merge: each delta is partitioned by shard, then each shard
+/// is merged by a single thread (no synchronization needed across shards).
+/// Both phases run with rayon parallelism.
+fn merge_deltas_sharded(memo: &Memo, deltas: Vec<NoHashMap64<StepRange>>) {
+    if deltas.is_empty() {
+        return;
+    }
+    // Phase 1: partition each delta by shard.
+    let partitioned: Vec<[Vec<(u64, StepRange)>; NUM_SHARDS]> = deltas
+        .into_par_iter()
+        .map(|delta| {
+            let mut parts: [Vec<(u64, StepRange)>; NUM_SHARDS] =
+                std::array::from_fn(|_| Vec::new());
+            for (k, v) in delta {
+                parts[shard_index(k)].push((k, v));
+            }
+            parts
+        })
+        .collect();
+
+    // Phase 2: merge per shard, in parallel (lock-free; each shard has 1 writer).
+    (0..NUM_SHARDS).into_par_iter().for_each(|shard_idx| {
+        for thread_parts in partitioned.iter() {
+            for (k, v) in &thread_parts[shard_idx] {
+                // SAFETY: each `shard_idx` value is processed by exactly one thread;
+                // shard `shard_idx` therefore has at most one writer at a time, and
+                // no other thread reads it during merge (Phase 2 of the search loop
+                // is finished before this is called).
+                unsafe { memo.insert_unsynchronized(*k, *v) };
+            }
+        }
+    });
+}
+// ===== End ShardedFlatMemo =====
+
 
 
 pub fn backward_initial_variants(initial_position: &PositionAux) -> Vec<PositionAux> {
@@ -196,8 +578,8 @@ fn backward_search_single(
                     let digest = p.moved_digest(m);
                     if search
                         .prev_memo
-                        .get(&digest)
-                        .map_or(false, |x| x.value().is_uniquely(search.step - 1))
+                        .get(digest)
+                        .map_or(false, |x| x.is_uniquely(search.step - 1))
                     {
                         let mut np = p.clone();
                         np.do_move(m);
@@ -323,8 +705,8 @@ impl BackwardSearch {
 
         let positions = vec![initial_position.core().clone()];
 
-        let memo = Memo::with_hasher(BuildNoHasher);
-        let prev_memo = Memo::with_hasher(BuildNoHasher);
+        let mut memo = Memo::new();
+        let mut prev_memo = Memo::new();
         let mut p = initial_position.clone();
         memo.insert(p.digest(), StepRange::exact(solution.len() as u16));
         for (i, m) in solution.iter().enumerate() {
@@ -409,8 +791,8 @@ impl BackwardSearch {
             seen_positions: 0,
             positions,
             prev_positions: vec![],
-            memo: Memo::with_hasher(BuildNoHasher),
-            prev_memo: Memo::with_hasher(BuildNoHasher),
+            memo: Memo::new(),
+            prev_memo: Memo::new(),
             stone: *initial_position.stone(),
             step: state.step,
             one_way: state.one_way,
@@ -446,6 +828,13 @@ impl BackwardSearch {
 
     pub fn set_memo_entry_limit(&mut self, max_entries: Option<usize>) {
         self.memo_entry_limit = max_entries.map(|limit| (limit / 2).max(1));
+        if let Some(limit) = self.memo_entry_limit {
+            // Pre-allocate to avoid resize/rehash overhead during merges. With
+            // alloc_zeroed (lazy zero pages on Linux), the unused capacity costs
+            // virtual address space only — physical pages fault in on first write.
+            self.memo.pre_allocate(limit);
+            self.prev_memo.pre_allocate(limit);
+        }
     }
 
     pub fn set_delta_trace(&mut self, enabled: bool) {
@@ -548,10 +937,10 @@ impl BackwardSearch {
                 let pp_digest = pp.digest();
                 let ans = if let Some(ans) = self
                     .prev_memo
-                    .get(&pp_digest)
+                    .get(pp_digest)
                     .filter(|ans| !ans.needs_investigation(mate_in))
                 {
-                    *ans
+                    ans
                 } else {
                     solutions(
                         &mut pp,
@@ -577,7 +966,7 @@ impl BackwardSearch {
                                     self.step,
                                     p.sfen_url(),
                                     m,
-                                    self.memo.get(&p.digest()).map(|r| *r)
+                                    self.memo.get(p.digest())
                                 );
                             }
                             debug_assert_eq!(sol.len(), 1);
@@ -671,21 +1060,18 @@ impl BackwardSearch {
         // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
         let chunk_size = candidates.len().div_ceil(parallel * 8).max(1);
-        let memo = std::mem::replace(&mut self.memo, Memo::with_hasher(BuildNoHasher));
-        let prev_memo = std::mem::replace(&mut self.prev_memo, Memo::with_hasher(BuildNoHasher));
+        let mut memo = std::mem::replace(&mut self.memo, Memo::new());
+        let mut prev_memo = std::mem::replace(&mut self.prev_memo, Memo::new());
 
         let phase2_start = std::time::Instant::now();
 
-        let memo_arc = Arc::new(&memo);
-        let prev_memo_arc = Arc::new(&prev_memo);
-
-        let results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> =
+        let results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> = {
+            let memo_ref: &Memo = &memo;
+            let prev_memo_ref: &Memo = &prev_memo;
             self.install_or_run(|| {
                 candidates
                     .par_chunks(chunk_size)
                     .map(|chunk| {
-                        let memo_ref = &**memo_arc;
-                        let prev_memo_ref = &**prev_memo_arc;
                         let mut memo_delta = NoHashMap64::default();
                         let mut prev_memo_delta = NoHashMap64::default();
                         let mut prev_positions = vec![];
@@ -721,7 +1107,8 @@ impl BackwardSearch {
                         (prev_positions, memo_delta, prev_memo_delta)
                     })
                     .collect()
-            });
+            })
+        };
 
         let mut all_positions = vec![];
         let mut memo_deltas = vec![];
@@ -732,31 +1119,19 @@ impl BackwardSearch {
             prev_memo_deltas.push(prev_memo_delta);
         }
 
+        // Sharded parallel merge: partition each delta by shard, then merge
+        // each shard in parallel (no synchronization needed between shards).
         self.install_or_run(|| {
-            rayon::join(
-                || {
-                    memo_deltas.into_par_iter().for_each(|delta| {
-                        for (k, v) in delta {
-                            memo.insert(k, v);
-                        }
-                    });
-                },
-                || {
-                    prev_memo_deltas.into_par_iter().for_each(|delta| {
-                        for (k, v) in delta {
-                            prev_memo.insert(k, v);
-                        }
-                    });
-                },
-            );
+            merge_deltas_sharded(&memo, memo_deltas);
+            merge_deltas_sharded(&prev_memo, prev_memo_deltas);
         });
 
         if let Some(limit) = self.memo_entry_limit {
             if memo.len() >= limit {
-                shrink_memo(&memo, limit / 2);
+                shrink_memo(&mut memo, limit / 2);
             }
             if prev_memo.len() >= limit {
-                shrink_memo(&prev_memo, limit / 2);
+                shrink_memo(&mut prev_memo, limit / 2);
             }
         }
 
@@ -891,7 +1266,7 @@ impl BackwardSearch {
                                 advance_aux(&mut position, &Default::default(), &mut movements)?;
                                 for m in movements.iter() {
                                     let digest = position.moved_digest(m);
-                                    let unique = if let Some(range) = prev_memo.get(&digest).as_deref() {
+                                    let unique = if let Some(range) = prev_memo.get(digest) {
                                         range.is_uniquely(desired_step)
                                     } else {
                                         let mut np = position.clone();
@@ -928,7 +1303,7 @@ impl BackwardSearch {
                     advance_aux(&mut position, &Default::default(), &mut movements)?;
                     for m in movements.iter() {
                         let digest = position.moved_digest(m);
-                        let unique = if let Some(range) = self.prev_memo.get(&digest).as_deref() {
+                        let unique = if let Some(range) = self.prev_memo.get(digest) {
                             range.is_uniquely(desired_step)
                         } else {
                             let mut np = position.clone();
@@ -1071,11 +1446,11 @@ fn solutions_inner(
     memo_entry_limit: Option<usize>,
 ) -> StepRange {
     let mut ans = StepRange::unknown();
-    if let Some(a) = memo.get(&position.digest()) {
+    if let Some(a) = memo.get(position.digest()) {
         if !a.needs_investigation(mate_in) {
-            return *a;
+            return a;
         }
-        ans = *a;
+        ans = a;
     }
 
     if mate_in == 0 {
@@ -1125,17 +1500,14 @@ fn solutions_inner(
 
     let mut res = StepRange::unsolvable();
 
-    // Two-pass move ordering: process moves whose children are already memoized
-    // first. If they prove non-uniqueness or a shorter mate, we skip the expensive
-    // recursive calls for the remaining moves. The hit_mask tracks which moves
-    // were resolved in pass 1 so pass 2 can skip them.
+    // Two-pass move ordering: memoized children first; skip recursion if those
+    // alone prove non-uniqueness or a shorter mate. hit_mask records pass-1 hits.
     let mut hit_mask = [0u64; 2];
     for (i, m) in movements.iter().enumerate() {
         let child_digest = position.moved_digest(m);
         if let Some(child) = next_memo
-            .get(&child_digest)
+            .get(child_digest)
             .filter(|a| !a.needs_investigation(mate_in - 1))
-            .map(|a| *a)
         {
             hit_mask[i / 64] |= 1u64 << (i % 64);
             let a = child.inc();
@@ -1194,29 +1566,34 @@ fn solutions_inner(
 
 #[inline(always)]
 fn memo_insert(memo: &Memo, digest: u64, value: StepRange, memo_entry_limit: Option<usize>) {
-    use std::sync::atomic::Ordering::Relaxed;
-    static SHRINKING: AtomicBool = AtomicBool::new(false);
     if let Some(limit) = memo_entry_limit {
-        if memo.len() >= limit && !SHRINKING.swap(true, Relaxed) {
-            shrink_memo(memo, limit / 2);
-            SHRINKING.store(false, Relaxed);
+        if memo.len() >= limit {
+            // SAFETY: sequential path is single-threaded; no concurrent writers.
+            unsafe { shrink_memo_unsynchronized(memo, limit / 2) };
         }
     }
-    memo.insert(digest, value);
+    // SAFETY: sequential path is single-threaded; no concurrent writers.
+    unsafe { memo.insert_unsynchronized(digest, value) };
 }
 
-fn shrink_memo(memo: &Memo, target_len: usize) {
+fn shrink_memo(memo: &mut Memo, target_len: usize) {
+    // SAFETY: &mut self ⇒ exclusive access.
+    unsafe { shrink_memo_unsynchronized(memo, target_len) }
+}
+
+/// SAFETY: caller must ensure no concurrent writers (other readers OK).
+unsafe fn shrink_memo_unsynchronized(memo: &Memo, target_len: usize) {
     if memo.len() <= target_len {
         return;
     }
     let to_remove = memo.len() - target_len;
     let mut entries = memo
         .iter()
-        .map(|entry| (memo_retention_score(*entry.key(), *entry.value()), *entry.key()))
+        .map(|(k, v)| (memo_retention_score(k, v), k))
         .collect::<Vec<_>>();
     entries.select_nth_unstable_by_key(to_remove - 1, |&(score, _)| score);
     for &(_, key) in &entries[..to_remove] {
-        memo.remove(&key);
+        unsafe { memo.remove_unsynchronized(key) };
     }
 }
 
@@ -1241,10 +1618,7 @@ fn memo_retention_score(digest: u64, range: StepRange) -> u64 {
 
 #[inline(always)]
 fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Option<StepRange> {
-    delta
-        .get(&digest)
-        .copied()
-        .or_else(|| base.get(&digest).map(|r| *r))
+    delta.get(&digest).copied().or_else(|| base.get(digest))
 }
 
 fn solutions_overlay(
@@ -1596,14 +1970,13 @@ impl StepRange {
 mod tests {
     use super::{memo_retention_score, shrink_memo, Memo, StepRange};
     use crate::{
-        nohash::BuildNoHasher,
         position::position::PositionAux,
         search::backward::{backward_initial_variants, backward_search},
     };
 
     #[test]
     fn memo_shrink_keeps_more_informative_entries() {
-        let memo = Memo::with_hasher(BuildNoHasher);
+        let mut memo = Memo::new();
         memo.insert(1, StepRange::unknown());
         memo.insert(2, StepRange::non_zero());
         memo.insert(3, StepRange::unsolvable());
@@ -1613,11 +1986,11 @@ mod tests {
             memo_retention_score(4, StepRange::exact(7))
                 > memo_retention_score(1, StepRange::unknown())
         );
-        shrink_memo(&memo, 2);
+        shrink_memo(&mut memo, 2);
 
         assert_eq!(memo.len(), 2);
-        assert!(memo.contains_key(&3));
-        assert!(memo.contains_key(&4));
+        assert!(memo.contains_key(3));
+        assert!(memo.contains_key(4));
     }
 
     #[test]

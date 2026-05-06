@@ -526,7 +526,7 @@ fn ideal_backward(
             if fleet_partition.is_some() { 0 } else { rand::thread_rng().gen() }
         });
         let mut rng = SmallRng::seed_from_u64(shuffle_seed);
-        let mut seeds = enumerate_final_2_positions(parallel, constraints)?
+        let mut seeds = enumerate_final_2_positions(parallel * inner_parallel.max(1), constraints)?
             .into_iter()
             .enumerate()
             .filter(|(_, seed)| {
@@ -748,10 +748,24 @@ fn enumerate_final_2_positions(
     parallel: usize,
     constraints: SearchConstraints,
 ) -> anyhow::Result<Vec<PositionAux>> {
-    enumerate_final_2_sfens(parallel, constraints)?
-        .into_iter()
-        .map(|sfen| PositionAux::from_sfen(&sfen))
-        .collect()
+    let sfens = enumerate_final_2_sfens(parallel, constraints)?;
+    if parallel > 1 {
+        let pool = rayon::ThreadPoolBuilder::new()
+            .num_threads(parallel)
+            .build()
+            .context("failed to build rayon thread pool")?;
+        pool.install(|| {
+            sfens
+                .into_par_iter()
+                .map(|sfen| PositionAux::from_sfen(&sfen))
+                .collect()
+        })
+    } else {
+        sfens
+            .into_iter()
+            .map(|sfen| PositionAux::from_sfen(&sfen))
+            .collect()
+    }
 }
 
 fn enumerate_for_white_king(
