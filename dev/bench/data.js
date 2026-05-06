@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1777991096857,
+  "lastUpdate": 1778052593324,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -28997,6 +28997,150 @@ window.BENCHMARK_DATA = {
             "name": "bench_bataco",
             "value": 80644,
             "range": "± 13",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "104c35f0954d65f7b6be2f1a0f71fe5a8be3e733",
+          "message": "--no-dashmap フラグ追加、並列数上限 32 を撤廃\n\n- DashMap path と legacy (delta+parallel merge) path を --no-dashmap で切替可能に\n- legacy path の merge も rayon 並列化（フェアな比較のため）\n- MAX_BACKWARD_PARALLEL (32) を削除、inner_parallel がそのまま使われる\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-06T16:21:12+09:00",
+          "tree_id": "cf3f6e676b188892a391e08f3bb8d1915ce78bf2",
+          "url": "https://github.com/ogiekako/fmrs/commit/104c35f0954d65f7b6be2f1a0f71fe5a8be3e733"
+        },
+        "date": 1778052591239,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 890,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3417,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 303,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1054,
+            "range": "± 1817",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32582,
+            "range": "± 876",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1467,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5999,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1902735,
+            "range": "± 1084",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13807,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 232256,
+            "range": "± 2569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 85380,
+            "range": "± 222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 76017,
+            "range": "± 347",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 24025,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 70061,
+            "range": "± 874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21444,
+            "range": "± 95",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1236,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 36608,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4465,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22990,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81482,
+            "range": "± 10",
             "unit": "ns/iter"
           }
         ]
