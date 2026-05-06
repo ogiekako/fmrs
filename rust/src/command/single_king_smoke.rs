@@ -1036,6 +1036,7 @@ fn search_single_seed(
     if let Some(max_memo_entries) = limits.max_memo_entries {
         search.set_memo_entry_limit(Some(max_memo_entries));
     }
+    search.set_delta_trace(mem_trace);
     if mem_trace {
         eprintln!(
             "mem_trace seed={} start resumed={} {} {}",

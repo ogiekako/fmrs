@@ -6,7 +6,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    nohash::NoHashMap64,
+    nohash::{shard_index_64, NoHashMap64, ShardedMap64, NUM_SHARDS},
     piece::{Color, Kind},
     position::{
         advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
@@ -259,8 +259,8 @@ pub struct BackwardSearch {
     seen_positions: usize,
     positions: Vec<Position>,
     prev_positions: Vec<Position>,
-    memo: NoHashMap64<StepRange>,
-    prev_memo: NoHashMap64<StepRange>,
+    memo: ShardedMap64<StepRange>,
+    prev_memo: ShardedMap64<StepRange>,
     stone: Option<BitBoard>,
     step: u16,
     one_way: bool,
@@ -268,6 +268,7 @@ pub struct BackwardSearch {
     parallel: usize,
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
+    delta_trace: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -320,8 +321,8 @@ impl BackwardSearch {
 
         let positions = vec![initial_position.core().clone()];
 
-        let mut memo = NoHashMap64::default();
-        let mut prev_memo = NoHashMap64::default();
+        let mut memo = ShardedMap64::default();
+        let mut prev_memo = ShardedMap64::default();
         let mut p = initial_position.clone();
         memo.insert(p.digest(), StepRange::exact(solution.len() as u16));
         for (i, m) in solution.iter().enumerate() {
@@ -367,6 +368,7 @@ impl BackwardSearch {
             parallel,
             pool,
             memo_entry_limit: None,
+            delta_trace: false,
         })
     }
 
@@ -405,8 +407,8 @@ impl BackwardSearch {
             seen_positions: 0,
             positions,
             prev_positions: vec![],
-            memo: NoHashMap64::default(),
-            prev_memo: NoHashMap64::default(),
+            memo: ShardedMap64::default(),
+            prev_memo: ShardedMap64::default(),
             stone: *initial_position.stone(),
             step: state.step,
             one_way: state.one_way,
@@ -414,6 +416,7 @@ impl BackwardSearch {
             parallel,
             pool,
             memo_entry_limit: None,
+            delta_trace: false,
         })
     }
 
@@ -441,6 +444,10 @@ impl BackwardSearch {
 
     pub fn set_memo_entry_limit(&mut self, max_entries: Option<usize>) {
         self.memo_entry_limit = max_entries.map(|limit| (limit / 2).max(1));
+    }
+
+    pub fn set_delta_trace(&mut self, enabled: bool) {
+        self.delta_trace = enabled;
     }
 
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
@@ -694,28 +701,93 @@ impl BackwardSearch {
             prev_memo_deltas.push(prev_memo_delta);
         }
 
+        if self.delta_trace {
+            let dedup_start = std::time::Instant::now();
+            let num_chunks = memo_deltas.len();
+            let memo_total: usize = memo_deltas.iter().map(|d| d.len()).sum();
+            let prev_memo_total: usize = prev_memo_deltas.iter().map(|d| d.len()).sum();
+
+            // Count unique keys across all deltas
+            let mut memo_all_keys: Vec<u64> =
+                memo_deltas.iter().flat_map(|d| d.keys().copied()).collect();
+            memo_all_keys.sort_unstable();
+            let memo_unique = if memo_all_keys.is_empty() {
+                0
+            } else {
+                memo_all_keys.dedup();
+                memo_all_keys.len()
+            };
+
+            let mut prev_memo_all_keys: Vec<u64> =
+                prev_memo_deltas.iter().flat_map(|d| d.keys().copied()).collect();
+            prev_memo_all_keys.sort_unstable();
+            let prev_memo_unique = if prev_memo_all_keys.is_empty() {
+                0
+            } else {
+                prev_memo_all_keys.dedup();
+                prev_memo_all_keys.len()
+            };
+
+            // Keys already in main memo (check Arc-wrapped originals, not the taken self.memo)
+            let memo_already_known = memo_all_keys
+                .iter()
+                .filter(|k| memo.contains_key(k))
+                .count();
+            let prev_memo_already_known = prev_memo_all_keys
+                .iter()
+                .filter(|k| prev_memo.contains_key(k))
+                .count();
+
+            eprintln!(
+                "delta_trace step={} chunks={} candidates={} \
+                 memo_delta(total={} unique={} dup_ratio={:.2}% already_known={} new={}) \
+                 prev_memo_delta(total={} unique={} dup_ratio={:.2}% already_known={} new={}) \
+                 memo_size_before={} prev_memo_size_before={} \
+                 dedup_elapsed_ms={}",
+                step,
+                num_chunks,
+                candidate_len,
+                memo_total,
+                memo_unique,
+                if memo_total > 0 {
+                    (memo_total - memo_unique) as f64 / memo_total as f64 * 100.0
+                } else {
+                    0.0
+                },
+                memo_already_known,
+                memo_unique.saturating_sub(memo_already_known),
+                prev_memo_total,
+                prev_memo_unique,
+                if prev_memo_total > 0 {
+                    (prev_memo_total - prev_memo_unique) as f64 / prev_memo_total as f64 * 100.0
+                } else {
+                    0.0
+                },
+                prev_memo_already_known,
+                prev_memo_unique.saturating_sub(prev_memo_already_known),
+                memo.len(),
+                prev_memo.len(),
+                dedup_start.elapsed().as_millis(),
+            );
+        }
+
         let mut memo = Arc::try_unwrap(memo).ok().unwrap();
         let mut prev_memo = Arc::try_unwrap(prev_memo).ok().unwrap();
 
-        let memo_additional: usize = memo_deltas.iter().map(|d| d.len()).sum();
-        let prev_memo_additional: usize = prev_memo_deltas.iter().map(|d| d.len()).sum();
-
+        let merge_start = std::time::Instant::now();
         pool.install(|| {
             rayon::join(
-                || {
-                    memo.reserve(memo_additional);
-                    for d in memo_deltas {
-                        memo.extend(d);
-                    }
-                },
-                || {
-                    prev_memo.reserve(prev_memo_additional);
-                    for d in prev_memo_deltas {
-                        prev_memo.extend(d);
-                    }
-                },
+                || sharded_parallel_merge(&mut memo, memo_deltas),
+                || sharded_parallel_merge(&mut prev_memo, prev_memo_deltas),
             );
         });
+        if self.delta_trace {
+            eprintln!(
+                "delta_trace step={} merge_elapsed_ms={}",
+                step,
+                merge_start.elapsed().as_millis(),
+            );
+        }
 
         self.memo = memo;
         self.prev_memo = prev_memo;
@@ -985,8 +1057,8 @@ const INF_END: u16 = u16::MAX - 1;
 
 fn solutions(
     position: &mut PositionAux,
-    memo: &mut NoHashMap64<StepRange>,
-    next_memo: &mut NoHashMap64<StepRange>,
+    memo: &mut ShardedMap64<StepRange>,
+    next_memo: &mut ShardedMap64<StepRange>,
     mate_in: u16,
     scratch: &mut Vec<Vec<Movement>>,
     memo_entry_limit: Option<usize>,
@@ -1006,8 +1078,8 @@ fn solutions(
 
 fn solutions_inner(
     position: &mut PositionAux,
-    memo: &mut NoHashMap64<StepRange>,
-    next_memo: &mut NoHashMap64<StepRange>,
+    memo: &mut ShardedMap64<StepRange>,
+    next_memo: &mut ShardedMap64<StepRange>,
     mate_in: u16,
     scratch: &mut [Vec<Movement>],
     memo_entry_limit: Option<usize>,
@@ -1117,7 +1189,7 @@ fn solutions_inner(
 
 #[inline(always)]
 fn memo_insert(
-    memo: &mut NoHashMap64<StepRange>,
+    memo: &mut ShardedMap64<StepRange>,
     digest: u64,
     value: StepRange,
     memo_entry_limit: Option<usize>,
@@ -1128,7 +1200,7 @@ fn memo_insert(
     memo.insert(digest, value);
 }
 
-fn shrink_memo(memo: &mut NoHashMap64<StepRange>, target_len: usize) {
+fn shrink_memo(memo: &mut ShardedMap64<StepRange>, target_len: usize) {
     if memo.len() <= target_len {
         return;
     }
@@ -1137,8 +1209,6 @@ fn shrink_memo(memo: &mut NoHashMap64<StepRange>, target_len: usize) {
         .iter()
         .map(|(&digest, &range)| (memo_retention_score(digest, range), digest))
         .collect::<Vec<_>>();
-    // Partition so that entries[..to_remove] holds the lowest-scored items.
-    // We don't need a full sort, only the partition.
     entries.select_nth_unstable_by_key(to_remove - 1, |&(score, _)| score);
     for &(_, key) in &entries[..to_remove] {
         memo.remove(&key);
@@ -1167,7 +1237,7 @@ fn memo_retention_score(digest: u64, range: StepRange) -> u64 {
 #[inline(always)]
 fn get_overlay(
     delta: &NoHashMap64<StepRange>,
-    base: &NoHashMap64<StepRange>,
+    base: &ShardedMap64<StepRange>,
     digest: u64,
 ) -> Option<StepRange> {
     delta
@@ -1178,9 +1248,9 @@ fn get_overlay(
 
 fn solutions_overlay(
     position: &mut PositionAux,
-    memo_base: &NoHashMap64<StepRange>,
+    memo_base: &ShardedMap64<StepRange>,
     memo_delta: &mut NoHashMap64<StepRange>,
-    next_memo_base: &NoHashMap64<StepRange>,
+    next_memo_base: &ShardedMap64<StepRange>,
     next_memo_delta: &mut NoHashMap64<StepRange>,
     mate_in: u16,
     scratch: &mut Vec<Vec<Movement>>,
@@ -1201,9 +1271,9 @@ fn solutions_overlay(
 
 fn solutions_overlay_inner(
     position: &mut PositionAux,
-    memo_base: &NoHashMap64<StepRange>,
+    memo_base: &ShardedMap64<StepRange>,
     memo_delta: &mut NoHashMap64<StepRange>,
-    next_memo_base: &NoHashMap64<StepRange>,
+    next_memo_base: &ShardedMap64<StepRange>,
     next_memo_delta: &mut NoHashMap64<StepRange>,
     mate_in: u16,
     scratch: &mut [Vec<Movement>],
@@ -1502,18 +1572,51 @@ impl StepRange {
     }
 }
 
+fn sharded_parallel_merge(
+    target: &mut ShardedMap64<StepRange>,
+    deltas: Vec<NoHashMap64<StepRange>>,
+) {
+    // Parallel scatter: each delta is independently partitioned into shard buckets
+    let per_delta_buckets: Vec<[Vec<(u64, StepRange)>; NUM_SHARDS]> = deltas
+        .into_par_iter()
+        .map(|delta| {
+            let mut buckets: [Vec<(u64, StepRange)>; NUM_SHARDS] =
+                std::array::from_fn(|_| Vec::new());
+            for (k, v) in delta {
+                buckets[shard_index_64(k)].push((k, v));
+            }
+            buckets
+        })
+        .collect();
+
+    // Parallel extend: each shard merges its portion from all deltas
+    let shards = target.shards_mut();
+    shards
+        .par_iter_mut()
+        .enumerate()
+        .for_each(|(shard_idx, shard)| {
+            let additional: usize = per_delta_buckets.iter().map(|b| b[shard_idx].len()).sum();
+            shard.reserve(additional);
+            for buckets in &per_delta_buckets {
+                for &(k, v) in &buckets[shard_idx] {
+                    shard.insert(k, v);
+                }
+            }
+        });
+}
+
 #[cfg(test)]
 mod tests {
     use super::{memo_retention_score, shrink_memo, StepRange};
     use crate::{
-        nohash::NoHashMap64,
+        nohash::ShardedMap64,
         position::position::PositionAux,
         search::backward::{backward_initial_variants, backward_search},
     };
 
     #[test]
     fn memo_shrink_keeps_more_informative_entries() {
-        let mut memo = NoHashMap64::default();
+        let mut memo = ShardedMap64::default();
         memo.insert(1, StepRange::unknown());
         memo.insert(2, StepRange::non_zero());
         memo.insert(3, StepRange::unsolvable());
