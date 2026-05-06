@@ -194,7 +194,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             beam_width,
             beam_model,
         } => {
-            let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
+            let max_memo_entries =
+                parse_max_memo_entries(&max_memo_entries, parallel, inner_parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
@@ -1431,20 +1432,29 @@ fn parse_kib_field(value: &str) -> Option<usize> {
     value.split_whitespace().next()?.parse().ok()
 }
 
-fn parse_max_memo_entries(value: &str, parallel: usize) -> anyhow::Result<Option<usize>> {
+fn parse_max_memo_entries(
+    value: &str,
+    parallel: usize,
+    inner_parallel: usize,
+) -> anyhow::Result<Option<usize>> {
     match value {
         "auto" => {
             let total_cores = default_parallelism();
-            let entries = memo_entries_for_memory(total_cores);
+            let divisor = (parallel * inner_parallel).min(total_cores);
+            let entries = memo_entries_for_memory(divisor);
             eprintln!(
-                "auto max_memo_entries={} (parallel={} total_cores={})",
-                entries, parallel, total_cores
+                "auto max_memo_entries={} (parallel={} inner_parallel={} total_cores={} divisor={})",
+                entries, parallel, inner_parallel, total_cores, divisor
             );
             Ok(Some(entries))
         }
         "full" => {
-            let entries = memo_entries_for_memory(parallel);
-            eprintln!("full max_memo_entries={} (parallel={})", entries, parallel);
+            let divisor = (parallel * inner_parallel).min(default_parallelism());
+            let entries = memo_entries_for_memory(divisor);
+            eprintln!(
+                "full max_memo_entries={} (parallel={} inner_parallel={})",
+                entries, parallel, inner_parallel
+            );
             Ok(Some(entries))
         }
         "none" => Ok(None),
@@ -1459,10 +1469,10 @@ fn memo_entries_for_memory(divisor: usize) -> usize {
     // Reserve 20% for OS, frontier, positions, etc.
     let available = total_bytes * 4 / 5;
     let per_worker = available / divisor.max(1);
-    // Each entry: u64 key (8B) + StepRange (8B) + HashMap overhead (~10B avg).
-    // Use 64B/entry to account for rehash peak (old + new table coexist) and
-    // miscellaneous overhead (frontier vec, candidate buffer, etc.).
-    let bytes_per_entry = 64;
+    // Each entry: u64 key (8B) + StepRange (8B) + SwissTable overhead ≈ 24B.
+    // memo + prev_memo coexist (×2 = 48B), plus rehash peak (×1.5 ≈ 72B),
+    // plus frontier vecs and candidate buffers.
+    let bytes_per_entry = 128;
     per_worker / bytes_per_entry
 }
 

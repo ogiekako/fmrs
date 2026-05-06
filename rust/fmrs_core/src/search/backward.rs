@@ -566,9 +566,8 @@ impl BackwardSearch {
             return Ok(false);
         }
 
-        std::mem::swap(&mut self.positions, &mut self.prev_positions);
+        self.positions = std::mem::take(&mut self.prev_positions);
         std::mem::swap(&mut self.memo, &mut self.prev_memo);
-        self.prev_positions.clear();
         self.seen_positions = 0;
 
         self.step += 1;
@@ -687,21 +686,46 @@ impl BackwardSearch {
         });
 
         let mut next_positions = vec![];
-        self.memo = Arc::try_unwrap(memo).ok().unwrap();
-        self.prev_memo = Arc::try_unwrap(prev_memo).ok().unwrap();
-
+        let mut memo_deltas = vec![];
+        let mut prev_memo_deltas = vec![];
         for (positions, memo_delta, prev_memo_delta) in results {
             next_positions.extend(positions);
-            self.memo.extend(memo_delta);
-            self.prev_memo.extend(prev_memo_delta);
+            memo_deltas.push(memo_delta);
+            prev_memo_deltas.push(prev_memo_delta);
         }
+
+        let mut memo = Arc::try_unwrap(memo).ok().unwrap();
+        let mut prev_memo = Arc::try_unwrap(prev_memo).ok().unwrap();
+
+        let memo_additional: usize = memo_deltas.iter().map(|d| d.len()).sum();
+        let prev_memo_additional: usize = prev_memo_deltas.iter().map(|d| d.len()).sum();
+
+        pool.install(|| {
+            rayon::join(
+                || {
+                    memo.reserve(memo_additional);
+                    for d in memo_deltas {
+                        memo.extend(d);
+                    }
+                },
+                || {
+                    prev_memo.reserve(prev_memo_additional);
+                    for d in prev_memo_deltas {
+                        prev_memo.extend(d);
+                    }
+                },
+            );
+        });
+
+        self.memo = memo;
+        self.prev_memo = prev_memo;
 
         if next_positions.is_empty() {
             return Ok(false);
         }
 
         self.positions = next_positions;
-        self.prev_positions.clear();
+        self.prev_positions = Vec::new();
         std::mem::swap(&mut self.memo, &mut self.prev_memo);
         self.seen_positions = 0;
         self.step += 1;
@@ -881,7 +905,7 @@ impl BackwardSearch {
         }
         self.initial_position.do_move(&self.solution.remove(0));
         self.positions = vec![self.initial_position.core().clone()];
-        self.prev_positions.clear();
+        self.prev_positions = Vec::new();
         std::mem::swap(&mut self.memo, &mut self.prev_memo);
         self.seen_positions = 0;
         self.step = self.solution.len() as u16;

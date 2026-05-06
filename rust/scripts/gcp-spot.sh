@@ -36,6 +36,7 @@
 #   GCP_SPOT_ZONE       ゾーン               (default: us-central1-a)
 #   GCP_SPOT_MACHINE    マシンタイプ         (default: n2d-highmem-96)
 #   GCP_SPOT_DISK_SIZE  ディスクサイズ       (default: 200GB)
+#   GCP_SPOT_DISK_TYPE  ディスクタイプ       (default: pd-ssd, c4d は pd-balanced)
 #
 # ---- 備考 ----
 #
@@ -57,6 +58,7 @@ MACHINE_TYPE="${GCP_SPOT_MACHINE:-n2d-highmem-96}"
 IMAGE_FAMILY="${GCP_SPOT_IMAGE_FAMILY:-ubuntu-2404-lts-amd64}"
 IMAGE_PROJECT="${GCP_SPOT_IMAGE_PROJECT:-ubuntu-os-cloud}"
 DISK_SIZE="${GCP_SPOT_DISK_SIZE:-200GB}"
+DISK_TYPE="${GCP_SPOT_DISK_TYPE:-pd-ssd}"
 LOCAL_DIR="${GCP_SPOT_LOCAL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 REMOTE_DIR="${GCP_SPOT_REMOTE_DIR:-~/fmrs-rust}"
 TMUX_SESSION="job"
@@ -179,7 +181,7 @@ cmd_up() {
     --image-family="$IMAGE_FAMILY" \
     --image-project="$IMAGE_PROJECT" \
     --boot-disk-size="$DISK_SIZE" \
-    --boot-disk-type=pd-ssd \
+    --boot-disk-type="$DISK_TYPE" \
     --scopes=default
 
   wait_for_ssh
@@ -462,5 +464,6 @@ case "${1:-help}" in
     echo "  GCP_SPOT_ZONE      Zone (default: us-central1-a)"
     echo "  GCP_SPOT_MACHINE   Machine type (default: n2d-highmem-96)"
     echo "  GCP_SPOT_DISK_SIZE Disk size (default: 200GB)"
+    echo "  GCP_SPOT_DISK_TYPE Disk type (default: pd-ssd, use pd-balanced for c4d)"
     ;;
 esac
