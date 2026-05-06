@@ -63,6 +63,9 @@ LOCAL_DIR="${GCP_SPOT_LOCAL_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 REMOTE_DIR="${GCP_SPOT_REMOTE_DIR:-~/fmrs-rust}"
 TMUX_SESSION="job"
 BG_LOG="/tmp/fmrs-job.log"
+GCS_BUCKET="${GCP_SPOT_GCS_BUCKET:-gs://fmrs-results}"
+FLEET_PREFIX="${GCP_SPOT_FLEET_PREFIX:-fmrs-fleet}"
+REGION="${ZONE%-*}"
 
 ssh_cmd() {
   gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command="$1"
@@ -77,20 +80,21 @@ rsync_ssh_wrapper() {
   cat > "$wrapper" <<'WRAPPER'
 #!/usr/bin/env bash
 # rsync calls: $0 [ssh-flags...] host command...
-# We need to extract the host (last-minus-one arg when command present)
-# and the remote command, then delegate to gcloud compute ssh.
 args=("$@")
-# Skip any flags rsync passes (-o, -l, etc.) to find the host
 i=0
 while [ $i -lt ${#args[@]} ]; do
   case "${args[$i]}" in
-    -*) i=$((i + 1)); [ $i -lt ${#args[@]} ] && i=$((i + 1)) ;;  # skip flag + value
+    -*) i=$((i + 1)); [ $i -lt ${#args[@]} ] && i=$((i + 1)) ;;
     *)  break ;;
   esac
 done
 host="${args[$i]}"
 remote_cmd="${args[@]:$((i + 1))}"
-exec gcloud compute ssh "$host" --zone=__ZONE__ --command="$remote_cmd"
+zone=$(gcloud compute instances list --filter="name=$host" --format="value(zone)" 2>/dev/null)
+if [ -z "$zone" ]; then
+  zone="__ZONE__"
+fi
+exec gcloud compute ssh "$host" --zone="$zone" --command="$remote_cmd"
 WRAPPER
   sed -i "s|__ZONE__|$ZONE|g" "$wrapper"
   chmod +x "$wrapper"
@@ -432,6 +436,357 @@ print('      Actual billing: https://console.cloud.google.com/billing')
 "
 }
 
+# ============================================================
+# Fleet commands — manage N identical spot instances
+# ============================================================
+
+fleet_instance_name() {
+  echo "${FLEET_PREFIX}-$1"
+}
+
+fleet_list_instances() {
+  gcloud compute instances list \
+    --filter="name~'^${FLEET_PREFIX}-[0-9]+$' AND zone:${REGION}" \
+    --format="value(name)" 2>/dev/null | sort -t- -k3 -n
+}
+
+fleet_instance_zone() {
+  gcloud compute instances list \
+    --filter="name=$1" \
+    --format="value(zone)" 2>/dev/null
+}
+
+fleet_ssh() {
+  local name="$1"; shift
+  local z
+  z=$(fleet_instance_zone "$name")
+  if [ -z "$z" ]; then
+    echo "ERROR: cannot find zone for $name" >&2
+    return 1
+  fi
+  gcloud compute ssh "$name" --zone="$z" "$@"
+}
+
+fleet_instance_count() {
+  fleet_list_instances | wc -l
+}
+
+cmd_fleet_up() {
+  local count="${1:?Usage: $0 fleet-up N}"
+  echo "Creating fleet of $count instances ($MACHINE_TYPE in $REGION)..."
+
+  for i in $(seq 0 $((count - 1))); do
+    local name
+    name=$(fleet_instance_name "$i")
+    local existing_zone
+    existing_zone=$(fleet_instance_zone "$name")
+    local existing=""
+    if [ -n "$existing_zone" ]; then
+      existing=$(gcloud compute instances describe "$name" --zone="$existing_zone" --format="value(status)" 2>/dev/null || true)
+    fi
+    if [ "$existing" = "RUNNING" ]; then
+      echo "  $name: already running ($existing_zone)"
+    elif [ "$existing" = "TERMINATED" ] || [ "$existing" = "STOPPED" ]; then
+      echo "  $name: starting... ($existing_zone)"
+      gcloud compute instances start "$name" --zone="$existing_zone" &
+    elif [ -z "$existing" ]; then
+      echo "  $name: creating..."
+      (
+        local zones
+        zones=$(gcloud compute zones list --filter="region:$REGION" --format="value(name)" 2>/dev/null)
+        zones="$ZONE $(echo "$zones" | grep -v "^${ZONE}$")"
+        local created=false
+        for try_zone in $zones; do
+          if gcloud compute instances create "$name" \
+            --zone="$try_zone" \
+            --machine-type="$MACHINE_TYPE" \
+            --provisioning-model=SPOT \
+            --instance-termination-action=STOP \
+            --image-family="$IMAGE_FAMILY" \
+            --image-project="$IMAGE_PROJECT" \
+            --boot-disk-size="$DISK_SIZE" \
+            --boot-disk-type="$DISK_TYPE" \
+            --scopes=default,storage-rw 2>&1; then
+            echo "  $name: created in $try_zone"
+            created=true
+            break
+          else
+            echo "  $name: stockout in $try_zone, trying next..." >&2
+          fi
+        done
+        if [ "$created" = false ]; then
+          echo "  ERROR: $name: no capacity in any zone in $REGION" >&2
+          exit 1
+        fi
+      ) &
+    else
+      echo "  $name: state=$existing, skipping"
+    fi
+  done
+  wait
+  echo "Waiting for SSH on all instances..."
+  for i in $(seq 0 $((count - 1))); do
+    local name
+    name=$(fleet_instance_name "$i")
+    (
+      local retries=0
+      while ! fleet_ssh "$name" --command="true" 2>/dev/null; do
+        retries=$((retries + 1))
+        if [ "$retries" -ge 60 ]; then
+          echo "  ERROR: $name SSH not ready after 60 retries" >&2
+          exit 1
+        fi
+        sleep 5
+      done
+      echo "  $name: SSH ready"
+    ) &
+  done
+  wait
+
+  echo "Provisioning Rust on new instances..."
+  for i in $(seq 0 $((count - 1))); do
+    local name
+    name=$(fleet_instance_name "$i")
+    (
+      if fleet_ssh "$name" --command="source ~/.cargo/env 2>/dev/null; which cargo" 2>/dev/null; then
+        :
+      else
+        echo "  $name: installing Rust..."
+        fleet_ssh "$name" --command='sudo apt-get update -qq && sudo apt-get install -y -qq build-essential pkg-config && curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+      fi
+    ) &
+  done
+  wait
+  echo "Fleet ready: $count instances."
+}
+
+cmd_fleet_push() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found." >&2
+    exit 1
+  fi
+  local wrapper
+  wrapper=$(rsync_ssh_wrapper)
+  trap "rm -f '$wrapper'" RETURN
+
+  for name in $instances; do
+    echo "  Pushing to $name..."
+    (
+      fleet_ssh "$name" --command="mkdir -p $REMOTE_DIR" 2>/dev/null
+      rsync -az \
+        --exclude='target/' \
+        --exclude='.git/' \
+        -e "$wrapper" \
+        "$LOCAL_DIR/" "$name":"$REMOTE_DIR/"
+      echo "  $name: done"
+    ) &
+  done
+  wait
+  echo "Push complete."
+}
+
+cmd_fleet_run() {
+  if [ $# -eq 0 ]; then
+    echo "Usage: $0 fleet-run 'command with {ID}/{SIZE} placeholders'" >&2
+    echo "" >&2
+    echo "  {ID} is replaced with the instance index (0, 1, 2, ...)." >&2
+    echo "  {SIZE} is replaced with the total number of instances." >&2
+    echo "  The shared seed-result-log is synced from/to GCS automatically." >&2
+    exit 1
+  fi
+  local user_cmd="$*"
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found." >&2
+    exit 1
+  fi
+
+  local gcs_log="${GCS_BUCKET}/seed-result-log.jsonl"
+  local local_log="seed-result-log.jsonl"
+
+  echo "Fleet run: $user_cmd"
+  echo "GCS shared log: $gcs_log"
+  echo ""
+
+  local fleet_size
+  fleet_size=$(echo "$instances" | wc -w)
+
+  local idx=0
+  for name in $instances; do
+    local instance_cmd="${user_cmd//\{ID\}/$idx}"
+    instance_cmd="${instance_cmd//\{SIZE\}/$fleet_size}"
+
+    # Wrapper: sync log from GCS, run command, sync log back to GCS periodically
+    local wrapped_cmd
+    wrapped_cmd=$(cat <<RUNCMD
+cd $REMOTE_DIR && source ~/.cargo/env
+# Sync shared results from GCS at startup
+gsutil -q cp "$gcs_log" "$local_log" 2>/dev/null || touch "$local_log"
+echo "[$name] Starting: $instance_cmd"
+# Run the command, periodically uploading results
+(
+  while sleep 60; do
+    gsutil -q cp "$local_log" "${GCS_BUCKET}/${name}-result.jsonl" 2>/dev/null
+  done
+) &
+SYNC_PID=\$!
+$instance_cmd
+EXIT_CODE=\$?
+kill \$SYNC_PID 2>/dev/null
+# Final upload
+gsutil -q cp "$local_log" "${GCS_BUCKET}/${name}-result.jsonl" 2>/dev/null
+echo "[$name] Done (exit=\$EXIT_CODE)"
+exit \$EXIT_CODE
+RUNCMD
+)
+
+    echo "  $name: starting (id=$idx)..."
+    fleet_ssh "$name" \
+      --command="tmux kill-session -t $TMUX_SESSION 2>/dev/null || true; tmux new-session -d -s $TMUX_SESSION 'bash -c \"($wrapped_cmd) 2>&1 | tee $BG_LOG; echo === DONE ===\" '"
+    idx=$((idx + 1))
+  done
+  echo ""
+  echo "All instances started. Use:"
+  echo "  $0 fleet-tail     # watch merged output"
+  echo "  $0 fleet-status   # check status"
+  echo "  $0 fleet-pull     # download results"
+}
+
+cmd_fleet_tail() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found." >&2
+    exit 1
+  fi
+
+  echo "Tailing all fleet instances (Ctrl-C to stop)..."
+  echo "---"
+
+  for name in $instances; do
+    (
+      fleet_ssh "$name" \
+        --command="tail -f $BG_LOG 2>/dev/null" 2>/dev/null | \
+        sed "s/^/[$name] /"
+    ) &
+  done
+  trap 'kill $(jobs -p) 2>/dev/null; exit 0' INT
+  wait
+}
+
+cmd_fleet_pull() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found." >&2
+    exit 1
+  fi
+
+  local merged="seed-result-log-merged.jsonl"
+  > "$LOCAL_DIR/$merged"
+
+  echo "Pulling results from fleet..."
+  for name in $instances; do
+    local local_file="$LOCAL_DIR/seed-result-${name}.jsonl"
+    (
+      local wrapper
+      wrapper=$(rsync_ssh_wrapper)
+      rsync -az -e "$wrapper" \
+        "$name":"$REMOTE_DIR/seed-result-log.jsonl" "$local_file" 2>/dev/null && \
+        echo "  $name: pulled" || echo "  $name: no results yet"
+      rm -f "$wrapper"
+    ) &
+  done
+  wait
+
+  # Merge all result logs (dedup by seed index)
+  cat "$LOCAL_DIR"/seed-result-${FLEET_PREFIX}-*.jsonl 2>/dev/null | \
+    sort -u > "$LOCAL_DIR/$merged"
+  local count
+  count=$(wc -l < "$LOCAL_DIR/$merged")
+  echo "Merged results: $count entries -> $LOCAL_DIR/$merged"
+
+  # Upload merged to GCS for future runs
+  gsutil -q cp "$LOCAL_DIR/$merged" "${GCS_BUCKET}/seed-result-log.jsonl" 2>/dev/null && \
+    echo "Uploaded merged log to GCS." || echo "Warning: GCS upload failed."
+}
+
+cmd_fleet_status() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found."
+    return
+  fi
+  echo "Fleet instances (prefix=$FLEET_PREFIX):"
+  gcloud compute instances list \
+    --filter="name~'^${FLEET_PREFIX}-[0-9]+$' AND zone:${REGION}" \
+    --format="table(name,zone.basename(),status,machineType.basename(),networkInterfaces[0].accessConfigs[0].natIP)"
+}
+
+cmd_fleet_down() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found."
+    return
+  fi
+  echo "Deleting fleet instances: $(echo $instances | tr '\n' ' ')"
+  for name in $instances; do
+    (
+      local z
+      z=$(fleet_instance_zone "$name")
+      if [ -n "$z" ]; then
+        gcloud compute instances delete "$name" --zone="$z" --quiet
+      fi
+    ) &
+  done
+  wait
+  echo "Fleet deleted."
+}
+
+cmd_fleet_cost() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found."
+    return
+  fi
+  local total_hourly=0
+  local running_count=0
+  for name in $instances; do
+    local status
+    local z
+    z=$(fleet_instance_zone "$name")
+    status=$(gcloud compute instances describe "$name" --zone="$z" --format="value(status)" 2>/dev/null || echo "UNKNOWN")
+    if [ "$status" = "RUNNING" ]; then
+      running_count=$((running_count + 1))
+    fi
+  done
+  # Use single-instance cost logic with the fleet count
+  local INSTANCE_NAME_BAK="$INSTANCE_NAME"
+  INSTANCE_NAME=$(fleet_instance_name 0)
+  echo "Fleet: $(echo $instances | wc -w) instances, $running_count running"
+  echo ""
+  if [ "$running_count" -gt 0 ]; then
+    echo "Per-instance cost:"
+    cmd_cost 2>/dev/null | head -3
+    echo ""
+    # Extract hourly rate and multiply
+    local hourly
+    hourly=$(cmd_cost 2>/dev/null | grep "Spot rate" | grep -oP '\$[\d.]+/hr' | tr -d '$/hr')
+    if [ -n "$hourly" ]; then
+      echo "Fleet total (${running_count} running):"
+      echo "  \$$(echo "$hourly * $running_count" | bc)/hr"
+      echo "  \$$(echo "$hourly * $running_count * 24" | bc)/day"
+    fi
+  fi
+  INSTANCE_NAME="$INSTANCE_NAME_BAK"
+}
+
 # --- Main dispatch ---
 case "${1:-help}" in
   up)       cmd_up ;;
@@ -444,10 +799,19 @@ case "${1:-help}" in
   down)     cmd_down ;;
   cost)     cmd_cost ;;
   status)   cmd_status ;;
+  fleet-up)     shift; cmd_fleet_up "$@" ;;
+  fleet-push)   cmd_fleet_push ;;
+  fleet-run)    shift; cmd_fleet_run "$@" ;;
+  fleet-tail)   cmd_fleet_tail ;;
+  fleet-pull)   cmd_fleet_pull ;;
+  fleet-down)   cmd_fleet_down ;;
+  fleet-status) cmd_fleet_status ;;
+  fleet-cost)   cmd_fleet_cost ;;
   help|*)
     echo "Usage: $0 {up|push|run|run-bg|tail|pull|ssh|down|status|cost}"
+    echo "       $0 {fleet-up|fleet-push|fleet-run|fleet-tail|fleet-pull|fleet-down|fleet-status|fleet-cost}"
     echo ""
-    echo "Commands:"
+    echo "Single-instance commands:"
     echo "  up       Create/start the spot instance"
     echo "  push     Sync local source to instance (excludes target/)"
     echo "  run CMD  Run a command on the instance (foreground, auto-restart on preempt)"
@@ -459,11 +823,23 @@ case "${1:-help}" in
     echo "  cost     Show estimated cost and uptime"
     echo "  status   Show instance status"
     echo ""
+    echo "Fleet commands:"
+    echo "  fleet-up N       Create N spot instances"
+    echo "  fleet-push       Push source to all fleet instances"
+    echo "  fleet-run CMD    Run CMD on all instances ({ID} = index, {SIZE} = total)"
+    echo "  fleet-tail       Tail merged output from all instances"
+    echo "  fleet-pull       Pull and merge results from all instances"
+    echo "  fleet-down       Delete all fleet instances"
+    echo "  fleet-status     Show all fleet instance statuses"
+    echo "  fleet-cost       Show estimated fleet cost"
+    echo ""
     echo "Environment variables:"
-    echo "  GCP_SPOT_INSTANCE  Instance name (default: fmrs-spot)"
-    echo "  GCP_SPOT_ZONE      Zone (default: us-central1-a)"
-    echo "  GCP_SPOT_MACHINE   Machine type (default: n2d-highmem-96)"
-    echo "  GCP_SPOT_DISK_SIZE Disk size (default: 200GB)"
-    echo "  GCP_SPOT_DISK_TYPE Disk type (default: pd-ssd, use pd-balanced for c4d)"
+    echo "  GCP_SPOT_INSTANCE      Instance name (default: fmrs-spot)"
+    echo "  GCP_SPOT_ZONE          Zone (default: us-central1-a)"
+    echo "  GCP_SPOT_MACHINE       Machine type (default: n2d-highmem-96)"
+    echo "  GCP_SPOT_DISK_SIZE     Disk size (default: 200GB)"
+    echo "  GCP_SPOT_DISK_TYPE     Disk type (default: pd-ssd)"
+    echo "  GCP_SPOT_GCS_BUCKET    GCS bucket for shared results (default: gs://fmrs-results)"
+    echo "  GCP_SPOT_FLEET_PREFIX  Fleet instance name prefix (default: fmrs-fleet)"
     ;;
 esac

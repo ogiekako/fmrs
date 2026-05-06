@@ -131,6 +131,12 @@ pub enum SingleKingSmokeCommand {
         /// Beam scoring: path to model JSON, or "handcraft". Omit for random.
         #[arg(long)]
         beam_model: Option<String>,
+        /// Fleet partitioning: this instance's 0-based index.
+        #[arg(long)]
+        fleet_index: Option<usize>,
+        /// Fleet partitioning: total number of instances.
+        #[arg(long)]
+        fleet_size: Option<usize>,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -196,6 +202,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             feature_sample_per_step,
             beam_width,
             beam_model,
+            fleet_index,
+            fleet_size,
         } => {
             let max_memo_entries =
                 parse_max_memo_entries(&max_memo_entries, parallel, inner_parallel)?;
@@ -212,6 +220,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 seed_result_log,
                 random_seed,
                 max_step,
+                fleet_index,
+                fleet_size,
                 KillerSeedLimits {
                     max_memo_entries,
                     max_frontier,
@@ -479,6 +489,8 @@ fn ideal_backward(
     seed_result_log: PathBuf,
     random_seed: Option<u64>,
     max_step: Option<u16>,
+    fleet_index: Option<usize>,
+    fleet_size: Option<usize>,
     limits: KillerSeedLimits,
     constraints: SearchConstraints,
     inner_parallel: usize,
@@ -491,13 +503,28 @@ fn ideal_backward(
         bail!("parallel must be positive");
     }
     validate_search_constraints(constraints)?;
+    let fleet_partition = match (fleet_index, fleet_size) {
+        (Some(idx), Some(size)) => {
+            if size == 0 {
+                bail!("--fleet-size must be positive");
+            }
+            if idx >= size {
+                bail!("--fleet-index ({idx}) must be < --fleet-size ({size})");
+            }
+            Some((idx, size))
+        }
+        (None, None) => None,
+        _ => bail!("--fleet-index and --fleet-size must both be specified"),
+    };
     let seeds = if let Some(sfen_like) = seed_sfen {
         let sfen = super::parse_to_sfen(&sfen_like)?;
         let position = PositionAux::from_sfen(&sfen)
             .with_context(|| format!("invalid seed sfen: {sfen}"))?;
         vec![(0, position)]
     } else {
-        let shuffle_seed = random_seed.unwrap_or_else(|| rand::thread_rng().gen());
+        let shuffle_seed = random_seed.unwrap_or_else(|| {
+            if fleet_partition.is_some() { 0 } else { rand::thread_rng().gen() }
+        });
         let mut rng = SmallRng::seed_from_u64(shuffle_seed);
         let mut seeds = enumerate_final_2_positions(parallel, constraints)?
             .into_iter()
@@ -508,6 +535,14 @@ fn ideal_backward(
             })
             .collect::<Vec<_>>();
         seeds.shuffle(&mut rng);
+        if let Some((idx, size)) = fleet_partition {
+            seeds = seeds
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| i % size == idx)
+                .map(|(_, s)| s)
+                .collect();
+        }
         if let Some(limit) = seed_limit {
             seeds.truncate(limit);
         }
