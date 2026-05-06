@@ -48,8 +48,8 @@ pub type NoHashMap<K, V> = HashMap<K, V, BuildNoHasher>;
 pub type NoHashSet64 = NoHashSet<u64>;
 pub type NoHashMap64<V> = NoHashMap<u64, V>;
 
-pub const SHARD_BITS: u32 = 6;
-pub const NUM_SHARDS: usize = 1 << SHARD_BITS; // 64
+pub const SHARD_BITS: u32 = 8;
+pub const NUM_SHARDS: usize = 1 << SHARD_BITS; // 256
 
 #[inline]
 pub fn shard_index_64(key: u64) -> usize {
