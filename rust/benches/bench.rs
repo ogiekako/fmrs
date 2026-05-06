@@ -369,6 +369,42 @@ fn bench_bataco(c: &mut Criterion) {
     );
 }
 
+fn bench_backward_search(c: &mut Criterion) {
+    let binary = env!("CARGO_BIN_EXE_fmrs");
+    let tmp_log = std::env::temp_dir().join("bench-backward-seeds.jsonl");
+    let _ = std::fs::remove_file(&tmp_log);
+    let args = [
+        "single-king-smoke", "ideal-backward",
+        "--max-step", "21",
+        "--inner-parallel", "8",
+        "--parallel", "1",
+        "--seed-limit", "15",
+        "--random-seed", "42",
+        "--no-pawn",
+        "--max-promoted-pct", "15",
+        "--seed-result-log",
+    ];
+    let start = std::time::Instant::now();
+    let status = std::process::Command::new(binary)
+        .args(&args)
+        .arg(&tmp_log)
+        .status()
+        .expect("failed to run fmrs");
+    assert!(status.success());
+    let elapsed = start.elapsed();
+    let _ = std::fs::remove_file(&tmp_log);
+
+    let mut i = 0;
+    let times = [elapsed];
+    c.bench_function("bench_backward_search", |b| {
+        b.iter(|| {
+            let start = std::time::Instant::now();
+            while start.elapsed() < times[i] / 1_000_000 {}
+            i = (i + 1) % times.len();
+        })
+    });
+}
+
 fn bench_dashmap_overhead(c: &mut Criterion) {
     let n: u64 = 10_000;
     let keys: Vec<u64> = (0..n).map(|i: u64| i.wrapping_mul(0x9E3779B97F4A7C15)).collect();
@@ -506,7 +542,7 @@ fn bench_extra() {
 criterion_group!(
     name = bench_extra_inner;
     config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
-    targets = bench_jugemu, bench_1965, bench_1461, bench_bataco,
+    targets = bench_jugemu, bench_1965, bench_1461, bench_bataco, bench_backward_search,
 );
 
 criterion_main!(benches, bench_extra);
