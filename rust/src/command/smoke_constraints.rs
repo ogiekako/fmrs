@@ -39,6 +39,9 @@ pub(super) struct SearchConstraints {
     /// 0 = no restriction.
     #[serde(default, skip_serializing_if = "is_zero_u128")]
     pub(super) mate_squares: u128,
+    /// 都詰: allow 4-piece mate on the center square (5五).
+    #[serde(default)]
+    pub(super) miyako: bool,
 }
 
 impl SearchConstraints {
@@ -47,9 +50,10 @@ impl SearchConstraints {
     }
 }
 
-pub(super) fn expected_pieces_range(step: u16, slack: u16) -> (u32, u32) {
-    let expected = step as u32 / 2 + 3;
-    (expected.saturating_sub(slack as u32), expected)
+pub(super) fn expected_pieces_range(step: u16, slack: u16, miyako: bool) -> (u32, u32) {
+    let base = step as u32 / 2 + 3;
+    let max = if miyako { base + 1 } else { base };
+    (base.saturating_sub(slack as u32), max)
 }
 
 pub(super) fn satisfies_ideal_smoke_constraints(
@@ -68,7 +72,7 @@ pub(super) fn satisfies_ideal_smoke_constraints(
         return false;
     }
     let board = board_piece_count(position);
-    let (min, max) = expected_pieces_range(step, constraints.slack);
+    let (min, max) = expected_pieces_range(step, constraints.slack, constraints.miyako);
     if board < min || board > max {
         return false;
     }
@@ -90,7 +94,7 @@ pub(super) fn satisfies_ideal_smoke_generation_constraints(
         return false;
     }
     let pip = pieces_in_play(position);
-    let (min, max) = expected_pieces_range(step, constraints.slack);
+    let (min, max) = expected_pieces_range(step, constraints.slack, constraints.miyako);
     if pip < min || pip > max {
         return false;
     }
@@ -133,7 +137,7 @@ pub(super) fn satisfies_ideal_smoke_undo_candidate(
         return false;
     }
     let pip = pieces_in_play_after_undo(position, undo_move);
-    let (min, max) = expected_pieces_range(next_step, constraints.slack);
+    let (min, max) = expected_pieces_range(next_step, constraints.slack, constraints.miyako);
     if pip < min || pip > max {
         return false;
     }

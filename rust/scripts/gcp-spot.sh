@@ -587,13 +587,123 @@ cmd_fleet_push() {
   echo "Push complete."
 }
 
+# Start job on a single fleet instance via tmux + remote script.
+fleet_start_job() {
+  local name="$1" instance_cmd="$2"
+  local gcs_log="${GCS_BUCKET}/seed-result-log.jsonl"
+  local local_log="seed-result-log.jsonl"
+  local remote_script="/tmp/fmrs-fleet-job.sh"
+
+  local wrapped_cmd
+  wrapped_cmd=$(cat <<RUNCMD
+cd $REMOTE_DIR && source ~/.cargo/env
+gsutil -q cp "$gcs_log" "$local_log" 2>/dev/null || touch "$local_log"
+echo "[$name] Starting: $instance_cmd"
+(
+  while sleep 60; do
+    gsutil -q cp "$local_log" "${GCS_BUCKET}/${name}-result.jsonl" 2>/dev/null
+  done
+) &
+SYNC_PID=\$!
+$instance_cmd
+EXIT_CODE=\$?
+kill \$SYNC_PID 2>/dev/null
+gsutil -q cp "$local_log" "${GCS_BUCKET}/${name}-result.jsonl" 2>/dev/null
+echo "[$name] Done (exit=\$EXIT_CODE)"
+exit \$EXIT_CODE
+RUNCMD
+)
+
+  fleet_ssh "$name" --command="cat > $remote_script << 'REMOTESCRIPT'
+#!/bin/bash
+set -euo pipefail
+$wrapped_cmd
+REMOTESCRIPT
+chmod +x $remote_script"
+  fleet_ssh "$name" \
+    --command="tmux kill-session -t $TMUX_SESSION 2>/dev/null || true; tmux new-session -d -s $TMUX_SESSION \"bash -c '$remote_script 2>&1 | tee $BG_LOG; echo === DONE ==='\""
+}
+
+# Wait for a fleet instance to come back after preemption, with backoff.
+fleet_wait_for_capacity_and_start() {
+  local name="$1"
+  local backoff=30 max=600
+  while true; do
+    local z
+    z=$(fleet_instance_zone "$name")
+    if [ -z "$z" ]; then
+      echo "  [$name] ERROR: instance not found" >&2
+      return 1
+    fi
+    local status
+    status=$(gcloud compute instances describe "$name" --zone="$z" --format="value(status)" 2>/dev/null || echo "UNKNOWN")
+    if [ "$status" = "RUNNING" ]; then
+      return 0
+    fi
+    local err rc=0
+    err=$(gcloud compute instances start "$name" --zone="$z" 2>&1) || rc=$?
+    if [ "$rc" -eq 0 ]; then
+      return 0
+    fi
+    if echo "$err" | grep -q "ZONE_RESOURCE_POOL_EXHAUSTED"; then
+      echo "  [$name] Stockout in $z. Retrying in ${backoff}s..." >&2
+    else
+      echo "  [$name] Start failed: $err. Retrying in ${backoff}s..." >&2
+    fi
+    sleep "$backoff"
+    backoff=$((backoff * 2))
+    [ "$backoff" -gt "$max" ] && backoff="$max"
+  done
+}
+
+# Supervise a single fleet instance: poll status, recover from preempt.
+fleet_supervise() {
+  local name="$1" instance_cmd="$2"
+
+  fleet_start_job "$name" "$instance_cmd"
+  echo "  [$name] Job started."
+
+  while true; do
+    sleep 20
+    local z
+    z=$(fleet_instance_zone "$name")
+    [ -z "$z" ] && { echo "  [$name] Instance gone. Exiting supervisor." >&2; return 1; }
+
+    local status
+    status=$(gcloud compute instances describe "$name" --zone="$z" --format="value(status)" 2>/dev/null || echo "UNKNOWN")
+
+    if [ "$status" = "RUNNING" ]; then
+      # Check if tmux session is still alive (job finished or still running)
+      if ! fleet_ssh "$name" --command="tmux has-session -t $TMUX_SESSION 2>/dev/null" 2>/dev/null; then
+        echo "  [$name] Job finished."
+        return 0
+      fi
+    else
+      echo "  [$name] Preempted (status=$status). Recovering..." >&2
+      fleet_wait_for_capacity_and_start "$name"
+      # Wait for SSH
+      local retries=0
+      while ! fleet_ssh "$name" --command="true" 2>/dev/null; do
+        retries=$((retries + 1))
+        if [ "$retries" -ge 60 ]; then
+          echo "  [$name] ERROR: SSH not ready after recovery" >&2
+          return 1
+        fi
+        sleep 5
+      done
+      echo "  [$name] Recovered. Re-running command..." >&2
+      fleet_start_job "$name" "$instance_cmd"
+    fi
+  done
+}
+
 cmd_fleet_run() {
   if [ $# -eq 0 ]; then
     echo "Usage: $0 fleet-run 'command with {ID}/{SIZE} placeholders'" >&2
     echo "" >&2
     echo "  {ID} is replaced with the instance index (0, 1, 2, ...)." >&2
     echo "  {SIZE} is replaced with the total number of instances." >&2
-    echo "  The shared seed-result-log is synced from/to GCS automatically." >&2
+    echo "  Auto-recovers from spot preemption." >&2
     exit 1
   fi
   local user_cmd="$*"
@@ -604,55 +714,25 @@ cmd_fleet_run() {
     exit 1
   fi
 
-  local gcs_log="${GCS_BUCKET}/seed-result-log.jsonl"
-  local local_log="seed-result-log.jsonl"
-
-  echo "Fleet run: $user_cmd"
-  echo "GCS shared log: $gcs_log"
-  echo ""
-
   local fleet_size
   fleet_size=$(echo "$instances" | wc -w)
+
+  echo "Fleet run: $user_cmd"
+  echo "Fleet size: $fleet_size (spot preemption recovery enabled)"
+  echo ""
 
   local idx=0
   for name in $instances; do
     local instance_cmd="${user_cmd//\{ID\}/$idx}"
     instance_cmd="${instance_cmd//\{SIZE\}/$fleet_size}"
-
-    # Wrapper: sync log from GCS, run command, sync log back to GCS periodically
-    local wrapped_cmd
-    wrapped_cmd=$(cat <<RUNCMD
-cd $REMOTE_DIR && source ~/.cargo/env
-# Sync shared results from GCS at startup
-gsutil -q cp "$gcs_log" "$local_log" 2>/dev/null || touch "$local_log"
-echo "[$name] Starting: $instance_cmd"
-# Run the command, periodically uploading results
-(
-  while sleep 60; do
-    gsutil -q cp "$local_log" "${GCS_BUCKET}/${name}-result.jsonl" 2>/dev/null
-  done
-) &
-SYNC_PID=\$!
-$instance_cmd
-EXIT_CODE=\$?
-kill \$SYNC_PID 2>/dev/null
-# Final upload
-gsutil -q cp "$local_log" "${GCS_BUCKET}/${name}-result.jsonl" 2>/dev/null
-echo "[$name] Done (exit=\$EXIT_CODE)"
-exit \$EXIT_CODE
-RUNCMD
-)
-
-    echo "  $name: starting (id=$idx)..."
-    fleet_ssh "$name" \
-      --command="tmux kill-session -t $TMUX_SESSION 2>/dev/null || true; tmux new-session -d -s $TMUX_SESSION 'bash -c \"($wrapped_cmd) 2>&1 | tee $BG_LOG; echo === DONE ===\" '"
+    fleet_supervise "$name" "$instance_cmd" &
     idx=$((idx + 1))
   done
+
+  trap 'echo ">>> Interrupted. Stopping supervisors..." >&2; kill $(jobs -p) 2>/dev/null; exit 130' INT
+  wait
   echo ""
-  echo "All instances started. Use:"
-  echo "  $0 fleet-tail     # watch merged output"
-  echo "  $0 fleet-status   # check status"
-  echo "  $0 fleet-pull     # download results"
+  echo "All fleet jobs finished."
 }
 
 cmd_fleet_tail() {
@@ -675,6 +755,25 @@ cmd_fleet_tail() {
   done
   trap 'kill $(jobs -p) 2>/dev/null; exit 0' INT
   wait
+}
+
+cmd_fleet_stop() {
+  local instances
+  instances=$(fleet_list_instances)
+  if [ -z "$instances" ]; then
+    echo "No fleet instances found." >&2
+    exit 1
+  fi
+
+  echo "Stopping jobs on all fleet instances..."
+  for name in $instances; do
+    (
+      fleet_ssh "$name" --command="tmux kill-session -t $TMUX_SESSION 2>/dev/null" && \
+        echo "  $name: stopped" || echo "  $name: no active job"
+    ) &
+  done
+  wait
+  echo "All jobs stopped."
 }
 
 cmd_fleet_pull() {
@@ -803,13 +902,14 @@ case "${1:-help}" in
   fleet-push)   cmd_fleet_push ;;
   fleet-run)    shift; cmd_fleet_run "$@" ;;
   fleet-tail)   cmd_fleet_tail ;;
+  fleet-stop)   cmd_fleet_stop ;;
   fleet-pull)   cmd_fleet_pull ;;
   fleet-down)   cmd_fleet_down ;;
   fleet-status) cmd_fleet_status ;;
   fleet-cost)   cmd_fleet_cost ;;
   help|*)
     echo "Usage: $0 {up|push|run|run-bg|tail|pull|ssh|down|status|cost}"
-    echo "       $0 {fleet-up|fleet-push|fleet-run|fleet-tail|fleet-pull|fleet-down|fleet-status|fleet-cost}"
+    echo "       $0 {fleet-up|fleet-push|fleet-run|fleet-tail|fleet-stop|fleet-pull|fleet-down|fleet-status|fleet-cost}"
     echo ""
     echo "Single-instance commands:"
     echo "  up       Create/start the spot instance"
@@ -828,6 +928,7 @@ case "${1:-help}" in
     echo "  fleet-push       Push source to all fleet instances"
     echo "  fleet-run CMD    Run CMD on all instances ({ID} = index, {SIZE} = total)"
     echo "  fleet-tail       Tail merged output from all instances"
+    echo "  fleet-stop       Stop running jobs on all instances"
     echo "  fleet-pull       Pull and merge results from all instances"
     echo "  fleet-down       Delete all fleet instances"
     echo "  fleet-status     Show all fleet instance statuses"

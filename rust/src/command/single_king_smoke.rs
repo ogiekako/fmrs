@@ -5,7 +5,7 @@ use fmrs_core::{
     position::{
         advance::{advance::advance_aux, AdvanceOptions},
         position::PositionAux,
-        BitBoard, Position, Square, UndoMove,
+        previous, BitBoard, Position, Square, UndoMove,
     },
     search::backward::{BackwardSearch, BackwardSearchStats},
 };
@@ -25,8 +25,8 @@ use super::smoke_constraints::{
     board_piece_count, canonical_position, canonical_sfen, parse_allowed_kinds,
     parse_mate_squares, satisfies_ideal_smoke_constraints, satisfies_mate_square,
     satisfies_ideal_smoke_generation_constraints, satisfies_ideal_smoke_undo_candidate,
-    satisfies_search_constraints, square_in_bounds, validate_search_constraints,
-    with_white_complement, KillerSeedLimits, SearchConstraints,
+    kind_allowed_by_mask, satisfies_search_constraints, square_in_bounds,
+    validate_search_constraints, with_white_complement, KillerSeedLimits, SearchConstraints,
 };
 use super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, load_seed_checkpoint,
@@ -118,6 +118,9 @@ pub enum SingleKingSmokeCommand {
         /// Multiple squares can be specified: --mate-square 11 --mate-square 19
         #[arg(long)]
         mate_square: Vec<String>,
+        /// 都詰: allow 4-piece mate on the center square (5五).
+        #[arg(long, default_value_t = false)]
+        miyako: bool,
         /// Append per-step frontier samples (with extracted features) to
         /// this JSONL file. Used to build training data for the beam model.
         #[arg(long)]
@@ -198,6 +201,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             no_dashmap,
             slack,
             mate_square,
+            miyako,
             feature_log,
             feature_sample_per_step,
             beam_width,
@@ -239,6 +243,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     max_promoted_pct,
                     max_promoted_pct_after_step,
                     mate_squares,
+                    miyako,
                 },
                 inner_parallel,
                 mem_trace,
@@ -726,7 +731,14 @@ fn enumerate_final_2_sfens(
             Square::iter()
                 .collect::<Vec<_>>()
                 .into_par_iter()
-                .map(|white_king| enumerate_for_white_king(white_king, &kind_pairs, constraints))
+                .map(|white_king| {
+                    let mut results =
+                        enumerate_for_white_king(white_king, &kind_pairs, constraints);
+                    if constraints.miyako && white_king == Square::S55 {
+                        results.extend(enumerate_miyako_4piece(white_king, constraints));
+                    }
+                    results
+                })
                 .reduce(FxHashSet::default, |mut acc, set| {
                     acc.extend(set);
                     acc
@@ -810,13 +822,157 @@ fn enumerate_for_white_king(
                 if matches!(
                     advance_aux(&mut position, &mate_options, &mut movements),
                     Ok(true)
-                ) {
+                ) && has_valid_predecessor(&mut position, constraints)
+                {
                     results.insert(canonical_sfen(&position, constraints));
                 }
             }
         }
     }
     results
+}
+
+/// Enumerate 4-piece mate positions for miyako (都詰): white king on center
+/// + 3 additional pieces (any mix of black/white, excluding king).
+fn enumerate_miyako_4piece(
+    white_king: Square,
+    constraints: SearchConstraints,
+) -> FxHashSet<String> {
+    let mut results = FxHashSet::default();
+    let mut movements = Vec::new();
+    let mate_options = AdvanceOptions {
+        max_allowed_branches: Some(0),
+    };
+
+    if !square_in_bounds(white_king, constraints) {
+        return results;
+    }
+
+    let pieces = miyako_piece_list(constraints);
+    let n = pieces.len();
+    for i in 0..n {
+        let (c1, k1) = pieces[i];
+        let sqs1 = piece_squares(c1, k1);
+        for &sq1 in &sqs1 {
+            if sq1 == white_king || !square_in_bounds(sq1, constraints) {
+                continue;
+            }
+            for j in (i + 1)..n {
+                let (c2, k2) = pieces[j];
+                let sqs2 = piece_squares(c2, k2);
+                for &sq2 in &sqs2 {
+                    if sq2 == white_king || sq2 == sq1 || !square_in_bounds(sq2, constraints) {
+                        continue;
+                    }
+                    if pieces[i] == pieces[j] && sq2 <= sq1 {
+                        continue;
+                    }
+                    if c1 == c2
+                        && (k1 == Kind::Pawn || k1 == Kind::ProPawn)
+                        && (k2 == Kind::Pawn || k2 == Kind::ProPawn)
+                        && sq1.col() == sq2.col()
+                    {
+                        continue;
+                    }
+                    for k in (j + 1)..n {
+                        let (c3, k3) = pieces[k];
+                        let sqs3 = piece_squares(c3, k3);
+                        for &sq3 in &sqs3 {
+                            if sq3 == white_king
+                                || sq3 == sq1
+                                || sq3 == sq2
+                                || !square_in_bounds(sq3, constraints)
+                            {
+                                continue;
+                            }
+                            if pieces[j] == pieces[k] && sq3 <= sq2 {
+                                continue;
+                            }
+                            if pieces[i] == pieces[k] && sq3 <= sq1 {
+                                continue;
+                            }
+                            // Nifu check for all same-color pawn pairs
+                            if has_nifu(c1, k1, sq1, c3, k3, sq3)
+                                || has_nifu(c2, k2, sq2, c3, k3, sq3)
+                            {
+                                continue;
+                            }
+
+                            let mut position = PositionAux::default();
+                            position.set_turn(Color::WHITE);
+                            position.set(white_king, Color::WHITE, Kind::King);
+                            position.set(sq1, c1, k1);
+                            position.set(sq2, c2, k2);
+                            position.set(sq3, c3, k3);
+                            let mut position = with_white_complement(&position);
+
+                            if !position.checked_slow(Color::WHITE) {
+                                continue;
+                            }
+                            if !satisfies_search_constraints(&position, constraints) {
+                                continue;
+                            }
+                            movements.clear();
+                            if matches!(
+                                advance_aux(&mut position, &mate_options, &mut movements),
+                                Ok(true)
+                            ) && has_valid_predecessor(&mut position, constraints)
+                            {
+                                results.insert(canonical_sfen(&position, constraints));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    results
+}
+
+fn miyako_piece_list(constraints: SearchConstraints) -> Vec<(Color, Kind)> {
+    let mut pieces = Vec::new();
+    for &kind in &KINDS {
+        if kind == Kind::King {
+            continue;
+        }
+        if !kind_allowed_by_mask(kind, constraints.allowed_kinds_mask) {
+            continue;
+        }
+        pieces.push((Color::BLACK, kind));
+        if constraints.allow_white_pieces {
+            pieces.push((Color::WHITE, kind));
+        }
+    }
+    pieces
+}
+
+fn piece_squares(color: Color, kind: Kind) -> Vec<Square> {
+    Square::iter()
+        .filter(|&sq| match color {
+            Color::BLACK => black_piece_can_stand_on(kind, sq),
+            Color::WHITE => white_piece_can_stand_on(kind, sq),
+        })
+        .collect()
+}
+
+fn white_piece_can_stand_on(kind: Kind, sq: Square) -> bool {
+    match kind {
+        Kind::Pawn | Kind::Lance => sq.row() != 8,
+        Kind::Knight => sq.row() <= 6,
+        _ => true,
+    }
+}
+
+fn has_nifu(c1: Color, k1: Kind, sq1: Square, c2: Color, k2: Kind, sq2: Square) -> bool {
+    c1 == c2 && k1 == Kind::Pawn && k2 == Kind::Pawn && sq1.col() == sq2.col()
+}
+
+fn has_valid_predecessor(position: &mut PositionAux, constraints: SearchConstraints) -> bool {
+    let mut undo_moves = Vec::new();
+    previous(position, false, &mut undo_moves);
+    undo_moves
+        .iter()
+        .any(|m| satisfies_ideal_smoke_undo_candidate(position, m, 1, constraints))
 }
 
 fn black_piece_kind_pairs() -> Vec<(Kind, Kind)> {
