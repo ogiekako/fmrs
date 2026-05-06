@@ -1817,7 +1817,9 @@ fn solutions_overlay_inner(
         };
         let ans = ans.intersection(&hint);
         debug_assert!(!ans.needs_investigation(mate_in));
-        memo_delta.insert(digest, ans);
+        if should_memoize(ans) {
+            memo_delta.insert(digest, ans);
+        }
         scratch[0] = movements;
         return ans;
     }
@@ -1837,7 +1839,9 @@ fn solutions_overlay_inner(
     }
     ans = ans.intersection(&hint);
     if !ans.needs_investigation(mate_in) {
-        memo_delta.insert(digest, ans);
+        if should_memoize(ans) {
+            memo_delta.insert(digest, ans);
+        }
         scratch[scratch_index] = movements;
         return ans;
     }
@@ -1906,9 +1910,29 @@ fn solutions_overlay_inner(
         mate_in
     );
 
-    memo_delta.insert(digest, res);
+    if should_memoize(res) {
+        memo_delta.insert(digest, res);
+    }
     scratch[scratch_index] = movements;
     res
+}
+
+/// Gate: skip memoizing entries that contribute little to future cache hits.
+///
+/// `non_zero_hint` (e.g. "this position takes >0 moves to mate") is one of the
+/// most common results at depth-0 leaves, but its information content is small
+/// — it's a quick fact callers can recompute via a single `advance_aux`. Storing
+/// these in the memo balloons the delta to ~100M entries on heavy steps and
+/// dominates merge + shrink cost.
+///
+/// We still memoize:
+///   - exact(K)              (definitive shortest-mate)
+///   - has_finite_shortest   (bounded shortest range)
+///   - unsolvable            (definitive no-mate)
+///   - other refinements with finite info
+#[inline(always)]
+fn should_memoize(range: StepRange) -> bool {
+    !range.is_non_zero_hint() && !range.is_unknown()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
