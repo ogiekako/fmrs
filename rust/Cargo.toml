@@ -49,6 +49,7 @@ regex = "*"
 [dev-dependencies]
 pretty_assertions = "*"
 criterion = { version = "0.5.1", features = ["html_reports"] }
+dashmap = "*"
 
 [profile.dev]
 opt-level = 2
