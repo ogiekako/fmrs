@@ -1125,18 +1125,37 @@ fn solutions_inner(
 
     let mut res = StepRange::unsolvable();
 
-    for m in movements.iter() {
+    // Two-pass move ordering: process moves whose children are already memoized
+    // first. If they prove non-uniqueness or a shorter mate, we skip the expensive
+    // recursive calls for the remaining moves. The hit_mask tracks which moves
+    // were resolved in pass 1 so pass 2 can skip them.
+    let mut hit_mask = [0u64; 2];
+    for (i, m) in movements.iter().enumerate() {
         let child_digest = position.moved_digest(m);
-        let child = next_memo
+        if let Some(child) = next_memo
             .get(&child_digest)
             .filter(|a| !a.needs_investigation(mate_in - 1))
-            .map(|a| *a);
-        let a = if let Some(child) = child {
-            child.inc()
-        } else {
+            .map(|a| *a)
+        {
+            hit_mask[i / 64] |= 1u64 << (i % 64);
+            let a = child.inc();
+            res.update_with_child(&a);
+            if res.definitely_shorter_or_non_unique(mate_in) {
+                res.shortest_start = 1;
+                res.next_start = 1;
+                break;
+            }
+        }
+    }
+
+    if !res.definitely_shorter_or_non_unique(mate_in) {
+        for (i, m) in movements.iter().enumerate() {
+            if hit_mask[i / 64] & (1u64 << (i % 64)) != 0 {
+                continue;
+            }
             let mut np = position.clone();
             np.do_move(m);
-            solutions_inner(
+            let a = solutions_inner(
                 &mut np,
                 next_memo,
                 memo,
@@ -1144,16 +1163,16 @@ fn solutions_inner(
                 scratch,
                 memo_entry_limit,
             )
-            .inc()
-        };
-        debug_assert!(!a.needs_investigation(mate_in));
+            .inc();
+            debug_assert!(!a.needs_investigation(mate_in));
 
-        res.update_with_child(&a);
+            res.update_with_child(&a);
 
-        if res.definitely_shorter_or_non_unique(mate_in) {
-            res.shortest_start = 1;
-            res.next_start = 1;
-            break;
+            if res.definitely_shorter_or_non_unique(mate_in) {
+                res.shortest_start = 1;
+                res.next_start = 1;
+                break;
+            }
         }
     }
 
@@ -1314,16 +1333,36 @@ fn solutions_overlay_inner(
 
     let mut res = StepRange::unsolvable();
 
-    for m in movements.iter() {
+    // Two-pass move ordering: first pass checks memoized children only.
+    // If any combination of those is enough to prove non-uniqueness or a
+    // shorter mate, we skip the recursive descent for the unmemoized moves.
+    // hit_mask records pass-1 hits so pass 2 can skip them. Stack-allocated
+    // [u64; 2] supports up to 128 movements; any practical position has fewer.
+    let mut hit_mask = [0u64; 2];
+    for (i, m) in movements.iter().enumerate() {
         let child_digest = position.moved_digest(m);
-        let child = get_overlay(next_memo_delta, next_memo_base, child_digest)
-            .filter(|a| !a.needs_investigation(mate_in - 1));
-        let a = if let Some(child) = child {
-            child.inc()
-        } else {
+        if let Some(child) = get_overlay(next_memo_delta, next_memo_base, child_digest)
+            .filter(|a| !a.needs_investigation(mate_in - 1))
+        {
+            hit_mask[i / 64] |= 1u64 << (i % 64);
+            let a = child.inc();
+            res.update_with_child(&a);
+            if res.definitely_shorter_or_non_unique(mate_in) {
+                res.shortest_start = 1;
+                res.next_start = 1;
+                break;
+            }
+        }
+    }
+
+    if !res.definitely_shorter_or_non_unique(mate_in) {
+        for (i, m) in movements.iter().enumerate() {
+            if hit_mask[i / 64] & (1u64 << (i % 64)) != 0 {
+                continue;
+            }
             let mut np = position.clone();
             np.do_move(m);
-            solutions_overlay_inner(
+            let a = solutions_overlay_inner(
                 &mut np,
                 next_memo_base,
                 next_memo_delta,
@@ -1332,16 +1371,16 @@ fn solutions_overlay_inner(
                 mate_in - 1,
                 scratch,
             )
-            .inc()
-        };
-        debug_assert!(!a.needs_investigation(mate_in));
+            .inc();
+            debug_assert!(!a.needs_investigation(mate_in));
 
-        res.update_with_child(&a);
+            res.update_with_child(&a);
 
-        if res.definitely_shorter_or_non_unique(mate_in) {
-            res.shortest_start = 1;
-            res.next_start = 1;
-            break;
+            if res.definitely_shorter_or_non_unique(mate_in) {
+                res.shortest_start = 1;
+                res.next_start = 1;
+                break;
+            }
         }
     }
 
