@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778136414343,
+  "lastUpdate": 1778136758220,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -30365,6 +30365,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 131576,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "8719d70d851ff20f104fe9776572847e71e00b01",
+          "message": "attack_prevent: pinned 計算を lazy 化\n\nattack_preventing_movements の Context::new で eager に pinned を計算していたが、\nprofile では pinned() 自体が ~6.7% を占める。実際 pinned は add_movements_to\n(capture/block) でしか参照されず、king_move (脱出移動の探索) では使わない。\n\nleaf 評価 (max_allowed_branches=0) では多くの場合 king_move で 1 つ脱出が\n見つかり、Err で早期 return するため capture/block には到達しない。この時\npinned 計算がまるごと不要。\n\nOption<Pinned> + 初回 access で計算する pattern に変更:\n  baseline (A+F+G): wall 24.0s 前後\n  + lazy pinned:    wall 22.7s (median 5 runs, -5%)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T15:40:35+09:00",
+          "tree_id": "1c474d81484f5be8c0c723554294f030e0e03f69",
+          "url": "https://github.com/ogiekako/fmrs/commit/8719d70d851ff20f104fe9776572847e71e00b01"
+        },
+        "date": 1778136755292,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 938,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3824,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 314,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 986,
+            "range": "± 1852",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34826,
+            "range": "± 1194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1526,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5703,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 2089064,
+            "range": "± 492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 14193,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 187905,
+            "range": "± 449",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 71586,
+            "range": "± 266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84414,
+            "range": "± 395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21027,
+            "range": "± 375",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 84735,
+            "range": "± 111",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 22474,
+            "range": "± 140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1287,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 39214,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4853,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 25077,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83331,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 28781,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 138460,
+            "range": "± 23",
             "unit": "ns/iter"
           }
         ]
