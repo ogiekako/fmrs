@@ -130,6 +130,26 @@ impl ShardedFlatMemo {
         shard.get(key)
     }
 
+    /// Issue a non-blocking prefetch for the FlatShard slot that `key` will probe,
+    /// so the cache line is warm by the time `get` is called.
+    #[inline(always)]
+    fn prefetch_key(&self, key: u64) {
+        if key == FLAT_EMPTY_KEY {
+            return;
+        }
+        let shard = unsafe { self.shards.get_unchecked(shard_index(key)) };
+        let inner = unsafe { &*shard.inner.get() };
+        let idx = (key as usize) & inner.mask;
+        let slot_ptr = unsafe { inner.slots.get_unchecked(idx) } as *const FlatSlot;
+        #[cfg(target_arch = "x86_64")]
+        unsafe {
+            use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
+            _mm_prefetch(slot_ptr as *const i8, _MM_HINT_T0);
+        }
+        #[cfg(not(target_arch = "x86_64"))]
+        let _ = slot_ptr;
+    }
+
     #[inline(always)]
     fn insert(&mut self, key: u64, value: StepRange) {
         if key == FLAT_EMPTY_KEY {
@@ -499,11 +519,15 @@ fn merge_deltas_sharded(memo: &Memo, deltas: Vec<NoHashMap64<StepRange>>) {
         return;
     }
     // Phase 1: partition each delta by shard.
+    // Pre-allocate each shard Vec to delta.len() / NUM_SHARDS to avoid repeated
+    // reallocations during the scatter loop (digests are uniform random, so each
+    // shard gets ~1/NUM_SHARDS of the entries).
     let partitioned: Vec<[Vec<(u64, StepRange)>; NUM_SHARDS]> = deltas
         .into_par_iter()
         .map(|delta| {
+            let per_shard = (delta.len() / NUM_SHARDS).max(1);
             let mut parts: [Vec<(u64, StepRange)>; NUM_SHARDS] =
-                std::array::from_fn(|_| Vec::new());
+                std::array::from_fn(|_| Vec::with_capacity(per_shard));
             for (k, v) in delta {
                 parts[shard_index(k)].push((k, v));
             }
@@ -1187,11 +1211,11 @@ impl BackwardSearch {
 
         // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
-        // chunk_size = candidates / (parallel*32) で 1 thread あたり ~32 chunks。
+        // chunk_size = candidates / (parallel*64) で 1 thread あたり ~64 chunks。
         // chunks のコストが大きく不均一 (deep memo searches vs cheap lookups) なので
         // 細かめに分割すると work-stealing が効いて並列効率が改善する。
         // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
-        let chunk_size = candidates.len().div_ceil(parallel * 32).max(1);
+        let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
         let mut memo = std::mem::replace(&mut self.memo, Memo::new());
         let mut prev_memo = std::mem::replace(&mut self.prev_memo, Memo::new());
 
@@ -1773,6 +1797,7 @@ fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Opti
     delta.get(&digest).copied().or_else(|| base.get(digest))
 }
 
+
 fn solutions_overlay(
     position: &mut PositionAux,
     memo_base: &Memo,
@@ -1869,9 +1894,28 @@ fn solutions_overlay_inner(
     // shorter mate, we skip the recursive descent for the unmemoized moves.
     // hit_mask records pass-1 hits so pass 2 can skip them. Stack-allocated
     // [u64; 2] supports up to 128 movements; any practical position has fewer.
+    //
+    // Pre-compute child digests and issue software prefetches so the base-memo
+    // FlatShard cache lines are warm before the pass-1 lookup loop.  The
+    // FlatShard arrays are multi-hundred-MB and essentially never in L3 cache;
+    // without prefetch every `base.get()` call stalls ~200 cycles waiting for
+    // DRAM.  With prefetch the stalls overlap with the (cheap) moved_digest
+    // computations, cutting per-position latency from O(N × miss) to O(miss).
+    let nchildren = movements.len().min(128);
+    let mut child_digests = [0u64; 128];
+    for i in 0..nchildren {
+        let d = position.moved_digest(&movements[i]);
+        child_digests[i] = d;
+        next_memo_base.prefetch_key(d);
+    }
+
     let mut hit_mask = [0u64; 2];
     for (i, m) in movements.iter().enumerate() {
-        let child_digest = position.moved_digest(m);
+        let child_digest = if i < nchildren {
+            child_digests[i]
+        } else {
+            position.moved_digest(m)
+        };
         if let Some(child) = get_overlay(next_memo_delta, next_memo_base, child_digest)
             .filter(|a| !a.needs_investigation(mate_in - 1))
         {

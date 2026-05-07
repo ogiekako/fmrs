@@ -431,6 +431,31 @@ fn bench_backward_search_seed_sfen(c: &mut Criterion) {
     });
 }
 
+fn bench_backward_search_seed_sfen_allowed_kinds(c: &mut Criterion) {
+    let elapsed = run_backward_search_bench(&[
+        "single-king-smoke", "ideal-backward",
+        "--max-step", "19",
+        "--inner-parallel", "8",
+        "--parallel", "1",
+        "--no-pawn",
+        "--max-promoted-pct", "20",
+        "--max-promoted-pct-after-step", "5",
+        "--seed-result-log", "/dev/null",
+        "--seed-sfen", "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+        "--allowed-kinds", "pawn,lance,knight,silver,gold",
+    ]);
+
+    let mut i = 0;
+    let times = [elapsed];
+    c.bench_function("bench_backward_search_seed_sfen_allowed_kinds", |b| {
+        b.iter(|| {
+            let start = std::time::Instant::now();
+            while start.elapsed() < times[i] / 1_000_000 {}
+            i = (i + 1) % times.len();
+        })
+    });
+}
+
 fn bench_dashmap_overhead(c: &mut Criterion) {
     let n: u64 = 10_000;
     let keys: Vec<u64> = (0..n).map(|i: u64| i.wrapping_mul(0x9E3779B97F4A7C15)).collect();
@@ -571,4 +596,19 @@ criterion_group!(
     targets = bench_jugemu, bench_1965, bench_1461, bench_bataco, bench_backward_search, bench_backward_search_seed_sfen,
 );
 
-criterion_main!(benches, bench_extra);
+const HEAVY: bool = option_env!("FMRS_ENABLE_HEAVY_BENCH").is_some();
+
+fn bench_heavy() {
+    if !HEAVY {
+        return;
+    }
+    bench_heavy_inner();
+}
+
+criterion_group!(
+    name = bench_heavy_inner;
+    config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
+    targets = bench_backward_search_seed_sfen_allowed_kinds,
+);
+
+criterion_main!(benches, bench_extra, bench_heavy);
