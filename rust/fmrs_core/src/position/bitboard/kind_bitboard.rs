@@ -8,10 +8,12 @@ pub struct KindBitBoard {
     kind0: BitBoard,
     kind1: BitBoard,
     kind2: BitBoard,
-    /// Per-square encoded kind cache (0 = empty, 1..=15 = same encoding as KINDS array).
-    /// Replaces 4 sequential BitBoard::contains() calls in must_get/get with one
-    /// array lookup. Maintained on set/unset.
-    square_kinds: [u8; 81],
+    /// Per-square 4-bit kind cache packed 2 squares per byte.
+    /// 81 squares × 4 bits = 324 bits → 41 bytes (rounded to 48 with alignment).
+    /// Encoding: 0 = empty, 1..=15 = same as KINDS array index.
+    /// Replaces 4 sequential BitBoard::contains() calls in must_get/get with
+    /// one byte load + shift + mask. Maintained on set/unset.
+    square_kinds_packed: [u8; 41],
 }
 
 impl Default for KindBitBoard {
@@ -21,8 +23,25 @@ impl Default for KindBitBoard {
             kind0: BitBoard::default(),
             kind1: BitBoard::default(),
             kind2: BitBoard::default(),
-            square_kinds: [0u8; 81],
+            square_kinds_packed: [0u8; 41],
         }
+    }
+}
+
+impl KindBitBoard {
+    #[inline(always)]
+    fn read_kind_idx(&self, pos_idx: usize) -> usize {
+        // Layout: byte[i] holds squares (2i, 2i+1) in (low, high) nibble.
+        let byte = unsafe { *self.square_kinds_packed.get_unchecked(pos_idx >> 1) };
+        ((byte >> ((pos_idx & 1) * 4)) & 0xF) as usize
+    }
+
+    #[inline(always)]
+    fn write_kind_idx(&mut self, pos_idx: usize, idx: u8) {
+        debug_assert!(idx <= 0xF);
+        let byte_ref = unsafe { self.square_kinds_packed.get_unchecked_mut(pos_idx >> 1) };
+        let shift = (pos_idx & 1) * 4;
+        *byte_ref = (*byte_ref & !(0xF << shift)) | (idx << shift);
     }
 }
 
@@ -65,10 +84,9 @@ const KINDS: [Kind; 16] = [
 
 #[test]
 fn test_kind_bitboard_size() {
-    // 4× BitBoard (4×16=64) + [u8; 81] padded to 16-byte alignment = 160 bytes.
-    // Increase justified by must_get/get becoming a single array load instead
-    // of 4 sequential u128 contains() calls.
-    assert_eq!(160, std::mem::size_of::<KindBitBoard>());
+    // 4× BitBoard (4×16=64) + [u8; 41] packed cache padded to 16-byte alignment.
+    // 64+41=105 → padded to 112.
+    assert_eq!(112, std::mem::size_of::<KindBitBoard>());
 }
 
 impl KindBitBoard {
@@ -146,7 +164,7 @@ impl KindBitBoard {
     // #[inline(never)]
     #[inline(always)]
     pub fn must_get(&self, pos: Square) -> Kind {
-        let i = unsafe { *self.square_kinds.get_unchecked(pos.index()) } as usize;
+        let i = self.read_kind_idx(pos.index());
         debug_assert_ne!(i, 0);
         KINDS[i]
     }
@@ -168,9 +186,7 @@ impl KindBitBoard {
             self.kind2.set(pos);
         }
         let encoded = (i | if promote { 8 } else { 0 }) as u8;
-        unsafe {
-            *self.square_kinds.get_unchecked_mut(pos.index()) = encoded;
-        }
+        self.write_kind_idx(pos.index(), encoded);
     }
     // #[inline(never)]
     #[inline(always)]
@@ -189,9 +205,7 @@ impl KindBitBoard {
         if (i & 4) != 0 {
             self.kind2.unset(pos);
         }
-        unsafe {
-            *self.square_kinds.get_unchecked_mut(pos.index()) = 0;
-        }
+        self.write_kind_idx(pos.index(), 0);
     }
 
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
@@ -199,16 +213,16 @@ impl KindBitBoard {
         self.kind0.shift(dir);
         self.kind1.shift(dir);
         self.kind2.shift(dir);
-        // Rebuild square_kinds after shifting bitboards; per-square direct shift
-        // would require translating each square's index, which is more expensive
-        // than the rare shift call.
-        self.square_kinds = [0u8; 81];
+        // Rebuild square_kinds_packed after shifting bitboards; per-square direct
+        // shift would require translating each square's index, which is more
+        // expensive than the rare shift call.
+        self.square_kinds_packed = [0u8; 41];
         for (kind_idx, &kind) in KINDS.iter().enumerate() {
             if kind_idx == 0 || kind_idx == 8 {
                 continue; // dummies
             }
             for pos in self.bitboard(kind) {
-                self.square_kinds[pos.index()] = kind_idx as u8;
+                self.write_kind_idx(pos.index(), kind_idx as u8);
             }
         }
     }
@@ -216,7 +230,7 @@ impl KindBitBoard {
     // #[inline(never)]
     #[inline(always)]
     pub fn get(&self, pos: Square) -> Option<Kind> {
-        let i = unsafe { *self.square_kinds.get_unchecked(pos.index()) } as usize;
+        let i = self.read_kind_idx(pos.index());
         if i == 0 {
             None
         } else {
