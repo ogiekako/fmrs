@@ -16,7 +16,7 @@ use std::fmt;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -603,7 +603,7 @@ fn ideal_backward(
         .context("failed to build rayon thread pool")?;
     let completed = AtomicUsize::new(loaded_records);
     let next_heartbeat_index = AtomicUsize::new(0);
-    let global_best_piece_count = AtomicUsize::new(0);
+    let global_best_piece_count = AtomicU64::new(0);
     let heartbeat_marks = [1usize, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     let best = Mutex::new(initial_best);
     let skipped = Mutex::new(Vec::new());
@@ -1190,7 +1190,7 @@ fn search_single_seed(
     constraints: SearchConstraints,
     inner_parallel: usize,
     mem_trace: bool,
-    global_best_piece_count: &AtomicUsize,
+    global_best_piece_count: &AtomicU64,
     seed_result_log_path: &Path,
     feature_log: Option<&Mutex<fs::File>>,
     feature_samples_per_step: usize,
@@ -1285,6 +1285,7 @@ fn search_single_seed(
                     })
                     .collect::<Vec<_>>();
                 let filtered_len = filtered.len();
+                let prev_positions_len = best_positions.len();
                 let mut improved = false;
                 for position in filtered {
                     let pc = board_piece_count(&position);
@@ -1306,18 +1307,19 @@ fn search_single_seed(
                         let mut seen = fmrs_core::nohash::NoHashSet64::default();
                         best_positions.iter().all(|p| seen.insert(p.digest()))
                     }, "best_positions has duplicates after improvement");
-                    if best_piece_count >= 8 {
-                        let url = best_positions[0].sfen_url();
-                        let stats = search.stats();
-                        log_global_best_if_improved(
-                            global_best_piece_count,
-                            seed_index,
-                            best_piece_count,
-                            best_positions.len(),
-                            &url,
-                            stats,
-                        );
-                    }
+                }
+                let positions_increased = best_positions.len() > prev_positions_len;
+                if (improved || positions_increased) && best_piece_count >= 8 {
+                    let url = best_positions[0].sfen_url();
+                    let stats = search.stats();
+                    log_global_best_if_improved(
+                        global_best_piece_count,
+                        seed_index,
+                        best_piece_count,
+                        best_positions.len(),
+                        &url,
+                        stats,
+                    );
                 }
                 if mem_trace {
                     eprintln!(
@@ -1513,19 +1515,22 @@ fn detect_killer_seed(
 }
 
 fn log_global_best_if_improved(
-    global_best_piece_count: &AtomicUsize,
+    global_best: &AtomicU64,
     seed_index: usize,
     piece_count: u32,
     positions_len: usize,
     url: &str,
     stats: BackwardSearchStats,
 ) {
-    let pc = piece_count as usize;
-    let mut current = global_best_piece_count.load(Ordering::Relaxed);
-    while pc > current {
-        match global_best_piece_count.compare_exchange(
+    // Pack (piece_count, positions_len) into a u64: pieces in high 32 bits,
+    // positions in low 32 bits. A larger packed value is strictly better:
+    // more pieces wins outright; equal pieces with more positions also wins.
+    let new_packed = (piece_count as u64) << 32 | (positions_len as u64).min(u32::MAX as u64);
+    let mut current = global_best.load(Ordering::Relaxed);
+    while new_packed > current {
+        match global_best.compare_exchange(
             current,
-            pc,
+            new_packed,
             Ordering::Relaxed,
             Ordering::Relaxed,
         ) {
