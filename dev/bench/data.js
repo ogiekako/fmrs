@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778141979811,
+  "lastUpdate": 1778145669099,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -31613,6 +31613,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 105726,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "0743e86642a5bb97c46460b76691e9244fba65f7",
+          "message": "single_king_smoke: dedup_positions の call 削除 (no-op のため)\n\ndedup_positions は best_positions が improved=true 時 (= clear() 直後 +\n単一の output_positions の filtered を push) でしか呼ばれない。output_\npositions は frontier (一意) ベースなので、push される positions は\nすでに一意。よって dedup_positions は no-op。\n\ndebug_assert で重複が発生しないことを確認。debug build で smoke command\nを実行して assert が発火しないことも確認。\n\n未使用となった canonical_lr_position / canonical_position / dedup_positions\n関数を削除。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T18:08:46+09:00",
+          "tree_id": "805d9748bc5a43a6fba2faecc6198b020cdc4831",
+          "url": "https://github.com/ogiekako/fmrs/commit/0743e86642a5bb97c46460b76691e9244fba65f7"
+        },
+        "date": 1778145666469,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 915,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3653,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 337,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 993,
+            "range": "± 1759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33301,
+            "range": "± 250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1456,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5267,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1846006,
+            "range": "± 302",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13200,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 195092,
+            "range": "± 4968",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 82828,
+            "range": "± 630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 75912,
+            "range": "± 253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 23765,
+            "range": "± 471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 71204,
+            "range": "± 207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21168,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1299,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 35842,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4348,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22246,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 79020,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 26315,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 121598,
+            "range": "± 26",
             "unit": "ns/iter"
           }
         ]
