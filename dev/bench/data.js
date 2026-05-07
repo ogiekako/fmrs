@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778165387313,
+  "lastUpdate": 1778166270823,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -32705,6 +32705,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 141413,
             "range": "± 11",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "5ae2b2259a9eb19c278f388ab335404aa90fec54",
+          "message": "KindBitBoard: square_kinds キャッシュを 4-bit packed に縮小\n\n[u8; 81] = 81 bytes → [u8; 41] (4-bit per square × 81) で 40 bytes 削減。\nKindBitBoard size: 160 → 112 bytes。Position size: 192 → 144 bytes。\n\nread_kind_idx/write_kind_idx で shift+mask を追加するが、Position の\nclone/move 時のデータ転送量削減で net positive:\n- bench_backward_search_seed_sfen_allowed_kinds: 27.7µs → 27.55µs (-0.5%)\n- bench_backward_search:                          4.78µs → 4.71µs (-1.5%)\n- bench_backward_search_seed_sfen:               15.61µs → 15.19µs (-2.7%)\n- attacker (must_get-heavy synthetic):           5.80µs → 6.10µs (+5%、ただし\n  no-cache baseline 7.45µs から見ると依然 -18%)\n\nheavy workload では明確な improvement、micro-bench では軽い trade-off。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T23:52:08+09:00",
+          "tree_id": "7110d34441e35afb62f86aa198870b04e28f1be4",
+          "url": "https://github.com/ogiekako/fmrs/commit/5ae2b2259a9eb19c278f388ab335404aa90fec54"
+        },
+        "date": 1778166265733,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 918,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3565,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 291,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 998,
+            "range": "± 1765",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30305,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1490,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5847,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1847451,
+            "range": "± 576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11181,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 202541,
+            "range": "± 5814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 81123,
+            "range": "± 258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 75485,
+            "range": "± 593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21796,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 64343,
+            "range": "± 482",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18384,
+            "range": "± 259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1315,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37037,
+            "range": "± 229",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4468,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22727,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 79999,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 52918,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 176608,
+            "range": "± 20",
             "unit": "ns/iter"
           }
         ]
