@@ -29,7 +29,9 @@ struct Context<'a> {
     // Immutable fields
     position: &'a mut PositionAux,
     attacker: Option<Attacker>,
-    pinned: Pinned,
+    /// Lazy: drops() では未使用、direct_attack/discovered_attack でのみ参照。
+    /// max_allowed_branches=0 で drops() が早期 Err 返した場合 pinned 不要。
+    pinned: Option<Pinned>,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
 
@@ -51,11 +53,6 @@ impl<'a> Context<'a> {
             .is_some()
             .then(|| attacker(position, Color::BLACK, false))
             .flatten();
-        let pinned = position
-            .black_king_pos()
-            .is_some()
-            .then(|| pinned(position, Color::BLACK, Color::BLACK))
-            .unwrap_or_else(Pinned::default);
 
         let pawn_mask = {
             let mut mask = Default::default();
@@ -70,7 +67,7 @@ impl<'a> Context<'a> {
         Ok(Self {
             position,
             attacker,
-            pinned,
+            pinned: None,
             pawn_mask,
             result,
             num_branches_without_pawn_drop: 0,
@@ -78,6 +75,17 @@ impl<'a> Context<'a> {
             start_len,
             seen: MovementSet::default(),
         })
+    }
+
+    fn pinned(&mut self) -> &Pinned {
+        if self.pinned.is_none() {
+            self.pinned = Some(if self.position.black_king_pos().is_some() {
+                pinned(self.position, Color::BLACK, Color::BLACK)
+            } else {
+                Pinned::default()
+            });
+        }
+        self.pinned.as_ref().unwrap()
     }
 
     fn advance(&mut self) -> AdvanceResult<()> {
@@ -138,7 +146,7 @@ impl<'a> Context<'a> {
         for attacker_pos in attacker_cands {
             let attacker_source_kind = self.position.must_get_kind(attacker_pos);
 
-            let attacker_range = self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
+            let attacker_range = self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
                 bitboard::power(Color::BLACK, attacker_pos, attacker_source_kind)
             }) & king_range;
             if attacker_range.is_empty() {
@@ -213,7 +221,7 @@ impl<'a> Context<'a> {
             for attacker_pos in attackers {
                 let source_kind = self.position.must_get_kind(attacker_pos);
                 let attacker_reachable =
-                    self.pinned.pinned_area(attacker_pos).unwrap_or_else(|| {
+                    self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
                         bitboard::reachable_sub(
                             self.position,
                             Color::BLACK,
@@ -285,7 +293,7 @@ impl<'a> Context<'a> {
             )
             .and_not(blocker_pinned_area);
 
-            if let Some(area) = self.pinned.pinned_area(blocker_pos) {
+            if let Some(area) = self.pinned().pinned_area(blocker_pos) {
                 blocker_dest_cands &= area;
             }
 
