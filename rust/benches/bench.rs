@@ -369,11 +369,21 @@ fn bench_bataco(c: &mut Criterion) {
     );
 }
 
-fn bench_backward_search(c: &mut Criterion) {
+fn run_backward_search_bench(args: &[&str]) -> Duration {
     let binary = env!("CARGO_BIN_EXE_fmrs");
+    let start = std::time::Instant::now();
+    let status = std::process::Command::new(binary)
+        .args(args)
+        .status()
+        .expect("failed to run fmrs");
+    assert!(status.success(), "fmrs exited with {:?}", status.code());
+    start.elapsed()
+}
+
+fn bench_backward_search(c: &mut Criterion) {
     let tmp_log = std::env::temp_dir().join("bench-backward-seeds.jsonl");
     let _ = std::fs::remove_file(&tmp_log);
-    let args = [
+    let elapsed = run_backward_search_bench(&[
         "single-king-smoke", "ideal-backward",
         "--max-step", "21",
         "--inner-parallel", "8",
@@ -382,21 +392,37 @@ fn bench_backward_search(c: &mut Criterion) {
         "--random-seed", "42",
         "--no-pawn",
         "--max-promoted-pct", "15",
-        "--seed-result-log",
-    ];
-    let start = std::time::Instant::now();
-    let status = std::process::Command::new(binary)
-        .args(&args)
-        .arg(&tmp_log)
-        .status()
-        .expect("failed to run fmrs");
-    assert!(status.success());
-    let elapsed = start.elapsed();
+        "--seed-result-log", tmp_log.to_str().unwrap(),
+    ]);
     let _ = std::fs::remove_file(&tmp_log);
 
     let mut i = 0;
     let times = [elapsed];
     c.bench_function("bench_backward_search", |b| {
+        b.iter(|| {
+            let start = std::time::Instant::now();
+            while start.elapsed() < times[i] / 1_000_000 {}
+            i = (i + 1) % times.len();
+        })
+    });
+}
+
+fn bench_backward_search_seed_sfen(c: &mut Criterion) {
+    let elapsed = run_backward_search_bench(&[
+        "single-king-smoke", "ideal-backward",
+        "--max-step", "11",
+        "--inner-parallel", "8",
+        "--parallel", "1",
+        "--no-pawn",
+        "--max-promoted-pct", "34",
+        "--max-promoted-pct-after-step", "4",
+        "--seed-result-log", "/dev/null",
+        "--seed-sfen", "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+    ]);
+
+    let mut i = 0;
+    let times = [elapsed];
+    c.bench_function("bench_backward_search_seed_sfen", |b| {
         b.iter(|| {
             let start = std::time::Instant::now();
             while start.elapsed() < times[i] / 1_000_000 {}
@@ -542,7 +568,7 @@ fn bench_extra() {
 criterion_group!(
     name = bench_extra_inner;
     config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
-    targets = bench_jugemu, bench_1965, bench_1461, bench_bataco, bench_backward_search,
+    targets = bench_jugemu, bench_1965, bench_1461, bench_bataco, bench_backward_search, bench_backward_search_seed_sfen,
 );
 
 criterion_main!(benches, bench_extra);
