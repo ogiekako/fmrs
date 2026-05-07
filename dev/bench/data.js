@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778136758220,
+  "lastUpdate": 1778137279314,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -30521,6 +30521,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 138460,
             "range": "± 23",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "0fd48e42565de014ce1c8c542f60a82d64cafa3e",
+          "message": "black::advance: pinned 計算を lazy 化\n\ndrops() は self.pinned を参照しないため、max_allowed_branches=0 で drops が\n1 つ歩打ちでない手を見つけて Err 返す場合 pinned 計算 (~6% CPU) は不要。\n\nattack_prevent と同じ pattern (Option<Pinned> + 初回 access で計算)。\n\nベンチ: median 22.75s → 22.62s (variance内だが mean は微減)\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T15:50:35+09:00",
+          "tree_id": "c64476898bd2ab24ce6c441dd4a826ebc2c2128a",
+          "url": "https://github.com/ogiekako/fmrs/commit/0fd48e42565de014ce1c8c542f60a82d64cafa3e"
+        },
+        "date": 1778137276781,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 919,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3676,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 315,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 992,
+            "range": "± 1750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32587,
+            "range": "± 274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1387,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5450,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1856239,
+            "range": "± 205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13084,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 177262,
+            "range": "± 724",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 82318,
+            "range": "± 295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 76167,
+            "range": "± 1010",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 24644,
+            "range": "± 258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 71995,
+            "range": "± 447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21428,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1237,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 35739,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4275,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22323,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 79413,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 26449,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 125491,
+            "range": "± 10",
             "unit": "ns/iter"
           }
         ]
