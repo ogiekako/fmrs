@@ -1796,6 +1796,7 @@ fn solutions_overlay(
     )
 }
 
+#[inline]
 fn solutions_overlay_inner(
     position: &mut PositionAux,
     memo_base: &Memo,
