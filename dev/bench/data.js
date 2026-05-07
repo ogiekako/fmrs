@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778145669099,
+  "lastUpdate": 1778159822276,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -31769,6 +31769,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 121598,
             "range": "± 26",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "d5544dd5f32ab32bc41730467c25f8210d475ea9",
+          "message": "backward: solutions_overlay_inner で child digest を software prefetch\n\nstep 17 のような heavy step では DFS 内の next_memo_base.get() が DRAM stall\nの主因 (multi-hundred-MB の FlatShard は L3 cache に入らない)。pass-1 の前に\n全 child digest を計算して _mm_prefetch を発行することで、moved_digest 計算と\nprefetch latency を overlap させる。\n\n合わせて以下の関連改善：\n- merge_deltas_sharded の shard partition Vec を delta.len()/NUM_SHARDS で\n  pre-allocate (scatter loop の reallocation を抑制)\n- chunk_size 倍率を parallel*32 → parallel*64 に細分化 (chunks のコスト不均一に\n  対する work-stealing の効きを改善)\n- bench_backward_search_seed_sfen_allowed_kinds を追加 (FMRS_ENABLE_HEAVY_BENCH\n  gated heavy bench)\n\n3つを合わせて bench は 33.6s → 29.3s (~13% 改善)。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T21:26:37+09:00",
+          "tree_id": "a59f6bfd09696f715dc7425e444766248c0d7587",
+          "url": "https://github.com/ogiekako/fmrs/commit/d5544dd5f32ab32bc41730467c25f8210d475ea9"
+        },
+        "date": 1778159819225,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 933,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3893,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 314,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 986,
+            "range": "± 1901",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34907,
+            "range": "± 700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1532,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5715,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 2048487,
+            "range": "± 406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 14202,
+            "range": "± 94",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 207154,
+            "range": "± 1165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 83775,
+            "range": "± 4087",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84513,
+            "range": "± 2780",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21011,
+            "range": "± 202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 83030,
+            "range": "± 2681",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21739,
+            "range": "± 135",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1302,
+            "range": "± 101",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 39377,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4764,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 25124,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83332,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 32406,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 136739,
+            "range": "± 17",
             "unit": "ns/iter"
           }
         ]
