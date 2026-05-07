@@ -45,7 +45,10 @@ pub(super) fn attack_preventing_movements<'a>(
 struct Context<'a> {
     position: &'a mut PositionAux,
     occupied_without_king: BitBoard,
-    pinned: Pinned,
+    /// Lazy: pinned は `add_movements_to` (capture/block) でしか参照されない。
+    /// `king_move` が早期に脱出を見つけて Err 返すと参照されないので、
+    /// 計算 (~6% CPU) を回避できる。
+    pinned: Option<Pinned>,
     attacker: Attacker,
     pawn_mask: Option<usize>,
     should_return_check: bool,
@@ -71,7 +74,6 @@ impl<'a> Context<'a> {
             Some(attacker) => attacker,
             None => attacker(position, turn, false).ok_or(AdvanceError::NoAttacker)?,
         };
-        let pinned = pinned(position, turn, turn);
 
         let mut occupied_without_king = position.occupied_bb();
         occupied_without_king.unset(position.must_king_pos(turn));
@@ -79,7 +81,7 @@ impl<'a> Context<'a> {
         Ok(Self {
             position,
             occupied_without_king,
-            pinned,
+            pinned: None,
             attacker,
             pawn_mask: None, // TODO: move to PositionAux
             should_return_check,
@@ -98,6 +100,14 @@ impl<'a> Context<'a> {
             }
             mask
         })
+    }
+
+    fn pinned(&mut self) -> &Pinned {
+        if self.pinned.is_none() {
+            let turn = self.position.turn();
+            self.pinned = Some(pinned(self.position, turn, turn));
+        }
+        self.pinned.as_ref().unwrap()
     }
 
     // #[inline(never)]
@@ -222,7 +232,7 @@ impl<'a> Context<'a> {
                 continue;
             }
             let source_power = self
-                .pinned
+                .pinned()
                 .pinned_area(source_pos)
                 .unwrap_or_else(|| bitboard::power(self.position.turn(), source_pos, source_kind));
             if source_power.contains(dest) {
@@ -275,7 +285,7 @@ impl<'a> Context<'a> {
                 false,
             ) & on_board;
             for source_pos in sources {
-                if self.pinned.is_unpin_move(source_pos, dest) {
+                if self.pinned().is_unpin_move(source_pos, dest) {
                     continue;
                 }
                 let source_kind = self.position.must_get_kind(source_pos);
