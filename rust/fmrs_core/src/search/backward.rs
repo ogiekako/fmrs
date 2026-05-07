@@ -1973,52 +1973,60 @@ impl Killers {
     }
 }
 
-/// History heuristic table indexed by (mate_in, dest_square).
+/// History heuristic table indexed by (mate_in, kind, dest_square).
 ///
-/// Accumulates cutoff counts per destination square across all positions in a
-/// chunk.  After killer swaps, the non-killer move with the highest history
-/// score is swapped to the front so pass-1 evaluates it early.  Uses only the
-/// destination square (0..81) as the key — coarser than a full Movement match,
-/// which means it generalises across positions even when the exact piece or
-/// source changes.
+/// Accumulates cutoff counts per (piece_kind × dest_square) pair across all
+/// positions in a chunk.  After killer swaps, the non-killer move with the
+/// highest history score is swapped to the front so pass-1 evaluates it early.
+/// Using (kind, dest) rather than dest alone gives sharper signal when the same
+/// destination square is visited by different piece kinds with different outcomes.
 ///
-/// Table size: 64 × 81 × u16 = 10 KB — fits in L1/L2 with no heap allocation.
+/// Table size: 64 × (14 × 81) × u16 ≈ 145 KB — fits comfortably in L2.
 const HIST_DEPTH: usize = KILLER_DEPTH;
+const HIST_STRIDE: usize = crate::piece::NUM_KIND * 81; // 14 × 81 = 1134
 
 struct HistoryTable {
-    counts: [[u16; 81]; HIST_DEPTH],
+    counts: [[u16; HIST_STRIDE]; HIST_DEPTH],
 }
 
 impl HistoryTable {
     fn new() -> Self {
         Self {
-            counts: [[0u16; 81]; HIST_DEPTH],
+            counts: [[0u16; HIST_STRIDE]; HIST_DEPTH],
         }
     }
 
     #[inline(always)]
     fn record(&mut self, mate_in: u16, m: &Movement) {
-        let dest = movement_dest_idx(m);
+        let idx = movement_hist_idx(m);
         if let Some(row) = self.counts.get_mut(mate_in as usize) {
-            row[dest] = row[dest].saturating_add(1);
+            row[idx] = row[idx].saturating_add(1);
         }
     }
 
     #[inline(always)]
     fn score(&self, mate_in: u16, m: &Movement) -> u16 {
-        let dest = movement_dest_idx(m);
+        let idx = movement_hist_idx(m);
         self.counts
             .get(mate_in as usize)
-            .map_or(0, |row| row[dest])
+            .map_or(0, |row| row[idx])
     }
 }
 
-/// Extract the destination square index (0..81) from a Movement.
+/// Compute the history table index for a movement: kind.index() * 81 + dest.index().
+/// For Move without source_kind_hint, we fall back to dest-only (kind_idx = 0).
 #[inline(always)]
-fn movement_dest_idx(m: &Movement) -> usize {
+fn movement_hist_idx(m: &Movement) -> usize {
     match m {
-        Movement::Drop(sq, _) => sq.index(),
-        Movement::Move { dest, .. } => dest.index(),
+        Movement::Drop(sq, kind) => kind.index() * 81 + sq.index(),
+        Movement::Move {
+            dest,
+            source_kind_hint,
+            ..
+        } => {
+            let kind_idx = source_kind_hint.map_or(0, |k| k.index());
+            kind_idx * 81 + dest.index()
+        }
     }
 }
 
