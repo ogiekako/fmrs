@@ -612,7 +612,7 @@ pub fn backward_search_with_progress_and_parallel(
     }
 
     let mut positions = best.1.into_values().collect::<Vec<_>>();
-    positions.sort_by_key(|p| p.sfen());
+    positions.sort_by_cached_key(|p| p.sfen());
     Ok((best.0, positions))
 }
 
@@ -743,7 +743,7 @@ fn backward_search_single(
         }
     }
     let mut positions = best.1.into_values().collect::<Vec<_>>();
-    positions.sort_by_key(|p| p.sfen());
+    positions.sort_by_cached_key(|p| p.sfen());
     Ok((best.0, positions))
 }
 
@@ -1469,7 +1469,9 @@ impl BackwardSearch {
             }
         }
 
-        output_positions.sort_by_key(|p| p.sfen());
+        // sort_by_key だと比較ごとに sfen() が再計算されて O(n log n) 回呼ばれる。
+        // sort_by_cached_key は N 回のみ。
+        output_positions.sort_by_cached_key(|p| p.sfen());
         Ok((step, output_positions))
     }
 
