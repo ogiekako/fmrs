@@ -1024,15 +1024,15 @@ fn black_piece_can_stand_on(kind: Kind, sq: Square) -> bool {
 }
 
 fn dedup_positions(positions: Vec<PositionAux>) -> Vec<PositionAux> {
-    let mut seen = FxHashSet::default();
+    // smoke command の output は順序保証不要。digest (Zobrist hash, u64) で
+    // dedup し、sort は省略 (sfen 計算/比較の重いコストを回避)。
+    let mut seen = fmrs_core::nohash::NoHashSet64::default();
     let mut deduped = vec![];
     for position in positions {
-        let key = position.sfen();
-        if seen.insert(key) {
+        if seen.insert(position.digest()) {
             deduped.push(position);
         }
     }
-    deduped.sort_by_cached_key(PositionAux::sfen);
     deduped
 }
 
