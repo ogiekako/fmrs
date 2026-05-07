@@ -104,6 +104,13 @@ pub enum SingleKingSmokeCommand {
         /// Step threshold for --max-promoted-pct (default: 6 ≈ 7手詰以上).
         #[arg(long, default_value_t = 6)]
         max_promoted_pct_after_step: u16,
+        /// Min % of pawns among pieces in play (board + black hand) (0–100), enforced at
+        /// steps >= --min-pawn-pct-after-step.  E.g. --min-pawn-pct 30
+        #[arg(long)]
+        min_pawn_pct: Option<u16>,
+        /// Step threshold for --min-pawn-pct (default: 6).
+        #[arg(long, default_value_t = 6)]
+        min_pawn_pct_after_step: u16,
         #[arg(long, default_value_t = 1)]
         inner_parallel: usize,
         #[arg(long, default_value_t = false)]
@@ -194,6 +201,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             allow_white_pieces,
             max_promoted_pct,
             max_promoted_pct_after_step,
+            min_pawn_pct,
+            min_pawn_pct_after_step,
             inner_parallel,
             mem_trace,
             slack,
@@ -239,6 +248,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     slack,
                     max_promoted_pct,
                     max_promoted_pct_after_step,
+                    min_pawn_pct,
+                    min_pawn_pct_after_step,
                     mate_squares,
                     miyako,
                 },

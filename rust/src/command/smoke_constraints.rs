@@ -35,6 +35,10 @@ pub(super) struct SearchConstraints {
     pub(super) max_promoted_pct: Option<u16>,
     #[serde(default)]
     pub(super) max_promoted_pct_after_step: u16,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) min_pawn_pct: Option<u16>,
+    #[serde(default)]
+    pub(super) min_pawn_pct_after_step: u16,
     /// Bitmask of allowed white king squares at mate (bit i = square index i).
     /// 0 = no restriction.
     #[serde(default, skip_serializing_if = "is_zero_u128")]
@@ -101,6 +105,9 @@ pub(super) fn satisfies_ideal_smoke_generation_constraints(
     if !satisfies_promoted_pct(position, step, constraints) {
         return false;
     }
+    if !satisfies_pawn_pct(position, step, constraints) {
+        return false;
+    }
     if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
         return false;
     }
@@ -162,6 +169,11 @@ pub(super) fn validate_search_constraints(constraints: SearchConstraints) -> any
     if let Some(p) = constraints.max_promoted_pct {
         if p > 100 {
             bail!("max-promoted-pct must be between 0 and 100");
+        }
+    }
+    if let Some(p) = constraints.min_pawn_pct {
+        if p > 100 {
+            bail!("min-pawn-pct must be between 0 and 100");
         }
     }
     Ok(())
@@ -289,12 +301,35 @@ pub(super) fn satisfies_promoted_pct(
     if step < constraints.max_promoted_pct_after_step {
         return true;
     }
-    let total = position.occupied_bb().count_ones();
+    let total = board_non_king_count(position);
     if total == 0 {
         return true;
     }
     let promoted = board_promoted_count(position);
     promoted * 100 <= max_pct as u32 * total
+}
+
+pub(super) fn pawn_in_play_count(position: &PositionAux) -> u32 {
+    board_pawn_count(position) + position.hands().count(Color::BLACK, Kind::Pawn) as u32
+}
+
+pub(super) fn satisfies_pawn_pct(
+    position: &PositionAux,
+    step: u16,
+    constraints: SearchConstraints,
+) -> bool {
+    let Some(min_pct) = constraints.min_pawn_pct else {
+        return true;
+    };
+    if step < constraints.min_pawn_pct_after_step {
+        return true;
+    }
+    let total = board_non_king_count(position) + black_hand_count(position);
+    if total == 0 {
+        return true;
+    }
+    let pawns = pawn_in_play_count(position);
+    pawns * 100 >= min_pct as u32 * total
 }
 
 pub(super) fn satisfies_natural_piece_limit(position: &PositionAux) -> bool {
@@ -499,6 +534,12 @@ pub(super) fn undo_spawns_white_piece(position: &PositionAux, undo_move: &UndoMo
 
 pub(super) fn board_piece_count(position: &PositionAux) -> u32 {
     position.occupied_bb().count_ones()
+}
+
+fn board_non_king_count(position: &PositionAux) -> u32 {
+    position.occupied_bb().count_ones()
+        - position.bitboard(Color::BLACK, Kind::King).count_ones()
+        - position.bitboard(Color::WHITE, Kind::King).count_ones()
 }
 
 pub(super) fn black_hand_count(position: &PositionAux) -> u32 {
