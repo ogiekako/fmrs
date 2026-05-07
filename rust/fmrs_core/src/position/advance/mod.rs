@@ -7,4 +7,4 @@ pub mod pinned;
 mod white;
 
 pub use common::checked;
-pub use options::AdvanceOptions;
+pub use options::{AdvanceError, AdvanceOptions, AdvanceResult};

@@ -1,3 +1,4 @@
+use crate::position::advance::options::AdvanceResult;
 use crate::position::position::PositionAux;
 use crate::position::Movement;
 
@@ -7,7 +8,7 @@ pub fn advance_aux(
     position: &mut PositionAux,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
-) -> anyhow::Result</* is legal mate */ bool> {
+) -> AdvanceResult</* is legal mate */ bool> {
     if position.turn().is_black() {
         black::advance(position, options, result)?;
         Ok(false)

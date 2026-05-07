@@ -1,4 +1,5 @@
 use crate::position::{
+    advance::options::{AdvanceError, AdvanceResult},
     bitboard::{
         bishop_reachable, king_then_king_or_night_power, knight_power, lance_reachable,
         rook_reachable,
@@ -7,7 +8,6 @@ use crate::position::{
     position::PositionAux,
     rule::{is_legal_drop, is_legal_move},
 };
-use anyhow::Result;
 
 use crate::{
     piece::{Color, Kind},
@@ -30,7 +30,7 @@ pub(super) fn attack_preventing_movements<'a>(
     options: &'a AdvanceOptions,
     attacker_hint: Option<Attacker>,
     result: &'a mut Vec<Movement>,
-) -> Result</* is legal mate */ bool> {
+) -> AdvanceResult</* is legal mate */ bool> {
     let mut ctx = Context::new(
         position,
         should_return_check,
@@ -65,12 +65,11 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,
         result: &'a mut Vec<Movement>,
-    ) -> anyhow::Result<Self> {
+    ) -> AdvanceResult<Self> {
         let turn = position.turn();
         let attacker = match attacker_hint {
             Some(attacker) => attacker,
-            None => attacker(position, turn, false)
-                .ok_or_else(|| anyhow::anyhow!("No attacker found"))?,
+            None => attacker(position, turn, false).ok_or(AdvanceError::NoAttacker)?,
         };
         let pinned = pinned(position, turn, turn);
 
@@ -102,7 +101,7 @@ impl<'a> Context<'a> {
     }
 
     // #[inline(never)]
-    fn advance(&mut self) -> Result<()> {
+    fn advance(&mut self) -> AdvanceResult<()> {
         self.king_move()?;
 
         if self.attacker.double_check.is_none() {
@@ -114,7 +113,7 @@ impl<'a> Context<'a> {
     }
 
     // #[inline(never)]
-    fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> Result<()> {
+    fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> AdvanceResult<()> {
         if attacker_kind.is_line_piece() {
             let blockable = self.blockable_squares(attacker_pos, attacker_kind);
             for dest in blockable {
@@ -125,12 +124,12 @@ impl<'a> Context<'a> {
     }
 
     // #[inline(never)]
-    fn capture(&mut self, attacker_pos: Square) -> Result<()> {
+    fn capture(&mut self, attacker_pos: Square) -> AdvanceResult<()> {
         self.add_movements_to(attacker_pos, false)
     }
 
     // #[inline(never)]
-    fn king_move(&mut self) -> Result<()> {
+    fn king_move(&mut self) -> AdvanceResult<()> {
         let king_color = self.position.turn();
         let attacker_color = king_color.opposite();
         let attacker_color_bb = self.position.capturable_by(king_color);
@@ -197,7 +196,7 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> Result<()> {
+    fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> AdvanceResult<()> {
         // Drop
         if include_drop {
             for kind in self.position.hands().kinds(self.position.turn()) {
@@ -312,7 +311,7 @@ impl Context<'_> {
         checked(&mut np, self.position.turn().opposite())
     }
 
-    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
+    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> AdvanceResult<()> {
         let is_king_move = kind == Kind::King;
 
         // TODO: check the second attacker

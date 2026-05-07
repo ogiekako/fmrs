@@ -1,7 +1,7 @@
+use crate::position::advance::options::AdvanceResult;
 use crate::position::bitboard::{king_power, lion_king_power, power, reachable, reachable_sub};
 use crate::position::position::PositionAux;
 use crate::position::rule::is_legal_move;
-use anyhow::Result;
 
 use crate::piece::{Color, Kind};
 
@@ -18,7 +18,7 @@ pub(super) fn advance(
     position: &mut PositionAux,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
-) -> anyhow::Result<()> {
+) -> AdvanceResult<()> {
     debug_assert_eq!(position.turn(), Color::BLACK);
     let mut ctx = Context::new(position, options, res)?;
     ctx.advance()?;
@@ -45,7 +45,7 @@ impl<'a> Context<'a> {
         position: &'a mut PositionAux,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
-    ) -> anyhow::Result<Self> {
+    ) -> AdvanceResult<Self> {
         let attacker = position
             .black_king_pos()
             .is_some()
@@ -80,7 +80,7 @@ impl<'a> Context<'a> {
         })
     }
 
-    fn advance(&mut self) -> Result<()> {
+    fn advance(&mut self) -> AdvanceResult<()> {
         if let Some(attacker) = &self.attacker {
             attack_preventing_movements(
                 self.position,
@@ -100,7 +100,7 @@ impl<'a> Context<'a> {
     }
 
     #[inline(never)]
-    fn drops(&mut self) -> Result<()> {
+    fn drops(&mut self) -> AdvanceResult<()> {
         let white_king_pos = self.position.white_king_pos();
         for kind in self.position.hands().kinds(Color::BLACK) {
             if kind == Kind::Pawn && self.pawn_mask >> white_king_pos.col() & 1 != 0 {
@@ -119,7 +119,7 @@ impl<'a> Context<'a> {
     }
 
     #[inline(never)]
-    fn direct_attack_moves(&mut self) -> Result<()> {
+    fn direct_attack_moves(&mut self) -> AdvanceResult<()> {
         self.non_leap_piece_direct_attack()?;
         self.leap_piece_direct_attack()?;
 
@@ -127,7 +127,7 @@ impl<'a> Context<'a> {
     }
 
     #[inline(never)]
-    fn non_leap_piece_direct_attack(&mut self) -> Result<()> {
+    fn non_leap_piece_direct_attack(&mut self) -> AdvanceResult<()> {
         let lion_king_range = lion_king_power(self.position.white_king_pos());
         let king_range = king_power(self.position.white_king_pos())
             .and_not(self.position.color_bb_and_stone(Color::BLACK));
@@ -184,7 +184,7 @@ impl<'a> Context<'a> {
     }
 
     #[inline(never)]
-    fn leap_piece_direct_attack(&mut self) -> Result<()> {
+    fn leap_piece_direct_attack(&mut self) -> AdvanceResult<()> {
         let white_king_pos = self.position.white_king_pos();
 
         for attacker_source_kind in [
@@ -262,7 +262,7 @@ impl<'a> Context<'a> {
     }
 
     // #[inline(never)]
-    fn discovered_attack_moves(&mut self) -> Result<()> {
+    fn discovered_attack_moves(&mut self) -> AdvanceResult<()> {
         let blockers = pinned(self.position, Color::WHITE, Color::BLACK);
         if blockers.iter().next().is_none() {
             return Ok(());
@@ -361,7 +361,7 @@ impl MoveSet {
 
 // Helper
 impl Context<'_> {
-    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> Result<()> {
+    fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> AdvanceResult<()> {
         if kind == Kind::King {
             let mut np = self.position.clone();
             np.do_move(&movement);
