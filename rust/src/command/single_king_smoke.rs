@@ -22,7 +22,7 @@ use std::time::Instant;
 
 use super::smoke_features::{extract_features, LinearModel};
 use super::smoke_constraints::{
-    board_piece_count, canonical_position, canonical_sfen, parse_allowed_kinds,
+    board_piece_count, canonical_sfen, parse_allowed_kinds,
     parse_mate_squares, satisfies_ideal_smoke_constraints, satisfies_mate_square,
     satisfies_ideal_smoke_generation_constraints, satisfies_ideal_smoke_undo_candidate,
     kind_allowed_by_mask, satisfies_search_constraints, square_in_bounds,
@@ -1289,9 +1289,10 @@ fn search_single_seed(
             let (step, positions) = search.output_positions(true, false)?;
             let output_raw_positions = positions.len();
             if step > 0 && max_step.is_none_or(|limit| step <= limit) {
+                // 仕様: LR canonicalization は seed 生成 (実行最初の final
+                // positions 列挙) のみで使用。逆算中の出力 filter では使わない。
                 let filtered = positions
                     .into_iter()
-                    .map(|position| canonical_position(&position, constraints))
                     .filter(|position| {
                         satisfies_ideal_smoke_constraints(position, step, constraints)
                     })
@@ -1477,13 +1478,8 @@ fn search_single_seed(
     let best = if best_positions.is_empty() {
         None
     } else {
-        let mut sfens = best_positions.iter().map(PositionAux::sfen).collect::<Vec<_>>();
-        sfens.sort();
-        let representative = sfens.into_iter().next().unwrap();
-        let representative_pos = best_positions
-            .into_iter()
-            .find(|p| p.sfen() == representative)
-            .unwrap();
+        // smoke output に sort 順序の要件は無い。先頭を representative として使う。
+        let representative_pos = best_positions.into_iter().next().unwrap();
         Some((best_piece_count, vec![representative_pos]))
     };
     Ok(SingleSeedResult { best, killer })
