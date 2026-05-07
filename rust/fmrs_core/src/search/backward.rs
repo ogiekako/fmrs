@@ -1319,19 +1319,23 @@ impl BackwardSearch {
         //   - bench_backward_search_seed_sfen -3.4%
         //   - bench_bataco                -27.3%
         //   - bench_jugemu                 -2.5%
+        //
         // The cross-step memo carried results from earlier (smaller mate_in)
         // searches; at deep steps these stale entries bloat the memo and force
-        // grows/shrinks against an oversized table while contributing few hits
-        // at the new mate_in (which differs from cached mate_in for those entries).
-        // Within-step memoization (delta + accumulated memo via merge) still
-        // captures all useful sharing.
+        // grows/shrinks against an oversized table while contributing few hits.
         //
         // Tried alternatives (all regressed):
-        //  - clear()/memset on existing buffers: 8GB memset per step, slow
-        //  - pre_allocate(limit) on fresh empty memos: heavy alloc upfront on
-        //    every step (+44.5% regression vs many-grows approach), since most
-        //    steps don't need full-limit capacity
-        // The fresh-empty path organically grows tables only as needed.
+        //  - clear()/memset on existing buffers (+15%): memset eagerly touches
+        //    every page, defeating the demand-zero laziness mmap gives us. The
+        //    memset itself adds ~1.3s of memory bandwidth and pollutes L3 cache
+        //    with pages most of which the next merge won't even read.
+        //  - pre_allocate(limit) on fresh empty memos (+44.5%): heavy upfront
+        //    alloc on every step, since most steps don't need full-limit cap.
+        //
+        // Drop+new wins because alloc_zeroed (mmap MAP_ANONYMOUS) returns
+        // demand-zero pages — virtual address space without physical pages.
+        // The merge faults in only the pages it actually writes; most of the
+        // buffer never costs physical memory or cache.
         self.memo = Memo::new();
         self.prev_memo = Memo::new();
         let mut memo = Memo::new();
