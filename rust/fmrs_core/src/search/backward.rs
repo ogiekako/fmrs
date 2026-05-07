@@ -1205,14 +1205,14 @@ impl BackwardSearch {
                     .par_chunks(chunk_size)
                     .map(|chunk| {
                         // 初期 capacity を高めに取って rehash (memset 込み) を回避。
-                        // 1024 は数 KB の control bytes 確保で軽く、ほとんどの
-                        // chunk で 1-2 回の rehash を skip できる。
+                        // 4096 で数 KB の確保コストと引き換えに数回の rehash を skip。
+                        // 1024 / 4096 / 16384 を試した結果、4096 が sweet spot。
                         let mut memo_delta = NoHashMap64::with_capacity_and_hasher(
-                            1024,
+                            4096,
                             Default::default(),
                         );
                         let mut prev_memo_delta = NoHashMap64::with_capacity_and_hasher(
-                            1024,
+                            4096,
                             Default::default(),
                         );
                         let mut prev_positions = vec![];
