@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778175295051,
+  "lastUpdate": 1778178409390,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -33797,6 +33797,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 113922,
             "range": "± 31",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "56220bfd7ffac91a58dca58906e629fa46fdc27c",
+          "message": "backward: KILLER_COUNT 16 → 2 に削減\n\nHistory heuristic が (kind, dest) の粗粒度シグナルでカバーするようになり、\nKiller の役割は「直近のまったく同じ手」を素早く引き当てるだけに絞れる。\nスロット数を減らすと killer スキャン O(K×n) の overhead が削減される。\n\nK=16: ~9.50µs  K=8: ~9.27µs  K=4: ~9.13µs  K=2: ~9.10µs  K=1: ~9.16µs\n→ K=2 が最良トレードオフ\n\n試したが採用しなかった変形:\n- Negative history (malus): 効果が測定ノイズに埋もれ、複雑性増加に見合わない\n- (kind, dest, promote) key: テーブル倍増でキャッシュ圧力が増し neutral\n- full sort: top-3 selection と同等だが sort overhead あり\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T03:16:33+09:00",
+          "tree_id": "8d0af0428d6008316e423a38ba09412f8e032ba6",
+          "url": "https://github.com/ogiekako/fmrs/commit/56220bfd7ffac91a58dca58906e629fa46fdc27c"
+        },
+        "date": 1778178405912,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 912,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3562,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 301,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 986,
+            "range": "± 1743",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30562,
+            "range": "± 115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1441,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5612,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1776699,
+            "range": "± 307",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10843,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 186407,
+            "range": "± 849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 82012,
+            "range": "± 240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 76425,
+            "range": "± 245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 25500,
+            "range": "± 813",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 63939,
+            "range": "± 365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18427,
+            "range": "± 339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1265,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33898,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4136,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21394,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 76923,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 43478,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 80182,
+            "range": "± 61",
             "unit": "ns/iter"
           }
         ]
