@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778075368704,
+  "lastUpdate": 1778122869303,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -29441,6 +29441,156 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 62629,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "789ba4fdbd59aaf5e88db9ac4e0a7057b89ed6f9",
+          "message": "solutions_overlay_inner: low-information エントリのメモ化を skip\n\nmemo に non_zero_hint (= shortest_start=1, shortest_end=INF, ...) や\nunknown を入れるのを止める。\nこれらは shrink で真っ先に evict される低スコアエントリで、再計算しても\n1 回の advance_aux で得られる程度の情報しか持たない。\n\nstep 11 の delta_total が劇的に縮む:\n  103M → 42M (60% 減)\n連動して merge 2.9s → 0.4s, shrink 1.25s → 0.49s, phase2_only 5.4s → 4.2s。\nphase2_only も縮むのは「メモへの insert 自体がかかっていた CPU 」\nが消えたため。\n\nベンチマーク (--max-step 13, --no-pawn, --no-gold, --max-promoted-pct 40,\n--max-promoted-pct-after-step 4, 単一 seed):\n  before (per-shard rebuild shrink まで): 22.2s mean\n  after:                                  15.00s mean / 14.45s best\n  → mean 1.48x / best 1.54x  (vs baseline 25.9s では 1.73x / 1.79x)\n\n長い方のベンチ (--max-step 21, seed-limit 15):\n  before: 22.4s mean\n  after:  11.74s mean / 11.24s best\n  → mean 1.91x / best 1.99x\n\nbest_pieces / 解答 SFEN は変化なし (両ベンチで再確認済み)。\ncorrectness: skip した entry は次回訪問時に再計算されるが、関数は\ndeterministic なので結果は同じ。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-06T23:33:47+09:00",
+          "tree_id": "520261dcd139944c12383d73fc17050abba4e073",
+          "url": "https://github.com/ogiekako/fmrs/commit/789ba4fdbd59aaf5e88db9ac4e0a7057b89ed6f9"
+        },
+        "date": 1778122865953,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 944,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3748,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 322,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 985,
+            "range": "± 1852",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 35469,
+            "range": "± 117",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1547,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5754,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1983178,
+            "range": "± 196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 14445,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 190500,
+            "range": "± 843",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 92944,
+            "range": "± 330",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84594,
+            "range": "± 161",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 20870,
+            "range": "± 56",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 83337,
+            "range": "± 136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 22326,
+            "range": "± 74",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1279,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 39607,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4762,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 25640,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83873,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 69306,
+            "range": "± 4",
             "unit": "ns/iter"
           }
         ]
