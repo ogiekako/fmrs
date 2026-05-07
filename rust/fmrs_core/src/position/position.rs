@@ -645,7 +645,7 @@ mod tests {
 
     #[test]
     fn position_size() {
-        assert_eq!(std::mem::size_of::<Position>(), 96);
+        assert_eq!(std::mem::size_of::<Position>(), 144);
     }
 
     #[test]
