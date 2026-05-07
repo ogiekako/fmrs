@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778178409390,
+  "lastUpdate": 1778178829529,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -33953,6 +33953,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 80182,
             "range": "± 61",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "a53cb12e69119238f161f1016f6c8a168fcaa7cd",
+          "message": "single_king_smoke: (pieces, positions) タプルが更新された場合もログ出力\n\npieces が同じでも positions が増えた場合に global_best_pieces= ログを出す。\nAtomicUsize → AtomicU64 に変更し、pieces を上位 32bit・positions を下位 32bit\nに pack することで単一 CAS で (pieces, positions) の辞書順比較を実現。\n呼び出し条件を improved || positions_increased に拡張。pieces <= 8 の閾値は維持。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T03:20:42+09:00",
+          "tree_id": "d0348d4863e7400f6ebc8346c0d68c0d6ad7d5d0",
+          "url": "https://github.com/ogiekako/fmrs/commit/a53cb12e69119238f161f1016f6c8a168fcaa7cd"
+        },
+        "date": 1778178826891,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 874,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3723,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 289,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 936,
+            "range": "± 3414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34377,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1544,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 6004,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1862597,
+            "range": "± 326",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11701,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 220594,
+            "range": "± 1580",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 101315,
+            "range": "± 537",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84498,
+            "range": "± 685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21341,
+            "range": "± 475",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 81678,
+            "range": "± 707",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18290,
+            "range": "± 214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1501,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37735,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4485,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23809,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 79401,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 44652,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 88890,
+            "range": "± 48",
             "unit": "ns/iter"
           }
         ]
