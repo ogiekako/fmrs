@@ -1313,8 +1313,23 @@ impl BackwardSearch {
         // 細かめに分割すると work-stealing が効いて並列効率が改善する。
         // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
         let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
-        let mut memo = std::mem::replace(&mut self.memo, Memo::new());
-        let mut prev_memo = std::mem::replace(&mut self.prev_memo, Memo::new());
+        // Discard cross-step memo: each step's DFS starts with fresh empty memos.
+        // Counter-intuitive but measurably faster across multiple benches:
+        //   - bench_backward_search        -8.4%
+        //   - bench_backward_search_seed_sfen -3.4%
+        //   - bench_bataco                -27.3%
+        //   - bench_jugemu                 -2.5%
+        // The cross-step memo carried results from earlier (smaller mate_in)
+        // searches; at deep steps these stale entries bloat the memo and force
+        // grows/shrinks against an oversized table while contributing few hits
+        // at the new mate_in (which differs from cached mate_in_for those entries).
+        // Within-step memoization (delta + accumulated memo via merge) still
+        // captures all useful sharing.
+        // The previous self.memo / self.prev_memo are dropped without re-use.
+        self.memo = Memo::new();
+        self.prev_memo = Memo::new();
+        let mut memo = Memo::new();
+        let mut prev_memo = Memo::new();
 
         let phase2_start = std::time::Instant::now();
 
