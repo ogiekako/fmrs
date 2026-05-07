@@ -649,26 +649,6 @@ pub(super) fn reflect_left_right(position: &PositionAux) -> PositionAux {
     reflected
 }
 
-pub(super) fn canonical_lr_position(position: &PositionAux) -> PositionAux {
-    let reflected = reflect_left_right(position);
-    if position.sfen() <= reflected.sfen() {
-        position.clone()
-    } else {
-        reflected
-    }
-}
-
-pub(super) fn canonical_position(
-    position: &PositionAux,
-    constraints: SearchConstraints,
-) -> PositionAux {
-    if constraints.breaks_lr_symmetry() {
-        position.clone()
-    } else {
-        canonical_lr_position(position)
-    }
-}
-
 pub(super) fn count_kind_on_board(position: &PositionAux, kind: Kind) -> u32 {
     let mut count = position.bitboard(Color::BLACK, kind).count_ones()
         + position.bitboard(Color::WHITE, kind).count_ones();

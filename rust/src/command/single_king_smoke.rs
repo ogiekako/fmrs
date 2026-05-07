@@ -1023,19 +1023,6 @@ fn black_piece_can_stand_on(kind: Kind, sq: Square) -> bool {
     }
 }
 
-fn dedup_positions(positions: Vec<PositionAux>) -> Vec<PositionAux> {
-    // smoke command の output は順序保証不要。digest (Zobrist hash, u64) で
-    // dedup し、sort は省略 (sfen 計算/比較の重いコストを回避)。
-    let mut seen = fmrs_core::nohash::NoHashSet64::default();
-    let mut deduped = vec![];
-    for position in positions {
-        if seen.insert(position.digest()) {
-            deduped.push(position);
-        }
-    }
-    deduped
-}
-
 #[derive(Clone, Default)]
 struct FeatureLogConfig {
     path: Option<PathBuf>,
@@ -1311,7 +1298,14 @@ fn search_single_seed(
                     }
                 }
                 if improved {
-                    best_positions = dedup_positions(best_positions);
+                    // dedup_positions 不要: improved 直前に best_positions.clear()
+                    // しており、push されるのは単一の output_positions の filtered
+                    // 結果のみ。output_positions は frontier (一意) に基づくので
+                    // 重複は発生しない。
+                    debug_assert!({
+                        let mut seen = fmrs_core::nohash::NoHashSet64::default();
+                        best_positions.iter().all(|p| seen.insert(p.digest()))
+                    }, "best_positions has duplicates after improvement");
                     if best_piece_count >= 8 {
                         let url = best_positions[0].sfen_url();
                         let stats = search.stats();
