@@ -1204,8 +1204,17 @@ impl BackwardSearch {
                 candidates
                     .par_chunks(chunk_size)
                     .map(|chunk| {
-                        let mut memo_delta = NoHashMap64::default();
-                        let mut prev_memo_delta = NoHashMap64::default();
+                        // 初期 capacity を高めに取って rehash (memset 込み) を回避。
+                        // 1024 は数 KB の control bytes 確保で軽く、ほとんどの
+                        // chunk で 1-2 回の rehash を skip できる。
+                        let mut memo_delta = NoHashMap64::with_capacity_and_hasher(
+                            1024,
+                            Default::default(),
+                        );
+                        let mut prev_memo_delta = NoHashMap64::with_capacity_and_hasher(
+                            1024,
+                            Default::default(),
+                        );
                         let mut prev_positions = vec![];
                         let mut solution_scratch = vec![];
 
