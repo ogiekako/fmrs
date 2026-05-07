@@ -1659,20 +1659,29 @@ fn parse_max_memo_entries(
     match value {
         "auto" => {
             let total_cores = default_parallelism();
-            let divisor = (parallel * inner_parallel).min(total_cores);
-            let entries = memo_entries_for_memory(divisor);
+            let total_bytes = total_memory_bytes();
+            let available = total_bytes * 4 / 5;
+            const BYTES_PER_ENTRY: usize = 128;
+            // Limit 1: proportional to fraction of cores used (main fix).
+            // Each seed uses inner_parallel cores; the machine can run
+            // total_cores/inner_parallel such seeds at once.
+            let by_cores = available
+                / (total_cores / inner_parallel.max(1)).max(1)
+                / BYTES_PER_ENTRY;
+            // Limit 2: divide budget among actually concurrent seeds.
+            let by_parallel = available / parallel.max(1) / BYTES_PER_ENTRY;
+            let entries = by_cores.min(by_parallel);
             eprintln!(
-                "auto max_memo_entries={} (parallel={} inner_parallel={} total_cores={} divisor={})",
-                entries, parallel, inner_parallel, total_cores, divisor
+                "auto max_memo_entries={entries} (parallel={parallel} inner_parallel={inner_parallel} total_cores={total_cores} by_cores={by_cores} by_parallel={by_parallel})"
             );
             Ok(Some(entries))
         }
         "full" => {
-            let divisor = (parallel * inner_parallel).min(default_parallelism());
-            let entries = memo_entries_for_memory(divisor);
+            // "full": use all available memory divided by concurrent seeds,
+            // ignoring inner_parallel (caller's responsibility to not OOM).
+            let entries = memo_entries_for_memory(parallel.max(1));
             eprintln!(
-                "full max_memo_entries={} (parallel={} inner_parallel={})",
-                entries, parallel, inner_parallel
+                "full max_memo_entries={entries} (parallel={parallel} inner_parallel={inner_parallel})"
             );
             Ok(Some(entries))
         }
