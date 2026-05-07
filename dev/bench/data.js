@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778162388600,
+  "lastUpdate": 1778162931159,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -32393,6 +32393,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 166665,
             "range": "± 15",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "b6cf2cab1b21820bc299889e1368f07186883dfc",
+          "message": "backward: empty-memo の comment を更新、clear() の根本理由を記録\n\nV3 (clear/memset で buffer 再利用) を実装して測定 → +15% regression。\n理由は memset が demand-zero の laziness を defeat すること:\n- alloc_zeroed (mmap MAP_ANONYMOUS) は virtual address のみ確保し物理ページ\n  は write 時のみ実体化する (lazy)\n- memset は ENTIRE buffer に物理ページを pre-touch する\n- merge が touch しないページまで物理メモリと L3 cache を消費\n- merge 中の hot page が cache から退去させられて lookup が遅くなる\n\ndrop+new が速いのは alloc_zeroed の laziness を活用するから:\n- 古い buffer の物理ページは munmap で OS に返却 (cheap)\n- 新しい buffer は virtual のみ、merge が必要な分だけ実体化\n- 物理メモリと cache の使用量が「実データ量」に比例する\n\nV2 (pre_allocate every step) と V3 (clear) 両方が regression した実測値を\nコメントに追記。未使用の clear() メソッドは削除。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T22:48:37+09:00",
+          "tree_id": "cd677fa3b9a6f8b3d19fded48bf1f351858c0c39",
+          "url": "https://github.com/ogiekako/fmrs/commit/b6cf2cab1b21820bc299889e1368f07186883dfc"
+        },
+        "date": 1778162928691,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 937,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3933,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 314,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1126,
+            "range": "± 1843",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 35719,
+            "range": "± 202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1519,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5686,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 2064704,
+            "range": "± 105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 14332,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 216659,
+            "range": "± 797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 85640,
+            "range": "± 292",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84485,
+            "range": "± 102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 20981,
+            "range": "± 559",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 87439,
+            "range": "± 1057",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21607,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1283,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 38680,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4634,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 24592,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81686,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 54350,
+            "range": "± 231",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 165247,
+            "range": "± 21",
             "unit": "ns/iter"
           }
         ]
