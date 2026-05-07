@@ -1930,34 +1930,43 @@ fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Opti
 
 
 /// Per-chunk killer move table indexed by mate_in.
-/// Records the most recent move that caused a cutoff at each mate_in level so
-/// pass-1 can try it first for subsequent calls. Persistent across the chunk
-/// (thousands of candidates) but reset per chunk to avoid stale moves leaking
-/// across thread boundaries.
+/// Records up to KILLER_COUNT recent moves that caused a cutoff at each mate_in
+/// level so pass-1 can try them first for subsequent calls. Persistent across
+/// the chunk (thousands of candidates) but reset per chunk to avoid stale moves
+/// leaking across thread boundaries.
 const KILLER_DEPTH: usize = 64;
+const KILLER_COUNT: usize = 16;
 
 struct Killers {
-    by_mate_in: [Option<Movement>; KILLER_DEPTH],
+    by_mate_in: [[Option<Movement>; KILLER_COUNT]; KILLER_DEPTH],
 }
 
 impl Killers {
     fn new() -> Self {
         Self {
-            by_mate_in: [const { None }; KILLER_DEPTH],
+            by_mate_in: [const { [const { None }; KILLER_COUNT] }; KILLER_DEPTH],
         }
     }
 
     #[inline(always)]
-    fn get(&self, mate_in: u16) -> Option<&Movement> {
+    fn slots(&self, mate_in: u16) -> &[Option<Movement>; KILLER_COUNT] {
+        // Out-of-range safe-guard; in practice mate_in stays well below 64.
         self.by_mate_in
             .get(mate_in as usize)
-            .and_then(|s| s.as_ref())
+            .unwrap_or(&[const { None }; KILLER_COUNT])
     }
 
     #[inline(always)]
-    fn set(&mut self, mate_in: u16, m: Movement) {
+    fn record(&mut self, mate_in: u16, m: Movement) {
         if let Some(slot) = self.by_mate_in.get_mut(mate_in as usize) {
-            *slot = Some(m);
+            if slot[0] == Some(m) {
+                return; // already at top
+            }
+            // LRU shift: push older killer down, new at top.
+            for i in (1..KILLER_COUNT).rev() {
+                slot[i] = slot[i - 1];
+            }
+            slot[0] = Some(m);
         }
     }
 }
@@ -2068,14 +2077,23 @@ fn solutions_overlay_inner(
     // without prefetch every `base.get()` call stalls ~200 cycles waiting for
     // DRAM.  With prefetch the stalls overlap with the (cheap) moved_digest
     // computations, cutting per-position latency from O(N × miss) to O(miss).
-    // Killer heuristic: if we have a remembered cutoff move at this mate_in level,
-    // swap it to position 0 so pass-1 evaluates it first. The full prefetch loop
-    // still warms cache lines for ALL children — we just bias which one's lookup
-    // result is consumed first by the cutoff check.
-    if let Some(killer_m) = killers.get(mate_in) {
-        if let Some(killer_idx) = movements.iter().position(|m| m == killer_m) {
-            if killer_idx > 0 {
-                movements.swap(0, killer_idx);
+    // Killer heuristic: swap up to KILLER_COUNT remembered cutoff moves to the
+    // front of the movements list so pass-1 evaluates them first. The full
+    // prefetch loop still warms cache lines for ALL children — we just bias
+    // which one's lookup result is consumed first by the cutoff check.
+    {
+        let killer_slots = killers.slots(mate_in);
+        let mut next_swap = 0;
+        for k in killer_slots.iter().flatten() {
+            if let Some(rel_idx) = movements[next_swap..].iter().position(|m| m == k) {
+                let idx = next_swap + rel_idx;
+                if idx != next_swap {
+                    movements.swap(next_swap, idx);
+                }
+                next_swap += 1;
+                if next_swap >= movements.len() {
+                    break;
+                }
             }
         }
     }
@@ -2102,7 +2120,7 @@ fn solutions_overlay_inner(
             let a = child.inc();
             res.update_with_child(&a);
             if res.definitely_shorter_or_non_unique(mate_in) {
-                killers.set(mate_in, *m);
+                killers.record(mate_in, *m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
@@ -2133,7 +2151,7 @@ fn solutions_overlay_inner(
             res.update_with_child(&a);
 
             if res.definitely_shorter_or_non_unique(mate_in) {
-                killers.set(mate_in, *m);
+                killers.record(mate_in, *m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
