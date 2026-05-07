@@ -44,6 +44,67 @@ const NUM_SHARDS: usize = 1 << SHARD_BITS;
 const SHARD_SHIFT: u32 = 64 - SHARD_BITS;
 const FLAT_EMPTY_KEY: u64 = 0;
 
+/// Sentinel marker for INF_START/INF_END in the 8-bit packed StepRange.
+/// Real step values must fit in 0..=253 (smoke search bounds, per design).
+/// Backward search beyond ~250 plies would saturate.
+const PACK_SENTINEL_INF_START: u8 = 254;
+const PACK_SENTINEL_INF_END: u8 = 255;
+
+/// Pack a StepRange into u32 (4 × u8 bytes). Caller must ensure non-INF step
+/// values fit in u8 (0..=253). For smoke searches with mate_in ≪ 256 this
+/// always holds; backward search at deeper plies should not use this layout.
+#[inline(always)]
+fn pack_step_range(sr: StepRange) -> u32 {
+    let pack_start = |v: u16| -> u8 {
+        if v >= INF_START {
+            PACK_SENTINEL_INF_START
+        } else {
+            debug_assert!(v <= 253, "StepRange start {} exceeds packed range", v);
+            v as u8
+        }
+    };
+    let pack_end = |v: u16| -> u8 {
+        if v >= INF_END {
+            PACK_SENTINEL_INF_END
+        } else {
+            debug_assert!(v <= 253, "StepRange end {} exceeds packed range", v);
+            v as u8
+        }
+    };
+    let bytes = [
+        pack_start(sr.next_start),
+        pack_end(sr.next_end),
+        pack_start(sr.shortest_start),
+        pack_end(sr.shortest_end),
+    ];
+    u32::from_le_bytes(bytes)
+}
+
+#[inline(always)]
+fn unpack_step_range(packed: u32) -> StepRange {
+    let bytes = packed.to_le_bytes();
+    let unpack_start = |b: u8| -> u16 {
+        if b == PACK_SENTINEL_INF_START {
+            INF_START
+        } else {
+            b as u16
+        }
+    };
+    let unpack_end = |b: u8| -> u16 {
+        if b == PACK_SENTINEL_INF_END {
+            INF_END
+        } else {
+            b as u16
+        }
+    };
+    StepRange {
+        next_start: unpack_start(bytes[0]),
+        next_end: unpack_end(bytes[1]),
+        shortest_start: unpack_start(bytes[2]),
+        shortest_end: unpack_end(bytes[3]),
+    }
+}
+
 struct ShardedFlatMemo {
     shards: Box<[FlatShard]>,
 }
@@ -53,17 +114,15 @@ struct FlatShard {
     len: AtomicUsize,
 }
 
+/// SoA layout: keys probed during lookups, values read only on hit.
+/// Effective per-slot storage is 12 bytes (u64 + u32 packed StepRange) vs.
+/// the legacy 16-byte AoS layout. The split also doubles probe-step
+/// cache-line density (8 keys per 64B line vs. 4 in the AoS layout).
 struct FlatShardInner {
-    slots: Box<[FlatSlot]>,
+    keys: Box<[u64]>,
+    values: Box<[u32]>,
     mask: usize,
     capacity_threshold: usize,
-}
-
-#[derive(Copy, Clone)]
-#[repr(C)]
-struct FlatSlot {
-    key: u64,
-    value: StepRange,
 }
 
 unsafe impl Sync for ShardedFlatMemo {}
@@ -76,15 +135,19 @@ fn shard_index(key: u64) -> usize {
     (key >> SHARD_SHIFT) as usize
 }
 
-fn alloc_slots(size: usize) -> Box<[FlatSlot]> {
+fn alloc_slot_arrays(size: usize) -> (Box<[u64]>, Box<[u32]>) {
+    (alloc_zeroed_slice::<u64>(size), alloc_zeroed_slice::<u32>(size))
+}
+
+fn alloc_zeroed_slice<T: Copy>(size: usize) -> Box<[T]> {
     use std::alloc::{alloc_zeroed, Layout};
     debug_assert!(size > 0);
     debug_assert!(size.is_power_of_two());
-    let layout = Layout::array::<FlatSlot>(size).expect("FlatMemo layout");
-    // SAFETY: FlatSlot is plain old data; zeroed bytes form a valid `FlatSlot`
-    // (key=0 = empty sentinel; value bytes unused while empty).
+    let layout = Layout::array::<T>(size).expect("FlatMemo layout");
+    // SAFETY: T (u64 or u32) is plain old data; zeroed bytes form valid values
+    // (key=0 = empty sentinel; value bytes unused while corresponding key is empty).
     unsafe {
-        let ptr = alloc_zeroed(layout) as *mut FlatSlot;
+        let ptr = alloc_zeroed(layout) as *mut T;
         if ptr.is_null() {
             std::alloc::handle_alloc_error(layout);
         }
@@ -130,8 +193,9 @@ impl ShardedFlatMemo {
         shard.get(key)
     }
 
-    /// Issue a non-blocking prefetch for the FlatShard slot that `key` will probe,
-    /// so the cache line is warm by the time `get` is called.
+    /// Issue a non-blocking prefetch for the FlatShard key slot that `key` will probe,
+    /// so the cache line is warm by the time `get` is called. Prefetches only the
+    /// keys array; values are read on hit (rare relative to probes).
     #[inline(always)]
     fn prefetch_key(&self, key: u64) {
         if key == FLAT_EMPTY_KEY {
@@ -140,14 +204,14 @@ impl ShardedFlatMemo {
         let shard = unsafe { self.shards.get_unchecked(shard_index(key)) };
         let inner = unsafe { &*shard.inner.get() };
         let idx = (key as usize) & inner.mask;
-        let slot_ptr = unsafe { inner.slots.get_unchecked(idx) } as *const FlatSlot;
+        let key_ptr = unsafe { inner.keys.get_unchecked(idx) } as *const u64;
         #[cfg(target_arch = "x86_64")]
         unsafe {
             use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
-            _mm_prefetch(slot_ptr as *const i8, _MM_HINT_T0);
+            _mm_prefetch(key_ptr as *const i8, _MM_HINT_T0);
         }
         #[cfg(not(target_arch = "x86_64"))]
-        let _ = slot_ptr;
+        let _ = key_ptr;
     }
 
     #[inline(always)]
@@ -261,9 +325,11 @@ impl FlatShard {
     fn with_capacity(capacity: usize) -> Self {
         let min_size = capacity.saturating_mul(2).max(8);
         let size = min_size.next_power_of_two();
+        let (keys, values) = alloc_slot_arrays(size);
         Self {
             inner: UnsafeCell::new(FlatShardInner {
-                slots: alloc_slots(size),
+                keys,
+                values,
                 mask: size - 1,
                 capacity_threshold: size * 7 / 10,
             }),
@@ -275,22 +341,29 @@ impl FlatShard {
         let needed_size = capacity.saturating_mul(2).max(8).next_power_of_two();
         // SAFETY: &mut self ⇒ exclusive access.
         let inner = unsafe { &mut *self.inner.get() };
-        if needed_size <= inner.slots.len() {
+        if needed_size <= inner.keys.len() {
             return;
         }
-        let old_slots = std::mem::replace(&mut inner.slots, alloc_slots(needed_size));
+        let (new_keys, new_values) = alloc_slot_arrays(needed_size);
+        let old_keys = std::mem::replace(&mut inner.keys, new_keys);
+        let old_values = std::mem::replace(&mut inner.values, new_values);
         inner.mask = needed_size - 1;
         inner.capacity_threshold = needed_size * 7 / 10;
         let new_mask = inner.mask;
-        for old in old_slots.iter() {
-            if old.key == FLAT_EMPTY_KEY {
+        for i in 0..old_keys.len() {
+            let k = old_keys[i];
+            if k == FLAT_EMPTY_KEY {
                 continue;
             }
-            let mut idx = (old.key as usize) & new_mask;
+            let v = old_values[i];
+            let mut idx = (k as usize) & new_mask;
             loop {
-                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
-                if slot.key == FLAT_EMPTY_KEY {
-                    *slot = *old;
+                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
+                if *slot_key == FLAT_EMPTY_KEY {
+                    *slot_key = k;
+                    unsafe {
+                        *inner.values.get_unchecked_mut(idx) = v;
+                    }
                     break;
                 }
                 idx = (idx + 1) & new_mask;
@@ -309,12 +382,13 @@ impl FlatShard {
         let mask = inner.mask;
         let mut idx = (key as usize) & mask;
         loop {
-            let slot = unsafe { inner.slots.get_unchecked(idx) };
-            if slot.key == FLAT_EMPTY_KEY {
+            let slot_key = unsafe { *inner.keys.get_unchecked(idx) };
+            if slot_key == FLAT_EMPTY_KEY {
                 return None;
             }
-            if slot.key == key {
-                return Some(slot.value);
+            if slot_key == key {
+                let packed = unsafe { *inner.values.get_unchecked(idx) };
+                return Some(unpack_step_range(packed));
             }
             idx = (idx + 1) & mask;
         }
@@ -329,18 +403,23 @@ impl FlatShard {
         if len_before >= inner.capacity_threshold {
             unsafe { Self::grow(inner) };
         }
+        let packed = pack_step_range(value);
         let mask = inner.mask;
         let mut idx = (key as usize) & mask;
         loop {
-            let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
-            if slot.key == FLAT_EMPTY_KEY {
-                slot.key = key;
-                slot.value = value;
+            let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
+            if *slot_key == FLAT_EMPTY_KEY {
+                *slot_key = key;
+                unsafe {
+                    *inner.values.get_unchecked_mut(idx) = packed;
+                }
                 self.len.fetch_add(1, Ordering::Relaxed);
                 return;
             }
-            if slot.key == key {
-                slot.value = value;
+            if *slot_key == key {
+                unsafe {
+                    *inner.values.get_unchecked_mut(idx) = packed;
+                }
                 return;
             }
             idx = (idx + 1) & mask;
@@ -349,21 +428,27 @@ impl FlatShard {
 
     #[cold]
     unsafe fn grow(inner: &mut FlatShardInner) {
-        let new_size = (inner.slots.len() * 2).max(16);
-        let new_slots = alloc_slots(new_size);
+        let new_size = (inner.keys.len() * 2).max(16);
+        let (new_keys, new_values) = alloc_slot_arrays(new_size);
         let new_mask = new_size - 1;
-        let old_slots = std::mem::replace(&mut inner.slots, new_slots);
+        let old_keys = std::mem::replace(&mut inner.keys, new_keys);
+        let old_values = std::mem::replace(&mut inner.values, new_values);
         inner.mask = new_mask;
         inner.capacity_threshold = new_size * 7 / 10;
-        for old in old_slots.iter() {
-            if old.key == FLAT_EMPTY_KEY {
+        for i in 0..old_keys.len() {
+            let k = old_keys[i];
+            if k == FLAT_EMPTY_KEY {
                 continue;
             }
-            let mut idx = (old.key as usize) & new_mask;
+            let v = old_values[i];
+            let mut idx = (k as usize) & new_mask;
             loop {
-                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
-                if slot.key == FLAT_EMPTY_KEY {
-                    *slot = *old;
+                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
+                if *slot_key == FLAT_EMPTY_KEY {
+                    *slot_key = k;
+                    unsafe {
+                        *inner.values.get_unchecked_mut(idx) = v;
+                    }
                     break;
                 }
                 idx = (idx + 1) & new_mask;
@@ -380,36 +465,38 @@ impl FlatShard {
         let mut hole_idx;
         let removed_value;
         loop {
-            let slot = unsafe { inner.slots.get_unchecked(idx) };
-            if slot.key == FLAT_EMPTY_KEY {
+            let slot_key = unsafe { *inner.keys.get_unchecked(idx) };
+            if slot_key == FLAT_EMPTY_KEY {
                 return None;
             }
-            if slot.key == key {
-                removed_value = slot.value;
+            if slot_key == key {
+                removed_value = unpack_step_range(unsafe { *inner.values.get_unchecked(idx) });
                 hole_idx = idx;
                 break;
             }
             idx = (idx + 1) & mask;
         }
-        unsafe { inner.slots.get_unchecked_mut(hole_idx).key = FLAT_EMPTY_KEY };
+        unsafe { *inner.keys.get_unchecked_mut(hole_idx) = FLAT_EMPTY_KEY };
 
         // Backward shift deletion to preserve linear-probe invariants.
         let mut probe_idx = (hole_idx + 1) & mask;
         loop {
-            let candidate = unsafe { *inner.slots.get_unchecked(probe_idx) };
-            if candidate.key == FLAT_EMPTY_KEY {
+            let candidate_key = unsafe { *inner.keys.get_unchecked(probe_idx) };
+            if candidate_key == FLAT_EMPTY_KEY {
                 break;
             }
-            let preferred = (candidate.key as usize) & mask;
+            let preferred = (candidate_key as usize) & mask;
             let belongs = if preferred <= probe_idx {
                 hole_idx >= preferred && hole_idx < probe_idx
             } else {
                 hole_idx >= preferred || hole_idx < probe_idx
             };
             if belongs {
+                let candidate_value = unsafe { *inner.values.get_unchecked(probe_idx) };
                 unsafe {
-                    *inner.slots.get_unchecked_mut(hole_idx) = candidate;
-                    inner.slots.get_unchecked_mut(probe_idx).key = FLAT_EMPTY_KEY;
+                    *inner.keys.get_unchecked_mut(hole_idx) = candidate_key;
+                    *inner.values.get_unchecked_mut(hole_idx) = candidate_value;
+                    *inner.keys.get_unchecked_mut(probe_idx) = FLAT_EMPTY_KEY;
                 }
                 hole_idx = probe_idx;
             }
@@ -421,13 +508,17 @@ impl FlatShard {
 
     fn iter(&self) -> impl Iterator<Item = (u64, StepRange)> + '_ {
         let inner = unsafe { &*self.inner.get() };
-        inner.slots.iter().filter_map(|s| {
-            if s.key == FLAT_EMPTY_KEY {
-                None
-            } else {
-                Some((s.key, s.value))
-            }
-        })
+        inner
+            .keys
+            .iter()
+            .zip(inner.values.iter())
+            .filter_map(|(k, v)| {
+                if *k == FLAT_EMPTY_KEY {
+                    None
+                } else {
+                    Some((*k, unpack_step_range(*v)))
+                }
+            })
     }
 
     /// Per-shard local shrink: collect entries with scores, partition to keep
@@ -446,14 +537,15 @@ impl FlatShard {
         }
         let inner = unsafe { &mut *self.inner.get() };
 
-        let mut entries: Vec<(u64, u64, StepRange)> = inner
-            .slots
+        let mut entries: Vec<(u64, u64, u32)> = inner
+            .keys
             .iter()
-            .filter_map(|s| {
-                if s.key == FLAT_EMPTY_KEY {
+            .zip(inner.values.iter())
+            .filter_map(|(k, v)| {
+                if *k == FLAT_EMPTY_KEY {
                     None
                 } else {
-                    Some((score_fn(s.key, s.value), s.key, s.value))
+                    Some((score_fn(*k, unpack_step_range(*v)), *k, *v))
                 }
             })
             .collect();
@@ -461,18 +553,20 @@ impl FlatShard {
         let to_remove = current - target_len;
         entries.select_nth_unstable_by_key(to_remove, |&(score, _, _)| score);
 
-        // Clear and re-insert in one pass over the slots vec.
-        for slot in inner.slots.iter_mut() {
-            slot.key = FLAT_EMPTY_KEY;
+        // Clear and re-insert in one pass over the keys array.
+        for slot_key in inner.keys.iter_mut() {
+            *slot_key = FLAT_EMPTY_KEY;
         }
         let mask = inner.mask;
-        for &(_, key, value) in &entries[to_remove..] {
+        for &(_, key, packed) in &entries[to_remove..] {
             let mut idx = (key as usize) & mask;
             loop {
-                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
-                if slot.key == FLAT_EMPTY_KEY {
-                    slot.key = key;
-                    slot.value = value;
+                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
+                if *slot_key == FLAT_EMPTY_KEY {
+                    *slot_key = key;
+                    unsafe {
+                        *inner.values.get_unchecked_mut(idx) = packed;
+                    }
                     break;
                 }
                 idx = (idx + 1) & mask;
@@ -488,20 +582,23 @@ impl FlatShard {
     /// SAFETY: caller must ensure no concurrent reads or writes on this shard.
     unsafe fn rebuild_with_unsynchronized(&self, kept: &[(u64, StepRange)]) {
         let inner = unsafe { &mut *self.inner.get() };
-        // Clear all slots in one pass.
-        for slot in inner.slots.iter_mut() {
-            slot.key = FLAT_EMPTY_KEY;
+        // Clear all keys in one pass.
+        for slot_key in inner.keys.iter_mut() {
+            *slot_key = FLAT_EMPTY_KEY;
         }
         // Re-insert kept entries (no resize, no threshold check — table is sized
         // to fit at least `current` entries, and `kept.len() <= current`).
         let mask = inner.mask;
         for &(key, value) in kept {
+            let packed = pack_step_range(value);
             let mut idx = (key as usize) & mask;
             loop {
-                let slot = unsafe { inner.slots.get_unchecked_mut(idx) };
-                if slot.key == FLAT_EMPTY_KEY {
-                    slot.key = key;
-                    slot.value = value;
+                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
+                if *slot_key == FLAT_EMPTY_KEY {
+                    *slot_key = key;
+                    unsafe {
+                        *inner.values.get_unchecked_mut(idx) = packed;
+                    }
                     break;
                 }
                 idx = (idx + 1) & mask;
