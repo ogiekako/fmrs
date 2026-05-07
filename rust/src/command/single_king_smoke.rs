@@ -1661,7 +1661,10 @@ fn parse_max_memo_entries(
             let total_cores = default_parallelism();
             let total_bytes = total_memory_bytes();
             let available = total_bytes * 4 / 5;
-            const BYTES_PER_ENTRY: usize = 128;
+            // FlatMemo: 2 memos × 4× pre-alloc overhead × 16B/slot = 128B/entry.
+            // NoHashMap64 deltas (memo_delta + prev_memo_delta): 2 × ~48B/entry ≈ 96B.
+            // Total ≈ 224B; use 256 for margin.
+            const BYTES_PER_ENTRY: usize = 256;
             // Limit 1: proportional to fraction of cores used (main fix).
             // Each seed uses inner_parallel cores; the machine can run
             // total_cores/inner_parallel such seeds at once.
@@ -1697,10 +1700,9 @@ fn memo_entries_for_memory(divisor: usize) -> usize {
     // Reserve 20% for OS, frontier, positions, etc.
     let available = total_bytes * 4 / 5;
     let per_worker = available / divisor.max(1);
-    // Each entry: u64 key (8B) + StepRange (8B) + SwissTable overhead ≈ 24B.
-    // memo + prev_memo coexist (×2 = 48B), plus rehash peak (×1.5 ≈ 72B),
-    // plus frontier vecs and candidate buffers.
-    let bytes_per_entry = 128;
+    // FlatMemo: 2 memos × 4× pre-alloc overhead × 16B/slot = 128B/entry.
+    // Deltas (memo_delta + prev_memo_delta): 2 × ~48B ≈ 96B/entry. Total ≈ 256B.
+    let bytes_per_entry = 256;
     per_worker / bytes_per_entry
 }
 
