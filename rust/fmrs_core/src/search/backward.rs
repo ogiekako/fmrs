@@ -742,8 +742,9 @@ fn backward_search_single(
             best.1.insert(p.digest(), p);
         }
     }
-    let mut positions = best.1.into_values().collect::<Vec<_>>();
-    positions.sort_by_cached_key(|p| p.sfen());
+    // 呼び出し側 (`backward_search_with_progress_and_parallel`) で merge 後に
+    // sort されるので、ここの sort は冗長。
+    let positions = best.1.into_values().collect::<Vec<_>>();
     Ok((best.0, positions))
 }
 
