@@ -90,10 +90,10 @@ while [ $i -lt ${#args[@]} ]; do
 done
 host="${args[$i]}"
 remote_cmd="${args[@]:$((i + 1))}"
-zone=$(gcloud compute instances list --filter="name=$host" --format="value(zone)" 2>/dev/null)
-if [ -z "$zone" ]; then
-  zone="__ZONE__"
-fi
+# Always use the configured zone. Querying `gcloud compute instances list`
+# would return newline-separated zones if multiple instances share the same
+# name across regions, which then corrupts the --zone argument.
+zone="__ZONE__"
 exec gcloud compute ssh "$host" --zone="$zone" --command="$remote_cmd"
 WRAPPER
   sed -i "s|__ZONE__|$ZONE|g" "$wrapper"
