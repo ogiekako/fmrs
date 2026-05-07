@@ -1370,6 +1370,7 @@ impl BackwardSearch {
                         );
                         let mut prev_positions = vec![];
                         let mut solution_scratch = vec![];
+                        let mut killers = Killers::new();
 
                         for core in chunk.iter() {
                             let mut pp = PositionAux::new(core.clone(), stone);
@@ -1392,6 +1393,7 @@ impl BackwardSearch {
                                 &mut memo_delta,
                                 step + 1,
                                 &mut solution_scratch,
+                                &mut killers,
                             );
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
@@ -1927,6 +1929,39 @@ fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Opti
 }
 
 
+/// Per-chunk killer move table indexed by mate_in.
+/// Records the most recent move that caused a cutoff at each mate_in level so
+/// pass-1 can try it first for subsequent calls. Persistent across the chunk
+/// (thousands of candidates) but reset per chunk to avoid stale moves leaking
+/// across thread boundaries.
+const KILLER_DEPTH: usize = 64;
+
+struct Killers {
+    by_mate_in: [Option<Movement>; KILLER_DEPTH],
+}
+
+impl Killers {
+    fn new() -> Self {
+        Self {
+            by_mate_in: [const { None }; KILLER_DEPTH],
+        }
+    }
+
+    #[inline(always)]
+    fn get(&self, mate_in: u16) -> Option<&Movement> {
+        self.by_mate_in
+            .get(mate_in as usize)
+            .and_then(|s| s.as_ref())
+    }
+
+    #[inline(always)]
+    fn set(&mut self, mate_in: u16, m: Movement) {
+        if let Some(slot) = self.by_mate_in.get_mut(mate_in as usize) {
+            *slot = Some(m);
+        }
+    }
+}
+
 fn solutions_overlay(
     position: &mut PositionAux,
     memo_base: &Memo,
@@ -1935,6 +1970,7 @@ fn solutions_overlay(
     next_memo_delta: &mut NoHashMap64<StepRange>,
     mate_in: u16,
     scratch: &mut Vec<Vec<Movement>>,
+    killers: &mut Killers,
 ) -> StepRange {
     if scratch.len() <= mate_in as usize {
         scratch.resize_with(mate_in as usize + 1, Vec::new);
@@ -1947,6 +1983,7 @@ fn solutions_overlay(
         next_memo_delta,
         mate_in,
         scratch,
+        killers,
     )
 }
 
@@ -1959,6 +1996,7 @@ fn solutions_overlay_inner(
     next_memo_delta: &mut NoHashMap64<StepRange>,
     mate_in: u16,
     scratch: &mut [Vec<Movement>],
+    killers: &mut Killers,
 ) -> StepRange {
     let digest = position.digest();
     let mut ans = StepRange::unknown();
@@ -2030,6 +2068,18 @@ fn solutions_overlay_inner(
     // without prefetch every `base.get()` call stalls ~200 cycles waiting for
     // DRAM.  With prefetch the stalls overlap with the (cheap) moved_digest
     // computations, cutting per-position latency from O(N × miss) to O(miss).
+    // Killer heuristic: if we have a remembered cutoff move at this mate_in level,
+    // swap it to position 0 so pass-1 evaluates it first. The full prefetch loop
+    // still warms cache lines for ALL children — we just bias which one's lookup
+    // result is consumed first by the cutoff check.
+    if let Some(killer_m) = killers.get(mate_in) {
+        if let Some(killer_idx) = movements.iter().position(|m| m == killer_m) {
+            if killer_idx > 0 {
+                movements.swap(0, killer_idx);
+            }
+        }
+    }
+
     let nchildren = movements.len().min(128);
     let mut child_digests = [0u64; 128];
     for i in 0..nchildren {
@@ -2052,6 +2102,7 @@ fn solutions_overlay_inner(
             let a = child.inc();
             res.update_with_child(&a);
             if res.definitely_shorter_or_non_unique(mate_in) {
+                killers.set(mate_in, *m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
@@ -2074,6 +2125,7 @@ fn solutions_overlay_inner(
                 memo_delta,
                 mate_in - 1,
                 scratch,
+                killers,
             )
             .inc();
             debug_assert!(!a.needs_investigation(mate_in));
@@ -2081,6 +2133,7 @@ fn solutions_overlay_inner(
             res.update_with_child(&a);
 
             if res.definitely_shorter_or_non_unique(mate_in) {
+                killers.set(mate_in, *m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
