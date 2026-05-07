@@ -1186,7 +1186,11 @@ impl BackwardSearch {
 
         // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
-        let chunk_size = candidates.len().div_ceil(parallel * 8).max(1);
+        // chunk_size = candidates / (parallel*32) で 1 thread あたり ~32 chunks。
+        // chunks のコストが大きく不均一 (deep memo searches vs cheap lookups) なので
+        // 細かめに分割すると work-stealing が効いて並列効率が改善する。
+        // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
+        let chunk_size = candidates.len().div_ceil(parallel * 32).max(1);
         let mut memo = std::mem::replace(&mut self.memo, Memo::new());
         let mut prev_memo = std::mem::replace(&mut self.prev_memo, Memo::new());
 
