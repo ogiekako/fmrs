@@ -1472,9 +1472,9 @@ fn search_single_seed(
     let best = if best_positions.is_empty() {
         None
     } else {
-        // smoke output に sort 順序の要件は無い。先頭を representative として使う。
-        let representative_pos = best_positions.into_iter().next().unwrap();
-        Some((best_piece_count, vec![representative_pos]))
+        // 全 best positions を返す。output 集計側で SFEN HashSet で uniq 化されるので
+        // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
+        Some((best_piece_count, best_positions))
     };
     Ok(SingleSeedResult { best, killer })
 }
