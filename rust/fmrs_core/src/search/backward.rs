@@ -1976,12 +1976,10 @@ impl Killers {
 /// History heuristic table indexed by (mate_in, kind, dest_square).
 ///
 /// Accumulates cutoff counts per (piece_kind × dest_square) pair across all
-/// positions in a chunk.  After killer swaps, the non-killer move with the
-/// highest history score is swapped to the front so pass-1 evaluates it early.
-/// Using (kind, dest) rather than dest alone gives sharper signal when the same
-/// destination square is visited by different piece kinds with different outcomes.
+/// positions in a chunk.  After killer swaps, the top-3 non-killer moves by
+/// history score are swapped to the front so pass-1 evaluates them early.
 ///
-/// Table size: 64 × (14 × 81) × u16 ≈ 145 KB — fits comfortably in L2.
+/// Table size: 64 × (14 × 81) × u16 ≈ 145 KB — fits in L2.
 const HIST_DEPTH: usize = KILLER_DEPTH;
 const HIST_STRIDE: usize = crate::piece::NUM_KIND * 81; // 14 × 81 = 1134
 
@@ -2162,19 +2160,23 @@ fn solutions_overlay_inner(
             }
         }
         hist_start = next_swap;
-        // Single-pass O(n) scan: bring the highest-history move to hist_start.
-        if hist_start < movements.len() {
-            let mut best_score = history.score(mate_in, &movements[hist_start]);
-            let mut best_idx = hist_start;
-            for j in (hist_start + 1)..movements.len() {
+        // Top-3 selection: bring the top-3 history moves to hist_start..hist_start+3.
+        for slot in 0..3usize {
+            let from = hist_start + slot;
+            if from >= movements.len() {
+                break;
+            }
+            let mut best_score = history.score(mate_in, &movements[from]);
+            let mut best_idx = from;
+            for j in (from + 1)..movements.len() {
                 let s = history.score(mate_in, &movements[j]);
                 if s > best_score {
                     best_score = s;
                     best_idx = j;
                 }
             }
-            if best_score > 0 && best_idx != hist_start {
-                movements.swap(hist_start, best_idx);
+            if best_score > 0 && best_idx != from {
+                movements.swap(from, best_idx);
             }
         }
     }
