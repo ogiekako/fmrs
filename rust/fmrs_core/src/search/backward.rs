@@ -1469,9 +1469,8 @@ impl BackwardSearch {
             }
         }
 
-        // sort_by_key だと比較ごとに sfen() が再計算されて O(n log n) 回呼ばれる。
-        // sort_by_cached_key は N 回のみ。
-        output_positions.sort_by_cached_key(|p| p.sfen());
+        // 呼び出し側 (`merge_best` → `finalize_best`、`dedup_positions` 経由) で
+        // 最終的に sfen sort されるので、ここでの sort は冗長。
         Ok((step, output_positions))
     }
 

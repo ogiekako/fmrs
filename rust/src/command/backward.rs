@@ -310,7 +310,7 @@ fn finalize_best(best: (u16, NoHashMap64<PositionAux>)) -> anyhow::Result<(u16, 
         bail!("No backward search result");
     }
     let mut positions = best.1.into_values().collect::<Vec<_>>();
-    positions.sort_by_key(PositionAux::sfen);
+    positions.sort_by_cached_key(PositionAux::sfen);
     Ok((best.0, positions))
 }
 
