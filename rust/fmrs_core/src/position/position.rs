@@ -88,13 +88,15 @@ impl Position {
         }
         self.kind_bb.set(pos, k);
 
-        self.digest ^= self.hash_at(pos);
+        // c, k は引数で既知なので、`hash_at` 経由 (kind_bb.must_get
+        // + black_bb.contains の二重 lookup) ではなく zobrist 直呼び。
+        self.digest ^= zobrist(c, pos, k);
     }
     #[inline(always)]
     pub fn unset(&mut self, pos: Square, c: Color, k: Kind) {
         debug_assert_eq!(self.get(pos), Some((c, k)));
 
-        self.digest ^= self.hash_at(pos);
+        self.digest ^= zobrist(c, pos, k);
 
         if c.is_black() {
             self.black_bb.unset(pos);
