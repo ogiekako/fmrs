@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778159822276,
+  "lastUpdate": 1778160337080,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -31925,6 +31925,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 136739,
             "range": "± 17",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "716ef0c9970f0e20fec4a6b3f82a5bb71cec8e05",
+          "message": "backward: ShardedFlatMemo を SoA 化、StepRange を u32 packed に圧縮\n\nFlatShard の slot を { key: u64, value: StepRange (8B) } の AoS から\n{ keys: Box<[u64]>, values: Box<[u32]> } の SoA に分離。値は 4 × u8 で\nStepRange を packing (0..253=実値, 254=INF_START, 255=INF_END)。\n\n効果：\n- 1 スロットあたり 16B → 12B (25% 削減)\n- probing 中は keys のみアクセス → cache line あたり 8 keys (vs 4 slots)\n- メモ table が同じ slot 数で 25% 小さい → 大きい step での\n  merge/shrink/grow の memory bandwidth 削減\n- StepRange の比較は decode 込みでも 1-2 サイクル増程度\n\n実測 bench (134GB マシン): 29.3s → 28.1s (~4% 改善)。\n主な寄与は step 17 の merge 短縮 (3332ms → 2901ms)。\n\n注意：smoke / 一般 backward 共に step 値が 0..253 に収まる前提。\n詰将棋では実用的な手数 ≪ 250。debug_assert で値域チェック。\nさらに深い探索が必要な場合は別 storage が必要。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T22:12:19+09:00",
+          "tree_id": "804d8abc4e95b2b7babe39d583f095c048229727",
+          "url": "https://github.com/ogiekako/fmrs/commit/716ef0c9970f0e20fec4a6b3f82a5bb71cec8e05"
+        },
+        "date": 1778160334707,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 934,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3466,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 347,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1015,
+            "range": "± 1795",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 35083,
+            "range": "± 232",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1449,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5242,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1846352,
+            "range": "± 140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13214,
+            "range": "± 226",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 192303,
+            "range": "± 1271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 85699,
+            "range": "± 261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 77889,
+            "range": "± 778",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 25933,
+            "range": "± 85",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 65540,
+            "range": "± 451",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 21387,
+            "range": "± 144",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1311,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 36363,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4293,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22391,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 78994,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 29946,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 125085,
+            "range": "± 13",
             "unit": "ns/iter"
           }
         ]
