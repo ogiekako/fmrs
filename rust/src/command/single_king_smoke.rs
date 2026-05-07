@@ -1032,7 +1032,7 @@ fn dedup_positions(positions: Vec<PositionAux>) -> Vec<PositionAux> {
             deduped.push(position);
         }
     }
-    deduped.sort_by_key(PositionAux::sfen);
+    deduped.sort_by_cached_key(PositionAux::sfen);
     deduped
 }
 
