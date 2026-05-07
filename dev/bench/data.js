@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778135023837,
+  "lastUpdate": 1778136414343,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -30209,6 +30209,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 134614,
             "range": "± 93",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "d031825e7105310afba5c4dcec612aff7e321ac2",
+          "message": "position: set/unset で hash_at の二重 lookup を回避\n\n`Position::set/unset` は呼び出し時点で `c: Color, k: Kind` を引数で受け取って\nいるが、digest 更新で `self.hash_at(pos)` を呼んでおり、これが内部で\n`kind_bb.must_get(pos)` と `black_bb.contains(pos)` を再 lookup していた。\n引数を直接 `zobrist(c, pos, k)` に渡せば 2 回の bitboard lookup が省略される。\n\ndo_move (profile 13%) からの呼び出し回数が極めて多いので、small win。\nvariance に埋もれるレベルだが原則として無駄削減。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T15:23:41+09:00",
+          "tree_id": "14f24387ba7126f47e905b218dd02b11acd3a2d4",
+          "url": "https://github.com/ogiekako/fmrs/commit/d031825e7105310afba5c4dcec612aff7e321ac2"
+        },
+        "date": 1778136411528,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 910,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3487,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 345,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 984,
+            "range": "± 1708",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33672,
+            "range": "± 104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1480,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5557,
+            "range": "± 140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1886813,
+            "range": "± 344",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13606,
+            "range": "± 77",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 181806,
+            "range": "± 757",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 80163,
+            "range": "± 1645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 75961,
+            "range": "± 1007",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 24695,
+            "range": "± 166",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 65805,
+            "range": "± 220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 22344,
+            "range": "± 134",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1320,
+            "range": "± 105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37089,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4486,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22933,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 79276,
+            "range": "± 216",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 27971,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 131576,
+            "range": "± 6",
             "unit": "ns/iter"
           }
         ]
