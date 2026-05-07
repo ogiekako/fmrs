@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778173541577,
+  "lastUpdate": 1778175295051,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -33641,6 +33641,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 96073,
             "range": "± 42",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "e1fa7e5b97b698d1e22b2536c0f4f9c4cc4e2f62",
+          "message": "backward: history top-1 swap → top-3 selection に拡張\n\n単一 O(n) scan で最高スコアを先頭に置いていたのを、\npartial selection sort 3パスに拡張し top-3 を先頭クラスタに集める。\n各パスは O(n-k) scan + O(1) swap でソートオーバーヘッドなし。\n\n(kind, dest, promote) キー: ≈同等 (290KB テーブルがキャッシュ圧力を増大)\nfull sort: ≈同等 (sort overhead が selection 利得を相殺)\n→ (kind, dest) + top-3 が最良トレードオフ\n\nbench_backward_search_seed_sfen: ~9.50 µs → ~9.35-9.46 µs\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T02:15:38+09:00",
+          "tree_id": "c0c63ab134ff1cb36e55015130125e1c9d2e99e2",
+          "url": "https://github.com/ogiekako/fmrs/commit/e1fa7e5b97b698d1e22b2536c0f4f9c4cc4e2f62"
+        },
+        "date": 1778175292654,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 983,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3559,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 302,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1089,
+            "range": "± 1903",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 31242,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1575,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5976,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1825018,
+            "range": "± 549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11125,
+            "range": "± 116",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 184240,
+            "range": "± 1254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 87133,
+            "range": "± 311",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 77537,
+            "range": "± 4409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 26215,
+            "range": "± 294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 63491,
+            "range": "± 3250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18479,
+            "range": "± 358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1265,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 34890,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4203,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21739,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 79141,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 48780,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 113922,
+            "range": "± 31",
             "unit": "ns/iter"
           }
         ]
