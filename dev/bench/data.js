@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778170052247,
+  "lastUpdate": 1778171941591,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -33329,6 +33329,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 96771,
             "range": "± 21",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "a776bcb119eda792fbcdd1a655f8a4b9eba1af22",
+          "message": "single_king_smoke: best_positions を全件保持、integration test を追加\n\nこれまで output 用に best_positions の先頭1件のみを representative として\n返していたため \"positions=1\" が常に表示されていた。実態は seed あたりの\nunique 最良位置数が複数あり得るので、テストとしても意味のない出力だった。\n\n本コミットで全 best_positions を返し、global 集計の HashSet で SFEN\nレベル uniq 化、最終出力 \"positions=N\" は実体ある count を反映:\n- max-step 19 (heavy): positions=1 → positions=29842\n- max-step 5 (allowed-kinds): positions=1 → positions=36\n- max-step 5 (default kinds): positions=1 → positions=584\n\nheavy bench の wall time は不変 (14.78-14.95 µs 内)、search 仕事量は同じ。\n\n合わせて tests/backward_search_integration.rs を追加:\n- max-step=5 を 2 設定で実行 (~0.1s 完了)\n- best_pieces, positions count, 最初/最後の sorted SFEN を assert\n- correctness 退行を catch する gate を作る\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T01:26:06+09:00",
+          "tree_id": "9018a06418bff0aeba0f9c58a8641d5cef8d98a6",
+          "url": "https://github.com/ogiekako/fmrs/commit/a776bcb119eda792fbcdd1a655f8a4b9eba1af22"
+        },
+        "date": 1778171939150,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 921,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3581,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 301,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 995,
+            "range": "± 1741",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30701,
+            "range": "± 222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1505,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5867,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1747072,
+            "range": "± 120",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11135,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 201588,
+            "range": "± 10336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 80760,
+            "range": "± 261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 75696,
+            "range": "± 153",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 24405,
+            "range": "± 329",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 63860,
+            "range": "± 356",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18598,
+            "range": "± 978",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1270,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33333,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4020,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20532,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 76954,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 45594,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 92999,
+            "range": "± 32",
             "unit": "ns/iter"
           }
         ]
