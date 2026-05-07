@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778122869303,
+  "lastUpdate": 1778127432255,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -29590,6 +29590,156 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_backward_search",
             "value": 69306,
+            "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "f9fbbe8458372773b19283927d50887eb985e1ff",
+          "message": "auto max_memo_entries: コア比率に基づく正しいメモリ上限計算に修正\n\nparallel * inner_parallel を divisor にしていたバグを修正。\ninner_parallel=2 で divisor=2 → 51.2GB になっていたが、\n正しくは total_cores / inner_parallel = 24 → 4.5GB（RAM×4/5×2/48）。\n\n新計算式: min(available / (total_cores/inner_parallel), available / parallel) / 128\n- by_cores: 使用コア比率に応じたメモリ割り当て\n- by_parallel: 並行シード数で等分\n- \"full\" モードは divisor=parallel に変更（inner_parallel 非考慮）\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T12:32:07+09:00",
+          "tree_id": "3fe84b584b5a0b8547a1e5c7603a674226f72b7c",
+          "url": "https://github.com/ogiekako/fmrs/commit/f9fbbe8458372773b19283927d50887eb985e1ff"
+        },
+        "date": 1778127426641,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 730,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2971,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 253,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 777,
+            "range": "± 2299",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28104,
+            "range": "± 81",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1206,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4417,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1616552,
+            "range": "± 665",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11134,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 160533,
+            "range": "± 551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 62388,
+            "range": "± 1177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 65513,
+            "range": "± 367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 16193,
+            "range": "± 253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 61340,
+            "range": "± 876",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 17297,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1005,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30650,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3707,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20004,
+            "range": "± 161",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 66251,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 21052,
             "range": "± 4",
             "unit": "ns/iter"
           }
