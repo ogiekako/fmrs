@@ -1209,31 +1209,13 @@ fn search_single_seed(
         )
     };
 
-    let mut search = if let Some(ref cp) = checkpoint {
-        match BackwardSearch::from_resume_state(&cp.resume_state, 1) {
-            Ok(search) => search,
-            Err(_) => {
-                match BackwardSearch::new_with_parallel(seed, false, 1, false) {
-                    Ok(search) => search,
-                    Err(_) => {
-                        return Ok(SingleSeedResult {
-                            best: None,
-                            killer: None,
-                        });
-                    }
-                }
-            }
-        }
-    } else {
-        match BackwardSearch::new_with_parallel(seed, false, 1, false) {
-            Ok(search) => search,
-            Err(_) => {
-                return Ok(SingleSeedResult {
-                    best: None,
-                    killer: None,
-                });
-            }
-        }
+    let mut search = match checkpoint
+        .as_ref()
+        .and_then(|cp| BackwardSearch::from_resume_state(&cp.resume_state, 1).ok())
+        .or_else(|| BackwardSearch::new_with_parallel(seed, false, 1, false).ok())
+    {
+        Some(s) => s,
+        None => return Ok(SingleSeedResult { best: None, killer: None }),
     };
     if inner_parallel > 1 {
         search.set_parallel(inner_parallel);

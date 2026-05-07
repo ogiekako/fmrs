@@ -321,6 +321,30 @@ impl Default for ShardedFlatMemo {
     }
 }
 
+/// Insert `(key, packed)` into an open-addressing table that has at least one
+/// empty slot.  Used when rehashing or rebuilding a freshly-cleared table where
+/// no duplicate keys can exist, so the upsert check in `insert_unsynchronized`
+/// is not needed.
+///
+/// # Safety
+/// * `key != FLAT_EMPTY_KEY`
+/// * `mask == keys.len() - 1` (keys.len() is a power of two)
+/// * The table has at least one empty slot (otherwise this loops forever)
+/// * `keys` and `values` have the same length
+#[inline(always)]
+unsafe fn probe_insert_into_clear(keys: &mut [u64], values: &mut [u32], mask: usize, key: u64, packed: u32) {
+    let mut idx = (key as usize) & mask;
+    loop {
+        let slot = unsafe { keys.get_unchecked_mut(idx) };
+        if *slot == FLAT_EMPTY_KEY {
+            *slot = key;
+            unsafe { *values.get_unchecked_mut(idx) = packed };
+            return;
+        }
+        idx = (idx + 1) & mask;
+    }
+}
+
 impl FlatShard {
     fn with_capacity(capacity: usize) -> Self {
         let min_size = capacity.saturating_mul(2).max(8);
@@ -355,19 +379,7 @@ impl FlatShard {
             if k == FLAT_EMPTY_KEY {
                 continue;
             }
-            let v = old_values[i];
-            let mut idx = (k as usize) & new_mask;
-            loop {
-                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
-                if *slot_key == FLAT_EMPTY_KEY {
-                    *slot_key = k;
-                    unsafe {
-                        *inner.values.get_unchecked_mut(idx) = v;
-                    }
-                    break;
-                }
-                idx = (idx + 1) & new_mask;
-            }
+            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, new_mask, k, old_values[i]) };
         }
     }
 
@@ -440,19 +452,7 @@ impl FlatShard {
             if k == FLAT_EMPTY_KEY {
                 continue;
             }
-            let v = old_values[i];
-            let mut idx = (k as usize) & new_mask;
-            loop {
-                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
-                if *slot_key == FLAT_EMPTY_KEY {
-                    *slot_key = k;
-                    unsafe {
-                        *inner.values.get_unchecked_mut(idx) = v;
-                    }
-                    break;
-                }
-                idx = (idx + 1) & new_mask;
-            }
+            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, new_mask, k, old_values[i]) };
         }
     }
 
@@ -559,18 +559,7 @@ impl FlatShard {
         }
         let mask = inner.mask;
         for &(_, key, packed) in &entries[to_remove..] {
-            let mut idx = (key as usize) & mask;
-            loop {
-                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
-                if *slot_key == FLAT_EMPTY_KEY {
-                    *slot_key = key;
-                    unsafe {
-                        *inner.values.get_unchecked_mut(idx) = packed;
-                    }
-                    break;
-                }
-                idx = (idx + 1) & mask;
-            }
+            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, mask, key, packed) };
         }
         self.len.store(entries.len() - to_remove, Ordering::Relaxed);
     }
@@ -591,18 +580,7 @@ impl FlatShard {
         let mask = inner.mask;
         for &(key, value) in kept {
             let packed = pack_step_range(value);
-            let mut idx = (key as usize) & mask;
-            loop {
-                let slot_key = unsafe { inner.keys.get_unchecked_mut(idx) };
-                if *slot_key == FLAT_EMPTY_KEY {
-                    *slot_key = key;
-                    unsafe {
-                        *inner.values.get_unchecked_mut(idx) = packed;
-                    }
-                    break;
-                }
-                idx = (idx + 1) & mask;
-            }
+            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, mask, key, packed) };
         }
         self.len.store(kept.len(), Ordering::Relaxed);
     }
