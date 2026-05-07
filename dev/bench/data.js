@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778131256058,
+  "lastUpdate": 1778131683029,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -29897,6 +29897,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 129149,
             "range": "± 7",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "3f19c5843c8faaf5b289e4b24c46ff149eac3861",
+          "message": "advance: hot path から anyhow を排除して AdvanceError 型に置換\n\n`max_allowed_branches: Some(0)` を制御フローとして使うパスで毎回\nanyhow::Error::construct (heap alloc + boxing) を呼んでおり、profile で\n4.78% を占めていた。\n\n軽量な Copy enum (AdvanceError) を導入し、advance_aux/black::advance/\nwhite::advance/attack_preventing_movements の戻り値を AdvanceResult<T>\n(= Result<T, AdvanceError>) に変更。境界の anyhow への変換は\nstd::error::Error 経由で必要時のみ。\n\nベンチ (max-step=11 inner-parallel=8 seed-sfen=...): ~28s → ~25s。\nprofile から anyhow 関連シンボルが完全に消失。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T14:16:40+09:00",
+          "tree_id": "ef828a9633d74a2dfa8d8c69d420e5754f048f41",
+          "url": "https://github.com/ogiekako/fmrs/commit/3f19c5843c8faaf5b289e4b24c46ff149eac3861"
+        },
+        "date": 1778131680676,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 1032,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3584,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 326,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1102,
+            "range": "± 1915",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32503,
+            "range": "± 604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1495,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5283,
+            "range": "± 185",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1957727,
+            "range": "± 1042",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13710,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 193419,
+            "range": "± 6100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 85288,
+            "range": "± 637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 78220,
+            "range": "± 314",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 26214,
+            "range": "± 291",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 70732,
+            "range": "± 411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 22187,
+            "range": "± 231",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1260,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37945,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4634,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23530,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 82089,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 25640,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 142856,
+            "range": "± 25",
             "unit": "ns/iter"
           }
         ]
