@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778138606756,
+  "lastUpdate": 1778139130680,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -30989,6 +30989,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 120886,
             "range": "± 21",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "6179c69567bcfdfdbb227ceab9bdb973a0715741",
+          "message": "single_king_smoke: dedup_positions を digest ベースに、sort 削除\n\nユーザー指摘により、smoke command の output に sort 順序の要件が無いと\n判明。SFEN string ベースの dedup + sort を digest (Zobrist hash u64) ベース\nの dedup に置換、sort は完全に削除。\n\n- HashSet キーが String → u64 (NoHashSet64): 比較・ハッシュコスト低減\n- sfen() 呼び出しを N → 0 (per call), sort_by_cached_key コストも消失\n\nベンチ wall (median 10 runs):\n  before: ~20.18s\n  after:  ~19.64s\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-07T16:20:59+09:00",
+          "tree_id": "f85da1cecfc951e74f943510b98cbeb6a6d8dd21",
+          "url": "https://github.com/ogiekako/fmrs/commit/6179c69567bcfdfdbb227ceab9bdb973a0715741"
+        },
+        "date": 1778139127404,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 993,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3512,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 329,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1063,
+            "range": "± 1933",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34761,
+            "range": "± 123",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1456,
+            "range": "± 58",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5242,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 2060952,
+            "range": "± 646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 13636,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 230749,
+            "range": "± 2515",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 82169,
+            "range": "± 324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 76281,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 23498,
+            "range": "± 2455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 66861,
+            "range": "± 254",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 22217,
+            "range": "± 278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1260,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 39999,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4903,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 24098,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 83495,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 26315,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 123825,
+            "range": "± 34",
             "unit": "ns/iter"
           }
         ]
