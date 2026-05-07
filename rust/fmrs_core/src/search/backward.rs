@@ -1336,6 +1336,13 @@ impl BackwardSearch {
         // demand-zero pages — virtual address space without physical pages.
         // The merge faults in only the pages it actually writes; most of the
         // buffer never costs physical memory or cache.
+        //
+        // C (selective retention) experiment: tried shrinking to limit/16 or
+        // limit/4 instead of discarding. Heavy bench improved 1.2%, but
+        // bench_backward_search regressed 11% because carrying any memo forward
+        // (even small retention) makes lookups slower for small workloads where
+        // the memo never reaches the shrink threshold. Trade-off didn't win
+        // overall; reverted.
         self.memo = Memo::new();
         self.prev_memo = Memo::new();
         let mut memo = Memo::new();
