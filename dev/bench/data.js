@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778166392715,
+  "lastUpdate": 1778168487878,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -33017,6 +33017,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 168222,
             "range": "± 28",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "d336a712b379bc39362a8addc2416704f029e358",
+          "message": "backward: killer heuristic で pass-1 / pass-2 に move ordering を導入\n\nper-chunk の Killers table を追加し、各 mate_in レベルで「最近 cutoff を\n引き起こした Movement」を記録。次回の pass-1 開始時にその move が\nmovements 配列の position 0 に来るよう swap、prefetch + lookup を最初に\n実行する。cutoff (definitely_shorter_or_non_unique) が起きたら killer を更新。\n\ncooperative-mate (協力詰) では両者が cooperate して mate に向かうため、\n\"短い mate を導く move\" が cutoff の dominant cause で、killer pattern が\n連続する candidates 間で繰り返し有効になる。\n\n実測 (3 回 median):\n- bench_backward_search_seed_sfen_allowed_kinds (heavy):\n    27.55µs → 21.65µs  (-21.4%)\n- bench_backward_search_seed_sfen:\n    15.19µs → 13.16µs  (-13.4%)\n- bench_backward_search:\n     4.71µs →  4.43µs  (-5.9%)\n- oneway:\n     9.01µs →  8.22µs  (-8.8%)\n- bench_jugemu, bench_1965, bench_1461 など forward search も若干改善\n  (one_way mate verification の path で同じ DFS が呼ばれるため)\n\n累積 baseline (33.6µs) からの改善: -35.6% (1.55x speedup)、目標 1.5x 達成。\n\ncorrectness は同一 SFEN/positions/succeeded_seeds で確認、existing tests も\n全 pass。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T00:29:44+09:00",
+          "tree_id": "180d10f3f71795049da350e77baeaf9b1ac3b3c0",
+          "url": "https://github.com/ogiekako/fmrs/commit/d336a712b379bc39362a8addc2416704f029e358"
+        },
+        "date": 1778168483832,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 917,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3571,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 294,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 990,
+            "range": "± 1731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30409,
+            "range": "± 130",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1487,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5941,
+            "range": "± 114",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1860349,
+            "range": "± 334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11141,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 230086,
+            "range": "± 1700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 83228,
+            "range": "± 481",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 77125,
+            "range": "± 396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 24421,
+            "range": "± 113",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 63527,
+            "range": "± 150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18093,
+            "range": "± 102",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1279,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 36363,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4332,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22222,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 78191,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 44775,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 122096,
+            "range": "± 14",
             "unit": "ns/iter"
           }
         ]
