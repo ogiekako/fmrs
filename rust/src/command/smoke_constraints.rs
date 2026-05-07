@@ -393,13 +393,12 @@ pub(super) fn board_promoted_count(position: &PositionAux) -> u32 {
         Kind::ProBishop,
         Kind::ProRook,
     ];
-    PROMOTED
-        .iter()
-        .map(|&k| {
-            position.bitboard(Color::BLACK, k).count_ones()
-                + position.bitboard(Color::WHITE, k).count_ones()
-        })
-        .sum()
+    // BLACK + WHITE = all pieces of that kind, so OR together kind_bb only.
+    let mut total = fmrs_core::position::bitboard::BitBoard::default();
+    for k in PROMOTED {
+        total |= position.kind_bb(k);
+    }
+    total.count_ones()
 }
 
 pub(super) fn board_pawn_count(position: &PositionAux) -> u32 {

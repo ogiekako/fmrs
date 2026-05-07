@@ -216,7 +216,7 @@ impl PositionAux {
         self.core.moved_digest(movement) ^ self.stone_digest
     }
 
-    pub(crate) fn kind_bb(&self, kind: Kind) -> BitBoard {
+    pub fn kind_bb(&self, kind: Kind) -> BitBoard {
         self.core.kind_bb().bitboard(kind)
     }
 
