@@ -1371,6 +1371,7 @@ impl BackwardSearch {
                         let mut prev_positions = vec![];
                         let mut solution_scratch = vec![];
                         let mut killers = Killers::new();
+                        let mut history = HistoryTable::new();
 
                         for core in chunk.iter() {
                             let mut pp = PositionAux::new(core.clone(), stone);
@@ -1394,6 +1395,7 @@ impl BackwardSearch {
                                 step + 1,
                                 &mut solution_scratch,
                                 &mut killers,
+                                &mut history,
                             );
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
@@ -1971,6 +1973,55 @@ impl Killers {
     }
 }
 
+/// History heuristic table indexed by (mate_in, dest_square).
+///
+/// Accumulates cutoff counts per destination square across all positions in a
+/// chunk.  After killer swaps, the non-killer move with the highest history
+/// score is swapped to the front so pass-1 evaluates it early.  Uses only the
+/// destination square (0..81) as the key — coarser than a full Movement match,
+/// which means it generalises across positions even when the exact piece or
+/// source changes.
+///
+/// Table size: 64 × 81 × u16 = 10 KB — fits in L1/L2 with no heap allocation.
+const HIST_DEPTH: usize = KILLER_DEPTH;
+
+struct HistoryTable {
+    counts: [[u16; 81]; HIST_DEPTH],
+}
+
+impl HistoryTable {
+    fn new() -> Self {
+        Self {
+            counts: [[0u16; 81]; HIST_DEPTH],
+        }
+    }
+
+    #[inline(always)]
+    fn record(&mut self, mate_in: u16, m: &Movement) {
+        let dest = movement_dest_idx(m);
+        if let Some(row) = self.counts.get_mut(mate_in as usize) {
+            row[dest] = row[dest].saturating_add(1);
+        }
+    }
+
+    #[inline(always)]
+    fn score(&self, mate_in: u16, m: &Movement) -> u16 {
+        let dest = movement_dest_idx(m);
+        self.counts
+            .get(mate_in as usize)
+            .map_or(0, |row| row[dest])
+    }
+}
+
+/// Extract the destination square index (0..81) from a Movement.
+#[inline(always)]
+fn movement_dest_idx(m: &Movement) -> usize {
+    match m {
+        Movement::Drop(sq, _) => sq.index(),
+        Movement::Move { dest, .. } => dest.index(),
+    }
+}
+
 fn solutions_overlay(
     position: &mut PositionAux,
     memo_base: &Memo,
@@ -1980,6 +2031,7 @@ fn solutions_overlay(
     mate_in: u16,
     scratch: &mut Vec<Vec<Movement>>,
     killers: &mut Killers,
+    history: &mut HistoryTable,
 ) -> StepRange {
     if scratch.len() <= mate_in as usize {
         scratch.resize_with(mate_in as usize + 1, Vec::new);
@@ -1993,6 +2045,7 @@ fn solutions_overlay(
         mate_in,
         scratch,
         killers,
+        history,
     )
 }
 
@@ -2006,6 +2059,7 @@ fn solutions_overlay_inner(
     mate_in: u16,
     scratch: &mut [Vec<Movement>],
     killers: &mut Killers,
+    history: &mut HistoryTable,
 ) -> StepRange {
     let digest = position.digest();
     let mut ans = StepRange::unknown();
@@ -2081,6 +2135,9 @@ fn solutions_overlay_inner(
     // front of the movements list so pass-1 evaluates them first. The full
     // prefetch loop still warms cache lines for ALL children — we just bias
     // which one's lookup result is consumed first by the cutoff check.
+    // History heuristic: after killers, swap the non-killer move with the
+    // highest history score (cutoff frequency by dest square) to the next slot.
+    let hist_start;
     {
         let killer_slots = killers.slots(mate_in);
         let mut next_swap = 0;
@@ -2094,6 +2151,22 @@ fn solutions_overlay_inner(
                 if next_swap >= movements.len() {
                     break;
                 }
+            }
+        }
+        hist_start = next_swap;
+        // Single-pass O(n) scan: bring the highest-history move to hist_start.
+        if hist_start < movements.len() {
+            let mut best_score = history.score(mate_in, &movements[hist_start]);
+            let mut best_idx = hist_start;
+            for j in (hist_start + 1)..movements.len() {
+                let s = history.score(mate_in, &movements[j]);
+                if s > best_score {
+                    best_score = s;
+                    best_idx = j;
+                }
+            }
+            if best_score > 0 && best_idx != hist_start {
+                movements.swap(hist_start, best_idx);
             }
         }
     }
@@ -2121,6 +2194,7 @@ fn solutions_overlay_inner(
             res.update_with_child(&a);
             if res.definitely_shorter_or_non_unique(mate_in) {
                 killers.record(mate_in, *m);
+                history.record(mate_in, m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
@@ -2144,6 +2218,7 @@ fn solutions_overlay_inner(
                 mate_in - 1,
                 scratch,
                 killers,
+                history,
             )
             .inc();
             debug_assert!(!a.needs_investigation(mate_in));
@@ -2152,6 +2227,7 @@ fn solutions_overlay_inner(
 
             if res.definitely_shorter_or_non_unique(mate_in) {
                 killers.record(mate_in, *m);
+                history.record(mate_in, m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
