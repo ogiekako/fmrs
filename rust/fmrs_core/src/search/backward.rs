@@ -1322,10 +1322,16 @@ impl BackwardSearch {
         // The cross-step memo carried results from earlier (smaller mate_in)
         // searches; at deep steps these stale entries bloat the memo and force
         // grows/shrinks against an oversized table while contributing few hits
-        // at the new mate_in (which differs from cached mate_in_for those entries).
+        // at the new mate_in (which differs from cached mate_in for those entries).
         // Within-step memoization (delta + accumulated memo via merge) still
         // captures all useful sharing.
-        // The previous self.memo / self.prev_memo are dropped without re-use.
+        //
+        // Tried alternatives (all regressed):
+        //  - clear()/memset on existing buffers: 8GB memset per step, slow
+        //  - pre_allocate(limit) on fresh empty memos: heavy alloc upfront on
+        //    every step (+44.5% regression vs many-grows approach), since most
+        //    steps don't need full-limit capacity
+        // The fresh-empty path organically grows tables only as needed.
         self.memo = Memo::new();
         self.prev_memo = Memo::new();
         let mut memo = Memo::new();
