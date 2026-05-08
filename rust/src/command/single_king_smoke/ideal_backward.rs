@@ -9,7 +9,7 @@ use std::sync::Mutex;
 
 use super::super::smoke_constraints::{
     satisfies_mate_square, satisfies_search_constraints, theoretical_max_piece_count,
-    validate_search_constraints, KillerSeedLimits, SearchConstraints,
+    validate_search_constraints, SearchConstraints,
 };
 use super::super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, load_seed_result_log,
@@ -17,7 +17,7 @@ use super::super::smoke_persistence::{
 };
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
 use super::enumerate::enumerate_final_2_positions;
-use super::search::{search_single_seed, KillerSeedDisplay};
+use super::search::search_single_seed;
 use super::system::ProcStatus;
 
 #[allow(clippy::too_many_arguments)]
@@ -30,7 +30,7 @@ pub(super) fn ideal_backward(
     max_step: Option<u16>,
     fleet_index: Option<usize>,
     fleet_size: Option<usize>,
-    limits: KillerSeedLimits,
+    max_memo_entries: Option<usize>,
     constraints: SearchConstraints,
     mem_trace: bool,
     feature_log: FeatureLogConfig,
@@ -97,8 +97,7 @@ pub(super) fn ideal_backward(
             pending_seeds.push((seed_index, seed));
         }
     } else {
-        let seed_records =
-            load_seed_result_log(&seed_result_log, max_step, limits.max_frontier, constraints)?;
+        let seed_records = load_seed_result_log(&seed_result_log, max_step, constraints)?;
         for (seed_index, seed) in seeds {
             if let Some(record) = seed_records
                 .get(&seed_index)
@@ -151,7 +150,6 @@ pub(super) fn ideal_backward(
     let global_best_piece_count = AtomicU64::new(0);
     let heartbeat_marks = [1usize, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     let best = Mutex::new(initial_best);
-    let skipped = Mutex::new(Vec::new());
     pool.install(|| -> anyhow::Result<()> {
         pending_seeds
             .par_iter()
@@ -161,7 +159,7 @@ pub(super) fn ideal_backward(
                     *seed_index,
                     seed,
                     max_step,
-                    limits,
+                    max_memo_entries,
                     constraints,
                     parallel,
                     total_pending,
@@ -200,9 +198,6 @@ pub(super) fn ideal_backward(
                     }
                 }
                 let result = result?;
-                if let Some(killer) = result.killer.as_ref() {
-                    skipped.lock().unwrap().push(killer.clone());
-                }
                 // EarlyExit で best が target_max 未満なら部分結果。再実行時に
                 // 続きが取れるよう record も checkpoint も触らない。
                 // 自身が target_max に到達した seed は EarlyExit でも保存する。
@@ -219,10 +214,8 @@ pub(super) fn ideal_backward(
                             *seed_index,
                             seed,
                             max_step,
-                            limits.max_frontier,
                             constraints,
                             &result.best,
-                            result.killer.is_some(),
                             result.stats,
                         ),
                     )?;
@@ -230,7 +223,6 @@ pub(super) fn ideal_backward(
                         &seed_result_log_path,
                         *seed_index,
                         max_step,
-                        limits.max_frontier,
                         constraints,
                     );
                 }
@@ -252,8 +244,6 @@ pub(super) fn ideal_backward(
     })?;
 
     let (best_piece_count, best_positions, succeeded) = best.into_inner().unwrap();
-    let mut skipped = skipped.into_inner().unwrap();
-    skipped.sort_by_key(|killer| killer.seed_index);
 
     if best_positions.is_empty() {
         bail!("No single-king smoke backward result");
@@ -267,16 +257,6 @@ pub(super) fn ideal_backward(
         positions.len(),
         succeeded
     );
-    if !skipped.is_empty() {
-        eprintln!(
-            "INCOMPLETE: skipped {} killer seeds (max_frontier={:?})",
-            skipped.len(),
-            limits.max_frontier
-        );
-        for killer in skipped {
-            eprintln!("skipped {}", KillerSeedDisplay(killer));
-        }
-    }
     for sfen in positions {
         println!("{sfen}");
     }

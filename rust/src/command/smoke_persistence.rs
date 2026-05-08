@@ -23,7 +23,8 @@ pub(super) enum TerminationReason {
     Completed,
     /// `--max-step` (実効的には search_limit) に到達したため打ち切り。
     MaxStep,
-    /// `KillerSeedLimits::max_frontier` を超えて打ち切り (現状 detect_killer_seed の唯一の理由)。
+    /// 旧 `--max-frontier` で frontier 上限を超え打ち切られた (機能廃止後は古い
+    /// レコードを読む際にしか出現しない)。
     MaxFrontier,
     /// 別 seed が theoretical max piece count に到達したため大域停止。
     EarlyExit,
@@ -68,13 +69,11 @@ pub(super) struct SeedCheckpoint {
     pub(super) best_sfens: Vec<String>,
 }
 
-pub(super) fn condition_key(
-    max_step: Option<u16>,
-    max_frontier: Option<usize>,
-    constraints: SearchConstraints,
-) -> String {
+pub(super) fn condition_key(max_step: Option<u16>, constraints: SearchConstraints) -> String {
     use std::hash::{DefaultHasher, Hasher};
-    let s = serde_json::to_string(&(max_step, max_frontier, &constraints))
+    // None を中央タプル要素として埋めることで、`max_frontier` フラグ廃止前の
+    // None-run と同じ hash を再現する (古いチェックポイント・レコードとの互換)。
+    let s = serde_json::to_string(&(max_step, Option::<usize>::None, &constraints))
         .expect("constraints serialize");
     let mut hasher = DefaultHasher::new();
     hasher.write(s.as_bytes());
@@ -101,8 +100,7 @@ pub(super) fn write_seed_checkpoint(
 ) -> anyhow::Result<()> {
     let dir = checkpoint_dir(seed_result_log);
     fs::create_dir_all(&dir)?;
-    let key =
-        condition_key(checkpoint.max_step, checkpoint.max_frontier, checkpoint.constraints);
+    let key = condition_key(checkpoint.max_step, checkpoint.constraints);
     let path = checkpoint_path(seed_result_log, checkpoint.seed_index, &key);
     let tmp_path = dir.join(format!(
         ".seed_{}_{}.json.tmp",
@@ -118,14 +116,16 @@ pub(super) fn load_seed_checkpoint(
     seed_index: usize,
     seed_sfen: &str,
     max_step: Option<u16>,
-    max_frontier: Option<usize>,
     constraints: SearchConstraints,
 ) -> Option<SeedCheckpoint> {
-    let key = condition_key(max_step, max_frontier, constraints);
+    let key = condition_key(max_step, constraints);
     let new_path = checkpoint_path(seed_result_log, seed_index, &key);
     if let Ok(file) = fs::File::open(&new_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(file) {
-            if cp.seed_index == seed_index && cp.seed_sfen == seed_sfen {
+            if cp.seed_index == seed_index
+                && cp.seed_sfen == seed_sfen
+                && cp.max_frontier.is_none()
+            {
                 return Some(cp);
             }
         }
@@ -140,7 +140,7 @@ pub(super) fn load_seed_checkpoint(
     if checkpoint.seed_index == seed_index
         && checkpoint.seed_sfen == seed_sfen
         && checkpoint.max_step == max_step
-        && checkpoint.max_frontier == max_frontier
+        && checkpoint.max_frontier.is_none()
         && checkpoint.constraints == constraints
     {
         let _ = fs::rename(&legacy_path, &new_path);
@@ -154,17 +154,15 @@ pub(super) fn remove_seed_checkpoint(
     seed_result_log: &Path,
     seed_index: usize,
     max_step: Option<u16>,
-    max_frontier: Option<usize>,
     constraints: SearchConstraints,
 ) {
-    let key = condition_key(max_step, max_frontier, constraints);
+    let key = condition_key(max_step, constraints);
     let _ = fs::remove_file(checkpoint_path(seed_result_log, seed_index, &key));
 }
 
 pub(super) fn load_seed_result_log(
     path: &Path,
     max_step: Option<u16>,
-    max_frontier: Option<usize>,
     constraints: SearchConstraints,
 ) -> anyhow::Result<FxHashMap<usize, SeedResultRecord>> {
     let Ok(file) = fs::File::open(path) else {
@@ -186,7 +184,7 @@ pub(super) fn load_seed_result_log(
         };
         if record.version == IDEAL_BACKWARD_SEED_LOG_VERSION
             && record.max_step == max_step
-            && record.max_frontier == max_frontier
+            && record.max_frontier.is_none()
             && record.constraints == constraints
         {
             records.insert(record.seed_index, record);
@@ -233,10 +231,8 @@ pub(super) fn build_seed_result_record(
     seed_index: usize,
     seed: &PositionAux,
     max_step: Option<u16>,
-    max_frontier: Option<usize>,
     constraints: SearchConstraints,
     best: &Option<(u32, Vec<PositionAux>)>,
-    is_killer: bool,
     stats: SeedRunStats,
 ) -> SeedResultRecord {
     let (best_piece_count, positions, representative_sfen) =
@@ -250,7 +246,7 @@ pub(super) fn build_seed_result_record(
     SeedResultRecord {
         version: IDEAL_BACKWARD_SEED_LOG_VERSION,
         max_step,
-        max_frontier,
+        max_frontier: None,
         constraints,
         seed_index,
         seed_sfen: seed.sfen(),
@@ -258,7 +254,7 @@ pub(super) fn build_seed_result_record(
         best_piece_count,
         positions,
         representative_sfen,
-        skipped: is_killer,
+        skipped: false,
         peak_frontier_size: stats.peak_frontier_size,
         peak_memo_len: stats.peak_memo_len,
         total_seen_positions: stats.total_seen_positions,
@@ -314,7 +310,6 @@ mod tests {
         seed_index: usize,
         seed_sfen: &str,
         max_step: Option<u16>,
-        max_frontier: Option<usize>,
         constraints: SearchConstraints,
         marker: u32,
     ) -> SeedCheckpoint {
@@ -322,7 +317,7 @@ mod tests {
             seed_index,
             seed_sfen: seed_sfen.to_string(),
             max_step,
-            max_frontier,
+            max_frontier: None,
             constraints,
             resume_state: BackwardSearchResumeState {
                 initial_position_sfen: "test-init".to_string(),
@@ -344,16 +339,9 @@ mod tests {
             no_pawn: true,
             ..SearchConstraints::default()
         };
-        assert_eq!(condition_key(None, None, a), condition_key(None, None, a));
-        assert_ne!(condition_key(None, None, a), condition_key(None, None, b));
-        assert_ne!(
-            condition_key(None, None, a),
-            condition_key(Some(7), None, a)
-        );
-        assert_ne!(
-            condition_key(None, None, a),
-            condition_key(None, Some(1), a)
-        );
+        assert_eq!(condition_key(None, a), condition_key(None, a));
+        assert_ne!(condition_key(None, a), condition_key(None, b));
+        assert_ne!(condition_key(None, a), condition_key(Some(7), a));
     }
 
     #[test]
@@ -361,10 +349,10 @@ mod tests {
         let dir = unique_test_dir("roundtrip");
         let log = dir.join("log.jsonl");
         let constraints = SearchConstraints::default();
-        let cp = dummy_checkpoint(7, "sfen-x", Some(5), None, constraints, 42);
+        let cp = dummy_checkpoint(7, "sfen-x", Some(5), constraints, 42);
         write_seed_checkpoint(&log, &cp).unwrap();
 
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), None, constraints);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), constraints);
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().best_piece_count, 42);
 
@@ -381,11 +369,11 @@ mod tests {
             ..SearchConstraints::default()
         };
 
-        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, None, a, 1)).unwrap();
-        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, None, b, 2)).unwrap();
+        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, a, 1)).unwrap();
+        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, b, 2)).unwrap();
 
-        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, None, a).unwrap();
-        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, None, b).unwrap();
+        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, a).unwrap();
+        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, b).unwrap();
         assert_eq!(la.best_piece_count, 1);
         assert_eq!(lb.best_piece_count, 2);
 
@@ -400,15 +388,15 @@ mod tests {
         fs::create_dir_all(&cp_dir).unwrap();
 
         let constraints = SearchConstraints::default();
-        let cp = dummy_checkpoint(7, "sfen-x", None, None, constraints, 99);
+        let cp = dummy_checkpoint(7, "sfen-x", None, constraints, 99);
         let legacy_path = cp_dir.join("seed_7.json");
         serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
 
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, None, constraints);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints);
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().best_piece_count, 99);
 
-        let key = condition_key(None, None, constraints);
+        let key = condition_key(None, constraints);
         let new_path = cp_dir.join(format!("seed_7_{key}.json"));
         assert!(new_path.exists(), "new-format file should exist after migrate");
         assert!(!legacy_path.exists(), "legacy file should be renamed");
@@ -428,17 +416,17 @@ mod tests {
             no_pawn: true,
             ..SearchConstraints::default()
         };
-        let cp = dummy_checkpoint(7, "sfen-x", None, None, a, 99);
+        let cp = dummy_checkpoint(7, "sfen-x", None, a, 99);
         let legacy_path = cp_dir.join("seed_7.json");
         serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
 
         // Loading with mismatched conditions should not migrate or use it.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, None, b);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, b);
         assert!(loaded.is_none());
         assert!(legacy_path.exists(), "legacy file must remain for future runs");
 
         // Subsequent load with matching conditions still picks it up.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, None, a);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a);
         assert!(loaded.is_some());
         assert!(!legacy_path.exists(), "legacy file should now be migrated");
 

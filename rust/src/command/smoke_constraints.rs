@@ -4,12 +4,6 @@ use fmrs_core::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy)]
-pub(super) struct KillerSeedLimits {
-    pub(super) max_memo_entries: Option<usize>,
-    pub(super) max_frontier: Option<usize>,
-}
-
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct SearchConstraints {
     pub(super) no_gold: bool,

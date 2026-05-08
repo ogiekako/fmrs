@@ -21,7 +21,7 @@ const FRONTIER_PARALLEL_THRESHOLD: usize = 1024;
 use super::super::smoke_constraints::{
     board_piece_count, satisfies_ideal_smoke_constraints,
     satisfies_ideal_smoke_generation_constraints, satisfies_ideal_smoke_undo_candidate,
-    KillerSeedLimits, SearchConstraints,
+    SearchConstraints,
 };
 use super::super::smoke_persistence::{
     load_seed_checkpoint, write_seed_checkpoint, SeedCheckpoint, SeedRunStats, TerminationReason,
@@ -31,25 +31,7 @@ use super::system::{ProcStatus, SearchStatsDisplay};
 
 pub(super) struct SingleSeedResult {
     pub(super) best: Option<(u32, Vec<PositionAux>)>, // (piece_count, positions)
-    pub(super) killer: Option<KillerSeed>,
     pub(super) stats: SeedRunStats,
-}
-
-#[derive(Clone)]
-pub(super) struct KillerSeed {
-    pub(super) seed_index: usize,
-    best_piece_count: u32,
-    best_positions: usize,
-    reason: KillerReason,
-    stats: BackwardSearchStats,
-    proc_status: ProcStatus,
-    seed_sfen: String,
-}
-
-#[derive(Clone)]
-struct KillerReason {
-    actual: usize,
-    limit: usize,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -57,7 +39,7 @@ pub(super) fn search_single_seed(
     seed_index: usize,
     seed: &PositionAux,
     max_step: Option<u16>,
-    limits: KillerSeedLimits,
+    max_memo_entries: Option<usize>,
     constraints: SearchConstraints,
     parallel: usize,
     total_pending: usize,
@@ -79,7 +61,6 @@ pub(super) fn search_single_seed(
             seed_index,
             &seed.sfen(),
             max_step,
-            limits.max_frontier,
             constraints,
         )
     };
@@ -93,7 +74,6 @@ pub(super) fn search_single_seed(
         None => {
             return Ok(SingleSeedResult {
                 best: None,
-                killer: None,
                 stats: SeedRunStats {
                     peak_frontier_size: 0,
                     peak_memo_len: 0,
@@ -104,14 +84,14 @@ pub(super) fn search_single_seed(
             })
         }
     };
-    if let Some(max_memo_entries) = limits.max_memo_entries {
-        search.set_memo_entry_limit(Some(max_memo_entries));
+    if let Some(limit) = max_memo_entries {
+        search.set_memo_entry_limit(Some(limit));
     }
     // Track the most recently applied dynamic memo limit so we only re-apply
     // when the per-seed budget grows (dropping `remaining` releases budget to
-    // surviving seeds). `limits.max_memo_entries` is the per-seed budget at
-    // peak parallelism (`remaining = parallel`); total budget = base * parallel.
-    let mut applied_memo_limit = limits.max_memo_entries;
+    // surviving seeds). `max_memo_entries` is the per-seed budget at peak
+    // parallelism (`remaining = parallel`); total budget = base * parallel.
+    let mut applied_memo_limit = max_memo_entries;
     search.set_delta_trace(mem_trace);
     mt(mem_trace, seed_index, &search, format_args!("start resumed={}", checkpoint.is_some()));
     let mut best_piece_count = 0u32;
@@ -124,7 +104,6 @@ pub(super) fn search_single_seed(
             .filter_map(|sfen| PositionAux::from_sfen(sfen).ok())
             .collect();
     }
-    let mut killer = None;
     let search_limit = max_step.map(|limit| {
         if limit % 2 == 0 {
             limit.saturating_sub(1)
@@ -249,20 +228,6 @@ pub(super) fn search_single_seed(
             );
         }
 
-        if let Some(detected) = detect_killer_seed(
-            seed_index,
-            seed,
-            best_piece_count,
-            best_positions.len(),
-            &search,
-            limits,
-        ) {
-            eprintln!("skip_seed {}", KillerSeedDisplay(detected.clone()));
-            killer = Some(detected);
-            termination_reason = TerminationReason::MaxFrontier;
-            break;
-        }
-
         if beam.width.is_none() {
             if let Some(log) = feature_log {
                 sample_features_to_log(log, feature_samples_per_step, seed_index, &search);
@@ -306,7 +271,7 @@ pub(super) fn search_single_seed(
         // a larger share of the total memo budget. Only grow (never shrink)
         // since shrinking would require evicting hot entries the seed is
         // already using.
-        if let Some(base) = limits.max_memo_entries {
+        if let Some(base) = max_memo_entries {
             let dynamic_limit = base.saturating_mul(parallel) / remaining;
             if applied_memo_limit.is_none_or(|cur| dynamic_limit > cur) {
                 search.set_memo_entry_limit_lazy(Some(dynamic_limit));
@@ -350,27 +315,13 @@ pub(super) fn search_single_seed(
                     seed_index,
                     seed_sfen: seed.sfen(),
                     max_step,
-                    max_frontier: limits.max_frontier,
+                    max_frontier: None,
                     constraints,
                     resume_state: search.resume_state(),
                     best_piece_count,
                     best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
                 },
             );
-        }
-
-        if let Some(detected) = detect_killer_seed(
-            seed_index,
-            seed,
-            best_piece_count,
-            best_positions.len(),
-            &search,
-            limits,
-        ) {
-            eprintln!("skip_seed {}", KillerSeedDisplay(detected.clone()));
-            killer = Some(detected);
-            termination_reason = TerminationReason::MaxFrontier;
-            break;
         }
     }
 
@@ -412,34 +363,7 @@ pub(super) fn search_single_seed(
         // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
         Some((best_piece_count, best_positions))
     };
-    Ok(SingleSeedResult { best, killer, stats })
-}
-
-fn detect_killer_seed(
-    seed_index: usize,
-    seed: &PositionAux,
-    best_piece_count: u32,
-    best_positions: usize,
-    search: &BackwardSearch,
-    limits: KillerSeedLimits,
-) -> Option<KillerSeed> {
-    let stats = search.stats();
-    let limit = limits.max_frontier?;
-    if stats.positions_len <= limit {
-        return None;
-    }
-    Some(KillerSeed {
-        seed_index,
-        best_piece_count,
-        best_positions,
-        reason: KillerReason {
-            actual: stats.positions_len,
-            limit,
-        },
-        stats,
-        proc_status: ProcStatus::current(),
-        seed_sfen: seed.sfen(),
-    })
+    Ok(SingleSeedResult { best, stats })
 }
 
 pub(super) fn log_global_best_if_improved(
@@ -493,24 +417,4 @@ fn mt(enabled: bool, seed_index: usize, search: &BackwardSearch, args: fmt::Argu
         SearchStatsDisplay(search.stats()),
         ProcStatus::current()
     );
-}
-
-pub(super) struct KillerSeedDisplay(pub(super) KillerSeed);
-
-impl fmt::Display for KillerSeedDisplay {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let killer = &self.0;
-        write!(
-            f,
-            "seed={} best_pieces={} positions={} reason=frontier({}>{}) {} {} sfen={}",
-            killer.seed_index,
-            killer.best_piece_count,
-            killer.best_positions,
-            killer.reason.actual,
-            killer.reason.limit,
-            SearchStatsDisplay(killer.stats),
-            killer.proc_status,
-            killer.seed_sfen
-        )
-    }
 }
