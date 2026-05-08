@@ -240,18 +240,24 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<PositionAux> {
 
 pub fn sfen_to_image_url(sfen: &str) -> String {
     format!(
-        "https://ogiekako.github.io/fmrs/?sfen={}",
-        utf8_percent_encode(sfen, NON_ALPHANUMERIC)
+        "https://ogiekako.github.io/fmrs/{}",
+        sfen.replace(' ', "_")
     )
 }
 
 pub fn from_image_url(url: &str) -> anyhow::Result<String> {
-    let url = Url::parse(url)?;
-    let encoded_sfen = url
+    let parsed = Url::parse(url)?;
+    let path = parsed.path();
+    let base = "/fmrs/";
+    if path.starts_with(base) && path.len() > base.len() {
+        return Ok(path[base.len()..].replace('_', " "));
+    }
+    // 旧形式: ?sfen=
+    let encoded_sfen = parsed
         .query_pairs()
         .find(|(key, _)| key == "sfen")
         .map(|(_, value)| Ok(value.to_string()))
-        .unwrap_or_else(|| bail!("No sfen parameter"))?;
+        .unwrap_or_else(|| bail!("No sfen parameter or path"))?;
     Ok(percent_encoding::percent_decode_str(&encoded_sfen)
         .decode_utf8()?
         .chars()
@@ -429,33 +435,29 @@ pub mod tests {
         );
     }
 
-    extern crate percent_encoding;
-    fn to_url(sfen: &str) -> String {
-        let mut url = Url::parse("https://ogiekako.github.io/fmrs/").unwrap();
-        url.query_pairs_mut().append_pair("sfen", sfen);
-        url.to_string()
-    }
-
     pub fn encode_position_url(board: &mut PositionAux) -> String {
-        to_url(&encode_position(board))
+        super::sfen_to_image_url(&encode_position(board))
     }
 
     pub const START: &str = "lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL b - 1";
     // The example in https://web.archive.org/web/20080131070731/http://www.glaurungchess.com/shogi/usi.html
     pub const RYUO: &str =
         "8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L w Sbgn3p 1";
-    // https://ogiekako.github.io/fmrs/?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L+b+Sbgn3p+1
 
     #[test]
     fn test_encode_position_url() {
         use pretty_assertions::assert_eq;
 
         let mut board = decode_position(START).unwrap();
-        assert_eq!(encode_position_url(&mut board),
-    "https://ogiekako.github.io/fmrs/?sfen=lnsgkgsnl%2F1r5b1%2Fppppppppp%2F9%2F9%2F9%2FPPPPPPPPP%2F1B5R1%2FLNSGKGSNL+b+-+1");
+        assert_eq!(
+            encode_position_url(&mut board),
+            "https://ogiekako.github.io/fmrs/lnsgkgsnl/1r5b1/ppppppppp/9/9/9/PPPPPPPPP/1B5R1/LNSGKGSNL_b_-_1"
+        );
 
         let mut board = decode_position(RYUO).unwrap();
-        assert_eq!(encode_position_url(&mut board),
-    "https://ogiekako.github.io/fmrs/?sfen=8l%2F1l%2BR2P3%2Fp2pBG1pp%2Fkps1p4%2FNn1P2G2%2FP1P1P2PP%2F1PS6%2F1KSG3%2Br1%2FLN2%2Bp3L+w+Sbgn3p+1")
+        assert_eq!(
+            encode_position_url(&mut board),
+            "https://ogiekako.github.io/fmrs/8l/1l+R2P3/p2pBG1pp/kps1p4/Nn1P2G2/P1P1P2PP/1PS6/1KSG3+r1/LN2+p3L_w_Sbgn3p_1"
+        );
     }
 }
