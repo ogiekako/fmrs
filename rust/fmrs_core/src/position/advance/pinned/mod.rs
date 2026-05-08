@@ -141,98 +141,69 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
     };
     let mut res = Pinned::default();
 
+    let attacker_color = king_color.opposite();
+    let attacker_bb = position.color_bb(attacker_color);
+    let occupied = position.occupied_bb();
+    let blocker_bb = position.color_bb(blocker_color);
+
     lance_pinned(position, king_color, blocker_color, &mut res);
-    bishop_pinned(position, king_color, blocker_color, king_pos, &mut res);
-    rook_pinned(position, king_color, blocker_color, king_pos, &mut res);
+
+    let bishop_attackers =
+        position.bishopish() & attacker_bb & bishop_power(king_pos);
+    for attacker_pos in bishop_attackers {
+        let between = bishop_between(king_pos, attacker_pos);
+        check_line_pin(
+            position,
+            blocker_color,
+            blocker_bb,
+            occupied,
+            attacker_pos,
+            between,
+            &mut res,
+        );
+    }
+
+    let rook_attackers = position.rookish() & attacker_bb & rook_power(king_pos);
+    for attacker_pos in rook_attackers {
+        let between = rook_between(king_pos, attacker_pos);
+        check_line_pin(
+            position,
+            blocker_color,
+            blocker_bb,
+            occupied,
+            attacker_pos,
+            between,
+            &mut res,
+        );
+    }
 
     res
 }
 
-// #[inline(never)]
-fn bishop_pinned(
-    position: &mut PositionAux,
-    king_color: Color,
+#[inline]
+fn check_line_pin(
+    position: &PositionAux,
     blocker_color: Color,
-    king_pos: Square,
+    blocker_bb: BitBoard,
+    occupied: BitBoard,
+    attacker_pos: Square,
+    between: BitBoard,
     res: &mut Pinned,
 ) {
-    let attacker_color = king_color.opposite();
-
-    let power_from_king = bishop_power(king_pos);
-    let potential_attackers =
-        position.bishopish() & position.color_bb(attacker_color) & power_from_king;
-    if potential_attackers.is_empty() {
+    let blockers = between & occupied;
+    if blockers.count_ones() != 1 {
+        return;
+    }
+    let blocker_pos = blockers.singleton();
+    if !blocker_bb.contains(blocker_pos) {
         return;
     }
 
-    let occupied = position.occupied_bb();
-    let blocker_bb = position.color_bb(blocker_color);
+    let blocker_kind = position.must_get_kind(blocker_pos);
+    let pin_mask = between | BitBoard::EMPTY.with(attacker_pos);
+    let reach = reachable(position, blocker_color, blocker_pos, blocker_kind, false) & pin_mask;
 
-    for attacker_pos in potential_attackers {
-        let between = bishop_between(king_pos, attacker_pos);
-        let blockers = between & occupied;
-        // Need exactly one piece between king and attacker; the existing magic-based
-        // version filtered out attackers king sees directly (0 between) and pairs
-        // with multiple blockers via (reachable_from_king & reachable_from_attacker).
-        if blockers.count_ones() != 1 {
-            continue;
-        }
-        let blocker_pos = blockers.singleton();
-        if !blocker_bb.contains(blocker_pos) {
-            continue;
-        }
-
-        let blocker_kind = position.must_get_kind(blocker_pos);
-        // Pin line restricted to between(king, attacker) + attacker square (capture).
-        // reachable(blocker) is also bounded by attacker (which blocks), so this is
-        // equivalent to the original (power_from_attacker & power_from_king | attacker)
-        // mask but saves a bishop_power lookup per pin.
-        let pin_mask = between | BitBoard::EMPTY.with(attacker_pos);
-        let reach =
-            reachable(position, blocker_color, blocker_pos, blocker_kind, false) & pin_mask;
-
-        res.push(blocker_pos, reach);
-    }
-}
-
-// #[inline(never)]
-fn rook_pinned(
-    position: &mut PositionAux,
-    king_color: Color,
-    blocker_color: Color,
-    king_pos: Square,
-    res: &mut Pinned,
-) {
-    let attacker_color = king_color.opposite();
-
-    let power_from_king = rook_power(king_pos);
-    let potential_attackers =
-        position.rookish() & position.color_bb(attacker_color) & power_from_king;
-    if potential_attackers.is_empty() {
-        return;
-    }
-
-    let occupied = position.occupied_bb();
-    let blocker_bb = position.color_bb(blocker_color);
-
-    for attacker_pos in potential_attackers {
-        let between = rook_between(king_pos, attacker_pos);
-        let blockers = between & occupied;
-        if blockers.count_ones() != 1 {
-            continue;
-        }
-        let blocker_pos = blockers.singleton();
-        if !blocker_bb.contains(blocker_pos) {
-            continue;
-        }
-
-        let blocker_kind = position.must_get_kind(blocker_pos);
-        let pin_mask = between | BitBoard::EMPTY.with(attacker_pos);
-        let reach =
-            reachable(position, blocker_color, blocker_pos, blocker_kind, false) & pin_mask;
-
-        res.push(blocker_pos, reach);
-    }
+    res.push(blocker_pos, reach);
 }
 
 // #[inline(never)]
