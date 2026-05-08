@@ -157,27 +157,27 @@ impl LowMemStandardSolver {
         std::mem::swap(&mut self.tmp_positions, &mut self.positions);
 
         for core in self.tmp_positions.iter() {
-            let mut position = PositionAux::new(core.clone(), self.stone);
+            let mut outer = PositionAux::new(core.clone(), self.stone);
 
             self.movements.clear();
             let is_mate =
-                advance_aux(&mut position, &Default::default(), &mut self.movements).unwrap();
+                advance_aux(&mut outer, &Default::default(), &mut self.movements).unwrap();
 
             if is_mate {
-                self.mate_positions.push(position.clone());
+                self.mate_positions.push(outer.clone());
             } else if !self.mate_positions.is_empty() {
                 continue;
             }
 
             std::mem::swap(&mut self.tmp_movements, &mut self.movements);
             for m in self.tmp_movements.iter() {
-                // Reuse a single PositionAux for white's escape: clone core once,
-                // apply white move via PositionAux::do_move (which updates the
-                // cached occupied/white_bb/king_pos), then advance_aux can use
-                // the same PositionAux directly. This saves the second 144 byte
-                // clone (np.clone()) that the previous version did to construct
-                // a fresh PositionAux for advance_aux.
-                let mut position = PositionAux::new(core.clone(), self.stone);
+                // Clone the outer PositionAux (carries cached king_pos +
+                // occupied/white_bb after advance_aux's lazy fill), then apply
+                // white's escape via PositionAux::do_move which incrementally
+                // updates the caches. Avoids re-running PositionAux::new from
+                // a Position clone and lets the next advance_aux skip its lazy
+                // king_pos lookup.
+                let mut position = outer.clone();
                 position.do_move(m);
 
                 self.movements.clear();
