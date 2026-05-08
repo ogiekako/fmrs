@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778211721277,
+  "lastUpdate": 1778212107064,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35045,6 +35045,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 75971,
             "range": "± 68",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "f5a1a8d11a7ecaf5020c325aac48258c54cc5475",
+          "message": "perf(low_mem_standard): inner loop で Position の重複 clone を排除\n\nnext_next_positions の white 逃げ手ループで、core を 2 度 clone\n(np = core.clone() と PositionAux::new(np.clone(), ..)) していたのを\nPositionAux::new(core.clone(), ..) + position.do_move(m) に統合。\nPosition の 144 byte memcpy を 1 回削減。\n\nbench_jugemu (full) 16700-17600ms → 15655-16610ms (~5-7% 改善)。\nperf 上 do_move の self-time も 7.98% → 3.80% に減少\n(PositionAux::do_move への変更でも total 削減)。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T12:36:29+09:00",
+          "tree_id": "ffae8f538536e5f118503ada0e256c4b8344aa50",
+          "url": "https://github.com/ogiekako/fmrs/commit/f5a1a8d11a7ecaf5020c325aac48258c54cc5475"
+        },
+        "date": 1778212104851,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 969,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3379,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 276,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 1048,
+            "range": "± 1860",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 38765,
+            "range": "± 151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1474,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4252,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1802457,
+            "range": "± 167",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11535,
+            "range": "± 646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 202643,
+            "range": "± 11264",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 81002,
+            "range": "± 665",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 75852,
+            "range": "± 387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 23101,
+            "range": "± 224",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 75165,
+            "range": "± 2269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18718,
+            "range": "± 69",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1271,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 34679,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4275,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21439,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 76922,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 46579,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 81977,
+            "range": "± 60",
             "unit": "ns/iter"
           }
         ]
