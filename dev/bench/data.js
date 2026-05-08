@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778225332345,
+  "lastUpdate": 1778226266947,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -371,6 +371,120 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 37190,
             "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "072ea217f6d85dc384bd3f5945b57f2869aa32b9",
+          "message": "fix(smoke): trajectory_log_path が /dev/null に .trajectory.jsonl を付加して Permission denied になる問題を修正\n\nseed_result_log が /dev/null のときは trajectory path も /dev/null を返すようにした。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T16:35:08+09:00",
+          "tree_id": "4d99b81b089aaa1295d66b748bf31e86d55afaf1",
+          "url": "https://github.com/ogiekako/fmrs/commit/072ea217f6d85dc384bd3f5945b57f2869aa32b9"
+        },
+        "date": 1778226264459,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 935,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3641,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 267,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 899,
+            "range": "± 3264",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34032,
+            "range": "± 214",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1532,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5015,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1780995,
+            "range": "± 1809",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11827,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 35873,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4244,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22222,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 76208,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 41935,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 88846,
+            "range": "± 1206",
             "unit": "ns/iter"
           }
         ]
