@@ -6,6 +6,8 @@ use super::smoke_constraints::{parse_allowed_kinds, parse_mate_squares, SearchCo
 mod beam;
 mod enumerate;
 mod ideal_backward;
+mod oracle;
+mod scheduler;
 mod search;
 mod system;
 mod train;
@@ -120,6 +122,12 @@ pub enum SingleKingSmokeCommand {
         /// Fleet partitioning: total number of instances.
         #[arg(long)]
         fleet_size: Option<usize>,
+        /// Path to a trained oracle model (standardized_ridge_v1 JSON, as
+        /// emitted by `scripts/oracle_baseline.py --out-dir`). When given,
+        /// switches the seed schedule to a priority queue ordered by the
+        /// oracle's predicted bpc.
+        #[arg(long)]
+        oracle_model: Option<PathBuf>,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -187,6 +195,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             beam_model,
             fleet_index,
             fleet_size,
+            oracle_model,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
@@ -205,6 +214,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 fleet_index,
                 fleet_size,
                 max_memo_entries,
+                oracle_model,
                 SearchConstraints {
                     no_gold,
                     no_pawn,

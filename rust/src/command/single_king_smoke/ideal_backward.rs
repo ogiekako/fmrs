@@ -5,7 +5,7 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use super::super::smoke_constraints::{
     satisfies_mate_square, satisfies_search_constraints, theoretical_max_piece_count,
@@ -18,6 +18,8 @@ use super::super::smoke_persistence::{
 };
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
 use super::enumerate::enumerate_final_2_positions;
+use super::oracle::OracleModel;
+use super::scheduler::run_with_oracle;
 use super::search::search_single_seed;
 use super::system::ProcStatus;
 
@@ -32,6 +34,7 @@ pub(super) fn ideal_backward(
     fleet_index: Option<usize>,
     fleet_size: Option<usize>,
     max_memo_entries: Option<usize>,
+    oracle_model: Option<PathBuf>,
     constraints: SearchConstraints,
     mem_trace: bool,
     feature_log: FeatureLogConfig,
@@ -138,6 +141,38 @@ pub(super) fn ideal_backward(
         None => None,
     };
     let feature_samples_per_step = feature_log.samples_per_step;
+
+    // Oracle path: PQ-based scheduler. Replaces the per-seed par_iter loop.
+    if let Some(oracle_path) = oracle_model {
+        if beam.width.is_some() {
+            bail!("--oracle-model is incompatible with --beam-width (use one or the other)");
+        }
+        let oracle = OracleModel::load(&oracle_path).with_context(|| {
+            format!("loading oracle model from {}", oracle_path.display())
+        })?;
+        eprintln!(
+            "oracle: loaded {} ({} features) from {}",
+            oracle.model_type,
+            oracle.feature_names.len(),
+            oracle_path.display()
+        );
+        let stop_signal = Arc::new(stop_signal);
+        let final_best = run_with_oracle(
+            pending_seeds,
+            constraints,
+            max_step,
+            max_memo_entries,
+            parallel,
+            seed_result_log_path,
+            seed_result_log,
+            trajectory_log,
+            oracle,
+            target_max,
+            stop_signal,
+            initial_best,
+        )?;
+        return finalize_output(final_best);
+    }
 
     // Pool size = parallel (= total cores allocated to this run).
     // inner_parallel is no longer multiplied in: each seed dynamically picks
@@ -249,12 +284,15 @@ pub(super) fn ideal_backward(
             })
     })?;
 
-    let (best_piece_count, best_positions, succeeded) = best.into_inner().unwrap();
+    let final_best = best.into_inner().unwrap();
+    finalize_output(final_best)
+}
 
+fn finalize_output(best: (u32, FxHashSet<String>, usize)) -> anyhow::Result<()> {
+    let (best_piece_count, best_positions, succeeded) = best;
     if best_positions.is_empty() {
         bail!("No single-king smoke backward result");
     }
-
     let mut positions = best_positions.into_iter().collect::<Vec<_>>();
     positions.sort();
     eprintln!(
