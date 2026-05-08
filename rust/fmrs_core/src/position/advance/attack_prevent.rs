@@ -174,28 +174,26 @@ impl<'a> Context<'a> {
         let bishipish = self.position.bishopish() & attacker_color_bb;
         let rookish = self.position.rookish() & attacker_color_bb;
 
-        for dest in king_reachable {
-            if !lances.is_empty() {
-                let attacking_lances =
-                    lance_reachable(self.occupied_without_king, king_color, dest) & lances;
-                if !attacking_lances.is_empty() {
-                    continue;
-                }
-            }
-            if !bishipish.is_empty() {
-                let attacking_bishops =
-                    bishop_reachable(self.occupied_without_king, dest) & bishipish;
-                if !attacking_bishops.is_empty() {
-                    continue;
-                }
-            }
-            if !rookish.is_empty() {
-                let attacking_rooks = rook_reachable(self.occupied_without_king, dest) & rookish;
-                if !attacking_rooks.is_empty() {
-                    continue;
-                }
-            }
+        // Per-attacker magic lookup is cheaper than per-dest (line pieces are
+        // typically 1-2 while king dests can be up to 8). Build the union of all
+        // squares attacked by enemy line pieces, considering the board with the
+        // king removed (so the king can't shield itself).
+        let mut attacked_by_line = BitBoard::default();
+        for lance_pos in lances {
+            attacked_by_line |=
+                lance_reachable(self.occupied_without_king, attacker_color, lance_pos);
+        }
+        for bishop_pos in bishipish {
+            attacked_by_line |= bishop_reachable(self.occupied_without_king, bishop_pos);
+        }
+        for rook_pos in rookish {
+            attacked_by_line |= rook_reachable(self.occupied_without_king, rook_pos);
+        }
 
+        for dest in king_reachable {
+            if attacked_by_line.contains(dest) {
+                continue;
+            }
             let capture_kind = self.position.get_kind(dest);
             let king_pos = self.position.must_turn_king_pos();
             self.maybe_add_move(
