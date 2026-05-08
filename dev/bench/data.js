@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778178829529,
+  "lastUpdate": 1778202883672,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -34109,6 +34109,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 88890,
             "range": "± 48",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "34fb00d2ebbd991e0e6f8e51e665990313793e85",
+          "message": "refactor: probe ループ重複除去 & search 初期化ネスト解消\n\n[backward.rs] FlatShard の linear probe 再挿入ループが\npre_allocate/grow/shrink_local/rebuild_with の 4 箇所に重複していた。\nunsafe fn probe_insert_into_clear(keys, values, mask, key, packed) に切り出して\n各呼び出し元を 1 行に短縮。\n\n[single_king_smoke.rs] search_single_seed のチェックポイント初期化が\n2 重 match ネストで同じ fallback を繰り返していた。\nand_then + or_else チェーンで平坦化し、\nBackwardSearch::new_with_parallel は1回しか記述しない形に整理。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T03:27:19+09:00",
+          "tree_id": "a8164ff5c56a627d01ef2b2f75dec307d6d2d35b",
+          "url": "https://github.com/ogiekako/fmrs/commit/34fb00d2ebbd991e0e6f8e51e665990313793e85"
+        },
+        "date": 1778202880986,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 735,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3009,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 291,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 981,
+            "range": "± 2142",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29036,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1522,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4964,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1742375,
+            "range": "± 311",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10430,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 317509,
+            "range": "± 850",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 69728,
+            "range": "± 177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 145790,
+            "range": "± 1697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21227,
+            "range": "± 150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 53676,
+            "range": "± 103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 16630,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 3282,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33717,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4063,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21052,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81632,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 38461,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 76086,
+            "range": "± 30",
             "unit": "ns/iter"
           }
         ]
