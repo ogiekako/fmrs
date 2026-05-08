@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778226266947,
+  "lastUpdate": 1778244206343,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -485,6 +485,120 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 88846,
             "range": "± 1206",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "79268019450dd5b000fc0d1ff9b90c5ed704447d",
+          "message": "fix(core): sfen_to_image_url を path 形式に変更、from_image_url も旧形式互換\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T21:33:57+09:00",
+          "tree_id": "8332887283e30ba36d6c498e66fcbe1058390f2b",
+          "url": "https://github.com/ogiekako/fmrs/commit/79268019450dd5b000fc0d1ff9b90c5ed704447d"
+        },
+        "date": 1778244203399,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 812,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3430,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 270,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 883,
+            "range": "± 3075",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 30580,
+            "range": "± 916",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1489,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4347,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1742833,
+            "range": "± 174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11547,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33561,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4067,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21276,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 77212,
+            "range": "± 218",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 39241,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 80750,
+            "range": "± 107",
             "unit": "ns/iter"
           }
         ]
