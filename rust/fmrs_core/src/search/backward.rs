@@ -258,7 +258,10 @@ impl ShardedFlatMemo {
         self.shards.iter().flat_map(|s| s.iter())
     }
 
-
+    #[cfg(test)]
+    fn contains_key(&self, key: u64) -> bool {
+        self.get(key).is_some()
+    }
 
     /// Shrinks the memo to keep ~`target_len` entries by score. Uses per-shard
     /// local selection + parallel rebuild (no global Vec materialization). Score
