@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778210802192,
+  "lastUpdate": 1778211399230,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -34733,6 +34733,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 76905,
             "range": "± 43",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "4edb5274af6d0652111f267e3ed5bb9eb1fdce34",
+          "message": "perf(pinned): pin_mask 計算を between table で代替\n\nbishop_pinned/rook_pinned 内で blocker の動ける範囲計算用 pin_mask を\n(power_from_attacker & power_from_king | attacker) から\n(between(king, attacker) | attacker) に変更。reachable() が attacker で\n止まるため意味的に等価。bishop_power/rook_power lookup を1つ削減。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T12:23:44+09:00",
+          "tree_id": "8e680d5a42b31ea05ca0024e613881a3972a5d84",
+          "url": "https://github.com/ogiekako/fmrs/commit/4edb5274af6d0652111f267e3ed5bb9eb1fdce34"
+        },
+        "date": 1778211396990,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 782,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3517,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 279,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 865,
+            "range": "± 2993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32955,
+            "range": "± 107",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1426,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4701,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1714735,
+            "range": "± 283",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10795,
+            "range": "± 79",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 191591,
+            "range": "± 7963",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 79016,
+            "range": "± 210",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 76276,
+            "range": "± 565",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 22468,
+            "range": "± 155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 69269,
+            "range": "± 1025",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 19670,
+            "range": "± 135",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1263,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 34963,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4220,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21739,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 74380,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 42553,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 81074,
+            "range": "± 19",
             "unit": "ns/iter"
           }
         ]
