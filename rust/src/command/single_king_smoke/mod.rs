@@ -90,12 +90,6 @@ pub enum SingleKingSmokeCommand {
         /// Step threshold for --min-pawn-pct (default: 6).
         #[arg(long, default_value_t = 6)]
         min_pawn_pct_after_step: u16,
-        /// Per-seed cap on inner parallelism within `advance_parallel_filtered`.
-        /// 0 (default): no cap — dynamic inner can grow up to `--parallel` as
-        /// other seeds finish. 1: disable inner parallelism entirely. N>=2: cap
-        /// dynamic inner at N.
-        #[arg(long, default_value_t = 0)]
-        inner_parallel: usize,
         #[arg(long, default_value_t = false)]
         mem_trace: bool,
         #[arg(long, default_value_t = 0)]
@@ -186,7 +180,6 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             max_promoted_pct_after_step,
             min_pawn_pct,
             min_pawn_pct_after_step,
-            inner_parallel,
             mem_trace,
             slack,
             mate_square,
@@ -198,8 +191,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             fleet_index,
             fleet_size,
         } => {
-            let max_memo_entries =
-                parse_max_memo_entries(&max_memo_entries, parallel, inner_parallel)?;
+            let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
@@ -236,7 +228,6 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     mate_squares,
                     miyako,
                 },
-                inner_parallel,
                 mem_trace,
                 FeatureLogConfig {
                     path: feature_log,

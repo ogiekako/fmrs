@@ -69,30 +69,18 @@ fn parse_kib_field(value: &str) -> Option<usize> {
     value.split_whitespace().next()?.parse().ok()
 }
 
+/// Parse `--max-memo-entries`. The returned value is the per-seed cap **at
+/// peak parallelism** (when all `parallel` seeds are concurrently running).
+/// At runtime the per-seed cap grows as other seeds finish — see
+/// `search_single_seed`'s dynamic memo budget.
 pub(super) fn parse_max_memo_entries(
     value: &str,
     parallel: usize,
-    inner_parallel: usize,
 ) -> anyhow::Result<Option<usize>> {
     match value {
-        "auto" => {
-            let total_cores = default_parallelism();
-            // by_cores: divide budget across the maximum concurrent seeds the
-            // machine can run (each seed uses inner_parallel cores).
-            let by_cores = memo_entries_for_memory(total_cores / inner_parallel.max(1));
-            // by_parallel: divide budget among actually concurrent seeds.
-            let by_parallel = memo_entries_for_memory(parallel);
-            let entries = by_cores.min(by_parallel);
-            eprintln!(
-                "auto max_memo_entries={entries} (parallel={parallel} inner_parallel={inner_parallel} total_cores={total_cores} by_cores={by_cores} by_parallel={by_parallel})"
-            );
-            Ok(Some(entries))
-        }
-        "full" => {
+        "auto" | "full" => {
             let entries = memo_entries_for_memory(parallel);
-            eprintln!(
-                "full max_memo_entries={entries} (parallel={parallel} inner_parallel={inner_parallel})"
-            );
+            eprintln!("{value} max_memo_entries={entries} (parallel={parallel})");
             Ok(Some(entries))
         }
         "none" => Ok(None),
@@ -121,10 +109,4 @@ fn total_memory_bytes() -> usize {
         }
     }
     8 * 1024 * 1024 * 1024
-}
-
-fn default_parallelism() -> usize {
-    std::thread::available_parallelism()
-        .map(|n| n.get())
-        .unwrap_or(1)
 }

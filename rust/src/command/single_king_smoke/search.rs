@@ -59,7 +59,6 @@ pub(super) fn search_single_seed(
     limits: KillerSeedLimits,
     constraints: SearchConstraints,
     parallel: usize,
-    inner_parallel_cap: usize,
     total_pending: usize,
     completed_in_run: &AtomicUsize,
     mem_trace: bool,
@@ -90,16 +89,14 @@ pub(super) fn search_single_seed(
         Some(s) => s,
         None => return Ok(SingleSeedResult { best: None, killer: None }),
     };
-    // Effective cap on dynamic inner-parallel. inner_parallel_cap == 0 means
-    // "no user-specified cap" → cap by `parallel` (the pool size).
-    let effective_inner_cap = if inner_parallel_cap == 0 {
-        parallel
-    } else {
-        inner_parallel_cap
-    };
     if let Some(max_memo_entries) = limits.max_memo_entries {
         search.set_memo_entry_limit(Some(max_memo_entries));
     }
+    // Track the most recently applied dynamic memo limit so we only re-apply
+    // when the per-seed budget grows (dropping `remaining` releases budget to
+    // surviving seeds). `limits.max_memo_entries` is the per-seed budget at
+    // peak parallelism (`remaining = parallel`); total budget = base * parallel.
+    let mut applied_memo_limit = limits.max_memo_entries;
     search.set_delta_trace(mem_trace);
     mt(mem_trace, seed_index, &search, format_args!("start resumed={}", checkpoint.is_some()));
     let mut best_piece_count = 0u32;
@@ -254,11 +251,22 @@ pub(super) fn search_single_seed(
         let remaining = total_pending
             .saturating_sub(completed_in_run.load(Ordering::Relaxed))
             .max(1);
-        let dynamic_inner = (parallel / remaining).max(1).min(effective_inner_cap);
+        let dynamic_inner = (parallel / remaining).max(1);
         let frontier = search.stats().positions_len;
         let use_inner_parallel =
             dynamic_inner > 1 && frontier >= FRONTIER_PARALLEL_THRESHOLD;
         search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
+        // Dynamic memo budget: as `remaining` drops, the surviving seed gets
+        // a larger share of the total memo budget. Only grow (never shrink)
+        // since shrinking would require evicting hot entries the seed is
+        // already using.
+        if let Some(base) = limits.max_memo_entries {
+            let dynamic_limit = base.saturating_mul(parallel) / remaining;
+            if applied_memo_limit.is_none_or(|cur| dynamic_limit > cur) {
+                search.set_memo_entry_limit_lazy(Some(dynamic_limit));
+                applied_memo_limit = Some(dynamic_limit);
+            }
+        }
         let advanced = if use_inner_parallel {
             search.advance_parallel_filtered(&candidate_filter, &generation_filter)?
         } else {
@@ -273,12 +281,13 @@ pub(super) fn search_single_seed(
             seed_index,
             &search,
             format_args!(
-                "advance next_step={} advanced={} inner={} remaining={} frontier={} elapsed_ms={}",
+                "advance next_step={} advanced={} inner={} remaining={} frontier={} memo_limit={} elapsed_ms={}",
                 next_step,
                 advanced,
                 if use_inner_parallel { dynamic_inner } else { 1 },
                 remaining,
                 frontier,
+                applied_memo_limit.map(|n| n as i64).unwrap_or(-1),
                 advance_start.elapsed().as_millis()
             ),
         );

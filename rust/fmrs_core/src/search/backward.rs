@@ -1060,6 +1060,16 @@ impl BackwardSearch {
         }
     }
 
+    /// Update the memo entry limit without pre-allocating capacity. Use when
+    /// the limit may change frequently (e.g., dynamic per-seed budget that
+    /// grows as other seeds finish): pre_allocate's cost is +44.5% on the
+    /// parallel path because the memos get reset each step anyway, so the
+    /// up-front allocation is wasted. The lazy-grow Memo handles capacity
+    /// adjustment on demand.
+    pub fn set_memo_entry_limit_lazy(&mut self, max_entries: Option<usize>) {
+        self.memo_entry_limit = max_entries.map(|limit| (limit / 2).max(1));
+    }
+
     pub fn set_delta_trace(&mut self, enabled: bool) {
         self.delta_trace = enabled;
     }
