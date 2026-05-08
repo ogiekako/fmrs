@@ -194,6 +194,9 @@ pub(super) fn load_seed_result_log(
 }
 
 pub(super) fn trajectory_log_path(seed_result_log: &Path) -> PathBuf {
+    if seed_result_log == Path::new("/dev/null") {
+        return seed_result_log.to_owned();
+    }
     let mut p = seed_result_log.as_os_str().to_owned();
     p.push(".trajectory.jsonl");
     PathBuf::from(p)
