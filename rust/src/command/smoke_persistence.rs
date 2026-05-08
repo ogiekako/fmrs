@@ -13,6 +13,20 @@ use super::smoke_constraints::SearchConstraints;
 
 pub(super) const IDEAL_BACKWARD_SEED_LOG_VERSION: u32 = 1;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub(super) enum TerminationReason {
+    /// 旧レコードや未設定。skipped 互換のため `from_skipped` で復元する。
+    #[default]
+    Unknown,
+    /// `BackwardSearch::advance` が新しい局面を生成しなくなった (探索が自然終了)。
+    Completed,
+    /// `--max-step` (実効的には search_limit) に到達したため打ち切り。
+    MaxStep,
+    /// `KillerSeedLimits::max_frontier` を超えて打ち切り (現状 detect_killer_seed の唯一の理由)。
+    MaxFrontier,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(super) struct SeedResultRecord {
     pub(super) version: u32,
@@ -28,6 +42,16 @@ pub(super) struct SeedResultRecord {
     pub(super) positions: usize,
     pub(super) representative_sfen: Option<String>,
     pub(super) skipped: bool,
+    #[serde(default)]
+    pub(super) peak_frontier_size: usize,
+    #[serde(default)]
+    pub(super) peak_memo_len: usize,
+    #[serde(default)]
+    pub(super) total_seen_positions: u64,
+    #[serde(default)]
+    pub(super) terminal_step: u16,
+    #[serde(default)]
+    pub(super) termination_reason: TerminationReason,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -194,6 +218,15 @@ pub(super) fn append_seed_result_record(
     Ok(())
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(super) struct SeedRunStats {
+    pub(super) peak_frontier_size: usize,
+    pub(super) peak_memo_len: usize,
+    pub(super) total_seen_positions: u64,
+    pub(super) terminal_step: u16,
+    pub(super) termination_reason: TerminationReason,
+}
+
 pub(super) fn build_seed_result_record(
     seed_index: usize,
     seed: &PositionAux,
@@ -202,6 +235,7 @@ pub(super) fn build_seed_result_record(
     constraints: SearchConstraints,
     best: &Option<(u32, Vec<PositionAux>)>,
     is_killer: bool,
+    stats: SeedRunStats,
 ) -> SeedResultRecord {
     let (best_piece_count, positions, representative_sfen) =
         if let Some((piece_count, positions)) = best.as_ref() {
@@ -223,6 +257,11 @@ pub(super) fn build_seed_result_record(
         positions,
         representative_sfen,
         skipped: is_killer,
+        peak_frontier_size: stats.peak_frontier_size,
+        peak_memo_len: stats.peak_memo_len,
+        total_seen_positions: stats.total_seen_positions,
+        terminal_step: stats.terminal_step,
+        termination_reason: stats.termination_reason,
     }
 }
 

@@ -203,6 +203,7 @@ pub(super) fn ideal_backward(
                             constraints,
                             &result.best,
                             result.killer.is_some(),
+                            result.stats,
                         ),
                     )?;
                     remove_seed_checkpoint(

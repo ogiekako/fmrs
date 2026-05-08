@@ -24,7 +24,7 @@ use super::super::smoke_constraints::{
     KillerSeedLimits, SearchConstraints,
 };
 use super::super::smoke_persistence::{
-    load_seed_checkpoint, write_seed_checkpoint, SeedCheckpoint,
+    load_seed_checkpoint, write_seed_checkpoint, SeedCheckpoint, SeedRunStats, TerminationReason,
 };
 use super::beam::{apply_beam, sample_features_to_log, BeamConfig};
 use super::system::{ProcStatus, SearchStatsDisplay};
@@ -32,6 +32,7 @@ use super::system::{ProcStatus, SearchStatsDisplay};
 pub(super) struct SingleSeedResult {
     pub(super) best: Option<(u32, Vec<PositionAux>)>, // (piece_count, positions)
     pub(super) killer: Option<KillerSeed>,
+    pub(super) stats: SeedRunStats,
 }
 
 #[derive(Clone)]
@@ -87,7 +88,19 @@ pub(super) fn search_single_seed(
         .or_else(|| BackwardSearch::new_with_parallel(seed, false, 1, false).ok())
     {
         Some(s) => s,
-        None => return Ok(SingleSeedResult { best: None, killer: None }),
+        None => {
+            return Ok(SingleSeedResult {
+                best: None,
+                killer: None,
+                stats: SeedRunStats {
+                    peak_frontier_size: 0,
+                    peak_memo_len: 0,
+                    total_seen_positions: 0,
+                    terminal_step: 0,
+                    termination_reason: TerminationReason::Unknown,
+                },
+            })
+        }
     };
     if let Some(max_memo_entries) = limits.max_memo_entries {
         search.set_memo_entry_limit(Some(max_memo_entries));
@@ -117,6 +130,24 @@ pub(super) fn search_single_seed(
             limit
         }
     });
+    // Per-seed terminal stats. Peaks are accumulated across the loop;
+    // termination_reason is overwritten at the break that actually fires.
+    let mut peak_frontier_size: usize = 0;
+    let mut peak_memo_len: usize = 0;
+    // 全 break 経路で上書き済み; loop が他経路で抜けないことの fallback として Unknown。
+    #[allow(unused_assignments)]
+    let mut termination_reason = TerminationReason::Unknown;
+    let track_peaks =
+        |peak_frontier_size: &mut usize, peak_memo_len: &mut usize, search: &BackwardSearch| {
+            let s = search.stats();
+            if s.positions_len > *peak_frontier_size {
+                *peak_frontier_size = s.positions_len;
+            }
+            if s.memo_len > *peak_memo_len {
+                *peak_memo_len = s.memo_len;
+            }
+        };
+    track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
 
     loop {
         if search.step() == 0 || search.step() % 2 == 1 {
@@ -216,6 +247,7 @@ pub(super) fn search_single_seed(
         ) {
             eprintln!("skip_seed {}", KillerSeedDisplay(detected.clone()));
             killer = Some(detected);
+            termination_reason = TerminationReason::MaxFrontier;
             break;
         }
 
@@ -226,10 +258,12 @@ pub(super) fn search_single_seed(
         }
 
         if search_limit.is_some_and(|limit| search.step() >= limit) {
+            termination_reason = TerminationReason::MaxStep;
             break;
         }
         let next_step = search.step() + 1;
         if search_limit.is_some_and(|limit| next_step > limit) {
+            termination_reason = TerminationReason::MaxStep;
             break;
         }
 
@@ -292,8 +326,10 @@ pub(super) fn search_single_seed(
             ),
         );
         if !advanced {
+            termination_reason = TerminationReason::Completed;
             break;
         }
+        track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
 
         if beam.width.is_none() {
             let _ = write_seed_checkpoint(
@@ -321,9 +357,20 @@ pub(super) fn search_single_seed(
         ) {
             eprintln!("skip_seed {}", KillerSeedDisplay(detected.clone()));
             killer = Some(detected);
+            termination_reason = TerminationReason::MaxFrontier;
             break;
         }
     }
+
+    track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
+    let final_stats = search.stats();
+    let stats = SeedRunStats {
+        peak_frontier_size,
+        peak_memo_len,
+        total_seen_positions: final_stats.seen_positions as u64,
+        terminal_step: final_stats.step,
+        termination_reason,
+    };
 
     mt(
         mem_trace,
@@ -353,7 +400,7 @@ pub(super) fn search_single_seed(
         // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
         Some((best_piece_count, best_positions))
     };
-    Ok(SingleSeedResult { best, killer })
+    Ok(SingleSeedResult { best, killer, stats })
 }
 
 fn detect_killer_seed(
