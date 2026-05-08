@@ -3,71 +3,82 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
 const webpack = require("webpack");
 
-module.exports = {
-  entry: "./app/src/index.tsx",
-  output: {
-    path: path.join(__dirname, "docs"),
-    filename: "main.js",
-  },
-  module: {
-    rules: [
-      {
-        test: /\.tsx?$/,
-        use: [
-          {
-            loader: "babel-loader",
-            options: { presets: ["@babel/preset-env", "@babel/react"] },
-          },
-          {
-            loader: "ts-loader",
-            options: {
-              configFile: path.resolve(__dirname, "app/tsconfig.json"),
-            },
-          },
-        ],
-      },
-      {
-        test: /\.css$/,
-        use: ["style-loader", "css-loader"],
-      },
-    ],
-  },
-  plugins: [
-    new HtmlWebpackPlugin({
-      template: "./app/public/index.html",
-    }),
-    new webpack.DefinePlugin({
-      FMRS_API_BASE_URL: JSON.stringify(process.env.FMRS_API_BASE_URL || ""),
-    }),
-    new WasmPackPlugin({
-      crateDirectory: path.resolve(__dirname, "rust/wasm"),
-      outDir: path.resolve(__dirname, "docs/pkg"),
-    }),
-  ],
-  experiments: {
-    asyncWebAssembly: true,
-  },
-  performance: {
-    hints: false,
-  },
-  devServer: {
-    compress: false,
-    static: {
-      directory: path.join(__dirname, "docs"),
+module.exports = (env, argv) => {
+  const isProd = argv && argv.mode === "production";
+  const basePath = isProd ? "/fmrs/" : "/";
+  return {
+    entry: "./app/src/index.tsx",
+    output: {
+      path: path.join(__dirname, "docs"),
+      filename: "main.js",
+      publicPath: basePath,
     },
-    port: 3000,
-    proxy: [
-      {
-        context: ["/solve", "/fmrs_alive"],
-        target: "http://127.0.0.1:1234",
-        onProxyReq(proxyReq) {
-          proxyReq.removeHeader("accept-encoding");
+    module: {
+      rules: [
+        {
+          test: /\.tsx?$/,
+          use: [
+            {
+              loader: "babel-loader",
+              options: { presets: ["@babel/preset-env", "@babel/react"] },
+            },
+            {
+              loader: "ts-loader",
+              options: {
+                configFile: path.resolve(__dirname, "app/tsconfig.json"),
+              },
+            },
+          ],
         },
-      },
+        {
+          test: /\.css$/,
+          use: ["style-loader", "css-loader"],
+        },
+      ],
+    },
+    plugins: [
+      new HtmlWebpackPlugin({
+        template: "./app/public/index.html",
+      }),
+      new HtmlWebpackPlugin({
+        template: "./app/public/index.html",
+        filename: "404.html",
+      }),
+      new webpack.DefinePlugin({
+        FMRS_API_BASE_URL: JSON.stringify(process.env.FMRS_API_BASE_URL || ""),
+        FMRS_BASE_PATH: JSON.stringify(basePath),
+      }),
+      new WasmPackPlugin({
+        crateDirectory: path.resolve(__dirname, "rust/wasm"),
+        outDir: path.resolve(__dirname, "docs/pkg"),
+      }),
     ],
-  },
-  resolve: {
-    extensions: [".ts", ".tsx", ".js", ".json"],
-  },
-  target: "web",
+    experiments: {
+      asyncWebAssembly: true,
+    },
+    performance: {
+      hints: false,
+    },
+    devServer: {
+      compress: false,
+      static: {
+        directory: path.join(__dirname, "docs"),
+      },
+      port: 3000,
+      historyApiFallback: true,
+      proxy: [
+        {
+          context: ["/solve", "/fmrs_alive"],
+          target: "http://127.0.0.1:1234",
+          onProxyReq(proxyReq) {
+            proxyReq.removeHeader("accept-encoding");
+          },
+        },
+      ],
+    },
+    resolve: {
+      extensions: [".ts", ".tsx", ".js", ".json"],
+    },
+    target: "web",
+  };
 };

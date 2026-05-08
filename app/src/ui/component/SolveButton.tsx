@@ -106,7 +106,7 @@ export default function SolveButton(props: {
       {props.solving ? (
         <>
           <span style={{ fontSize: "0.8em" }}>
-            <a href={`?sfen=${encodeURIComponent(props.solving.sfen || model.encodeSfen(props.position))}`} target="_blank" rel="noreferrer">
+            <a href={model.sfenToPath(props.solving.sfen || model.encodeSfen(props.position))} target="_blank" rel="noreferrer">
               Step
               <br />
               {props.solving.step}

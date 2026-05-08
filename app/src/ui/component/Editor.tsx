@@ -5,21 +5,25 @@ import Position from "./Position";
 import Problems from "./Problems";
 import Sfen from "./Sfen";
 import SolveButton from "./SolveButton";
-import { decodeSfen, encodeSfen } from "../../model";
+import { decodeSfen, encodeSfen, sfenFromUrl, sfenToPath, isOldFormatUrl } from "../../model";
 
 export function Editor(props: {}) {
   const [state, dispatch] = useReducer(reduce, newState());
 
   const sfen = encodeSfen(state.position);
+  const targetPath = sfenToPath(sfen);
   const url = new URL(window.location.href);
-  if (url.searchParams.get("sfen") !== sfen) {
-    url.searchParams.set("sfen", sfen);
-    window.history.pushState({}, "", url);
+  if (url.pathname !== targetPath || url.search) {
+    const newHref = window.location.origin + targetPath + window.location.hash;
+    if (isOldFormatUrl()) {
+      window.history.replaceState({}, "", newHref);
+    } else {
+      window.history.pushState({}, "", newHref);
+    }
   }
   useEffect(() => {
     const onPopState = () => {
-      const url = new URL(window.location.href);
-      const sfen = url.searchParams.get("sfen");
+      const sfen = sfenFromUrl();
       if (sfen) {
         dispatch({
           ty: "set-position",

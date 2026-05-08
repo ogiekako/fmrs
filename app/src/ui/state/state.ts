@@ -7,8 +7,7 @@ import { PRESET_PROBLEMS } from "../../problem";
 import { positionPieceBox } from "../../model/position";
 
 export function newState(): types.State {
-  const url = new URL(window.location.href);
-  const sfen = url.searchParams.get("sfen");
+  const sfen = model.sfenFromUrl();
 
   const initialPosition = sfen ? model.decodeSfen(sfen) : position.create();
   return {
