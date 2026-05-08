@@ -171,10 +171,14 @@ impl LowMemStandardSolver {
 
             std::mem::swap(&mut self.tmp_movements, &mut self.movements);
             for m in self.tmp_movements.iter() {
-                let mut np = core.clone();
-                np.do_move(m);
-
-                let mut position = PositionAux::new(np.clone(), self.stone);
+                // Reuse a single PositionAux for white's escape: clone core once,
+                // apply white move via PositionAux::do_move (which updates the
+                // cached occupied/white_bb/king_pos), then advance_aux can use
+                // the same PositionAux directly. This saves the second 144 byte
+                // clone (np.clone()) that the previous version did to construct
+                // a fresh PositionAux for advance_aux.
+                let mut position = PositionAux::new(core.clone(), self.stone);
+                position.do_move(m);
 
                 self.movements.clear();
                 advance_aux(&mut position, &Default::default(), &mut self.movements).unwrap();
@@ -188,7 +192,7 @@ impl LowMemStandardSolver {
                         continue;
                     }
 
-                    let mut np = np.clone();
+                    let mut np = position.core().clone();
                     np.do_move(m);
                     self.positions.push(np);
                 }
