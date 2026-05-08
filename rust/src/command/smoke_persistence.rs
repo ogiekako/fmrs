@@ -25,6 +25,8 @@ pub(super) enum TerminationReason {
     MaxStep,
     /// `KillerSeedLimits::max_frontier` を超えて打ち切り (現状 detect_killer_seed の唯一の理由)。
     MaxFrontier,
+    /// 別 seed が theoretical max piece count に到達したため大域停止。
+    EarlyExit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

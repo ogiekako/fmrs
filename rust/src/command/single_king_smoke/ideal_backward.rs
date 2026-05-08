@@ -4,16 +4,16 @@ use rand::{rngs::SmallRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use super::super::smoke_constraints::{
-    satisfies_mate_square, satisfies_search_constraints, validate_search_constraints,
-    KillerSeedLimits, SearchConstraints,
+    satisfies_mate_square, satisfies_search_constraints, theoretical_max_piece_count,
+    validate_search_constraints, KillerSeedLimits, SearchConstraints,
 };
 use super::super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, load_seed_result_log,
-    merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint,
+    merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint, TerminationReason,
 };
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
 use super::enumerate::enumerate_final_2_positions;
@@ -112,13 +112,22 @@ pub(super) fn ideal_backward(
         }
     }
     let total_seeds = loaded_records + pending_seeds.len();
+    let target_max = theoretical_max_piece_count(constraints);
     eprintln!(
-        "seeds={} pending={} loaded_seed_results={} seed_result_log={}",
+        "seeds={} pending={} loaded_seed_results={} target_max={} seed_result_log={}",
         total_seeds,
         pending_seeds.len(),
         loaded_records,
+        target_max,
         seed_result_log.display()
     );
+    let stop_signal = AtomicBool::new(initial_best.0 >= target_max);
+    if stop_signal.load(Ordering::Relaxed) {
+        eprintln!(
+            "early_exit: target_max={} already reached by loaded records (best={})",
+            target_max, initial_best.0
+        );
+    }
     let seed_result_log_path = seed_result_log.clone();
     let seed_result_log = Mutex::new(open_seed_result_log(&seed_result_log)?);
     let feature_log_handle = match feature_log.path.as_deref() {
@@ -163,6 +172,8 @@ pub(super) fn ideal_backward(
                     feature_log_handle.as_ref(),
                     feature_samples_per_step,
                     &beam,
+                    target_max,
+                    &stop_signal,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
@@ -192,7 +203,16 @@ pub(super) fn ideal_backward(
                 if let Some(killer) = result.killer.as_ref() {
                     skipped.lock().unwrap().push(killer.clone());
                 }
-                if beam.width.is_none() {
+                // EarlyExit で best が target_max 未満なら部分結果。再実行時に
+                // 続きが取れるよう record も checkpoint も触らない。
+                // 自身が target_max に到達した seed は EarlyExit でも保存する。
+                let early_exited_partial = result.stats.termination_reason
+                    == TerminationReason::EarlyExit
+                    && result
+                        .best
+                        .as_ref()
+                        .is_none_or(|(pc, _)| *pc < target_max);
+                if beam.width.is_none() && !early_exited_partial {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),
                         build_seed_result_record(

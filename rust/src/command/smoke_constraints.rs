@@ -50,7 +50,13 @@ pub(super) struct SearchConstraints {
 
 impl SearchConstraints {
     pub(super) fn breaks_lr_symmetry(self) -> bool {
-        self.max_file.is_some()
+        // `mate_squares` (when set) names exact squares; LR canonicalization
+        // would mirror seeds whose mate square sits on the larger-file side
+        // and then the mate-square filter would drop them. Treat any explicit
+        // mate-square restriction as breaking LR symmetry, even if the user
+        // happens to pass a symmetric pair (the intent is to keep both sides
+        // visible in output).
+        self.max_file.is_some() || self.mate_squares != 0
     }
 }
 
@@ -152,6 +158,46 @@ pub(super) fn satisfies_ideal_smoke_undo_candidate(
         return false;
     }
     constraints.allow_white_pieces || black_hand_empty_after_undo(position, undo_move)
+}
+
+/// 制約から得られる board piece count の理論上限。
+///
+/// 計算: 1 (白王) + 各 hand-kind family の利用可能枚数の合計。
+/// `no_pawn` / `no_gold` / `only_pawn` / `allowed_kinds_mask` で除外された
+/// kind はゼロ寄与。`natural_piece_limit` が立っていれば各 family を 9/2/1
+/// にクランプ。`max_file` × `max_rank` の盤面面積もクランプ。
+///
+/// `max_step` / `slack` / `max_promoted_pct` / `min_pawn_pct` / `mate_squares`
+/// は piece 利用可能性に直接影響しないため、ここでは無視する。
+pub(super) fn theoretical_max_piece_count(constraints: SearchConstraints) -> u32 {
+    let mut total = 1u32; // white king
+    for &kind in &KINDS[..NUM_HAND_KIND] {
+        if constraints.only_pawn && kind != Kind::Pawn {
+            continue;
+        }
+        if constraints.no_pawn && kind == Kind::Pawn {
+            continue;
+        }
+        if constraints.no_gold && kind == Kind::Gold {
+            continue;
+        }
+        if !kind_allowed_by_mask(kind, constraints.allowed_kinds_mask) {
+            continue;
+        }
+        let mut cap = kind.max_count();
+        if constraints.natural_piece_limit {
+            cap = match kind {
+                Kind::Pawn => cap.min(9),
+                Kind::Lance | Kind::Knight | Kind::Silver | Kind::Gold => cap.min(2),
+                Kind::Bishop | Kind::Rook => cap.min(1),
+                _ => cap,
+            };
+        }
+        total += cap;
+    }
+    let mf = constraints.max_file.unwrap_or(9) as u32;
+    let mr = constraints.max_rank.unwrap_or(9) as u32;
+    total.min(mf * mr)
 }
 
 pub(super) fn validate_search_constraints(constraints: SearchConstraints) -> anyhow::Result<()> {
@@ -802,6 +848,54 @@ mod tests {
 
         assert!(satisfies_search_constraints(&inside, constraints));
         assert!(!satisfies_search_constraints(&outside, constraints));
+    }
+
+    #[test]
+    fn theoretical_max_piece_count_baseline_and_exclusions() {
+        let base = SearchConstraints::default();
+        assert_eq!(theoretical_max_piece_count(base), 39);
+
+        let no_pawn = SearchConstraints {
+            no_pawn: true,
+            ..Default::default()
+        };
+        assert_eq!(theoretical_max_piece_count(no_pawn), 21);
+
+        let no_gold = SearchConstraints {
+            no_gold: true,
+            ..Default::default()
+        };
+        assert_eq!(theoretical_max_piece_count(no_gold), 35);
+
+        let only_pawn = SearchConstraints {
+            only_pawn: true,
+            ..Default::default()
+        };
+        assert_eq!(theoretical_max_piece_count(only_pawn), 19);
+
+        let natural = SearchConstraints {
+            natural_piece_limit: true,
+            ..Default::default()
+        };
+        // 1 (king) + 9P + 2L + 2N + 2S + 2G + 1B + 1R = 20
+        assert_eq!(theoretical_max_piece_count(natural), 20);
+
+        let no_pawn_natural = SearchConstraints {
+            no_pawn: true,
+            natural_piece_limit: true,
+            ..Default::default()
+        };
+        // 1 (king) + 2L + 2N + 2S + 2G + 1B + 1R = 11
+        assert_eq!(theoretical_max_piece_count(no_pawn_natural), 11);
+
+        // allowed_kinds = pawn のみ → 1 + 18 = 19
+        let pawn_only_mask =
+            parse_allowed_kinds(&["pawn".to_string()]).unwrap();
+        let allowed_pawn = SearchConstraints {
+            allowed_kinds_mask: Some(pawn_only_mask),
+            ..Default::default()
+        };
+        assert_eq!(theoretical_max_piece_count(allowed_pawn), 19);
     }
 
     #[test]

@@ -5,7 +5,7 @@ use fmrs_core::{
 use std::fmt;
 use std::fs;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
 
@@ -68,6 +68,8 @@ pub(super) fn search_single_seed(
     feature_log: Option<&Mutex<fs::File>>,
     feature_samples_per_step: usize,
     beam: &BeamConfig,
+    target_max: u32,
+    stop_signal: &AtomicBool,
 ) -> anyhow::Result<SingleSeedResult> {
     let checkpoint = if beam.width.is_some() {
         None
@@ -150,6 +152,10 @@ pub(super) fn search_single_seed(
     track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
 
     loop {
+        if stop_signal.load(Ordering::Relaxed) {
+            termination_reason = TerminationReason::EarlyExit;
+            break;
+        }
         if search.step() == 0 || search.step() % 2 == 1 {
             let output_start = Instant::now();
             let (step, positions) = search.output_positions(true, false)?;
@@ -198,6 +204,12 @@ pub(super) fn search_single_seed(
                         best_positions.len(),
                         &url,
                         stats,
+                    );
+                }
+                if best_piece_count >= target_max && !stop_signal.swap(true, Ordering::Relaxed) {
+                    eprintln!(
+                        "early_exit: target_max={} reached by seed={} (pieces={})",
+                        target_max, seed_index, best_piece_count
                     );
                 }
                 mt(
