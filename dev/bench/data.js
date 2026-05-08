@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778213307045,
+  "lastUpdate": 1778216551024,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35357,6 +35357,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 89855,
             "range": "± 240",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "8db15b43d9ee2048737a6914da37914f2a33904c",
+          "message": "perf(black::leap_piece): 既知の kind に対する must_get_kind 削除\n\nleap_piece_direct_attack の attackers ループでは bitboard(BLACK,\nattacker_source_kind) を iterate しているので、各 attacker_pos の kind\nは必ず attacker_source_kind。それなのに per-iter で must_get_kind\n(packed array lookup) を呼んでいたのを排除。promote 判定も per-iter\nではなく per-kind で計算するよう変更。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T13:29:20+09:00",
+          "tree_id": "85c175bd749a98d7a1a7f28d1fe520df20ae8331",
+          "url": "https://github.com/ogiekako/fmrs/commit/8db15b43d9ee2048737a6914da37914f2a33904c"
+        },
+        "date": 1778216548322,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 851,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3763,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 263,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 894,
+            "range": "± 3256",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33000,
+            "range": "± 70",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1545,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5009,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1853504,
+            "range": "± 697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11728,
+            "range": "± 123",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 199804,
+            "range": "± 1363",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 84042,
+            "range": "± 1103",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84487,
+            "range": "± 409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21357,
+            "range": "± 82",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 78688,
+            "range": "± 398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18279,
+            "range": "± 424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1289,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 36148,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4293,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 22790,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 77422,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 45496,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 90168,
+            "range": "± 69",
             "unit": "ns/iter"
           }
         ]
