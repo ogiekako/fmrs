@@ -408,46 +408,24 @@ pub(super) fn board_pawn_count(position: &PositionAux) -> u32 {
         + position.bitboard(Color::WHITE, Kind::ProPawn).count_ones()
 }
 
-pub(super) fn undo_creates_gold(position: &PositionAux, undo_move: &UndoMove) -> bool {
+/// Returns true if `undo_move` would (re)introduce a piece whose `Kind` matches
+/// the predicate. For UnMove the captured piece (current turn's hand) and the
+/// dest square's pre-undo kind (un-promoted if `promote=true`) are checked.
+fn undo_creates_matching<F>(position: &PositionAux, undo_move: &UndoMove, matches: F) -> bool
+where
+    F: Fn(Kind) -> bool,
+{
     match undo_move {
         UndoMove::UnDrop(square, _) => position
             .get(*square)
-            .is_some_and(|(_, kind)| kind == Kind::Gold),
+            .is_some_and(|(_, kind)| matches(kind)),
         UndoMove::UnMove {
             dest,
             promote,
             capture,
             ..
         } => {
-            capture.is_some_and(|kind| kind == Kind::Gold)
-                || position.get(*dest).is_some_and(|(_, kind)| {
-                    let previous_kind = if *promote {
-                        kind.unpromote().unwrap()
-                    } else {
-                        kind
-                    };
-                    previous_kind == Kind::Gold
-                })
-        }
-    }
-}
-
-pub(super) fn undo_creates_forbidden_kind(
-    position: &PositionAux,
-    undo_move: &UndoMove,
-    mask: Option<u16>,
-) -> bool {
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| !kind_allowed_by_mask(kind, mask)),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            if capture.is_some_and(|kind| !kind_allowed_by_mask(kind, mask)) {
+            if capture.is_some_and(&matches) {
                 return true;
             }
             position.get(*dest).is_some_and(|(_, kind)| {
@@ -456,59 +434,34 @@ pub(super) fn undo_creates_forbidden_kind(
                 } else {
                     kind
                 };
-                !kind_allowed_by_mask(previous_kind, mask)
+                matches(previous_kind)
             })
         }
     }
 }
 
+pub(super) fn undo_creates_gold(position: &PositionAux, undo_move: &UndoMove) -> bool {
+    undo_creates_matching(position, undo_move, |k| k == Kind::Gold)
+}
+
+pub(super) fn undo_creates_forbidden_kind(
+    position: &PositionAux,
+    undo_move: &UndoMove,
+    mask: Option<u16>,
+) -> bool {
+    undo_creates_matching(position, undo_move, |k| !kind_allowed_by_mask(k, mask))
+}
+
 pub(super) fn undo_creates_non_pawn(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    let is_pawn_kind = |k: Kind| k == Kind::Pawn || k == Kind::ProPawn;
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| !is_pawn_kind(kind) && kind != Kind::King),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            capture.is_some_and(|kind| !is_pawn_kind(kind) && kind != Kind::King)
-                || position.get(*dest).is_some_and(|(_, kind)| {
-                    let previous_kind = if *promote {
-                        kind.unpromote().unwrap()
-                    } else {
-                        kind
-                    };
-                    !is_pawn_kind(previous_kind) && previous_kind != Kind::King
-                })
-        }
-    }
+    undo_creates_matching(position, undo_move, |k| {
+        k != Kind::Pawn && k != Kind::ProPawn && k != Kind::King
+    })
 }
 
 pub(super) fn undo_creates_pawn(position: &PositionAux, undo_move: &UndoMove) -> bool {
-    match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| kind == Kind::Pawn || kind == Kind::ProPawn),
-        UndoMove::UnMove {
-            dest,
-            promote,
-            capture,
-            ..
-        } => {
-            capture.is_some_and(|kind| kind == Kind::Pawn || kind == Kind::ProPawn)
-                || position.get(*dest).is_some_and(|(_, kind)| {
-                    let previous_kind = if *promote {
-                        kind.unpromote().unwrap()
-                    } else {
-                        kind
-                    };
-                    previous_kind == Kind::Pawn || previous_kind == Kind::ProPawn
-                })
-        }
-    }
+    undo_creates_matching(position, undo_move, |k| {
+        k == Kind::Pawn || k == Kind::ProPawn
+    })
 }
 
 pub(super) fn undo_creates_out_of_bounds_piece(
