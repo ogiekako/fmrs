@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778216551024,
+  "lastUpdate": 1778220320655,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35513,6 +35513,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 90168,
             "range": "± 69",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "350c2a524f09630154e0242e9d00fad243b4f88f",
+          "message": "perf(single_king_smoke): memo 予算も残 seed 数で動的配分、--inner-parallel 廃止\n\nmemo 予算は max_memo_entries * parallel を total budget として、各 advance\niteration で per-seed = total/remaining に拡張 (縮小はしない)。pre_allocate\nの +44.5% コストを避けるため lazy 版 setter を BackwardSearch に追加。\n\n--inner-parallel フラグは完全削除。dynamic inner は parallel が単独 cap。\nparse_max_memo_entries も inner_parallel 引数を落として簡素化。\n\nmemo を人工的に絞った demo:\n  --max-memo-entries  static     dynamic   speedup\n       50000          17.17s     11.25s    1.53x\n       20000          24.27s     16.49s    1.47x\n       10000          46.42s     22.73s    2.04x\n        5000         105.49s     37.43s    2.82x\n\n通常 (auto) では memo bound でないため改善差はノイズ範囲。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T14:53:24+09:00",
+          "tree_id": "de31d3c9d39900905b2ff40545e0ca5fefc11663",
+          "url": "https://github.com/ogiekako/fmrs/commit/350c2a524f09630154e0242e9d00fad243b4f88f"
+        },
+        "date": 1778220318195,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 848,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3709,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 263,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 899,
+            "range": "± 3331",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33246,
+            "range": "± 72",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1548,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4802,
+            "range": "± 217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1896358,
+            "range": "± 579",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11725,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 209650,
+            "range": "± 897",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 87976,
+            "range": "± 289",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84657,
+            "range": "± 1644",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 20950,
+            "range": "± 59",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 78915,
+            "range": "± 363",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18539,
+            "range": "± 333",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1296,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 38485,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4587,
+            "range": "± 28",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23532,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 77530,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 42552,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 90909,
+            "range": "± 36",
             "unit": "ns/iter"
           }
         ]
