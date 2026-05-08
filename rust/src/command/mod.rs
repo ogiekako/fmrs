@@ -22,10 +22,18 @@ pub(crate) fn parse_to_sfen(sfen_or_file_or_url: &str) -> anyhow::Result<String>
         x if x.ends_with(".sfen") => std::fs::read_to_string(x)?,
         x if x.starts_with("http") => {
             let url = Url::parse(x)?;
-            url.query_pairs()
-                .find(|(k, _)| k == "sfen")
-                .map(|(_, v)| v.to_string())
-                .ok_or_else(|| anyhow::anyhow!("no sfen query parameter"))?
+            // path 形式: /fmrs/<sfen> (空白を _ で表現)
+            let path = url.path();
+            let base = "/fmrs/";
+            if path.starts_with(base) && path.len() > base.len() {
+                path[base.len()..].replace('_', " ")
+            } else {
+                // 旧形式: ?sfen=
+                url.query_pairs()
+                    .find(|(k, _)| k == "sfen")
+                    .map(|(_, v)| v.to_string())
+                    .ok_or_else(|| anyhow::anyhow!("no sfen query parameter or path"))?
+            }
         }
         _ => sfen_or_file_or_url.to_string(),
     })
