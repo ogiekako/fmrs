@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778212107064,
+  "lastUpdate": 1778213307045,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35201,6 +35201,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 81977,
             "range": "± 60",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "73c8e3579a2825e186c977cd6218096fba19bc49",
+          "message": "perf(king_move): magic lookup を attacker-side に転置\n\nking_move では各 dest ごとに lance/bishop/rook reachable を取って attacker\nを探していた (D dests × 3 magic = 最大24 lookup/call)。enemy line piece\nの数 B (典型 1-2) は D より少ないので、attacker 毎に reachable を計算し\nunion を取って各 dest を検査する形に変更。\n\nper-call で 8-20 個の magic lookup を削減。perf 上\nattack_preventing_movements self-time が 7.15% → 3.24% に半減。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T12:57:08+09:00",
+          "tree_id": "dcc8fd61ef683f049db291c1e598fb17345c6deb",
+          "url": "https://github.com/ogiekako/fmrs/commit/73c8e3579a2825e186c977cd6218096fba19bc49"
+        },
+        "date": 1778213304626,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 851,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3371,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 267,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 900,
+            "range": "± 3288",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33410,
+            "range": "± 542",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1541,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4800,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1808157,
+            "range": "± 137",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11704,
+            "range": "± 157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 200603,
+            "range": "± 797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 82177,
+            "range": "± 517",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 84497,
+            "range": "± 289",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21155,
+            "range": "± 90",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 73031,
+            "range": "± 172",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 18159,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 1293,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 34614,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4143,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21906,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 77787,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 45454,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 89855,
+            "range": "± 240",
             "unit": "ns/iter"
           }
         ]
