@@ -202,11 +202,16 @@ impl PositionAux {
     pub fn new(core: Position, stone: Option<BitBoard>) -> Self {
         let occupied = core.kind_bb().occupied();
         let white_bb = occupied.and_not(core.black());
+        // Avoid `..Default::default()` since that triggers `Position::default()`
+        // (zeroing 144 bytes for KindBitBoard) for the field we immediately overwrite.
         let mut res = Self {
             core,
             white_bb,
             occupied,
-            ..Default::default()
+            white_king_pos: None,
+            black_king_pos: None,
+            stone: None,
+            stone_digest: 0,
         };
         if let Some(stone) = stone {
             res.set_stone(stone);
