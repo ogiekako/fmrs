@@ -549,23 +549,6 @@ fn bench_dashmap_vs_logic(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("dashmap_100_insert_get", |b| {
-        let map: DashMap<u64, u64, BuildNoHasher> =
-            DashMap::with_capacity_and_hasher(1_000_000, BuildNoHasher);
-        for i in 0u64..500_000 {
-            map.insert(i.wrapping_mul(0x9E3779B97F4A7C15), i);
-        }
-        let keys: Vec<u64> = (0..100)
-            .map(|i: u64| i.wrapping_mul(0x517CC1B727220A95))
-            .collect();
-        b.iter(|| {
-            for &k in keys.iter() {
-                black_box(map.get(&k));
-                map.insert(k, k);
-            }
-        })
-    });
-
     group.finish();
 }
 
