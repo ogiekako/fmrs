@@ -12,8 +12,9 @@ use super::super::smoke_constraints::{
     validate_search_constraints, SearchConstraints,
 };
 use super::super::smoke_persistence::{
-    append_seed_result_record, build_seed_result_record, load_seed_result_log,
-    merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint, TerminationReason,
+    append_seed_result_record, build_seed_result_record, condition_key, load_seed_result_log,
+    merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint, trajectory_log_path,
+    TerminationReason,
 };
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
 use super::enumerate::enumerate_final_2_positions;
@@ -128,6 +129,9 @@ pub(super) fn ideal_backward(
         );
     }
     let seed_result_log_path = seed_result_log.clone();
+    let trajectory_path = trajectory_log_path(&seed_result_log_path);
+    let trajectory_log = Mutex::new(open_seed_result_log(&trajectory_path)?);
+    let cond_hash = condition_key(max_step, constraints);
     let seed_result_log = Mutex::new(open_seed_result_log(&seed_result_log)?);
     let feature_log_handle = match feature_log.path.as_deref() {
         Some(path) => Some(Mutex::new(open_feature_log(path)?)),
@@ -172,6 +176,8 @@ pub(super) fn ideal_backward(
                     &beam,
                     target_max,
                     &stop_signal,
+                    &trajectory_log,
+                    &cond_hash,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;

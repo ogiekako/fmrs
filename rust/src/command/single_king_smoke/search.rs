@@ -4,6 +4,7 @@ use fmrs_core::{
 };
 use std::fmt;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -52,6 +53,8 @@ pub(super) fn search_single_seed(
     beam: &BeamConfig,
     target_max: u32,
     stop_signal: &AtomicBool,
+    trajectory_log: &Mutex<fs::File>,
+    cond_hash: &str,
 ) -> anyhow::Result<SingleSeedResult> {
     let checkpoint = if beam.width.is_some() {
         None
@@ -287,6 +290,8 @@ pub(super) fn search_single_seed(
                 generation_filter,
             )?
         };
+        let advance_elapsed_ms = advance_start.elapsed().as_millis();
+        let inner_used = if use_inner_parallel { dynamic_inner } else { 1 };
         mt(
             mem_trace,
             seed_index,
@@ -295,11 +300,11 @@ pub(super) fn search_single_seed(
                 "advance next_step={} advanced={} inner={} remaining={} frontier={} memo_limit={} elapsed_ms={}",
                 next_step,
                 advanced,
-                if use_inner_parallel { dynamic_inner } else { 1 },
+                inner_used,
                 remaining,
                 frontier,
                 applied_memo_limit.map(|n| n as i64).unwrap_or(-1),
-                advance_start.elapsed().as_millis()
+                advance_elapsed_ms
             ),
         );
         if !advanced {
@@ -307,6 +312,14 @@ pub(super) fn search_single_seed(
             break;
         }
         track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
+        emit_trajectory_row(
+            trajectory_log,
+            cond_hash,
+            seed_index,
+            &search,
+            inner_used,
+            advance_elapsed_ms,
+        );
 
         if beam.width.is_none() {
             let _ = write_seed_checkpoint(
@@ -401,6 +414,31 @@ pub(super) fn log_global_best_if_improved(
             Err(next) => current = next,
         }
     }
+}
+
+/// Emit one trajectory row (post-advance state) to the trajectory log.
+/// 1 行 / seed / step、構造特徴のみ。shogi 特徴量とは別ストリーム。
+fn emit_trajectory_row(
+    log: &Mutex<fs::File>,
+    cond_hash: &str,
+    seed_index: usize,
+    search: &BackwardSearch,
+    inner: usize,
+    elapsed_ms: u128,
+) {
+    let stats = search.stats();
+    let mut file = log.lock().unwrap();
+    let _ = writeln!(
+        file,
+        r#"{{"cond":"{cond}","seed":{seed},"step":{step},"frontier":{frontier},"memo":{memo},"inner":{inner},"ms":{ms}}}"#,
+        cond = cond_hash,
+        seed = seed_index,
+        step = stats.step,
+        frontier = stats.positions_len,
+        memo = stats.memo_len,
+        inner = inner,
+        ms = elapsed_ms,
+    );
 }
 
 /// Emit a single mem_trace line. No-op when `enabled` is false. Search stats
