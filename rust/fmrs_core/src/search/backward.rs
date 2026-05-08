@@ -1288,15 +1288,9 @@ impl BackwardSearch {
         // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
         let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
         // Discard cross-step memo: each step's DFS starts with fresh empty memos.
-        // Counter-intuitive but measurably faster across multiple benches:
-        //   - bench_backward_search        -8.4%
-        //   - bench_backward_search_seed_sfen -3.4%
-        //   - bench_bataco                -27.3%
-        //   - bench_jugemu                 -2.5%
-        //
-        // The cross-step memo carried results from earlier (smaller mate_in)
-        // searches; at deep steps these stale entries bloat the memo and force
-        // grows/shrinks against an oversized table while contributing few hits.
+        // Counter-intuitive but measurably faster: cross-step memo carries stale
+        // entries from earlier (smaller mate_in) searches that bloat the table and
+        // force grows/shrinks while contributing few hits at deeper steps.
         //
         // Tried alternatives (all regressed):
         //  - clear()/memset on existing buffers (+15%): memset eagerly touches
