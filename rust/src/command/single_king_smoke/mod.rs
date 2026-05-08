@@ -90,7 +90,11 @@ pub enum SingleKingSmokeCommand {
         /// Step threshold for --min-pawn-pct (default: 6).
         #[arg(long, default_value_t = 6)]
         min_pawn_pct_after_step: u16,
-        #[arg(long, default_value_t = 1)]
+        /// Per-seed cap on inner parallelism within `advance_parallel_filtered`.
+        /// 0 (default): no cap — dynamic inner can grow up to `--parallel` as
+        /// other seeds finish. 1: disable inner parallelism entirely. N>=2: cap
+        /// dynamic inner at N.
+        #[arg(long, default_value_t = 0)]
         inner_parallel: usize,
         #[arg(long, default_value_t = false)]
         mem_trace: bool,

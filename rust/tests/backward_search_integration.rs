@@ -60,7 +60,10 @@ fn extract_best_result(stdout: &str, stderr: &str) -> (String, Vec<String>) {
 /// Small backward search: same seed as the heavy bench but max-step=5.
 /// Exercises the full advance_parallel_filtered pipeline (phase 1 + 2,
 /// killer heuristic, square_kinds cache, empty memo, SoA FlatShard) at a size
-/// that runs in well under a second.
+/// that runs in well under a second. With dynamic inner-parallel, a single
+/// seed and `--parallel 8` makes `dynamic_inner = parallel/remaining = 8`,
+/// which routes through advance_parallel_filtered when the frontier crosses
+/// FRONTIER_PARALLEL_THRESHOLD.
 #[test]
 fn backward_search_seed_max_step_5() {
     let (stdout, stderr) = run_fmrs(
@@ -69,10 +72,8 @@ fn backward_search_seed_max_step_5() {
             "ideal-backward",
             "--max-step",
             "5",
-            "--inner-parallel",
-            "8",
             "--parallel",
-            "1",
+            "8",
             "--no-pawn",
             "--max-promoted-pct",
             "20",
@@ -117,10 +118,8 @@ fn backward_search_seed_default_kinds_max_step_5() {
             "ideal-backward",
             "--max-step",
             "5",
-            "--inner-parallel",
-            "8",
             "--parallel",
-            "1",
+            "8",
             "--no-pawn",
             "--max-promoted-pct",
             "34",

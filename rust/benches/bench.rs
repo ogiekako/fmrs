@@ -386,8 +386,7 @@ fn bench_backward_search(c: &mut Criterion) {
     let elapsed = run_backward_search_bench(&[
         "single-king-smoke", "ideal-backward",
         "--max-step", "21",
-        "--inner-parallel", "8",
-        "--parallel", "1",
+        "--parallel", "8",
         "--seed-limit", "15",
         "--random-seed", "42",
         "--no-pawn",
@@ -411,8 +410,7 @@ fn bench_backward_search_seed_sfen(c: &mut Criterion) {
     let elapsed = run_backward_search_bench(&[
         "single-king-smoke", "ideal-backward",
         "--max-step", "11",
-        "--inner-parallel", "8",
-        "--parallel", "1",
+        "--parallel", "8",
         "--no-pawn",
         "--max-promoted-pct", "34",
         "--max-promoted-pct-after-step", "4",
@@ -435,8 +433,7 @@ fn bench_backward_search_seed_sfen_allowed_kinds(c: &mut Criterion) {
     let elapsed = run_backward_search_bench(&[
         "single-king-smoke", "ideal-backward",
         "--max-step", "19",
-        "--inner-parallel", "8",
-        "--parallel", "1",
+        "--parallel", "8",
         "--no-pawn",
         "--max-promoted-pct", "20",
         "--max-promoted-pct-after-step", "5",

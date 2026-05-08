@@ -68,7 +68,7 @@ pub(super) fn ideal_backward(
             }
         });
         let mut rng = SmallRng::seed_from_u64(shuffle_seed);
-        let mut seeds = enumerate_final_2_positions(parallel * inner_parallel.max(1), constraints)?
+        let mut seeds = enumerate_final_2_positions(parallel, constraints)?
             .into_iter()
             .enumerate()
             .filter(|(_, seed)| {
@@ -128,10 +128,16 @@ pub(super) fn ideal_backward(
     };
     let feature_samples_per_step = feature_log.samples_per_step;
 
+    // Pool size = parallel (= total cores allocated to this run).
+    // inner_parallel is no longer multiplied in: each seed dynamically picks
+    // how many threads to use within `advance_*` based on how many other seeds
+    // are still in flight. See `pending_remaining` in search_single_seed.
     let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(parallel * inner_parallel.max(1))
+        .num_threads(parallel)
         .build()
         .context("failed to build rayon thread pool")?;
+    let total_pending = pending_seeds.len();
+    let completed_in_run = AtomicUsize::new(0);
     let completed = AtomicUsize::new(loaded_records);
     let next_heartbeat_index = AtomicUsize::new(0);
     let global_best_piece_count = AtomicU64::new(0);
@@ -149,7 +155,10 @@ pub(super) fn ideal_backward(
                     max_step,
                     limits,
                     constraints,
+                    parallel,
                     inner_parallel,
+                    total_pending,
+                    &completed_in_run,
                     mem_trace,
                     &global_best_piece_count,
                     &seed_result_log_path,
@@ -157,6 +166,7 @@ pub(super) fn ideal_backward(
                     feature_samples_per_step,
                     &beam,
                 );
+                completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
                 loop {
                     let idx = next_heartbeat_index.load(Ordering::Relaxed);

@@ -5,9 +5,18 @@ use fmrs_core::{
 use std::fmt;
 use std::fs;
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
+
+/// Frontier size threshold below which inner-parallel advance is skipped.
+/// par_chunks dispatch overhead exceeds the work for small frontiers; this
+/// threshold gates the path switch between single-threaded
+/// `advance_upto_with_candidate_filter` and parallel
+/// `advance_parallel_filtered`. Tuned conservatively — the cost of running
+/// single-thread on a slightly-over-threshold frontier is small, while the
+/// cost of running parallel on a tiny frontier is dominated by dispatch.
+const FRONTIER_PARALLEL_THRESHOLD: usize = 1024;
 
 use super::super::smoke_constraints::{
     board_piece_count, satisfies_ideal_smoke_constraints,
@@ -49,7 +58,10 @@ pub(super) fn search_single_seed(
     max_step: Option<u16>,
     limits: KillerSeedLimits,
     constraints: SearchConstraints,
-    inner_parallel: usize,
+    parallel: usize,
+    inner_parallel_cap: usize,
+    total_pending: usize,
+    completed_in_run: &AtomicUsize,
     mem_trace: bool,
     global_best_piece_count: &AtomicU64,
     seed_result_log_path: &Path,
@@ -78,9 +90,13 @@ pub(super) fn search_single_seed(
         Some(s) => s,
         None => return Ok(SingleSeedResult { best: None, killer: None }),
     };
-    if inner_parallel > 1 {
-        search.set_parallel(inner_parallel);
-    }
+    // Effective cap on dynamic inner-parallel. inner_parallel_cap == 0 means
+    // "no user-specified cap" → cap by `parallel` (the pool size).
+    let effective_inner_cap = if inner_parallel_cap == 0 {
+        parallel
+    } else {
+        inner_parallel_cap
+    };
     if let Some(max_memo_entries) = limits.max_memo_entries {
         search.set_memo_entry_limit(Some(max_memo_entries));
     }
@@ -232,7 +248,18 @@ pub(super) fn search_single_seed(
             let position = PositionAux::new(core.clone(), stone);
             satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
         };
-        let advanced = if inner_parallel > 1 {
+        // Dynamic inner-parallel: divide the pool budget across seeds still
+        // in flight (this seed itself is included in `remaining`). When the
+        // tail shrinks, surviving seeds inherit the freed cores.
+        let remaining = total_pending
+            .saturating_sub(completed_in_run.load(Ordering::Relaxed))
+            .max(1);
+        let dynamic_inner = (parallel / remaining).max(1).min(effective_inner_cap);
+        let frontier = search.stats().positions_len;
+        let use_inner_parallel =
+            dynamic_inner > 1 && frontier >= FRONTIER_PARALLEL_THRESHOLD;
+        search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
+        let advanced = if use_inner_parallel {
             search.advance_parallel_filtered(&candidate_filter, &generation_filter)?
         } else {
             search.advance_upto_with_candidate_filter(
@@ -246,9 +273,12 @@ pub(super) fn search_single_seed(
             seed_index,
             &search,
             format_args!(
-                "advance next_step={} advanced={} elapsed_ms={}",
+                "advance next_step={} advanced={} inner={} remaining={} frontier={} elapsed_ms={}",
                 next_step,
                 advanced,
+                if use_inner_parallel { dynamic_inner } else { 1 },
+                remaining,
+                frontier,
                 advance_start.elapsed().as_millis()
             ),
         );
