@@ -93,12 +93,7 @@ impl MemoTrait for DashMemo {
     }
 
     fn contains_or_insert(&mut self, digest: u64, step: u16) -> bool {
-        let mut contains = true;
-        self.steps.entry(digest).or_insert_with(|| {
-            contains = false;
-            step
-        });
-        contains
+        self.par_contains_or_insert(digest, step)
     }
 
     fn get(&self, digest: &u64) -> Option<u16> {
@@ -114,26 +109,9 @@ impl DashMemo {
     pub fn insert(&mut self, digest: u64, step: u16) {
         self.steps.insert(digest, step);
     }
-    pub fn len(&self) -> usize {
-        self.steps.len()
-    }
-    pub fn is_empty(&self) -> bool {
-        self.steps.is_empty()
-    }
-}
 
-pub struct DashMemoMut<'a> {
-    steps: &'a DashMap<u64, u16, BuildNoHasher>,
-}
-
-impl MemoTrait for DashMemoMut<'_> {
-    #[inline]
-    fn contains_key(&self, digest: &u64) -> bool {
-        self.steps.contains_key(digest)
-    }
-
-    #[inline]
-    fn contains_or_insert(&mut self, digest: u64, step: u16) -> bool {
+    /// Thread-safe insert: returns true if already present, false if newly inserted.
+    pub fn par_contains_or_insert(&self, digest: u64, step: u16) -> bool {
         let mut contains = true;
         self.steps.entry(digest).or_insert_with(|| {
             contains = false;
@@ -142,19 +120,10 @@ impl MemoTrait for DashMemoMut<'_> {
         contains
     }
 
-    #[inline]
-    fn get(&self, digest: &u64) -> Option<u16> {
-        self.steps.get(digest).map(|v| *v)
-    }
-
-    #[inline]
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.steps.len()
     }
-}
-
-impl DashMemo {
-    pub fn as_mut(&self) -> DashMemoMut<'_> {
-        DashMemoMut { steps: &self.steps }
+    pub fn is_empty(&self) -> bool {
+        self.steps.is_empty()
     }
 }

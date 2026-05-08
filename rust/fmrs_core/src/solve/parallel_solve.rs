@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use rayon::prelude::*;
 
-use crate::memo::{DashMemo, MemoTrait};
+use crate::memo::DashMemo;
 use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
 use crate::position::position::PositionAux;
@@ -107,7 +107,7 @@ fn next_positions(
 
             movements.into_iter().filter_map(move |m| {
                 let digest = position.moved_digest(&m);
-                if memo_next.as_mut().contains_or_insert(digest, step + 1) {
+                if memo_next.par_contains_or_insert(digest, step + 1) {
                     return None;
                 }
 
@@ -150,8 +150,7 @@ fn next_next_positions(
                 movements.into_iter().filter_map(move |m| {
                     let digest = nnp.moved_digest(&m);
                     if memo_white_turn
-                        .as_mut()
-                        .contains_or_insert(digest, step + 2)
+                        .par_contains_or_insert(digest, step + 2)
                     {
                         return None;
                     }

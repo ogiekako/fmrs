@@ -245,11 +245,6 @@ impl ShardedFlatMemo {
         unsafe { shard.remove_unsynchronized(key) }
     }
 
-    fn remove(&mut self, key: u64) -> Option<StepRange> {
-        // SAFETY: &mut self ⇒ exclusive access.
-        unsafe { self.remove_unsynchronized(key) }
-    }
-
     fn len(&self) -> usize {
         self.shards.iter().map(|s| s.len.load(Ordering::Relaxed)).sum()
     }
@@ -263,9 +258,7 @@ impl ShardedFlatMemo {
         self.shards.iter().flat_map(|s| s.iter())
     }
 
-    fn contains_key(&self, key: u64) -> bool {
-        self.get(key).is_some()
-    }
+
 
     /// Shrinks the memo to keep ~`target_len` entries by score. Uses per-shard
     /// local selection + parallel rebuild (no global Vec materialization). Score
