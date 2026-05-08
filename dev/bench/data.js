@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778224586098,
+  "lastUpdate": 1778225332345,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -263,6 +263,114 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 79119,
             "range": "± 29",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "6cac3258749c779e8654b31884930da1cccd5f0b",
+          "message": "feat(smoke): seed × step ごとの trajectory log を常時 emit\n\n`<seed_result_log>.trajectory.jsonl` に 1 行 / seed / step で構造特徴を\n追記する。advance 成功直後に emit:\n\n  {\"cond\":\"<hash>\",\"seed\":N,\"step\":K,\"frontier\":F,\"memo\":M,\"inner\":I,\"ms\":T}\n\n- frontier dynamics (peak ではなく時系列) を捕えるための baseline 用\n- shogi 特徴量を出す既存 feature_log とは独立ストリーム\n- フラグなしで常時オン (1 行 ~100 byte、step 内 advance に対し\n  serde 不要の writeln 1 回でオーバーヘッド無視できる程度)\n- `cond` 列で同じ trajectory log に複数条件が混ざっても join 可能\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T16:21:25+09:00",
+          "tree_id": "8bb33b5df46a1dd19c7f2013f6c4eadb3d350a78",
+          "url": "https://github.com/ogiekako/fmrs/commit/6cac3258749c779e8654b31884930da1cccd5f0b"
+        },
+        "date": 1778225329055,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 723,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2838,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 273,
+            "range": "± 50",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 975,
+            "range": "± 2129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26191,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1498,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4105,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1698790,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10507,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 32092,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3933,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20202,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 80574,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 37190,
+            "range": "± 4",
             "unit": "ns/iter"
           }
         ]
