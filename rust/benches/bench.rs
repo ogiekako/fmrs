@@ -1,18 +1,15 @@
-use std::collections::HashMap;
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use dashmap::DashMap;
 use fmrs::solver::{solve, Algorithm};
 use fmrs_core::memo::Memo;
-use fmrs_core::nohash::BuildNoHasher;
 use fmrs_core::piece::{Color, Kind};
 use fmrs_core::position::advance::advance::advance_aux;
 use fmrs_core::position::advance::attack_prevent::attacker;
 use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
-use fmrs_core::position::{checked, previous, AdvanceOptions, Position, Square};
+use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
 use fmrs_core::sfen::decode_position;
 use fmrs_core::solve::one_way::one_way_mate_steps;
 use fmrs_core::solve::standard_solve::standard_solve;
@@ -453,112 +450,13 @@ fn bench_backward_search_seed_sfen_allowed_kinds(c: &mut Criterion) {
     });
 }
 
-fn bench_dashmap_overhead(c: &mut Criterion) {
-    let n: u64 = 10_000;
-    let keys: Vec<u64> = (0..n).map(|i: u64| i.wrapping_mul(0x9E3779B97F4A7C15)).collect();
-
-    let mut group = c.benchmark_group("map_ops");
-
-    group.bench_function("dashmap_insert_get", |b| {
-        b.iter_with_setup(
-            || DashMap::with_capacity_and_hasher(n as usize, BuildNoHasher),
-            |map| {
-                for &k in keys.iter() {
-                    map.insert(k, k);
-                }
-                for &k in keys.iter() {
-                    black_box(map.get(&k));
-                }
-            },
-        )
-    });
-
-    group.bench_function("hashmap_nohash_insert_get", |b| {
-        b.iter_with_setup(
-            || HashMap::with_capacity_and_hasher(n as usize, BuildNoHasher),
-            |mut map| {
-                for &k in keys.iter() {
-                    map.insert(k, k);
-                }
-                for &k in keys.iter() {
-                    black_box(map.get(&k));
-                }
-            },
-        )
-    });
-
-    group.bench_function("dashmap_get_existing", |b| {
-        let map: DashMap<u64, u64, BuildNoHasher> =
-            DashMap::with_capacity_and_hasher(n as usize, BuildNoHasher);
-        for &k in keys.iter() {
-            map.insert(k, k);
-        }
-        b.iter(|| {
-            for &k in keys.iter() {
-                black_box(map.get(&k));
-            }
-        })
-    });
-
-    group.bench_function("hashmap_nohash_get_existing", |b| {
-        let mut map: HashMap<u64, u64, BuildNoHasher> =
-            HashMap::with_capacity_and_hasher(n as usize, BuildNoHasher);
-        for &k in keys.iter() {
-            map.insert(k, k);
-        }
-        b.iter(|| {
-            for &k in keys.iter() {
-                black_box(map.get(&k));
-            }
-        })
-    });
-
-    group.finish();
-}
-
-fn bench_dashmap_vs_logic(c: &mut Criterion) {
-    let position =
-        decode_position("9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1").unwrap();
-
-    let mut group = c.benchmark_group("dashmap_vs_logic");
-
-    group.bench_function("advance_aux_100", |b| {
-        let mut pos = position.clone();
-        let mut result = vec![];
-        b.iter(|| {
-            for _ in 0..100 {
-                result.clear();
-                advance_aux(
-                    black_box(&mut pos),
-                    &AdvanceOptions::default(),
-                    black_box(&mut result),
-                )
-                .unwrap();
-            }
-        })
-    });
-
-    group.bench_function("previous_100", |b| {
-        let mut pos = position.clone();
-        let mut undo_moves = vec![];
-        b.iter(|| {
-            for _ in 0..100 {
-                undo_moves.clear();
-                previous(black_box(&mut pos), true, black_box(&mut undo_moves));
-            }
-        })
-    });
-
-    group.finish();
-}
-
 criterion_group!(
     name = benches;
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker, bench_dashmap_overhead, bench_dashmap_vs_logic,
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
 );
 
 const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
