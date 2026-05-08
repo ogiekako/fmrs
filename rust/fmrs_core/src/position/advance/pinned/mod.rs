@@ -182,10 +182,14 @@ fn bishop_pinned(
             continue;
         }
 
-        let power_from_attacker = bishop_power(attacker_pos);
         let blocker_kind = position.must_get_kind(blocker_pos);
-        let reach = reachable(position, blocker_color, blocker_pos, blocker_kind, false)
-            & (power_from_attacker & power_from_king | BitBoard::EMPTY.with(attacker_pos));
+        // Pin line restricted to between(king, attacker) + attacker square (capture).
+        // reachable(blocker) is also bounded by attacker (which blocks), so this is
+        // equivalent to the original (power_from_attacker & power_from_king | attacker)
+        // mask but saves a bishop_power lookup per pin.
+        let pin_mask = between | BitBoard::EMPTY.with(attacker_pos);
+        let reach =
+            reachable(position, blocker_color, blocker_pos, blocker_kind, false) & pin_mask;
 
         res.push(blocker_pos, reach);
     }
@@ -222,10 +226,10 @@ fn rook_pinned(
             continue;
         }
 
-        let power_from_attacker = rook_power(attacker_pos);
         let blocker_kind = position.must_get_kind(blocker_pos);
-        let reach = reachable(position, blocker_color, blocker_pos, blocker_kind, false)
-            & (power_from_attacker & power_from_king | BitBoard::EMPTY.with(attacker_pos));
+        let pin_mask = between | BitBoard::EMPTY.with(attacker_pos);
+        let reach =
+            reachable(position, blocker_color, blocker_pos, blocker_kind, false) & pin_mask;
 
         res.push(blocker_pos, reach);
     }
