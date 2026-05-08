@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778211399230,
+  "lastUpdate": 1778211721277,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -34889,6 +34889,162 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 81074,
             "range": "± 19",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "012f83a8b8700a45088238a616e1f1aea9368314",
+          "message": "perf(PositionAux::new): ..Default::default() を明示的初期化に置換\n\n..Default::default() は Position::default() を一時的に構築するため、\nKindBitBoard の 41 byte square_kinds_packed 配列を含む 144 byte の\nzeroing が発生する (我々が core で即時 overwrite する field でも)。\n明示的に各 field を初期化することで __memset overhead を回避。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T12:31:30+09:00",
+          "tree_id": "d540ce215625bb7d43f3aa7da0ba115292f24d02",
+          "url": "https://github.com/ogiekako/fmrs/commit/012f83a8b8700a45088238a616e1f1aea9368314"
+        },
+        "date": 1778211718341,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 735,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2869,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 280,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 975,
+            "range": "± 2150",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29089,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1523,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4014,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1703757,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10330,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_insert_get",
+            "value": 318890,
+            "range": "± 472",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_insert_get",
+            "value": 71141,
+            "range": "± 145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/dashmap_get_existing",
+            "value": 145797,
+            "range": "± 177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "map_ops/hashmap_nohash_get_existing",
+            "value": 21211,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/advance_aux_100",
+            "value": 59308,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/previous_100",
+            "value": 16689,
+            "range": "± 72",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "dashmap_vs_logic/dashmap_100_insert_get",
+            "value": 3204,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33059,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4034,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20833,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 80291,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 38759,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 75971,
+            "range": "± 68",
             "unit": "ns/iter"
           }
         ]
