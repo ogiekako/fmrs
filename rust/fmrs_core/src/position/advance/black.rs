@@ -144,6 +144,7 @@ impl<'a> Context<'a> {
             self.position.pawn_silver_goldish() & lion_king_range & self.position.black_bb();
 
         for attacker_pos in attacker_cands {
+            // pawn_silver_goldish includes various non-line kinds; lookup needed.
             let attacker_source_kind = self.position.must_get_kind(attacker_pos);
 
             let attacker_range = self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
@@ -218,8 +219,11 @@ impl<'a> Context<'a> {
             let promotion_dest_cands = promoted_kind
                 .map(|k| reachable(self.position, Color::WHITE, white_king_pos, k, true));
 
+            // attackers は bitboard(BLACK, attacker_source_kind) なのでこのループ内では
+            // kind は必ず attacker_source_kind。must_get_kind の packed lookup は不要。
+            let source_kind = attacker_source_kind;
+            let can_promote = source_kind.can_promote();
             for attacker_pos in attackers {
-                let source_kind = self.position.must_get_kind(attacker_pos);
                 let attacker_reachable =
                     self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
                         bitboard::reachable_sub(
@@ -244,7 +248,7 @@ impl<'a> Context<'a> {
                     )?;
                 }
                 if let Some(mut dest_cands) = promotion_dest_cands {
-                    if !source_kind.can_promote() {
+                    if !can_promote {
                         continue;
                     }
                     if !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
