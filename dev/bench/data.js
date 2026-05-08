@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778224104715,
+  "lastUpdate": 1778224586098,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -149,6 +149,120 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 81356,
             "range": "± 122",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "3cf45c314051043e821b63c749298ab958a4b786",
+          "message": "chore(bench): remove dashmap microbenchmarks\n\nDelete bench_dashmap_overhead and bench_dashmap_vs_logic — these were\ninvestigating a dashmap-vs-logic tradeoff that was resolved; the remaining\nbenches regressed into unmaintained stubs with no ongoing value.\n\nAlso removes the dashmap dev-dependency (no longer used anywhere).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-08T16:06:21+09:00",
+          "tree_id": "9e7788321f852ea344ff64bc5a3c0172f2e7415a",
+          "url": "https://github.com/ogiekako/fmrs/commit/3cf45c314051043e821b63c749298ab958a4b786"
+        },
+        "date": 1778224582873,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 721,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2914,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 265,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 972,
+            "range": "± 2222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 27928,
+            "range": "± 68",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1528,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4136,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1689614,
+            "range": "± 70",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10469,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33760,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4128,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21276,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 82766,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 37735,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 79119,
+            "range": "± 29",
             "unit": "ns/iter"
           }
         ]
