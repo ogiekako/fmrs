@@ -128,7 +128,6 @@ jobs:
 
       - name: Run benchmark (multiple rounds, take min)
         env:
-          FMRS_ENABLE_EXTRA_BENCH: 1
           BENCH_RUNS: 3
         run: |
           rm -f bench_runs.txt
@@ -136,6 +135,8 @@ jobs:
             echo "=== bench run $i/$BENCH_RUNS ===" >&2
             cargo bench -- --output-format bencher | tee -a bench_runs.txt
           done
+          echo "=== extra bench (1 run) ===" >&2
+          FMRS_ENABLE_EXTRA_BENCH=1 cargo bench -- --output-format bencher | tee -a bench_runs.txt
           # 各ベンチ名について最小 ns/iter を持つ行だけ output.txt に残す。
           # ノイズは常に「遅くする方向」に働くため min が真値に最も近い。
           python3 - <<'PY' > output.txt
