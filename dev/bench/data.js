@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778345351541,
+  "lastUpdate": 1778349384449,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37460,6 +37460,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 453947150,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3848e2d20143b37f75cf052a290efefb18a14807",
+          "message": "perf(backward): retain cross-step memo at step >= 15 (-15.7% on deep search)\n\nAt shallow steps (<15) the carried memo bloats the table with stale entries\nand hurts performance; drop+new (demand-zero mmap) remains optimal there.\nAt deeper steps (>=15) the DFS per candidate is expensive enough that\ncross-step cache hits outweigh the table-size cost: max-step 19 bench\nimproved 15.7% wall-clock, max-step 11 is unchanged (+0.9%, noise).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T17:39:43Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3848e2d20143b37f75cf052a290efefb18a14807"
+        },
+        "date": 1778349382223,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51339,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124745,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 454118866,
             "unit": "Instructions"
           }
         ]
