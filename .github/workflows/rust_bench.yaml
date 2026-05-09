@@ -17,8 +17,8 @@ permissions:
   deployments: write
 
 jobs:
-  benchmark:
-    name: Run Rust benchmark
+  benchmark-iai:
+    name: Run iai-callgrind benchmark
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-target-iai-${{ hashFiles('**/Cargo.lock') }}
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -97,18 +97,34 @@ jobs:
           echo "=== iai-callgrind results ===" >&2
           cat iai_results.json >&2
 
-      - name: Store iai-callgrind results
-        uses: benchmark-action/github-action-benchmark@v1
+      - name: Upload iai results
+        uses: actions/upload-artifact@v4
         with:
-          name: Instruction Count (iai-callgrind)
-          tool: customSmallerIsBetter
-          output-file-path: rust/iai_results.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
-          alert-threshold: "105%"
-          comment-on-alert: true
-          fail-on-alert: true
-          alert-comment-cc-users: "@ogiekako"
+          name: iai-results
+          path: rust/iai_results.json
+
+  benchmark-cargo:
+    name: Run cargo benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Run benchmark (multiple rounds, take min)
         env:
@@ -146,17 +162,54 @@ jobs:
           echo "=== aggregated (min per bench) ===" >&2
           cat output.txt >&2
 
-      - name: Store benchmark result
+      - name: Upload cargo results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cargo-results
+          path: rust/output.txt
+
+  store-results:
+    name: Store benchmark results
+    runs-on: ubuntu-latest
+    needs: [benchmark-iai, benchmark-cargo]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download iai results
+        uses: actions/download-artifact@v4
+        with:
+          name: iai-results
+
+      - name: Download cargo results
+        uses: actions/download-artifact@v4
+        with:
+          name: cargo-results
+
+      - name: Store iai-callgrind results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Instruction Count (iai-callgrind)
+          tool: customSmallerIsBetter
+          output-file-path: iai_results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: "105%"
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: "@ogiekako"
+
+      - name: Store cargo benchmark result
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: Rust Benchmark
           tool: "cargo"
-          output-file-path: rust/output.txt
+          output-file-path: output.txt
           # Note: output.txt contains the min ns/iter across BENCH_RUNS rounds.
           # 共有ランナーのノイズが片側分布である性質を利用して安定化している。
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
-          # Show alert with commit comment on detecting possible performance regression
           alert-threshold: "200%"
           comment-on-alert: true
           fail-on-alert: true
