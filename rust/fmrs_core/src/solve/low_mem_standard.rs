@@ -60,10 +60,6 @@ fn black_safe_after_white_move(black_king_pos: Square, m: &Movement) -> bool {
         return true;
     };
 
-    // Special case: white promoted bishop / rook capture might attack via
-    // king-step too. power() above already handles that since dest_kind has
-    // the post-move kind.
-
     // Discovered: source was on a line through black king with a white line
     // piece behind it. We approximate cheaply: if source is not on any line
     // from black king, no discovered possible.

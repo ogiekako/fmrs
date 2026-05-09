@@ -137,9 +137,18 @@ impl<'a> Context<'a> {
 
     #[inline(never)]
     fn non_leap_piece_direct_attack(&mut self) -> AdvanceResult<()> {
-        let lion_king_range = lion_king_power(self.position.white_king_pos());
-        let king_range = king_power(self.position.white_king_pos())
-            .and_not(self.position.color_bb_and_stone(Color::BLACK));
+        let white_king_pos = self.position.white_king_pos();
+        let lion_king_range = lion_king_power(white_king_pos);
+        let king_range =
+            king_power(white_king_pos).and_not(self.position.color_bb_and_stone(Color::BLACK));
+
+        // Hoist `power(WHITE, white_king_pos, kind)` out of the per-attacker
+        // loop: the result depends only on the kind, and promoted Pawn/Lance/
+        // Knight/Silver all attack like Gold, so 3 lookups cover all 7
+        // non-leap kinds (vs. 1-2 per attacker before).
+        let attack_pawn = power(Color::WHITE, white_king_pos, Kind::Pawn);
+        let attack_silver = power(Color::WHITE, white_king_pos, Kind::Silver);
+        let attack_gold = power(Color::WHITE, white_king_pos, Kind::Gold);
 
         let attacker_cands =
             self.position.pawn_silver_goldish() & lion_king_range & self.position.black_bb();
@@ -155,26 +164,35 @@ impl<'a> Context<'a> {
                 continue;
             }
 
-            for promote in [false, true] {
-                if promote && attacker_source_kind.promote().is_none() {
-                    continue;
-                }
+            // Unpromoted attack: dispatch by kind without recomputing power().
+            let attack_unp = match attacker_source_kind {
+                Kind::Pawn => attack_pawn,
+                Kind::Silver => attack_silver,
+                // Gold and the gold-like promoted forms (ProPawn/ProLance/
+                // ProKnight/ProSilver) all share the Gold attack pattern.
+                _ => attack_gold,
+            };
+            for dest in attacker_range & attack_unp {
+                let capture_kind = self.position.get_kind(dest);
+                self.maybe_add_move(
+                    Movement::move_with_hint(
+                        attacker_pos,
+                        attacker_source_kind,
+                        dest,
+                        false,
+                        capture_kind,
+                    ),
+                    attacker_source_kind,
+                )?;
+            }
 
-                let attacker_dest_kind = if promote {
-                    attacker_source_kind.promote().unwrap()
-                } else {
-                    attacker_source_kind
-                };
-
-                let mut attack_squares = power(
-                    Color::WHITE,
-                    self.position.white_king_pos(),
-                    attacker_dest_kind,
-                );
-                if promote && !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
+            // Promoted attack: only Pawn and Silver have a promoted form among
+            // non-leap kinds (gold-likes are already promoted).
+            if matches!(attacker_source_kind, Kind::Pawn | Kind::Silver) {
+                let mut attack_squares = attack_gold;
+                if !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
                     attack_squares &= BitBoard::BLACK_PROMOTABLE;
                 }
-
                 for dest in attacker_range & attack_squares {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
@@ -182,7 +200,7 @@ impl<'a> Context<'a> {
                             attacker_pos,
                             attacker_source_kind,
                             dest,
-                            promote,
+                            true,
                             capture_kind,
                         ),
                         attacker_source_kind,
