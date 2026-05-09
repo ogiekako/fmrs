@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778349384449,
+  "lastUpdate": 1778349386214,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -36911,6 +36911,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 36020,
             "range": "± 5",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3848e2d20143b37f75cf052a290efefb18a14807",
+          "message": "perf(backward): retain cross-step memo at step >= 15 (-15.7% on deep search)\n\nAt shallow steps (<15) the carried memo bloats the table with stale entries\nand hurts performance; drop+new (demand-zero mmap) remains optimal there.\nAt deeper steps (>=15) the DFS per candidate is expensive enough that\ncross-step cache hits outweigh the table-size cost: max-step 19 bench\nimproved 15.7% wall-clock, max-step 11 is unchanged (+0.9%, noise).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T17:39:43Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3848e2d20143b37f75cf052a290efefb18a14807"
+        },
+        "date": 1778349385882,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 442,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2400,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 241,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 484,
+            "range": "± 463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 24953,
+            "range": "± 54",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1459,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3913,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1535701,
+            "range": "± 222",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10872,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 192,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 136,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20541070,
+            "range": "± 62883",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30535,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3736,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 19333,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 32204,
+            "range": "± 26",
             "unit": "ns/iter"
           }
         ]
