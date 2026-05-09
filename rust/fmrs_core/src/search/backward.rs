@@ -1328,83 +1328,94 @@ impl BackwardSearch {
 
         let phase2_start = std::time::Instant::now();
 
-        let results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> = {
+        let mut all_positions = vec![];
+        let mut delta_total_count = 0usize;
+        let mut phase2_only_ms = 0u128;
+        let mut merge_ms = 0u128;
+
+        // Process candidates in waves of (parallel * 8) chunks each.
+        // After every wave, deltas are merged into `memo`/`prev_memo` and dropped
+        // before the next wave allocates new deltas. This bounds peak delta memory
+        // to O(parallel * avg_chunk_delta) instead of O(total_chunks * avg_chunk_delta).
+        // Later waves also benefit from earlier waves' merged results as read-cache.
+        let wave_chunk_count = parallel * 8;
+        let wave_size = chunk_size * wave_chunk_count;
+        for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
             let prev_memo_ref: &Memo = &prev_memo;
-            self.install_or_run(|| {
-                candidates
-                    .par_chunks(chunk_size)
-                    .map(|chunk| {
-                        // 初期 capacity を高めに取って rehash (memset 込み) を回避。
-                        // 4096 で数 KB の確保コストと引き換えに数回の rehash を skip。
-                        // 1024 / 4096 / 16384 を試した結果、4096 が sweet spot。
-                        let mut memo_delta = NoHashMap64::with_capacity_and_hasher(
-                            4096,
-                            Default::default(),
-                        );
-                        let mut prev_memo_delta = NoHashMap64::with_capacity_and_hasher(
-                            4096,
-                            Default::default(),
-                        );
-                        let mut prev_positions = vec![];
-                        let mut solution_scratch = vec![];
-                        let mut killers = Killers::new();
-                        let mut history = HistoryTable::new();
 
-                        for core in chunk.iter() {
-                            let mut pp = PositionAux::new(core.clone(), stone);
-                            let pp_digest = pp.digest();
-                            if let Some(ans) =
-                                get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
-                                    .filter(|ans| !ans.needs_investigation(step + 1))
-                            {
+            let wave_start = std::time::Instant::now();
+            let wave_results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> =
+                self.install_or_run(|| {
+                    wave.par_chunks(chunk_size)
+                        .map(|chunk| {
+                            // 初期 capacity を高めに取って rehash (memset 込み) を回避。
+                            // 4096 で数 KB の確保コストと引き換えに数回の rehash を skip。
+                            // 1024 / 4096 / 16384 を試した結果、4096 が sweet spot。
+                            let mut memo_delta = NoHashMap64::with_capacity_and_hasher(
+                                4096,
+                                Default::default(),
+                            );
+                            let mut prev_memo_delta = NoHashMap64::with_capacity_and_hasher(
+                                4096,
+                                Default::default(),
+                            );
+                            let mut prev_positions = vec![];
+                            let mut solution_scratch = vec![];
+                            let mut killers = Killers::new();
+                            let mut history = HistoryTable::new();
+
+                            for core in chunk.iter() {
+                                let mut pp = PositionAux::new(core.clone(), stone);
+                                let pp_digest = pp.digest();
+                                if let Some(ans) =
+                                    get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
+                                        .filter(|ans| !ans.needs_investigation(step + 1))
+                                {
+                                    if ans.is_uniquely(step + 1) {
+                                        prev_positions.push(core.clone());
+                                    }
+                                    continue;
+                                }
+
+                                let ans = solutions_overlay(
+                                    &mut pp,
+                                    prev_memo_ref,
+                                    &mut prev_memo_delta,
+                                    memo_ref,
+                                    &mut memo_delta,
+                                    step + 1,
+                                    &mut solution_scratch,
+                                    &mut killers,
+                                    &mut history,
+                                );
                                 if ans.is_uniquely(step + 1) {
                                     prev_positions.push(core.clone());
                                 }
-                                continue;
                             }
 
-                            let ans = solutions_overlay(
-                                &mut pp,
-                                prev_memo_ref,
-                                &mut prev_memo_delta,
-                                memo_ref,
-                                &mut memo_delta,
-                                step + 1,
-                                &mut solution_scratch,
-                                &mut killers,
-                                &mut history,
-                            );
-                            if ans.is_uniquely(step + 1) {
-                                prev_positions.push(core.clone());
-                            }
-                        }
+                            (prev_positions, memo_delta, prev_memo_delta)
+                        })
+                        .collect()
+                });
+            phase2_only_ms += wave_start.elapsed().as_millis();
 
-                        (prev_positions, memo_delta, prev_memo_delta)
-                    })
-                    .collect()
-            })
-        };
+            let mut wave_memo_deltas = Vec::with_capacity(wave_chunk_count);
+            let mut wave_prev_deltas = Vec::with_capacity(wave_chunk_count);
+            for (positions, memo_delta, prev_memo_delta) in wave_results {
+                all_positions.extend(positions);
+                delta_total_count += memo_delta.len() + prev_memo_delta.len();
+                wave_memo_deltas.push(memo_delta);
+                wave_prev_deltas.push(prev_memo_delta);
+            }
 
-        let phase2_only_ms = phase2_start.elapsed().as_millis();
-
-        let mut all_positions = vec![];
-        let mut memo_deltas = vec![];
-        let mut prev_memo_deltas = vec![];
-        let mut delta_total_count = 0usize;
-        for (positions, memo_delta, prev_memo_delta) in results {
-            all_positions.extend(positions);
-            delta_total_count += memo_delta.len() + prev_memo_delta.len();
-            memo_deltas.push(memo_delta);
-            prev_memo_deltas.push(prev_memo_delta);
+            let merge_wave_start = std::time::Instant::now();
+            self.install_or_run(|| {
+                merge_deltas_sharded(&memo, wave_memo_deltas);
+                merge_deltas_sharded(&prev_memo, wave_prev_deltas);
+            });
+            merge_ms += merge_wave_start.elapsed().as_millis();
         }
-
-        let merge_start = std::time::Instant::now();
-        self.install_or_run(|| {
-            merge_deltas_sharded(&memo, memo_deltas);
-            merge_deltas_sharded(&prev_memo, prev_memo_deltas);
-        });
-        let merge_ms = merge_start.elapsed().as_millis();
 
         let shrink_start = std::time::Instant::now();
         if let Some(limit) = self.memo_entry_limit {
