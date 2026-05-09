@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778331503473,
+  "lastUpdate": 1778331769491,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35349,6 +35349,53 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/5fb5245b36c44291cd971488a7996d7079def109"
         },
         "date": 1778331501298,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51644,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124796,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5fb5245b36c44291cd971488a7996d7079def109",
+          "message": "test(advance): bench 局面の手数を locking する unit test を追加\n\nこのセッションの最適化中、各変更後に bench 局面 (ofm-139_5 = 66 手、\n3 つの white 局面 = 42 / 49 / 9 手) で生成手数が変わらないことを\nexample スクリプトで毎回手動確認していた。同等のチェックを CI で\n自動的に走らせるため、unit test として position::advance::advance\nモジュールに加える。\n\nbench 自体は cargo bench でしか走らず、しかも black 側の手数\nassert は FIXME コメントで無効化されたままだったので、これで\n通常の cargo test 経由で advance の手数 regression を検出できる。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T12:56:26Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5fb5245b36c44291cd971488a7996d7079def109"
+        },
+        "date": 1778331766876,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
