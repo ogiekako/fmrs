@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778335259328,
+  "lastUpdate": 1778336231929,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -36296,6 +36296,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_canonicalize",
             "value": 2189,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "7051e50f0efcd9c8cd52dc914a1a2cdd23160efc",
+          "message": "bench(iai): near_mate を iai-callgrind 化\n\nbench.rs と同じ 10 局面を solve_group に追加。low_mem_standard_solve\nは決定的なので命令数ベースで regression を検出できる。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T13:59:31Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/7051e50f0efcd9c8cd52dc914a1a2cdd23160efc"
+        },
+        "date": 1778336229379,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51644,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124796,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 472272698,
             "unit": "Instructions"
           }
         ]
