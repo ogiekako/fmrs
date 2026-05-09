@@ -8,6 +8,7 @@ use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{AdvanceOptions, Movement, Position, Square};
 use fmrs_core::search::canonicalize::canonicalize_attacker_goldish;
 use fmrs_core::sfen::decode_position;
+use fmrs_core::solve::low_mem_standard::low_mem_standard_solve;
 use iai_callgrind::{library_benchmark, library_benchmark_group, main};
 use rand::Rng;
 use rand::{rngs::SmallRng, SeedableRng};
@@ -184,6 +185,34 @@ fn bench_canonicalize(mut positions: Vec<PositionAux>) {
     black_box(&positions);
 }
 
+// ---- near_mate --------------------------------------------------------------
+
+fn setup_near_mate() -> Vec<PositionAux> {
+    [
+        "4l1+P2/3+P1n3/S3p1+L2/1S1G1p2G/3L3kS/1N1p1l1B1/B4N2R/1P1g1K1p1/PNP1P3P b rgs7p 1",
+        "ggssn2p1/lgssn3l/2b6/5N3/+R2+l5/8k/6+n2/2g4L1/KBr3PP1 b 2P13p 1",
+        "s2B5/1L1S5/1PPPPL2R/1+l5N1/P6N1/2k4N1/7N1/1pgg2g2/K5+Br1 b g2sl12p 1",
+        "9/G2s4G/LLpNGNpPP/4L4/1sN3N2/1g1bpb1ss/1pk3P2/P2PPP3/1PP5K b 2rl5p 1",
+        "9/6GGr/S1ssggN1b/pL7/4P1P1K/2PP1P3/kPpll1pp+B/+n8/L3+n1+nsr b 2P6p 1",
+        "4GS2l/4S1Bp1/3N1N1N1/ssg1gp3/3gl3+R/3+npk2K/PPP5b/3P2l1r/4P4 b L3P7p 1",
+        "9/9/9/9/5S1gN/8N/7G1/6NNk/6G2 b 2r2bg3s4l18p 1",
+        "r2GSG3/3S1S3/+BPN1N+LLg1/2pp3ps/K2N5/4P1P2/BgN3p1P/r1l3l2/5k1P1 b P8p 1",
+        "gpn1+P2nl/p2g4+R/1lp1sp1G1/1b1l5/P1gl5/1P1s1N2K/2Pk5/4PPNP+B/3P2s1r b Ps5p 1",
+        "lgn1s2gl/p2+p5/1gp1sp1G1/1s1l5/k1bl4+R/3n1N2K/1P6+B/2P1PPNP1/3P2s1r b P7p 1",
+    ]
+    .iter()
+    .map(|s| decode_position(s).unwrap())
+    .collect()
+}
+
+#[library_benchmark]
+#[bench::default(setup_near_mate())]
+fn bench_near_mate(positions: Vec<PositionAux>) {
+    for position in &positions {
+        black_box(low_mem_standard_solve(black_box(position.clone()), 1, true).unwrap());
+    }
+}
+
 // ---- groups -----------------------------------------------------------------
 
 library_benchmark_group!(
@@ -196,4 +225,9 @@ library_benchmark_group!(
     benchmarks = bench_reachable, bench_attacker, bench_canonicalize
 );
 
-main!(library_benchmark_groups = advance_group, position_group);
+library_benchmark_group!(
+    name = solve_group;
+    benchmarks = bench_near_mate
+);
+
+main!(library_benchmark_groups = advance_group, position_group, solve_group);
