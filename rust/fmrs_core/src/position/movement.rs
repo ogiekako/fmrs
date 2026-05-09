@@ -193,6 +193,14 @@ impl MovementSet {
         inserted
     }
 
+    /// Read-only membership test. Useful for checking whether a move would
+    /// duplicate one already added before doing expensive setup work.
+    pub(crate) fn contains(&self, movement: &Movement) -> bool {
+        let key = Self::key(movement);
+        let bit = 1 << (key % 64);
+        self.bits[key / 64] & bit != 0
+    }
+
     fn key(movement: &Movement) -> usize {
         match *movement {
             Movement::Drop(pos, kind) => Self::MOVE_KEYS + pos.index() * NUM_KIND + kind.index(),

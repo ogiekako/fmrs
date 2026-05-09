@@ -38,7 +38,6 @@ struct Context<'a> {
     // Mutable fields
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
-    start_len: usize,
     seen: MovementSet,
 }
 
@@ -62,8 +61,6 @@ impl<'a> Context<'a> {
             mask
         };
 
-        let start_len = result.len();
-
         Ok(Self {
             position,
             attacker,
@@ -72,7 +69,6 @@ impl<'a> Context<'a> {
             result,
             num_branches_without_pawn_drop: 0,
             options,
-            start_len,
             seen: MovementSet::default(),
         })
     }
@@ -280,11 +276,11 @@ impl<'a> Context<'a> {
             return Ok(());
         }
 
-        let mut seen = MoveSet::default();
-        for &movement in self.result[self.start_len..].iter() {
-            seen.insert_new(movement);
-        }
-
+        // Dedup against direct-attack moves via the existing `Context::seen`
+        // (a `MovementSet` populated by every prior `maybe_add_move`). Skipping
+        // a candidate before `maybe_add_move` avoids double-counting against
+        // `num_branches_without_pawn_drop`, matching the previous local-MoveSet
+        // behavior without the per-call ~1.6 KB zero-init + populate cost.
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
@@ -325,49 +321,13 @@ impl<'a> Context<'a> {
                         promote,
                         capture_kind,
                     );
-                    if seen.insert_new(movement) {
+                    if !self.seen.contains(&movement) {
                         self.maybe_add_move(movement, blocker_kind)?;
                     }
                 }
             }
         }
         Ok(())
-    }
-}
-
-struct MoveSet {
-    bits: [u64; Self::LIMBS],
-}
-
-impl Default for MoveSet {
-    fn default() -> Self {
-        Self {
-            bits: [0; Self::LIMBS],
-        }
-    }
-}
-
-impl MoveSet {
-    const SQUARES: usize = 81;
-    const KEYS: usize = Self::SQUARES * Self::SQUARES * 2;
-    const LIMBS: usize = Self::KEYS.div_ceil(u64::BITS as usize);
-
-    fn insert_new(&mut self, movement: Movement) -> bool {
-        let Movement::Move {
-            source,
-            dest,
-            promote,
-            ..
-        } = movement
-        else {
-            return true;
-        };
-        let key = (source.index() * Self::SQUARES + dest.index()) * 2 + promote as usize;
-        let bit = 1 << (key % 64);
-        let limb = &mut self.bits[key / 64];
-        let inserted = *limb & bit == 0;
-        *limb |= bit;
-        inserted
     }
 }
 
