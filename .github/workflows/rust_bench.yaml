@@ -40,8 +40,94 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: Run benchmark
-        run: env FMRS_ENABLE_EXTRA_BENCH=1 cargo bench -- --output-format bencher | tee output.txt
+      - name: Install Valgrind
+        run: sudo apt-get install -y valgrind
+
+      - name: Install iai-callgrind-runner
+        run: |
+          IAI_VERSION=$(cargo metadata --format-version 1 | python3 -c "
+          import sys, json
+          pkgs = json.load(sys.stdin)['packages']
+          print(next(p['version'] for p in pkgs if p['name'] == 'iai-callgrind'))
+          ")
+          cargo install --locked iai-callgrind-runner --version "$IAI_VERSION"
+
+      - name: Run iai-callgrind benchmarks
+        run: |
+          cargo bench --bench iai_bench 2>&1 | tee iai_output.txt
+          python3 - <<'PY' > iai_results.json
+          import re, json
+
+          results = []
+          current = None
+          with open('iai_output.txt') as f:
+              for line in f:
+                  stripped = line.strip()
+                  # Header line: module::group::function[::variant], starts at column 0
+                  if '::' in stripped and not line[0].isspace():
+                      parts = stripped.split('::')
+                      # e.g. iai_bench::advance_group::bench_black_advance::default
+                      func = parts[2] if len(parts) > 2 else parts[-1]
+                      variant = parts[3] if len(parts) > 3 else None
+                      current = func if (variant is None or variant == 'default') else f"{func}::{variant}"
+                  m = re.match(r'\s+Instructions:\s+([\d,]+)', line)
+                  if m and current:
+                      value = int(m.group(1).replace(',', ''))
+                      results.append({"name": current, "value": value, "unit": "Instructions"})
+                      current = None
+          print(json.dumps(results, indent=2))
+          PY
+          echo "=== iai-callgrind results ===" >&2
+          cat iai_results.json >&2
+
+      - name: Store iai-callgrind results
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: Instruction Count (iai-callgrind)
+          tool: customSmallerIsBetter
+          output-file-path: rust/iai_results.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: "105%"
+          comment-on-alert: true
+          fail-on-alert: true
+          alert-comment-cc-users: "@ogiekako"
+
+      - name: Run benchmark (multiple rounds, take min)
+        env:
+          FMRS_ENABLE_EXTRA_BENCH: 1
+          BENCH_RUNS: 3
+        run: |
+          rm -f bench_runs.txt
+          for i in $(seq 1 "$BENCH_RUNS"); do
+            echo "=== bench run $i/$BENCH_RUNS ===" >&2
+            cargo bench -- --output-format bencher | tee -a bench_runs.txt
+          done
+          # 各ベンチ名について最小 ns/iter を持つ行だけ output.txt に残す。
+          # ノイズは常に「遅くする方向」に働くため min が真値に最も近い。
+          python3 - <<'PY' > output.txt
+          import re
+          pat = re.compile(r'^test (\S+)\s+\.\.\. bench:\s+([\d,]+)\s+ns/iter')
+          best = {}
+          order = []
+          with open('bench_runs.txt') as f:
+              for raw in f:
+                  line = raw.rstrip()
+                  m = pat.match(line)
+                  if not m:
+                      continue
+                  name = m.group(1)
+                  ns = int(m.group(2).replace(',', ''))
+                  if name not in best:
+                      order.append(name)
+                      best[name] = (ns, line)
+                  elif ns < best[name][0]:
+                      best[name] = (ns, line)
+          for n in order:
+              print(best[n][1])
+          PY
+          echo "=== aggregated (min per bench) ===" >&2
+          cat output.txt >&2
 
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
@@ -49,6 +135,8 @@ jobs:
           name: Rust Benchmark
           tool: "cargo"
           output-file-path: rust/output.txt
+          # Note: output.txt contains the min ns/iter across BENCH_RUNS rounds.
+          # 共有ランナーのノイズが片側分布である性質を利用して安定化している。
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           # Show alert with commit comment on detecting possible performance regression

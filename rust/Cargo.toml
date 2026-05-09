@@ -49,6 +49,7 @@ regex = "*"
 [dev-dependencies]
 pretty_assertions = "*"
 criterion = { version = "0.5.1", features = ["html_reports"] }
+iai-callgrind = "0.16"
 
 [profile.dev]
 opt-level = 2
@@ -60,4 +61,8 @@ strip = true
 
 [[bench]]
 name = "bench"
+harness = false
+
+[[bench]]
+name = "iai_bench"
 harness = false
