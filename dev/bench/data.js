@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778342664434,
+  "lastUpdate": 1778342666620,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -36627,6 +36627,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 37036,
             "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "2b3e15937c56f5fa12cd908630a6fa7205bf701a",
+          "message": "perf(solve): discovered_attack_moves に line attacker pre-check を追加 (-1.4%)\n\npinned(WHITE, BLACK) の full 計算前に「黒の line 駒が白玉のラインに乗っ\nているか」を 4 BB ops でチェック。乗っていなければ開き王手は数学的に不\n可能なので即 return。\n\n詰将棋では黒の line 駒（飛角香）が白玉のラインに乗っている局面はそこそ\nこ多いが、empty pre-check 経由で skip できる比率も多く、pinned() call\nを 1/8 弱削減できる。\n\niai_bench::solve_group::bench_near_mate:\n- Instructions: 153.1M → 150.9M (-1.43%)\n- 累積 (元から): 167.3M → 150.9M (-9.8%)\n- pinned 関数の flat: 16.46% → 14.39%\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T15:46:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/2b3e15937c56f5fa12cd908630a6fa7205bf701a"
+        },
+        "date": 1778342666135,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 460,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2828,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 246,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 471,
+            "range": "± 693",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29084,
+            "range": "± 263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1474,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4234,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1495651,
+            "range": "± 1593",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11645,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 176,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 106,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 147,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 21939000,
+            "range": "± 206271",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 29634,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3597,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18024,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 36586,
+            "range": "± 16",
             "unit": "ns/iter"
           }
         ]
