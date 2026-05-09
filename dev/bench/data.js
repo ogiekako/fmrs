@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778244206343,
+  "lastUpdate": 1778305290792,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -599,6 +599,120 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 80750,
             "range": "± 107",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "04c8caeb644382e1a0b3d807619e51226e85bc99",
+          "message": "perf(core): backward search の delta マージを wave 単位に分割してピークメモリを削減\n\n全候補を一括処理してから delta をまとめてマージする代わりに、\nwave_size (parallel * 8 chunks) ごとに処理→即時マージ→解放を繰り返す。\nピーク delta メモリを O(全チャンク数) から O(parallel * 8) に抑える。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T14:32:09+09:00",
+          "tree_id": "f1f0fead8f6b6ef122e4d4baf7a7d7024deeaee7",
+          "url": "https://github.com/ogiekako/fmrs/commit/04c8caeb644382e1a0b3d807619e51226e85bc99"
+        },
+        "date": 1778305288372,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 850,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3552,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 266,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 895,
+            "range": "± 3372",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 34341,
+            "range": "± 195",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1551,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5015,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1828030,
+            "range": "± 1009",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11905,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 37271,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4424,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 23335,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 76977,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 41897,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 90906,
+            "range": "± 10",
             "unit": "ns/iter"
           }
         ]
