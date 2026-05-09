@@ -6,7 +6,7 @@ use crate::position::{
     },
     checked,
     position::PositionAux,
-    rule::{is_legal_drop, is_legal_move},
+    rule::{is_legal_drop, is_legal_move, is_movable, promotable},
 };
 
 use crate::{
@@ -346,8 +346,10 @@ impl<'a> Context<'a> {
     }
 
     /// Leap path for kinds whose promoted form is not a line piece (Lance, Knight).
-    /// `source_kind` is statically known to equal `kind`, so `must_get_kind` and
-    /// the `can_promote` check are skipped.
+    /// `source_kind` is statically known to equal `kind`, so `must_get_kind` is
+    /// skipped. is_legal_move を per-source 関数呼び出しせず、不成り合法性は
+    /// (turn, dest, kind) にのみ依存する事実を使ってループ前に決定し、
+    /// 成り合法性は dest_promotable を事前計算した上で source 側のみ確認する。
     fn add_leap_simple(
         &mut self,
         dest: Square,
@@ -358,25 +360,36 @@ impl<'a> Context<'a> {
         opposite: Color,
     ) -> AdvanceResult<()> {
         let sources = bitboard::reachable(self.position, opposite, dest, kind, false) & on_board;
+        let movable_unpromoted = is_movable(turn, dest, kind);
+        let dest_promotable = promotable(dest, turn);
         for source_pos in sources {
             if self.pinned().is_unpin_move(source_pos, dest) {
                 continue;
             }
-            for promote in [false, true] {
-                if !is_legal_move(turn, source_pos, dest, kind, promote) {
-                    continue;
-                }
-                let movement =
-                    Movement::move_with_hint(source_pos, kind, dest, promote, capture_kind);
-                self.maybe_add_move(movement, kind)?;
+            if movable_unpromoted {
+                self.maybe_add_move(
+                    Movement::move_with_hint(source_pos, kind, dest, false, capture_kind),
+                    kind,
+                )?;
+            }
+            // Lance/Knight は can_promote == true (常に成れる)、不成りで届く
+            // ところには成りでも届くので、合法性は source/dest のいずれかが
+            // 敵陣にあるかだけで決まる。
+            if dest_promotable || promotable(source_pos, turn) {
+                self.maybe_add_move(
+                    Movement::move_with_hint(source_pos, kind, dest, true, capture_kind),
+                    kind,
+                )?;
             }
         }
         Ok(())
     }
 
     /// Leap path for line-piece kinds whose promoted form is also a line piece
-    /// (Bishop/ProBishop, Rook/ProRook). The actual `source_kind` must be
-    /// looked up because `on_board` mixes raw and promoted variants.
+    /// (Bishop/ProBishop, Rook/ProRook). The actual `source_kind` must be looked
+    /// up because `on_board` mixes raw and promoted variants. Bishop/Rook 系は
+    /// is_movable が常に true (Pawn/Lance/Knight 制限を受けない) なので不成り
+    /// は無条件で合法。成りは can_promote && (source か dest が敵陣) で判定。
     fn add_leap_promotable(
         &mut self,
         dest: Square,
@@ -387,21 +400,23 @@ impl<'a> Context<'a> {
         opposite: Color,
     ) -> AdvanceResult<()> {
         let sources = bitboard::reachable(self.position, opposite, dest, kind, false) & on_board;
+        let dest_promotable = promotable(dest, turn);
         for source_pos in sources {
             if self.pinned().is_unpin_move(source_pos, dest) {
                 continue;
             }
             let source_kind = self.position.must_get_kind(source_pos);
-            for promote in [false, true] {
-                if promote && !source_kind.can_promote() {
-                    continue;
-                }
-                if !is_legal_move(turn, source_pos, dest, source_kind, promote) {
-                    continue;
-                }
-                let movement =
-                    Movement::move_with_hint(source_pos, source_kind, dest, promote, capture_kind);
-                self.maybe_add_move(movement, source_kind)?;
+            // 不成り: 常に合法。
+            self.maybe_add_move(
+                Movement::move_with_hint(source_pos, source_kind, dest, false, capture_kind),
+                source_kind,
+            )?;
+            // 成り: 既に成った駒は can_promote == false でスキップ。
+            if source_kind.can_promote() && (dest_promotable || promotable(source_pos, turn)) {
+                self.maybe_add_move(
+                    Movement::move_with_hint(source_pos, source_kind, dest, true, capture_kind),
+                    source_kind,
+                )?;
             }
         }
         Ok(())
