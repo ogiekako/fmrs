@@ -1,5 +1,7 @@
 use crate::position::advance::options::AdvanceResult;
-use crate::position::bitboard::{king_power, lion_king_power, power, reachable, reachable_sub};
+use crate::position::bitboard::{
+    bishop_reachable, king_power, lion_king_power, power, reachable, reachable_sub, rook_reachable,
+};
 use crate::position::position::PositionAux;
 
 use crate::piece::{Color, Kind};
@@ -194,14 +196,8 @@ impl<'a> Context<'a> {
     fn leap_piece_direct_attack(&mut self) -> AdvanceResult<()> {
         let white_king_pos = self.position.white_king_pos();
 
-        for attacker_source_kind in [
-            Kind::Lance,
-            Kind::Knight,
-            Kind::Bishop,
-            Kind::Rook,
-            Kind::ProBishop,
-            Kind::ProRook,
-        ] {
+        // Lance and Knight: standard approach (non-symmetric promotion kinds).
+        for attacker_source_kind in [Kind::Lance, Kind::Knight] {
             let attackers = self.position.bitboard(Color::BLACK, attacker_source_kind);
             if attackers.is_empty() {
                 continue;
@@ -214,13 +210,8 @@ impl<'a> Context<'a> {
                 attacker_source_kind,
                 true,
             );
-            // promoted_kind = Some implies attacker_source_kind.can_promote() == true
-            // (Bishop/Rook/Lance/Knight); ProBishop/ProRook return None here.
             let promotion_dest_cands = promoted_kind
                 .map(|k| reachable(self.position, Color::WHITE, white_king_pos, k, true));
-
-            // attackers は bitboard(BLACK, attacker_source_kind) なのでこのループ内では
-            // kind は必ず attacker_source_kind。must_get_kind の packed lookup は不要。
             let source_kind = attacker_source_kind;
             for attacker_pos in attackers {
                 let attacker_reachable =
@@ -232,17 +223,10 @@ impl<'a> Context<'a> {
                             attacker_source_kind,
                         )
                     });
-
                 for dest in attacker_reachable & no_promotion_dest_cands {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(
-                            attacker_pos,
-                            source_kind,
-                            dest,
-                            false,
-                            capture_kind,
-                        ),
+                        Movement::move_with_hint(attacker_pos, source_kind, dest, false, capture_kind),
                         source_kind,
                     )?;
                 }
@@ -253,19 +237,151 @@ impl<'a> Context<'a> {
                     for dest in attacker_reachable & dest_cands {
                         let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
-                            Movement::move_with_hint(
-                                attacker_pos,
-                                source_kind,
-                                dest,
-                                true,
-                                capture_kind,
-                            ),
+                            Movement::move_with_hint(attacker_pos, source_kind, dest, true, capture_kind),
                             source_kind,
                         )?;
                     }
                 }
             }
         }
+
+        // Bishop + ProBishop: ProBishop = Bishop ∪ King-step moves, so when unpromoted
+        // bishops are present we derive king_reach_pro_bishop = king_reach_bishop |
+        // king_power_excl without an extra magic lookup.
+        let bishop_bb = self.position.bitboard(Color::BLACK, Kind::Bishop);
+        let pro_bishop_bb = self.position.bitboard(Color::BLACK, Kind::ProBishop);
+        if !bishop_bb.is_empty() || !pro_bishop_bb.is_empty() {
+            let (king_reach_bishop, king_reach_pro_bishop) = if !bishop_bb.is_empty() {
+                let occ = self.position.occupied_bb();
+                let excl = self.position.color_bb_and_stone(Color::BLACK);
+                let kb = bishop_reachable(occ, white_king_pos).and_not(excl);
+                (kb, kb | king_power(white_king_pos).and_not(excl))
+            } else {
+                (
+                    BitBoard::EMPTY,
+                    reachable(self.position, Color::WHITE, white_king_pos, Kind::ProBishop, true),
+                )
+            };
+            let king_reach_pro_bishop_restricted =
+                king_reach_pro_bishop & BitBoard::BLACK_PROMOTABLE;
+
+            for attacker_pos in bishop_bb {
+                let attacker_reachable =
+                    self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
+                        bitboard::reachable_sub(
+                            self.position,
+                            Color::BLACK,
+                            attacker_pos,
+                            Kind::Bishop,
+                        )
+                    });
+                for dest in attacker_reachable & king_reach_bishop {
+                    let capture_kind = self.position.get_kind(dest);
+                    self.maybe_add_move(
+                        Movement::move_with_hint(attacker_pos, Kind::Bishop, dest, false, capture_kind),
+                        Kind::Bishop,
+                    )?;
+                }
+                let promo_cands = if BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
+                    king_reach_pro_bishop
+                } else {
+                    king_reach_pro_bishop_restricted
+                };
+                for dest in attacker_reachable & promo_cands {
+                    let capture_kind = self.position.get_kind(dest);
+                    self.maybe_add_move(
+                        Movement::move_with_hint(attacker_pos, Kind::Bishop, dest, true, capture_kind),
+                        Kind::Bishop,
+                    )?;
+                }
+            }
+            for attacker_pos in pro_bishop_bb {
+                let attacker_reachable =
+                    self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
+                        bitboard::reachable_sub(
+                            self.position,
+                            Color::BLACK,
+                            attacker_pos,
+                            Kind::ProBishop,
+                        )
+                    });
+                for dest in attacker_reachable & king_reach_pro_bishop {
+                    let capture_kind = self.position.get_kind(dest);
+                    self.maybe_add_move(
+                        Movement::move_with_hint(attacker_pos, Kind::ProBishop, dest, false, capture_kind),
+                        Kind::ProBishop,
+                    )?;
+                }
+            }
+        }
+
+        // Rook + ProRook: same pattern (ProRook = Rook ∪ King-step moves).
+        let rook_bb = self.position.bitboard(Color::BLACK, Kind::Rook);
+        let pro_rook_bb = self.position.bitboard(Color::BLACK, Kind::ProRook);
+        if !rook_bb.is_empty() || !pro_rook_bb.is_empty() {
+            let (king_reach_rook, king_reach_pro_rook) = if !rook_bb.is_empty() {
+                let occ = self.position.occupied_bb();
+                let excl = self.position.color_bb_and_stone(Color::BLACK);
+                let kr = rook_reachable(occ, white_king_pos).and_not(excl);
+                (kr, kr | king_power(white_king_pos).and_not(excl))
+            } else {
+                (
+                    BitBoard::EMPTY,
+                    reachable(self.position, Color::WHITE, white_king_pos, Kind::ProRook, true),
+                )
+            };
+            let king_reach_pro_rook_restricted = king_reach_pro_rook & BitBoard::BLACK_PROMOTABLE;
+
+            for attacker_pos in rook_bb {
+                let attacker_reachable =
+                    self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
+                        bitboard::reachable_sub(
+                            self.position,
+                            Color::BLACK,
+                            attacker_pos,
+                            Kind::Rook,
+                        )
+                    });
+                for dest in attacker_reachable & king_reach_rook {
+                    let capture_kind = self.position.get_kind(dest);
+                    self.maybe_add_move(
+                        Movement::move_with_hint(attacker_pos, Kind::Rook, dest, false, capture_kind),
+                        Kind::Rook,
+                    )?;
+                }
+                let promo_cands = if BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
+                    king_reach_pro_rook
+                } else {
+                    king_reach_pro_rook_restricted
+                };
+                for dest in attacker_reachable & promo_cands {
+                    let capture_kind = self.position.get_kind(dest);
+                    self.maybe_add_move(
+                        Movement::move_with_hint(attacker_pos, Kind::Rook, dest, true, capture_kind),
+                        Kind::Rook,
+                    )?;
+                }
+            }
+            for attacker_pos in pro_rook_bb {
+                let attacker_reachable =
+                    self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
+                        bitboard::reachable_sub(
+                            self.position,
+                            Color::BLACK,
+                            attacker_pos,
+                            Kind::ProRook,
+                        )
+                    });
+                for dest in attacker_reachable & king_reach_pro_rook {
+                    let capture_kind = self.position.get_kind(dest);
+                    self.maybe_add_move(
+                        Movement::move_with_hint(attacker_pos, Kind::ProRook, dest, false, capture_kind),
+                        Kind::ProRook,
+                    )?;
+                }
+            }
+        }
+
         Ok(())
     }
 
