@@ -1451,34 +1451,34 @@ impl BackwardSearch {
         // 細かめに分割すると work-stealing が効いて並列効率が改善する。
         // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
         let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
-        // Discard cross-step memo: each step's DFS starts with fresh empty memos.
-        // Counter-intuitive but measurably faster: cross-step memo carries stale
-        // entries from earlier (smaller mate_in) searches that bloat the table and
-        // force grows/shrinks while contributing few hits at deeper steps.
+        // Cross-step memo retention policy:
+        //  - step < 15: discard. Fresh demand-zero mmap pages beat carrying stale
+        //    entries that bloat the table for little benefit in short searches.
+        //    (bench_backward_search_seed_sfen at max-step 11 regressed 18% with
+        //    unconditional retention.)
+        //  - step >= 15: carry forward via std::mem::take. At deep steps the DFS
+        //    per candidate is expensive enough that cross-step cache hits pay off;
+        //    bench_backward_search_seed_sfen_allowed_kinds at max-step 19 improved
+        //    3.3% with retention.
+        //    StepRange::needs_investigation() guards against stale entries;
+        //    shrink_memo() below keeps memory bounded by memo_entry_limit.
         //
-        // Tried alternatives (all regressed):
+        // Tried alternatives (all regressed for short searches):
         //  - clear()/memset on existing buffers (+15%): memset eagerly touches
-        //    every page, defeating the demand-zero laziness mmap gives us. The
-        //    memset itself adds ~1.3s of memory bandwidth and pollutes L3 cache
-        //    with pages most of which the next merge won't even read.
+        //    every page, defeating the demand-zero laziness mmap gives us.
         //  - pre_allocate(limit) on fresh empty memos (+44.5%): heavy upfront
         //    alloc on every step, since most steps don't need full-limit cap.
-        //
-        // Drop+new wins because alloc_zeroed (mmap MAP_ANONYMOUS) returns
-        // demand-zero pages — virtual address space without physical pages.
-        // The merge faults in only the pages it actually writes; most of the
-        // buffer never costs physical memory or cache.
-        //
-        // C (selective retention) experiment: tried shrinking to limit/16 or
-        // limit/4 instead of discarding. Heavy bench improved 1.2%, but
-        // bench_backward_search regressed 11% because carrying any memo forward
-        // (even small retention) makes lookups slower for small workloads where
-        // the memo never reaches the shrink threshold. Trade-off didn't win
-        // overall; reverted.
-        self.memo = Memo::new();
-        self.prev_memo = Memo::new();
-        let mut memo = Memo::new();
-        let mut prev_memo = Memo::new();
+        let mut memo;
+        let mut prev_memo;
+        if step >= 15 {
+            memo = std::mem::take(&mut self.memo);
+            prev_memo = std::mem::take(&mut self.prev_memo);
+        } else {
+            self.memo = Memo::new();
+            self.prev_memo = Memo::new();
+            memo = Memo::new();
+            prev_memo = Memo::new();
+        }
 
         let phase2_start = std::time::Instant::now();
 
