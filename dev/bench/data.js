@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778327594465,
+  "lastUpdate": 1778328973064,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35177,6 +35177,154 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 90101,
             "range": "± 133",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "43518144be2d913eaf6a11d8e1de70c9e5d15471",
+          "message": "perf(square): Square の内部表現を usize -> u8 に変更\n\nSquare は 0..=80 の値しか取らないが usize (8 bytes) で持っていた\nため、Movement::Move enum が 24 bytes に膨らんでいた (Square × 2 +\nOption<Kind> × 2 + bool + tag) 。\n\nu8 に変えると Movement は 5 bytes に縮み、Vec<Movement> への push\nコストが大幅に下がる (32-byte コピー → 1 レジスタ store)。\n公開 API (col/row/index/from_index は usize を返す) は維持する。\n\nbench (local):\n  black_advance: 470 -> 390 ns (-17%)\n  white_advance: 800 -> 725 ns / 3 = 270 -> 242 ns/call (-10%)\n  solve3: 1.55 µs -> 600 ns (-60%)\n\ncargo test 全件 pass (Movement の値比較・MovementSet のキー計算は\nすべて API (usize) 経由なので互換)。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T12:03:12Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/43518144be2d913eaf6a11d8e1de70c9e5d15471"
+        },
+        "date": 1778328971011,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 752,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2747,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 260,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 756,
+            "range": "± 550",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 31280,
+            "range": "± 230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1509,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4793,
+            "range": "± 80",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1666614,
+            "range": "± 217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11702,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 177,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 106,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 151,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33333,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4054,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20633,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 76201,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 37382,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 81110,
+            "range": "± 32",
             "unit": "ns/iter"
           }
         ]
