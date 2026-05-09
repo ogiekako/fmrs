@@ -128,6 +128,13 @@ pub enum SingleKingSmokeCommand {
         /// oracle's predicted bpc.
         #[arg(long)]
         oracle_model: Option<PathBuf>,
+        /// Smoke 用の正規化を uniqueness 判定境界で適用する (実験的)。
+        /// 黒 goldish (≠ ProPawn) を ProPawn 化し、駒種情報を白持駒へ移すことで
+        /// 同 goldish 占有マス集合の異種別配置を canonical に潰し memo 共有率を
+        /// 上げる。合駒局面など稀なケースで false positive がありうるため、
+        /// best_positions は最後に standard_solve で再検証される。
+        #[arg(long, default_value_t = false)]
+        canonicalize_attacker_goldish: bool,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -196,6 +203,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             fleet_index,
             fleet_size,
             oracle_model,
+            canonicalize_attacker_goldish,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
@@ -215,6 +223,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 fleet_size,
                 max_memo_entries,
                 oracle_model,
+                canonicalize_attacker_goldish,
                 SearchConstraints {
                     no_gold,
                     no_pawn,

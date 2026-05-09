@@ -876,6 +876,7 @@ pub struct BackwardSearch {
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
     delta_trace: bool,
+    canonicalize_attacker_goldish: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -976,6 +977,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            canonicalize_attacker_goldish: false,
         })
     }
 
@@ -1024,6 +1026,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            canonicalize_attacker_goldish: false,
         })
     }
 
@@ -1074,6 +1077,11 @@ impl BackwardSearch {
         self.delta_trace = enabled;
     }
 
+    /// Smoke 用の正規化を uniqueness 判定の境界で適用する。
+    /// see `crate::search::canonicalize::canonicalize_attacker_goldish`。
+    pub fn set_canonicalize_attacker_goldish(&mut self, enabled: bool) {
+        self.canonicalize_attacker_goldish = enabled;
+    }
 
     pub fn set_pool(&mut self, pool: rayon::ThreadPool) {
         self.parallel = pool.current_num_threads();
@@ -1167,13 +1175,34 @@ impl BackwardSearch {
                 }
 
                 let mate_in = self.step + 1;
-                let pp_digest = pp.digest();
+                // smoke 用 canonicalize: 黒 goldish の駒種違いを 1 つの canonical に潰し
+                // memo の cache hit 率を引き上げる。frontier には元の pp を push するが、
+                // uniqueness 判定 (memo lookup + solutions) は canonical で行う。
+                // Optimization: hit を期待して digest だけ先に計算 (mutation 不要)、
+                // miss 時のみ実際に clone+canonicalize して solutions に渡す。
+                let pp_digest = if self.canonicalize_attacker_goldish {
+                    crate::search::canonicalize::canonical_digest_for_smoke(&pp)
+                } else {
+                    pp.digest()
+                };
                 let ans = if let Some(ans) = self
                     .prev_memo
                     .get(pp_digest)
                     .filter(|ans| !ans.needs_investigation(mate_in))
                 {
                     ans
+                } else if self.canonicalize_attacker_goldish {
+                    let mut pp_canonical = pp.clone();
+                    crate::search::canonicalize::canonicalize_attacker_goldish(&mut pp_canonical);
+                    debug_assert_eq!(pp_canonical.digest(), pp_digest);
+                    solutions(
+                        &mut pp_canonical,
+                        &self.prev_memo,
+                        &self.memo,
+                        mate_in,
+                        &mut solution_scratch,
+                        self.memo_entry_limit,
+                    )
                 } else {
                     solutions(
                         &mut pp,
@@ -1186,7 +1215,8 @@ impl BackwardSearch {
                 };
                 if ans.is_uniquely(mate_in) {
                     #[cfg(debug_assertions)]
-                    {
+                    if !self.canonicalize_attacker_goldish {
+                        // canonicalize を適用すると正当性が緩むため、debug 検証は OFF 時のみ。
                         let sol = standard_solve(pp.clone(), 2, true).unwrap().solutions();
                         if sol.len() != 1 {
                             eprintln!("Not unique: {} {}", sol.len(), pp.sfen_url());
@@ -1340,6 +1370,7 @@ impl BackwardSearch {
         // Later waves also benefit from earlier waves' merged results as read-cache.
         let wave_chunk_count = parallel * 8;
         let wave_size = chunk_size * wave_chunk_count;
+        let canonicalize = self.canonicalize_attacker_goldish;
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
             let prev_memo_ref: &Memo = &prev_memo;
@@ -1367,7 +1398,13 @@ impl BackwardSearch {
 
                             for core in chunk.iter() {
                                 let mut pp = PositionAux::new(core.clone(), stone);
-                                let pp_digest = pp.digest();
+                                // smoke 用 canonicalize: hit を期待して digest 先取得、
+                                // miss 時のみ実 mutation して solutions に渡す。
+                                let pp_digest = if canonicalize {
+                                    crate::search::canonicalize::canonical_digest_for_smoke(&pp)
+                                } else {
+                                    pp.digest()
+                                };
                                 if let Some(ans) =
                                     get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
                                         .filter(|ans| !ans.needs_investigation(step + 1))
@@ -1378,17 +1415,36 @@ impl BackwardSearch {
                                     continue;
                                 }
 
-                                let ans = solutions_overlay(
-                                    &mut pp,
-                                    prev_memo_ref,
-                                    &mut prev_memo_delta,
-                                    memo_ref,
-                                    &mut memo_delta,
-                                    step + 1,
-                                    &mut solution_scratch,
-                                    &mut killers,
-                                    &mut history,
-                                );
+                                let ans = if canonicalize {
+                                    let mut pp_canonical = pp.clone();
+                                    crate::search::canonicalize::canonicalize_attacker_goldish(
+                                        &mut pp_canonical,
+                                    );
+                                    debug_assert_eq!(pp_canonical.digest(), pp_digest);
+                                    solutions_overlay(
+                                        &mut pp_canonical,
+                                        prev_memo_ref,
+                                        &mut prev_memo_delta,
+                                        memo_ref,
+                                        &mut memo_delta,
+                                        step + 1,
+                                        &mut solution_scratch,
+                                        &mut killers,
+                                        &mut history,
+                                    )
+                                } else {
+                                    solutions_overlay(
+                                        &mut pp,
+                                        prev_memo_ref,
+                                        &mut prev_memo_delta,
+                                        memo_ref,
+                                        &mut memo_delta,
+                                        step + 1,
+                                        &mut solution_scratch,
+                                        &mut killers,
+                                        &mut history,
+                                    )
+                                };
                                 if ans.is_uniquely(step + 1) {
                                     prev_positions.push(core.clone());
                                 }

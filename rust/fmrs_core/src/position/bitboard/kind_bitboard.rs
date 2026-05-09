@@ -208,6 +208,47 @@ impl KindBitBoard {
         self.write_kind_idx(pos.index(), 0);
     }
 
+    /// Replace `old` kind at `pos` with `new` kind. Optimized to touch only the
+    /// layer bitboards whose bit actually flips between the two encodings — for
+    /// e.g. ProSilver→ProPawn this is a single bitboard update plus the packed
+    /// write, vs. the 6 layer ops of unset + set.
+    #[inline(always)]
+    pub fn change_kind(&mut self, pos: Square, old: Kind, new: Kind) {
+        let (old_p, old_i) = Self::ids(old);
+        let (new_p, new_i) = Self::ids(new);
+        let i_diff = old_i ^ new_i;
+        if (i_diff & 1) != 0 {
+            if (new_i & 1) != 0 {
+                self.kind0.set(pos);
+            } else {
+                self.kind0.unset(pos);
+            }
+        }
+        if (i_diff & 2) != 0 {
+            if (new_i & 2) != 0 {
+                self.kind1.set(pos);
+            } else {
+                self.kind1.unset(pos);
+            }
+        }
+        if (i_diff & 4) != 0 {
+            if (new_i & 4) != 0 {
+                self.kind2.set(pos);
+            } else {
+                self.kind2.unset(pos);
+            }
+        }
+        if old_p != new_p {
+            if new_p {
+                self.promote.set(pos);
+            } else {
+                self.promote.unset(pos);
+            }
+        }
+        let encoded = (new_i | if new_p { 8 } else { 0 }) as u8;
+        self.write_kind_idx(pos.index(), encoded);
+    }
+
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
         self.promote.shift(dir);
         self.kind0.shift(dir);

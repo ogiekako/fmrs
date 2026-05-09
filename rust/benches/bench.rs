@@ -10,6 +10,9 @@ use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
+use fmrs_core::search::canonicalize::{
+    canonical_digest_for_smoke, canonicalize_attacker_goldish,
+};
 use fmrs_core::sfen::decode_position;
 use fmrs_core::solve::one_way::one_way_mate_steps;
 use fmrs_core::solve::standard_solve::standard_solve;
@@ -230,6 +233,68 @@ fn bench_attacker(c: &mut Criterion) {
                 })
             },
         )
+    });
+}
+
+fn bench_canonicalize(c: &mut Criterion) {
+    // 様々な goldish 占有パターンをカバー:
+    // - empty: goldish なし (early-exit パス)
+    // - all_propawn: 全部 ProPawn (skip 連続)
+    // - mixed_few: 3 マス、異種別
+    // - mixed_many: 8 マス、異種別 (一番重い)
+    // - fallback_lance: 白持駒 Pawn 0 → Lance fallback
+    let sfens = [
+        "8k/9/9/9/9/9/9/9/B8 b 4r3b4g4s4n4l18p 1",
+        "8k/9/9/9/9/9/9/9/+P+P+P6 b 4r4b4g4s4n4l15p 1",
+        "8k/9/9/9/9/9/9/9/G+S+N6 b 4r4b3g3s3n4l16p 1",
+        "8k/9/9/9/9/9/G+S+N+L+SG3/+N+L+SG5/9 b 4r4b1gs2n2l13p 1",
+        "8k/9/9/9/9/9/9/9/G8 b 4r4b3g4s4n4l 1",
+    ];
+    let positions: Vec<PositionAux> = sfens
+        .iter()
+        .map(|s| decode_position(s).unwrap())
+        .collect();
+    c.bench_function("canonicalize_attacker_goldish", |b| {
+        b.iter_with_setup(
+            || positions.clone(),
+            |mut ps| {
+                for p in ps.iter_mut() {
+                    canonicalize_attacker_goldish(black_box(p));
+                }
+            },
+        )
+    });
+
+    // 個別ケース測定 (heavy path のみを切り出し)。
+    let heavy = decode_position("8k/9/9/9/9/9/G+S+N+L+SG3/+N+L+SG5/9 b 4r4b1gs2n2l13p 1").unwrap();
+    c.bench_function("canonicalize_attacker_goldish_heavy", |b| {
+        b.iter_with_setup(
+            || heavy.clone(),
+            |mut p| canonicalize_attacker_goldish(black_box(&mut p)),
+        )
+    });
+
+    let empty = decode_position("8k/9/9/9/9/9/9/9/B8 b 4r3b4g4s4n4l18p 1").unwrap();
+    c.bench_function("canonicalize_attacker_goldish_empty", |b| {
+        b.iter_with_setup(
+            || empty.clone(),
+            |mut p| canonicalize_attacker_goldish(black_box(&mut p)),
+        )
+    });
+
+    // Mutation-free digest 計算 (memo lookup 時のホットパス)。
+    c.bench_function("canonical_digest_for_smoke", |b| {
+        b.iter(|| {
+            for p in &positions {
+                black_box(canonical_digest_for_smoke(black_box(p)));
+            }
+        })
+    });
+    c.bench_function("canonical_digest_for_smoke_heavy", |b| {
+        b.iter(|| black_box(canonical_digest_for_smoke(black_box(&heavy))))
+    });
+    c.bench_function("canonical_digest_for_smoke_empty", |b| {
+        b.iter(|| black_box(canonical_digest_for_smoke(black_box(&empty))))
     });
 }
 
@@ -456,7 +521,7 @@ criterion_group!(
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker,
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker, bench_canonicalize,
 );
 
 const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();

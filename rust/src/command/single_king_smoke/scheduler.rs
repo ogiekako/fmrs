@@ -161,6 +161,7 @@ pub(super) struct WorkerCtx<'a> {
     pub(super) global_best_piece_count: &'a AtomicU64,
     pub(super) best: &'a Mutex<(u32, FxHashSet<String>, usize)>,
     pub(super) stop_signal: &'a AtomicBool,
+    pub(super) canonicalize_attacker_goldish: bool,
 }
 
 enum StepOutcome {
@@ -192,6 +193,7 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
         if let Some(limit) = ctx.max_memo_entries {
             search.set_memo_entry_limit(Some(limit));
         }
+        search.set_canonicalize_attacker_goldish(ctx.canonicalize_attacker_goldish);
         let stats = search.stats();
         track_peaks_from_stats(task, stats.positions_len, stats.memo_len);
         task.state = TaskState::Active(search);
@@ -385,6 +387,21 @@ fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>
 
     let best = if task.best_positions.is_empty() {
         None
+    } else if ctx.canonicalize_attacker_goldish {
+        // canonicalize 適用時の false positive を非正規化版 standard_solve で除外。
+        let verified: Vec<PositionAux> = std::mem::take(&mut task.best_positions)
+            .into_iter()
+            .filter(|p| {
+                fmrs_core::solve::standard_solve::standard_solve(p.clone(), 2, true)
+                    .map(|r| r.solutions().len() == 1)
+                    .unwrap_or(false)
+            })
+            .collect();
+        if verified.is_empty() {
+            None
+        } else {
+            Some((task.best_piece_count, verified))
+        }
     } else {
         Some((task.best_piece_count, std::mem::take(&mut task.best_positions)))
     };
@@ -438,6 +455,7 @@ fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub(super) fn run_with_oracle(
     seeds: Vec<(usize, PositionAux)>,
     constraints: SearchConstraints,
@@ -451,6 +469,7 @@ pub(super) fn run_with_oracle(
     target_max: u32,
     stop_signal: Arc<AtomicBool>,
     initial_best: (u32, FxHashSet<String>, usize),
+    canonicalize_attacker_goldish: bool,
 ) -> anyhow::Result<(u32, FxHashSet<String>, usize)> {
     let cond_hash = condition_key(max_step, constraints);
     let scheduler = Arc::new(Scheduler::new(stop_signal.clone()));
@@ -497,6 +516,7 @@ pub(super) fn run_with_oracle(
                     global_best_piece_count,
                     best,
                     stop_signal: &stop_signal,
+                    canonicalize_attacker_goldish,
                 };
                 while let Some(mut task) = scheduler.pop() {
                     let outcome = advance_one(&mut task, &ctx);

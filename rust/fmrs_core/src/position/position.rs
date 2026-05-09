@@ -104,6 +104,18 @@ impl Position {
         self.kind_bb.unset(pos, k);
     }
 
+    /// Same as `unset(pos, c, old)` followed by `set(pos, c, new)` but skips the
+    /// black_bb cancel-pair (color unchanged) and merges the digest XOR into one.
+    /// Caller must ensure `old != Kind::King` and `new != Kind::King`.
+    #[inline(always)]
+    pub fn change_kind(&mut self, pos: Square, c: Color, old: Kind, new: Kind) {
+        debug_assert_eq!(self.get(pos), Some((c, old)));
+        debug_assert_ne!(old, Kind::King);
+        debug_assert_ne!(new, Kind::King);
+        self.digest ^= zobrist(c, pos, old) ^ zobrist(c, pos, new);
+        self.kind_bb.change_kind(pos, old, new);
+    }
+
     pub fn shift(&mut self, dir: Direction) {
         self.black_bb.shift(dir);
         self.kind_bb.shift(dir);
@@ -416,6 +428,15 @@ impl PositionAux {
         }
 
         self.core.set(pos, color, kind);
+    }
+
+    /// Replace the kind at `pos` (same color, neither old nor new is King).
+    /// Skips occupied / white_bb / King tracking mutations that would cancel.
+    #[inline(always)]
+    pub fn change_kind(&mut self, pos: Square, color: Color, old: Kind, new: Kind) {
+        debug_assert_ne!(old, Kind::King);
+        debug_assert_ne!(new, Kind::King);
+        self.core.change_kind(pos, color, old, new);
     }
 
     pub fn hands_mut(&mut self) -> &mut Hands {

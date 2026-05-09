@@ -35,6 +35,7 @@ pub(super) fn ideal_backward(
     fleet_size: Option<usize>,
     max_memo_entries: Option<usize>,
     oracle_model: Option<PathBuf>,
+    canonicalize_attacker_goldish: bool,
     constraints: SearchConstraints,
     mem_trace: bool,
     feature_log: FeatureLogConfig,
@@ -170,6 +171,7 @@ pub(super) fn ideal_backward(
             target_max,
             stop_signal,
             initial_best,
+            canonicalize_attacker_goldish,
         )?;
         return finalize_output(final_best);
     }
@@ -213,6 +215,7 @@ pub(super) fn ideal_backward(
                     &stop_signal,
                     &trajectory_log,
                     &cond_hash,
+                    canonicalize_attacker_goldish,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;

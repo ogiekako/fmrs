@@ -55,6 +55,7 @@ pub(super) fn search_single_seed(
     stop_signal: &AtomicBool,
     trajectory_log: &Mutex<fs::File>,
     cond_hash: &str,
+    canonicalize_attacker_goldish: bool,
 ) -> anyhow::Result<SingleSeedResult> {
     let checkpoint = if beam.width.is_some() {
         None
@@ -96,6 +97,7 @@ pub(super) fn search_single_seed(
     // parallelism (`remaining = parallel`); total budget = base * parallel.
     let mut applied_memo_limit = max_memo_entries;
     search.set_delta_trace(mem_trace);
+    search.set_canonicalize_attacker_goldish(canonicalize_attacker_goldish);
     mt(mem_trace, seed_index, &search, format_args!("start resumed={}", checkpoint.is_some()));
     let mut best_piece_count = 0u32;
     let mut best_positions: Vec<PositionAux> = vec![];
@@ -371,6 +373,22 @@ pub(super) fn search_single_seed(
 
     let best = if best_positions.is_empty() {
         None
+    } else if canonicalize_attacker_goldish {
+        // canonicalize ON のとき false positive (canonical で唯一だが原局面で非唯一/不詰)
+        // が発生しうる。原局面で改めて standard_solve を走らせ、唯一解だけ残す。
+        let verified: Vec<PositionAux> = best_positions
+            .into_iter()
+            .filter(|p| {
+                fmrs_core::solve::standard_solve::standard_solve(p.clone(), 2, true)
+                    .map(|r| r.solutions().len() == 1)
+                    .unwrap_or(false)
+            })
+            .collect();
+        if verified.is_empty() {
+            None
+        } else {
+            Some((best_piece_count, verified))
+        }
     } else {
         // 全 best positions を返す。output 集計側で SFEN HashSet で uniq 化されるので
         // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
