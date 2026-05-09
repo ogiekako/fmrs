@@ -982,12 +982,13 @@ impl BackwardSearch {
     }
 
     /// Multi-seed constructor for the canonicalize-attacker-goldish flow.
-    /// すべての seed は **mated 状態 2 駒 final position** (`solution.len() == 0`、
-    /// 黒手駒空) であることを前提とする。memo は各 seed の canonical_digest をキーに
-    /// `StepRange::exact(0)` を入れる。canonical-equivalent な seed 群はキーが衝突
-    /// するため自然に 1 エントリに collapse する。初期 frontier は全 seed の core
-    /// を並べる (predecessor 生成は seed 個別に走り、canonicalize された digest で
-    /// memo 共有が起こる)。
+    /// 全 seed が同じ solution.len() (= group_step) を持つことを要求する。
+    /// canonical_digest が一致する seed 群は solution の move 構造も等しいため、
+    /// 通常 group_step は揃う。memo は代表 seed の解路を canonical_digest で seed
+    /// する (canonical-equivalent な seed の解路は同じ canonical_digest 列に collapse
+    /// するため、代表 1 本で十分)。初期 frontier は全 seed の core を並べる
+    /// (predecessor 生成は seed 個別に走り、canonicalize された digest で memo 共有
+    /// が起こる)。
     ///
     /// 互換性: 単一 seed の `new_with_parallel` とは memo 種が異なる (canonical vs
     /// raw)。canonical 系の checkpoint は別形式 (現状未対応)。
@@ -1000,33 +1001,76 @@ impl BackwardSearch {
         }
         let stone = *seeds[0].stone();
 
-        let mut memo = Memo::new();
-        let prev_memo = Memo::new();
         let mut positions = Vec::with_capacity(seeds.len());
+        let mut group_step: Option<u16> = None;
+        let mut representative_solution: Option<Vec<Movement>> = None;
 
         for seed in seeds {
             if !satisfies_backward_constraints(seed, false) {
                 bail!("Seed has black goldish constraint failure: {}", seed.sfen());
             }
-            // 各 seed の uniqueness を verify (最大 2 解、unique かつ 0 step)。
+            // 各 seed の uniqueness を verify (最大 2 解、unique 必須)。
             let mut sols = standard_solve(seed.clone(), 2, true)?.solutions();
             if sols.len() != 1 {
                 bail!("Not unique seed: {}", seed.sfen());
             }
             let sol = sols.remove(0);
-            if !sol.is_empty() {
-                bail!(
-                    "Multi-seed only supports 0-step (mated) seeds; got len={}",
-                    sol.len()
-                );
+            let seed_step = sol.len() as u16;
+
+            // 終端 (mated 状態) の黒手駒は空であること。
+            let mut p = seed.clone();
+            for m in sol.iter() {
+                p.do_move(m);
             }
-            if !seed.hands().is_empty(Color::BLACK) {
+            if !p.hands().is_empty(Color::BLACK) {
                 bail!("Extra black pieces in checkmate seed: {}", seed.sfen());
             }
 
-            let key = crate::search::canonicalize::canonical_digest_for_smoke(seed);
-            memo.insert(key, StepRange::exact(0));
+            match group_step {
+                None => {
+                    group_step = Some(seed_step);
+                    representative_solution = Some(sol);
+                }
+                Some(s) if s == seed_step => {}
+                Some(s) => bail!(
+                    "Step mismatch in canonical group: expected {} got {} for {}",
+                    s, seed_step, seed.sfen()
+                ),
+            }
             positions.push(seed.core().clone());
+        }
+
+        let group_step = group_step.expect("non-empty seeds checked above");
+        let representative_solution =
+            representative_solution.expect("set together with group_step");
+
+        let mut memo = Memo::new();
+        let mut prev_memo = Memo::new();
+
+        // 代表 seed の解路を canonical digest で memo に展開する。
+        // distance-to-mate = group_step - i - 1 (i は move index)。
+        // step (= group_step) と同 parity の距離は memo、反対 parity は prev_memo。
+        let representative = &seeds[0];
+        let mut p = representative.clone();
+        memo.insert(
+            crate::search::canonicalize::canonical_digest_for_smoke(&p),
+            StepRange::exact(group_step),
+        );
+        for (i, m) in representative_solution.iter().enumerate() {
+            p.do_move(m);
+            let remaining = group_step - i as u16 - 1;
+            let key = crate::search::canonicalize::canonical_digest_for_smoke(&p);
+            if i % 2 == 0 {
+                prev_memo.insert(key, StepRange::exact(remaining));
+            } else {
+                memo.insert(key, StepRange::exact(remaining));
+            }
+        }
+        // group 内の他 seed も canonical_digest が一致する前提だが、念のため全 seed
+        // の canonical_digest を group_step で memo に登録 (重複は no-op)。
+        for seed in seeds {
+            let key = crate::search::canonicalize::canonical_digest_for_smoke(seed);
+            memo.insert(key, StepRange::exact(group_step));
         }
 
         let parallel = parallel.max(1);
@@ -1049,7 +1093,7 @@ impl BackwardSearch {
             memo,
             prev_memo,
             stone,
-            step: 0,
+            step: group_step,
             one_way: false,
             no_black_goldish: false,
             parallel,
@@ -2688,6 +2732,40 @@ mod tests {
         while search.advance().unwrap() {}
 
         assert!(search.step() > 0);
+    }
+
+    #[test]
+    fn new_canonical_group_accepts_n_step_seed() {
+        // Regression test: smoke の `--seed-sfen` + `--canonicalize-attacker-goldish`
+        // で multi-step seed (0-step 詰みでない) を渡したとき、過去は
+        // `new_canonical_group` が "Multi-seed only supports 0-step" で bail し
+        // scheduler/search 側がそれを silently 握りつぶして即終了していた。
+        // N-step seed でも構築でき step が解の長さに揃うことを保証する。
+        //
+        // 1-step seed: black to move, 7c の +P が 7b に動いて 7a の白玉を詰ます一手詰。
+        let seed = PositionAux::from_sfen(
+            "2k6/9/2+P6/9/9/9/9/2L6/9 b 2r2b4g4s4n3l17p 1",
+        )
+        .unwrap();
+        let search = super::BackwardSearch::new_canonical_group(std::slice::from_ref(&seed), 1)
+            .unwrap();
+        assert_eq!(search.step(), 1, "step should equal solution length");
+        let stats = search.stats();
+        assert_eq!(stats.positions_len, 1, "frontier should contain the seed");
+        // memo にはこの seed (canonical_digest) が group_step=1 で入っている。
+        // prev_memo には move 後の mated 状態 (距離 0) が入っている。
+        assert!(stats.memo_len >= 1);
+        assert!(stats.prev_memo_len >= 1);
+
+        // 0-step seed もこれまで通り受理されること (既存挙動の確認)。
+        let mated_seed = PositionAux::from_sfen(
+            "9/9/9/9/9/6OOO/6O1k/6OO+P/8P w - 1",
+        )
+        .unwrap();
+        let mated_search =
+            super::BackwardSearch::new_canonical_group(std::slice::from_ref(&mated_seed), 1)
+                .unwrap();
+        assert_eq!(mated_search.step(), 0);
     }
 
     #[test]
