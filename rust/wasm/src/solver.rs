@@ -215,7 +215,14 @@ mod tests {
                 while !solver.solutions_found() && !solver.no_solution() {
                     solver.advance().unwrap();
                 }
-                solver.solutions_kif();
+                assert!(solver.solutions_found(), "Expected solution for: {}", sfen);
+                let kif = solver.solutions_kif();
+                assert!(
+                    kif.contains("後手番"),
+                    "Expected 後手番 in KIF for white-first sfen {}: {}",
+                    sfen,
+                    kif
+                );
             }
         }
     }
