@@ -1,6 +1,7 @@
 use crate::position::advance::options::AdvanceResult;
 use crate::position::bitboard::{
-    bishop_reachable, king_power, lion_king_power, power, reachable, reachable_sub, rook_reachable,
+    bishop_power, bishop_reachable, king_power, lance_power, lion_king_power, power, reachable,
+    reachable_sub, rook_power, rook_reachable,
 };
 use crate::position::position::PositionAux;
 
@@ -387,6 +388,21 @@ impl<'a> Context<'a> {
 
     // #[inline(never)]
     fn discovered_attack_moves(&mut self) -> AdvanceResult<()> {
+        // Cheap pre-check: any BLACK line piece on a line through WHITE king?
+        // Without one, no discovered check is possible and we can skip the
+        // full pinned() computation entirely (~120 instructions saved per
+        // call; the common case in tsumeshogi).
+        let white_king_pos = self.position.white_king_pos();
+        let black_bb = self.position.black_bb();
+        let line_attackers_on_lines = ((self.position.bishopish() & bishop_power(white_king_pos))
+            | (self.position.rookish() & rook_power(white_king_pos))
+            | (self.position.bitboard(Color::BLACK, Kind::Lance)
+                & lance_power(Color::WHITE, white_king_pos)))
+            & black_bb;
+        if line_attackers_on_lines.is_empty() {
+            return Ok(());
+        }
+
         let blockers = pinned(self.position, Color::WHITE, Color::BLACK);
         if blockers.iter().next().is_none() {
             return Ok(());
@@ -401,7 +417,6 @@ impl<'a> Context<'a> {
         //    その dest 集合を表す
         //  - 開き王手 = pin 線から外れる手なので、両者の交差が
         //    direct_attack_moves で既に追加された手と一致する
-        let white_king_pos = self.position.white_king_pos();
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
