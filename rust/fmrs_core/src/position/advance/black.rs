@@ -1,7 +1,6 @@
 use crate::position::advance::options::AdvanceResult;
 use crate::position::bitboard::{king_power, lion_king_power, power, reachable, reachable_sub};
 use crate::position::position::PositionAux;
-use crate::position::rule::is_legal_move;
 
 use crate::piece::{Color, Kind};
 
@@ -313,16 +312,16 @@ impl<'a> Context<'a> {
             let direct_promoted = promoted_kind
                 .map(|k| bitboard::reachable_sub(self.position, Color::WHITE, white_king_pos, k));
 
+            // 不成り合法 mask: Pawn/Lance は最終段、Knight は最終段+次の段に
+            // 不成りで動けない。それ以外の駒種は全マス合法。
+            let unpromoted_legal = match blocker_kind {
+                Kind::Pawn | Kind::Lance => BitBoard::FULL.and_not(BitBoard::ROW1),
+                Kind::Knight => BitBoard::FULL.and_not(BitBoard::ROW1 | BitBoard::ROW2),
+                _ => BitBoard::FULL,
+            };
+            let pure_unpromoted = pure_unpromoted & unpromoted_legal;
+
             for blocker_dest in pure_unpromoted {
-                if !is_legal_move(
-                    Color::BLACK,
-                    blocker_pos,
-                    blocker_dest,
-                    blocker_kind,
-                    false,
-                ) {
-                    continue;
-                }
                 let capture_kind = self.position.get_kind(blocker_dest);
                 self.maybe_add_move(
                     Movement::move_with_hint(
@@ -337,17 +336,15 @@ impl<'a> Context<'a> {
             }
 
             if let Some(direct_promoted) = direct_promoted {
-                let pure_promoted = blocker_dest_cands.and_not(direct_promoted);
+                // 成り合法 mask: source か dest のどちらかが敵陣にあれば成れる。
+                // source が敵陣なら全 dest 合法、そうでなければ dest が敵陣のもののみ。
+                let promoted_legal = if BitBoard::BLACK_PROMOTABLE.contains(blocker_pos) {
+                    BitBoard::FULL
+                } else {
+                    BitBoard::BLACK_PROMOTABLE
+                };
+                let pure_promoted = blocker_dest_cands.and_not(direct_promoted) & promoted_legal;
                 for blocker_dest in pure_promoted {
-                    if !is_legal_move(
-                        Color::BLACK,
-                        blocker_pos,
-                        blocker_dest,
-                        blocker_kind,
-                        true,
-                    ) {
-                        continue;
-                    }
                     let capture_kind = self.position.get_kind(blocker_dest);
                     self.maybe_add_move(
                         Movement::move_with_hint(
