@@ -34,7 +34,7 @@
 ### Rust (コアロジック・CLI・Wasm)
 - ワーキングディレクトリ: `rust/`
 - ビルド・実行: `cargo run -r solve standard <sfen>`
-- テスト: `cargo test` (ロジック修正時は必須)
+- テスト: `cargo t` (= `cargo test --all`、ロジック修正時は必須)
 - 静的解析・フォーマット: `cargo clippy`, `cargo fmt`
 
 ### Webフロントエンド
