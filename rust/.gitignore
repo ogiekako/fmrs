@@ -3,4 +3,5 @@ target/
 Cargo.lock
 profile*.gif
 .codex
+.claude/
 models/*.csv
