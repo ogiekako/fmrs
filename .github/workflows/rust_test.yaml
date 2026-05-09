@@ -36,4 +36,4 @@ jobs:
         run: cargo test --workspace --no-fail-fast
 
       - name: bench
-        run: cargo bench
+        run: cargo bench --bench bench
