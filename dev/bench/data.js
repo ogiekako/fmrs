@@ -1,1 +1,158 @@
-window.BENCHMARK_DATA = {"lastUpdate":1778322527322,"repoUrl":"https://github.com/ogiekako/fmrs","entries":{"Rust Benchmark":[{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"e81aef2b84213742d45492f30c9636b620daa618","message":"chore(bench): dashmap_vs_logic/dashmap_100_insert_get \u3092\u524a\u9664\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>","timestamp":"2026-05-08T15:57:08+09:00","tree_id":"3eb8dd22df4bcd87d2ed66ab89ece2db2ad3c7db","url":"https://github.com/ogiekako/fmrs/commit/e81aef2b84213742d45492f30c9636b620daa618"},"date":1778224101987,"tool":"cargo","benches":[{"name":"black_advance","value":899,"range":"\u00b1 6","unit":"ns/iter"},{"name":"white_advance","value":3446,"range":"\u00b1 37","unit":"ns/iter"},{"name":"black_pinned","value":270,"range":"\u00b1 36","unit":"ns/iter"},{"name":"solve3","value":979,"range":"\u00b1 1748","unit":"ns/iter"},{"name":"oneway","value":30559,"range":"\u00b1 113","unit":"ns/iter"},{"name":"reachable","value":1526,"range":"\u00b1 143","unit":"ns/iter"},{"name":"pinned300","value":4268,"range":"\u00b1 22","unit":"ns/iter"},{"name":"bench_solve97","value":1707177,"range":"\u00b1 47","unit":"ns/iter"},{"name":"attacker","value":11220,"range":"\u00b1 35","unit":"ns/iter"},{"name":"bench_jugemu","value":33337,"range":"\u00b1 4","unit":"ns/iter"},{"name":"bench_1965","value":4049,"range":"\u00b1 103","unit":"ns/iter"},{"name":"bench_1461","value":20834,"range":"\u00b1 264","unit":"ns/iter"},{"name":"bench_bataco","value":75471,"range":"\u00b1 8","unit":"ns/iter"},{"name":"bench_backward_search","value":38461,"range":"\u00b1 9","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":81356,"range":"\u00b1 122","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"3cf45c314051043e821b63c749298ab958a4b786","message":"chore(bench): remove dashmap microbenchmarks\n\nDelete bench_dashmap_overhead and bench_dashmap_vs_logic \u2014 these were\ninvestigating a dashmap-vs-logic tradeoff that was resolved; the remaining\nbenches regressed into unmaintained stubs with no ongoing value.\n\nAlso removes the dashmap dev-dependency (no longer used anywhere).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>","timestamp":"2026-05-08T16:06:21+09:00","tree_id":"9e7788321f852ea344ff64bc5a3c0172f2e7415a","url":"https://github.com/ogiekako/fmrs/commit/3cf45c314051043e821b63c749298ab958a4b786"},"date":1778224582873,"tool":"cargo","benches":[{"name":"black_advance","value":721,"range":"\u00b1 2","unit":"ns/iter"},{"name":"white_advance","value":2914,"range":"\u00b1 5","unit":"ns/iter"},{"name":"black_pinned","value":265,"range":"\u00b1 53","unit":"ns/iter"},{"name":"solve3","value":972,"range":"\u00b1 2222","unit":"ns/iter"},{"name":"oneway","value":27928,"range":"\u00b1 68","unit":"ns/iter"},{"name":"reachable","value":1528,"range":"\u00b1 7","unit":"ns/iter"},{"name":"pinned300","value":4136,"range":"\u00b1 9","unit":"ns/iter"},{"name":"bench_solve97","value":1689614,"range":"\u00b1 70","unit":"ns/iter"},{"name":"attacker","value":10469,"range":"\u00b1 31","unit":"ns/iter"},{"name":"bench_jugemu","value":33760,"range":"\u00b1 3","unit":"ns/iter"},{"name":"bench_1965","value":4128,"range":"\u00b1 1","unit":"ns/iter"},{"name":"bench_1461","value":21276,"range":"\u00b1 5","unit":"ns/iter"},{"name":"bench_bataco","value":82766,"range":"\u00b1 6","unit":"ns/iter"},{"name":"bench_backward_search","value":37735,"range":"\u00b1 3","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":79119,"range":"\u00b1 29","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"6cac3258749c779e8654b31884930da1cccd5f0b","message":"feat(smoke): seed \u00d7 step \u3054\u3068\u306e trajectory log \u3092\u5e38\u6642 emit\n\n`<seed_result_log>.trajectory.jsonl` \u306b 1 \u884c / seed / step \u3067\u69cb\u9020\u7279\u5fb4\u3092\n\u8ffd\u8a18\u3059\u308b\u3002advance \u6210\u529f\u76f4\u5f8c\u306b emit:\n\n  {\"cond\":\"<hash>\",\"seed\":N,\"step\":K,\"frontier\":F,\"memo\":M,\"inner\":I,\"ms\":T}\n\n- frontier dynamics (peak \u3067\u306f\u306a\u304f\u6642\u7cfb\u5217) \u3092\u6355\u3048\u308b\u305f\u3081\u306e baseline \u7528\n- shogi \u7279\u5fb4\u91cf\u3092\u51fa\u3059\u65e2\u5b58 feature_log \u3068\u306f\u72ec\u7acb\u30b9\u30c8\u30ea\u30fc\u30e0\n- \u30d5\u30e9\u30b0\u306a\u3057\u3067\u5e38\u6642\u30aa\u30f3 (1 \u884c ~100 byte\u3001step \u5185 advance \u306b\u5bfe\u3057\n  serde \u4e0d\u8981\u306e writeln 1 \u56de\u3067\u30aa\u30fc\u30d0\u30fc\u30d8\u30c3\u30c9\u7121\u8996\u3067\u304d\u308b\u7a0b\u5ea6)\n- `cond` \u5217\u3067\u540c\u3058 trajectory log \u306b\u8907\u6570\u6761\u4ef6\u304c\u6df7\u3056\u3063\u3066\u3082 join \u53ef\u80fd\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>","timestamp":"2026-05-08T16:21:25+09:00","tree_id":"8bb33b5df46a1dd19c7f2013f6c4eadb3d350a78","url":"https://github.com/ogiekako/fmrs/commit/6cac3258749c779e8654b31884930da1cccd5f0b"},"date":1778225329055,"tool":"cargo","benches":[{"name":"black_advance","value":723,"range":"\u00b1 1","unit":"ns/iter"},{"name":"white_advance","value":2838,"range":"\u00b1 14","unit":"ns/iter"},{"name":"black_pinned","value":273,"range":"\u00b1 50","unit":"ns/iter"},{"name":"solve3","value":975,"range":"\u00b1 2129","unit":"ns/iter"},{"name":"oneway","value":26191,"range":"\u00b1 38","unit":"ns/iter"},{"name":"reachable","value":1498,"range":"\u00b1 16","unit":"ns/iter"},{"name":"pinned300","value":4105,"range":"\u00b1 22","unit":"ns/iter"},{"name":"bench_solve97","value":1698790,"range":"\u00b1 34","unit":"ns/iter"},{"name":"attacker","value":10507,"range":"\u00b1 26","unit":"ns/iter"},{"name":"bench_jugemu","value":32092,"range":"\u00b1 21","unit":"ns/iter"},{"name":"bench_1965","value":3933,"range":"\u00b1 1","unit":"ns/iter"},{"name":"bench_1461","value":20202,"range":"\u00b1 4","unit":"ns/iter"},{"name":"bench_bataco","value":80574,"range":"\u00b1 8","unit":"ns/iter"},{"name":"bench_backward_search","value":37190,"range":"\u00b1 4","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"072ea217f6d85dc384bd3f5945b57f2869aa32b9","message":"fix(smoke): trajectory_log_path \u304c /dev/null \u306b .trajectory.jsonl \u3092\u4ed8\u52a0\u3057\u3066 Permission denied \u306b\u306a\u308b\u554f\u984c\u3092\u4fee\u6b63\n\nseed_result_log \u304c /dev/null \u306e\u3068\u304d\u306f trajectory path \u3082 /dev/null \u3092\u8fd4\u3059\u3088\u3046\u306b\u3057\u305f\u3002\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>","timestamp":"2026-05-08T16:35:08+09:00","tree_id":"4d99b81b089aaa1295d66b748bf31e86d55afaf1","url":"https://github.com/ogiekako/fmrs/commit/072ea217f6d85dc384bd3f5945b57f2869aa32b9"},"date":1778226264459,"tool":"cargo","benches":[{"name":"black_advance","value":935,"range":"\u00b1 4","unit":"ns/iter"},{"name":"white_advance","value":3641,"range":"\u00b1 84","unit":"ns/iter"},{"name":"black_pinned","value":267,"range":"\u00b1 35","unit":"ns/iter"},{"name":"solve3","value":899,"range":"\u00b1 3264","unit":"ns/iter"},{"name":"oneway","value":34032,"range":"\u00b1 214","unit":"ns/iter"},{"name":"reachable","value":1532,"range":"\u00b1 8","unit":"ns/iter"},{"name":"pinned300","value":5015,"range":"\u00b1 21","unit":"ns/iter"},{"name":"bench_solve97","value":1780995,"range":"\u00b1 1809","unit":"ns/iter"},{"name":"attacker","value":11827,"range":"\u00b1 42","unit":"ns/iter"},{"name":"bench_jugemu","value":35873,"range":"\u00b1 12","unit":"ns/iter"},{"name":"bench_1965","value":4244,"range":"\u00b1 2","unit":"ns/iter"},{"name":"bench_1461","value":22222,"range":"\u00b1 6","unit":"ns/iter"},{"name":"bench_bataco","value":76208,"range":"\u00b1 28","unit":"ns/iter"},{"name":"bench_backward_search","value":41935,"range":"\u00b1 6","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":88846,"range":"\u00b1 1206","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"79268019450dd5b000fc0d1ff9b90c5ed704447d","message":"fix(core): sfen_to_image_url \u3092 path \u5f62\u5f0f\u306b\u5909\u66f4\u3001from_image_url \u3082\u65e7\u5f62\u5f0f\u4e92\u63db\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>","timestamp":"2026-05-08T21:33:57+09:00","tree_id":"8332887283e30ba36d6c498e66fcbe1058390f2b","url":"https://github.com/ogiekako/fmrs/commit/79268019450dd5b000fc0d1ff9b90c5ed704447d"},"date":1778244203399,"tool":"cargo","benches":[{"name":"black_advance","value":812,"range":"\u00b1 15","unit":"ns/iter"},{"name":"white_advance","value":3430,"range":"\u00b1 10","unit":"ns/iter"},{"name":"black_pinned","value":270,"range":"\u00b1 36","unit":"ns/iter"},{"name":"solve3","value":883,"range":"\u00b1 3075","unit":"ns/iter"},{"name":"oneway","value":30580,"range":"\u00b1 916","unit":"ns/iter"},{"name":"reachable","value":1489,"range":"\u00b1 32","unit":"ns/iter"},{"name":"pinned300","value":4347,"range":"\u00b1 26","unit":"ns/iter"},{"name":"bench_solve97","value":1742833,"range":"\u00b1 174","unit":"ns/iter"},{"name":"attacker","value":11547,"range":"\u00b1 62","unit":"ns/iter"},{"name":"bench_jugemu","value":33561,"range":"\u00b1 6","unit":"ns/iter"},{"name":"bench_1965","value":4067,"range":"\u00b1 1","unit":"ns/iter"},{"name":"bench_1461","value":21276,"range":"\u00b1 23","unit":"ns/iter"},{"name":"bench_bataco","value":77212,"range":"\u00b1 218","unit":"ns/iter"},{"name":"bench_backward_search","value":39241,"range":"\u00b1 5","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":80750,"range":"\u00b1 107","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"04c8caeb644382e1a0b3d807619e51226e85bc99","message":"perf(core): backward search \u306e delta \u30de\u30fc\u30b8\u3092 wave \u5358\u4f4d\u306b\u5206\u5272\u3057\u3066\u30d4\u30fc\u30af\u30e1\u30e2\u30ea\u3092\u524a\u6e1b\n\n\u5168\u5019\u88dc\u3092\u4e00\u62ec\u51e6\u7406\u3057\u3066\u304b\u3089 delta \u3092\u307e\u3068\u3081\u3066\u30de\u30fc\u30b8\u3059\u308b\u4ee3\u308f\u308a\u306b\u3001\nwave_size (parallel * 8 chunks) \u3054\u3068\u306b\u51e6\u7406\u2192\u5373\u6642\u30de\u30fc\u30b8\u2192\u89e3\u653e\u3092\u7e70\u308a\u8fd4\u3059\u3002\n\u30d4\u30fc\u30af delta \u30e1\u30e2\u30ea\u3092 O(\u5168\u30c1\u30e3\u30f3\u30af\u6570) \u304b\u3089 O(parallel * 8) \u306b\u6291\u3048\u308b\u3002\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>","timestamp":"2026-05-09T14:32:09+09:00","tree_id":"f1f0fead8f6b6ef122e4d4baf7a7d7024deeaee7","url":"https://github.com/ogiekako/fmrs/commit/04c8caeb644382e1a0b3d807619e51226e85bc99"},"date":1778305288372,"tool":"cargo","benches":[{"name":"black_advance","value":850,"range":"\u00b1 4","unit":"ns/iter"},{"name":"white_advance","value":3552,"range":"\u00b1 17","unit":"ns/iter"},{"name":"black_pinned","value":266,"range":"\u00b1 36","unit":"ns/iter"},{"name":"solve3","value":895,"range":"\u00b1 3372","unit":"ns/iter"},{"name":"oneway","value":34341,"range":"\u00b1 195","unit":"ns/iter"},{"name":"reachable","value":1551,"range":"\u00b1 14","unit":"ns/iter"},{"name":"pinned300","value":5015,"range":"\u00b1 14","unit":"ns/iter"},{"name":"bench_solve97","value":1828030,"range":"\u00b1 1009","unit":"ns/iter"},{"name":"attacker","value":11905,"range":"\u00b1 43","unit":"ns/iter"},{"name":"bench_jugemu","value":37271,"range":"\u00b1 5","unit":"ns/iter"},{"name":"bench_1965","value":4424,"range":"\u00b1 1","unit":"ns/iter"},{"name":"bench_1461","value":23335,"range":"\u00b1 11","unit":"ns/iter"},{"name":"bench_bataco","value":76977,"range":"\u00b1 9","unit":"ns/iter"},{"name":"bench_backward_search","value":41897,"range":"\u00b1 4","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":90906,"range":"\u00b1 10","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"9baba05eadfe5ac3b10f33af9b15348313afb60f","message":"feat(smoke): canonicalize-attacker-goldish \u30aa\u30d7\u30b7\u30e7\u30f3\u3067 memo cache hit \u7387\u5411\u4e0a\n\nbackward \u63a2\u7d22\u306e uniqueness \u5224\u5b9a\u5883\u754c\u3067\u300c\u9ed2 goldish (\u2260 ProPawn) \u3092 ProPawn \u5316\u3001\n\u99d2\u7a2e\u60c5\u5831\u3092\u767d\u624b\u99d2\u306b\u5bfe\u79f0\u7684\u306b\u79fb\u3059\u300d\u6b63\u898f\u5316\u3092\u9069\u7528\u3059\u308b opt-in flag \u3092\u8ffd\u52a0\u3002\u7dcf\u99d2\u6570\u56fa\u5b9a\n(Gold/Silver/Knight/Lance=4, Pawn=18) \u306e\u5236\u7d04\u4e0b\u3067\u306f\u540c\u3058 goldish \u5360\u6709\u30de\u30b9\u96c6\u5408\u3092\u6301\u3064\n\u5c40\u9762\u7fa4\u304c\u3059\u3079\u3066 1 canonical \u306b\u6f70\u308c\u3001\u5178\u578b 5^K \u306e collapse \u304c memo \u5171\u6709\u3092\u751f\u3080\u3002\n\n\u4e3b\u306a\u5909\u66f4:\n- fmrs_core/src/search/canonicalize.rs \u3092\u65b0\u8a2d\n  - canonicalize_attacker_goldish: per-kind bb \u53cd\u5fa9 + Phase A/B \u5206\u5272\u3067 99 ns\n  - canonical_digest_for_smoke: mutation \u306a\u3057\u3067 canonical digest \u3092\u5dee\u5206\u8a08\u7b97 (24 ns/heavy)\n- BackwardSearch \u306b canonicalize_attacker_goldish flag\u3001memo lookup \u306f digest \u5148\u884c\n  hit \u306a\u3089\u306f mutation \u4e0d\u8981\u3001miss \u6642\u306e\u307f clone + canonicalize \u3057\u3066 solutions \u547c\u3073\u51fa\u3057\n- KindBitBoard::change_kind / Position::change_kind / PositionAux::change_kind \u3092\u65b0\u8a2d\n  unset+set \u306e cancel-pair (\u9ed2 bb / occupied) \u3068 digest XOR \u3092\u307e\u3068\u3081\u3066\u524a\u6e1b\n- single-king-smoke ideal-backward \u306b --canonicalize-attacker-goldish CLI flag\n- search_single_seed / scheduler.finalize_task \u3067 best_positions \u3092 standard_solve \u3067\n  \u518d\u691c\u8a3c (false positive \u3092\u9664\u5916)\n- benches/bench.rs \u306b canonicalize / canonical_digest \u7528 bench \u8ffd\u52a0\n- canonicalize.rs \u306b 15 unit tests (collapse \u78ba\u8a8d + property test)\n\n\u5b9f\u8d70\u8a08\u6e2c (--allowed-kinds gold,silver,knight,lance --max-step 13 --seed-limit 5):\n  OFF: 17.4s, memo 2.85M    ON: 10.7s, memo 0.81M (3.5x \u7e2e\u5c0f\u3001wall 1.6x \u901f)\n  best_pieces=9, positions=170 \u3067 OFF/ON \u4e00\u81f4\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>","timestamp":"2026-05-09T16:53:52+09:00","tree_id":"a55f16138819c4ec35621b70aed1be8f46ad2609","url":"https://github.com/ogiekako/fmrs/commit/9baba05eadfe5ac3b10f33af9b15348313afb60f"},"date":1778313774482,"tool":"cargo","benches":[{"name":"black_advance","value":662,"range":"\u00b1 1","unit":"ns/iter"},{"name":"white_advance","value":2822,"range":"\u00b1 9","unit":"ns/iter"},{"name":"black_pinned","value":218,"range":"\u00b1 42","unit":"ns/iter"},{"name":"solve3","value":714,"range":"\u00b1 2142","unit":"ns/iter"},{"name":"oneway","value":25738,"range":"\u00b1 278","unit":"ns/iter"},{"name":"reachable","value":1196,"range":"\u00b1 7","unit":"ns/iter"},{"name":"pinned300","value":3761,"range":"\u00b1 15","unit":"ns/iter"},{"name":"bench_solve97","value":1435884,"range":"\u00b1 38","unit":"ns/iter"},{"name":"attacker","value":9041,"range":"\u00b1 54","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish","value":141,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_heavy","value":86,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_empty","value":40,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke","value":113,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_heavy","value":30,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_empty","value":11,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_jugemu","value":28907,"range":"\u00b1 3","unit":"ns/iter"},{"name":"bench_1965","value":3521,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_1461","value":18699,"range":"\u00b1 6","unit":"ns/iter"},{"name":"bench_bataco","value":62095,"range":"\u00b1 18","unit":"ns/iter"},{"name":"bench_backward_search","value":32610,"range":"\u00b1 7","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":71342,"range":"\u00b1 86","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"60236f2fdc79fc0b9f2d87fabc9afb1b3ae7fa0a","message":"chore: .gitignore \u306b .claude/ \u3092\u8ffd\u52a0\n\nClaude Code \u306e\u30ed\u30fc\u30ab\u30eb\u8a2d\u5b9a\u30c7\u30a3\u30ec\u30af\u30c8\u30ea\u3092 ignore\u3002\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>","timestamp":"2026-05-09T17:13:41+09:00","tree_id":"51609d74e42b2916f83eb185e44862bac0331521","url":"https://github.com/ogiekako/fmrs/commit/60236f2fdc79fc0b9f2d87fabc9afb1b3ae7fa0a"},"date":1778315146568,"tool":"cargo","benches":[{"name":"black_advance","value":662,"range":"\u00b1 5","unit":"ns/iter"},{"name":"white_advance","value":2895,"range":"\u00b1 8","unit":"ns/iter"},{"name":"black_pinned","value":205,"range":"\u00b1 40","unit":"ns/iter"},{"name":"solve3","value":714,"range":"\u00b1 2043","unit":"ns/iter"},{"name":"oneway","value":26190,"range":"\u00b1 174","unit":"ns/iter"},{"name":"reachable","value":1200,"range":"\u00b1 10","unit":"ns/iter"},{"name":"pinned300","value":3780,"range":"\u00b1 18","unit":"ns/iter"},{"name":"bench_solve97","value":1358850,"range":"\u00b1 210","unit":"ns/iter"},{"name":"attacker","value":9083,"range":"\u00b1 25","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish","value":142,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_heavy","value":86,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_empty","value":40,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke","value":113,"range":"\u00b1 1","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_heavy","value":30,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_empty","value":11,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_jugemu","value":27179,"range":"\u00b1 3","unit":"ns/iter"},{"name":"bench_1965","value":3236,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_1461","value":17241,"range":"\u00b1 1","unit":"ns/iter"},{"name":"bench_bataco","value":60640,"range":"\u00b1 4","unit":"ns/iter"},{"name":"bench_backward_search","value":31816,"range":"\u00b1 5","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":70388,"range":"\u00b1 77","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"e256bd06d112d7f0329c831651c7f5a446b4d48f","message":"perf(smoke): canonical-equivalent \u306a seed \u7fa4\u3092 1 BackwardSearch \u306b\u30d0\u30c3\u30c1\u5316\n\ncanonicalize-attacker-goldish ON \u306e\u3068\u304d\u3001enumerate_final_2_positions \u306e seed \u3092\ncanonical_digest_for_smoke \u3067\u30b0\u30eb\u30fc\u30d7\u5316\u3057\u3001\u5404\u30b0\u30eb\u30fc\u30d7\u3092 1 BackwardSearch \u3067\n\u51e6\u7406\u3059\u308b\u3002memo \u306f canonical-keyed \u3067 seed \u9593\u3067\u5171\u6709\u3055\u308c\u308b\u305f\u3081\u3001\u540c\u3058 canonical\nclass \u306b\u5c5e\u3059\u308b seed (\u5178\u578b 5\u301c16 \u500b) \u306e predecessor \u63a2\u7d22\u306e\u91cd\u8907\u4f5c\u696d\u304c\u5927\u5e45\u306b\n\u524a\u6e1b\u3055\u308c\u308b\u3002\n\n\u4e3b\u306a\u5909\u66f4:\n- BackwardSearch::new_canonical_group: \u8907\u6570 seed \u3092\u53d7\u3051\u3066 memo \u306b\u5404 seed \u306e\n  canonical_digest \u3092 `StepRange::exact(0)` \u3067 seed \u3059\u308b\u3002\u521d\u671f frontier \u306f\u5168\n  seed \u306e core \u3092\u4e26\u3079\u308b (predecessor \u751f\u6210\u306f seed \u500b\u5225\u306b\u8d70\u308b\u304c canonical-keyed\n  memo \u3067\u5171\u6709)\u30020-step \u8a70\u5c40\u9762\u306e\u307f\u30b5\u30dd\u30fc\u30c8 (smoke seeds \u7528\u9014)\u3002\n- ideal_backward: enumerate \u2192 grouping \u2192 shuffle \u2192 fleet_partition \u2192 truncate\n  \u306e\u9806\u306b\u5909\u66f4\u3002canonicalize ON \u3067\u306f seed_limit \u304c group \u6570\u3092\u610f\u5473\u3059\u308b\u3002\n- scheduler::TaskState::Cold: seed: PositionAux \u2192 seeds: Vec<PositionAux>\u3002\n- search_single_seed: seed: &PositionAux \u2192 seeds: &[PositionAux]\u3002canonicalize ON\n  \u3067\u306f new_canonical_group\u3001OFF \u3067\u306f\u5f93\u6765\u306e new_with_parallel + checkpoint\u3002\n- canon vs non-canon \u306f record/checkpoint \u4e92\u63db\u306a\u3057 (canon ON \u3067\u306f log \u8aad\u307f\u66f8\u304d\n  \u3092\u30b9\u30ad\u30c3\u30d7)\u3002\n\n\u5b9f\u6e2c (--allowed-kinds=pawn,lance,silver,gold --parallel 8 --mate-square 99\n--max-step 11):\n              OFF              ON                \u6539\u5584\n  Wall:       22.3s            14.0s             1.59x\n  memo peak:  2.7M             0.15M             18x \u7e2e\u5c0f\n  prev_memo:  4.5M             0.05M             90x \u7e2e\u5c0f\n  RSS peak:   10 GB            0.5 GB            20x \u524a\u6e1b\n  searches:   56 (24 succeed)  5 groups (11.2avg) 11.2x \u96c6\u7d04\n  positions:  23338            23338             \u5b8c\u5168\u4e00\u81f4\n\nbest_pieces=8 \u3067 OFF/ON \u4e00\u81f4\u3002\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>","timestamp":"2026-05-09T17:59:10+09:00","tree_id":"31a35dfff9d5fa3cbe70b539d9ee030ce7102daf","url":"https://github.com/ogiekako/fmrs/commit/e256bd06d112d7f0329c831651c7f5a446b4d48f"},"date":1778317738747,"tool":"cargo","benches":[{"name":"black_advance","value":786,"range":"\u00b1 8","unit":"ns/iter"},{"name":"white_advance","value":3283,"range":"\u00b1 26","unit":"ns/iter"},{"name":"black_pinned","value":275,"range":"\u00b1 36","unit":"ns/iter"},{"name":"solve3","value":861,"range":"\u00b1 2904","unit":"ns/iter"},{"name":"oneway","value":33148,"range":"\u00b1 130","unit":"ns/iter"},{"name":"reachable","value":1487,"range":"\u00b1 43","unit":"ns/iter"},{"name":"pinned300","value":5199,"range":"\u00b1 16","unit":"ns/iter"},{"name":"bench_solve97","value":1783385,"range":"\u00b1 856","unit":"ns/iter"},{"name":"attacker","value":11174,"range":"\u00b1 794","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish","value":174,"range":"\u00b1 16","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_heavy","value":105,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_empty","value":49,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke","value":147,"range":"\u00b1 2","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_heavy","value":37,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_empty","value":16,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_jugemu","value":33333,"range":"\u00b1 4","unit":"ns/iter"},{"name":"bench_1965","value":4018,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_1461","value":20000,"range":"\u00b1 2","unit":"ns/iter"},{"name":"bench_bataco","value":74624,"range":"\u00b1 8","unit":"ns/iter"},{"name":"bench_backward_search","value":39999,"range":"\u00b1 8","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":80736,"range":"\u00b1 72","unit":"ns/iter"}]},{"commit":{"author":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"committer":{"email":"ogiekako@gmail.com","name":"Keigo Oka","username":"ogiekako"},"distinct":true,"id":"6a1a3bcbdd8ba43551e187ec7731fd5e256097a6","message":"chore: sfen.rs \u306e\u672a\u4f7f\u7528 percent_encoding \u30a4\u30f3\u30dd\u30fc\u30c8\u3092\u524a\u9664\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>","timestamp":"2026-05-09T19:15:58+09:00","tree_id":"2f59c5de2e78890a3a6983acf7810361352e3f6c","url":"https://github.com/ogiekako/fmrs/commit/6a1a3bcbdd8ba43551e187ec7731fd5e256097a6"},"date":1778322523647,"tool":"cargo","benches":[{"name":"black_advance","value":664,"range":"\u00b1 1","unit":"ns/iter"},{"name":"white_advance","value":2739,"range":"\u00b1 70","unit":"ns/iter"},{"name":"black_pinned","value":204,"range":"\u00b1 41","unit":"ns/iter"},{"name":"solve3","value":713,"range":"\u00b1 2094","unit":"ns/iter"},{"name":"oneway","value":27410,"range":"\u00b1 65","unit":"ns/iter"},{"name":"reachable","value":1204,"range":"\u00b1 9","unit":"ns/iter"},{"name":"pinned300","value":3887,"range":"\u00b1 9","unit":"ns/iter"},{"name":"bench_solve97","value":1508374,"range":"\u00b1 884","unit":"ns/iter"},{"name":"attacker","value":9014,"range":"\u00b1 26","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish","value":141,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_heavy","value":86,"range":"\u00b1 5","unit":"ns/iter"},{"name":"canonicalize_attacker_goldish_empty","value":40,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke","value":113,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_heavy","value":30,"range":"\u00b1 0","unit":"ns/iter"},{"name":"canonical_digest_for_smoke_empty","value":11,"range":"\u00b1 0","unit":"ns/iter"},{"name":"bench_jugemu","value":28098,"range":"\u00b1 199","unit":"ns/iter"},{"name":"bench_1965","value":3307,"range":"\u00b1 1","unit":"ns/iter"},{"name":"bench_1461","value":17858,"range":"\u00b1 5","unit":"ns/iter"},{"name":"bench_bataco","value":61707,"range":"\u00b1 9","unit":"ns/iter"},{"name":"bench_backward_search","value":32609,"range":"\u00b1 13","unit":"ns/iter"},{"name":"bench_backward_search_seed_sfen","value":70342,"range":"\u00b1 48","unit":"ns/iter"}]}]}};
+window.BENCHMARK_DATA = {
+  "lastUpdate": 1778323366791,
+  "repoUrl": "https://github.com/ogiekako/fmrs",
+  "entries": {
+    "Rust Benchmark": [
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "8ec778793569c9e1049e8161f530ab7ef52cef42",
+          "message": "fix(smoke): multi-step seed を new_canonical_group で受理し step を解の長さに揃える\n\n0-step (即詰み) seed のみ受け付けていた制約を撤廃し、任意の N-step seed を\ncanonical group 構築に渡せるようにした。memo/prev_memo を代表 seed の解路で\ncanonical digest ごとに初期化し、BackwardSearch の step フィールドを\ngroup_step に設定することで探索の起点を正しく揃える。\nリグレッションテスト (new_canonical_group_accepts_n_step_seed) を追加。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T19:32:51+09:00",
+          "tree_id": "56debdf7d27d4b566df7eb03b2778fd4407cb25d",
+          "url": "https://github.com/ogiekako/fmrs/commit/8ec778793569c9e1049e8161f530ab7ef52cef42"
+        },
+        "date": 1778323363818,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 781,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3294,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 266,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 857,
+            "range": "± 3000",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 32065,
+            "range": "± 188",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1452,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5130,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1755567,
+            "range": "± 129",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10950,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 174,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 105,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 51,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 150,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 17,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33714,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4117,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 21055,
+            "range": "± 1263",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 73581,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 39999,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 81989,
+            "range": "± 30",
+            "unit": "ns/iter"
+          }
+        ]
+      }
+    ]
+  }
+}
