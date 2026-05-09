@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778338556864,
+  "lastUpdate": 1778338559584,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -36201,6 +36201,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 39315,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "bc82eb9f070a5debead56534004efc6fad4dfa5a",
+          "message": "perf(solve): low_mem_standard の Vec を pre-alloc して near_mate 1.7% 短縮\n\nnear_mate ベンチで callgrind プロファイルの grow_one cum 3.83% を確認、\nmovements/tmp_movements/tmp_positions の初期容量を 256/256/1024 に設定。\n合わせて leap_piece_direct_attack の冗長な can_promote チェックを削除\n(promoted_kind = Some なら can_promote == true は常に成立)。\n\niai_bench::solve_group::bench_near_mate:\n- Instructions: 167.3M → 164.5M (-1.66%)\n- Estimated Cycles: 239.1M → 235.1M (-1.68%)\n他の bench (advance/position) には影響なし。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T14:38:01Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/bc82eb9f070a5debead56534004efc6fad4dfa5a"
+        },
+        "date": 1778338558888,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 473,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2762,
+            "range": "± 69",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 235,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 480,
+            "range": "± 354",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28218,
+            "range": "± 96",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1466,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4233,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1589761,
+            "range": "± 216",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11694,
+            "range": "± 705",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 178,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 106,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 51,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 147,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 23475563,
+            "range": "± 103554",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33145,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4056,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20136,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 37389,
+            "range": "± 7",
             "unit": "ns/iter"
           }
         ]
