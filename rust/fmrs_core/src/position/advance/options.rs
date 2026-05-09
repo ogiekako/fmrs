@@ -2,6 +2,12 @@
 pub struct AdvanceOptions {
     // Set 1 for one-way mate. Pawn drop is added regardless of the value.
     pub max_allowed_branches: Option<usize>,
+    /// Caller asserts the side-to-move's king is NOT in check; skip the
+    /// `attacker()` call in advance.
+    ///
+    /// Must be conservative: only set true when DEFINITELY not in check.
+    /// False = unknown, full attacker() call performed.
+    pub assume_not_in_check: bool,
 }
 
 /// Lightweight error for hot-path control flow in advance_aux.

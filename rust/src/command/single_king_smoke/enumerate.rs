@@ -97,6 +97,7 @@ fn try_register_mate(
     movements.clear();
     let mate_options = AdvanceOptions {
         max_allowed_branches: Some(0),
+        ..Default::default()
     };
     if matches!(
         advance_aux(&mut position, &mate_options, movements),

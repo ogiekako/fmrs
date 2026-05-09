@@ -45,11 +45,16 @@ impl<'a> Context<'a> {
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> AdvanceResult<Self> {
-        let attacker = position
-            .black_king_pos()
-            .is_some()
-            .then(|| attacker(position, Color::BLACK, false))
-            .flatten();
+        let attacker = if options.assume_not_in_check {
+            // Caller asserts black is not in check; skip the full attacker scan.
+            None
+        } else {
+            position
+                .black_king_pos()
+                .is_some()
+                .then(|| attacker(position, Color::BLACK, false))
+                .flatten()
+        };
 
         let pawn_mask = {
             let mut mask = Default::default();

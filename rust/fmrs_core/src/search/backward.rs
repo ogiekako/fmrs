@@ -1280,6 +1280,7 @@ impl BackwardSearch {
                     let mut branches = vec![];
                     let options = crate::position::AdvanceOptions {
                         max_allowed_branches: Some(1),
+                        ..Default::default()
                     };
                     if crate::position::advance::advance::advance_aux(
                         &mut pp,
@@ -1935,6 +1936,7 @@ fn solutions_inner(
         movements.clear();
         let options = crate::position::AdvanceOptions {
             max_allowed_branches: Some(0),
+            ..Default::default()
         };
         let advance_result = advance_aux(position, &options, &mut movements);
         let hint = if advance_result.is_err() {
@@ -2249,6 +2251,7 @@ fn solutions_overlay_inner(
         movements.clear();
         let options = crate::position::AdvanceOptions {
             max_allowed_branches: Some(0),
+            ..Default::default()
         };
         let advance_result = advance_aux(position, &options, &mut movements);
         let hint = if advance_result.is_err() {
