@@ -104,14 +104,17 @@ impl LowMemStandardSolver {
             step += 1;
         }
 
+        // Pre-allocate to skip the early Vec::push grow steps. Sizes chosen
+        // to cover the typical 15-ply search frontier (~1k positions, ~256
+        // moves per advance) without over-committing for shallow searches.
         Ok(Self {
             initial_position_digests,
             solutions_upto,
             step,
             positions,
-            tmp_positions: vec![],
-            movements: vec![],
-            tmp_movements: vec![],
+            tmp_positions: Vec::with_capacity(1024),
+            movements: Vec::with_capacity(256),
+            tmp_movements: Vec::with_capacity(256),
             mate_positions,
             memo_white_turn: memo,
             stone,

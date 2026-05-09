@@ -209,13 +209,14 @@ impl<'a> Context<'a> {
                 attacker_source_kind,
                 true,
             );
+            // promoted_kind = Some implies attacker_source_kind.can_promote() == true
+            // (Bishop/Rook/Lance/Knight); ProBishop/ProRook return None here.
             let promotion_dest_cands = promoted_kind
                 .map(|k| reachable(self.position, Color::WHITE, white_king_pos, k, true));
 
             // attackers は bitboard(BLACK, attacker_source_kind) なのでこのループ内では
             // kind は必ず attacker_source_kind。must_get_kind の packed lookup は不要。
             let source_kind = attacker_source_kind;
-            let can_promote = source_kind.can_promote();
             for attacker_pos in attackers {
                 let attacker_reachable =
                     self.pinned().pinned_area(attacker_pos).unwrap_or_else(|| {
@@ -241,9 +242,6 @@ impl<'a> Context<'a> {
                     )?;
                 }
                 if let Some(mut dest_cands) = promotion_dest_cands {
-                    if !can_promote {
-                        continue;
-                    }
                     if !BitBoard::BLACK_PROMOTABLE.contains(attacker_pos) {
                         dest_cands &= BitBoard::BLACK_PROMOTABLE;
                     }
