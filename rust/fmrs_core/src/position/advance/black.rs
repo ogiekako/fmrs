@@ -365,6 +365,7 @@ impl<'a> Context<'a> {
 
 // Helper
 impl Context<'_> {
+    #[inline]
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> AdvanceResult<()> {
         if kind == Kind::King {
             let mut np = self.position.clone();
