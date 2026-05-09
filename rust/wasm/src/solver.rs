@@ -106,14 +106,6 @@ impl Solver {
     }
 
     pub fn solutions_kif(&mut self) -> String {
-        if self.initial_position.turn() == Color::WHITE {
-            let mut ini = self.initial_position.flipped();
-            let mut sol = self.solutions.clone();
-            sol.iter_mut()
-                .for_each(|x| x.iter_mut().for_each(|m| *m = m.flipped()));
-            return converter::convert_to_kif(&mut ini, &sol);
-        }
-
         converter::convert_to_kif(&mut self.initial_position, &self.solutions)
     }
 

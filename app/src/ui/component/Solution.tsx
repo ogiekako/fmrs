@@ -130,8 +130,8 @@ function tweakKifForJs(url: string, stone: boolean[][], fromWhite: boolean) {
   const cells = document.getElementsByClassName("kifuforjs-cell");
   for (let i = 0; i < cells.length; i++) {
     const cell = cells[i] as HTMLElement;
-    const x = fromWhite ? i % 9 : 8 - (i % 9);
-    const y = fromWhite ? 8 - Math.floor(i / 9) : Math.floor(i / 9);
+    const x = 8 - (i % 9);
+    const y = Math.floor(i / 9);
     if (stone[y][x]) {
       const div = document.createElement("div");
       cell.style.position = "relative";
@@ -146,13 +146,6 @@ function tweakKifForJs(url: string, stone: boolean[][], fromWhite: boolean) {
       div.style.borderRadius = "50%";
       div.style.backgroundColor = "black";
     }
-  }
-  if (fromWhite) {
-    (
-      document.getElementsByClassName(
-        "kifuforjs-control-tools"
-      )?.[0] as HTMLElement
-    ).click();
   }
 }
 
@@ -185,9 +178,9 @@ function extractPosition(
 
     let color: model.Color;
     if (aria.includes("先手")) {
-      color = fromWhite ? "white" : "black";
+      color = "black";
     } else if (aria.includes("後手")) {
-      color = fromWhite ? "black" : "white";
+      color = "white";
     } else {
       continue;
     }

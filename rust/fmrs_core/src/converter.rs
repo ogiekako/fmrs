@@ -203,8 +203,18 @@ pub fn convert(position: &mut PositionAux, solutions: &[Solution]) -> JsonKifuFo
 }
 
 pub fn convert_to_kif(position: &mut PositionAux, solutions: &[Solution]) -> String {
+    let from_white = position.turn() == Color::WHITE;
     let jkf = convert(position, solutions);
-    jkf.to_kif_owned()
+    let kif = jkf.to_kif_owned();
+    if from_white {
+        // Insert 後手番 so KifuForJS knows white moves first.
+        kif.replace(
+            "手数----指手---------消費時間--\n",
+            "後手番\n手数----指手---------消費時間--\n",
+        )
+    } else {
+        kif
+    }
 }
 
 #[cfg(test)]
