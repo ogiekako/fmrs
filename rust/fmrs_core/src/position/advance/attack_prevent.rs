@@ -49,6 +49,10 @@ struct Context<'a> {
     /// `king_move` が早期に脱出を見つけて Err 返すと参照されないので、
     /// 計算 (~6% CPU) を回避できる。
     pinned: Option<Pinned>,
+    /// Lazy: own-color leap pieces grouped per leap_kind. Computed once and
+    /// reused across capture/block dest iterations to avoid redundant
+    /// `bitboard(turn, kind)` lookups.
+    leap_state: Option<LeapState>,
     attacker: Attacker,
     pawn_mask: Option<usize>,
     should_return_check: bool,
@@ -58,6 +62,18 @@ struct Context<'a> {
     num_branches_without_pawn_drop: usize,
 
     options: &'a AdvanceOptions,
+}
+
+#[derive(Clone, Copy)]
+struct LeapState {
+    /// Own raw Lance pieces (ProLance is gold-like, not in this set).
+    lance: BitBoard,
+    /// Own raw Knight pieces (ProKnight is gold-like).
+    knight: BitBoard,
+    /// Own Bishop | ProBishop (both line pieces sharing diagonal motion).
+    bishopish: BitBoard,
+    /// Own Rook | ProRook (both line pieces sharing straight motion).
+    rookish: BitBoard,
 }
 
 impl<'a> Context<'a> {
@@ -82,6 +98,7 @@ impl<'a> Context<'a> {
             position,
             occupied_without_king,
             pinned: None,
+            leap_state: None,
             attacker,
             pawn_mask: None, // TODO: move to PositionAux
             should_return_check,
@@ -90,6 +107,27 @@ impl<'a> Context<'a> {
             num_branches_without_pawn_drop: 0,
             options,
         })
+    }
+
+    fn leap_state(&mut self) -> LeapState {
+        if let Some(s) = self.leap_state {
+            return s;
+        }
+        let turn = self.position.turn();
+        let lance = self.position.bitboard(turn, Kind::Lance);
+        let knight = self.position.bitboard(turn, Kind::Knight);
+        let bishop = self.position.bitboard(turn, Kind::Bishop);
+        let pro_bishop = self.position.bitboard(turn, Kind::ProBishop);
+        let rook = self.position.bitboard(turn, Kind::Rook);
+        let pro_rook = self.position.bitboard(turn, Kind::ProRook);
+        let s = LeapState {
+            lance,
+            knight,
+            bishopish: bishop | pro_bishop,
+            rookish: rook | pro_rook,
+        };
+        self.leap_state = Some(s);
+        s
     }
 
     fn pawn_mask(&mut self) -> usize {
@@ -205,11 +243,14 @@ impl<'a> Context<'a> {
     }
 
     fn add_movements_to(&mut self, dest: Square, include_drop: bool) -> AdvanceResult<()> {
+        let turn = self.position.turn();
+        let opposite = turn.opposite();
+
         // Drop
         if include_drop {
-            for kind in self.position.hands().kinds(self.position.turn()) {
+            for kind in self.position.hands().kinds(turn) {
                 let pawn_mask = (kind == Kind::Pawn).then(|| self.pawn_mask()).unwrap_or(0);
-                if is_legal_drop(self.position.turn(), dest, kind, pawn_mask) {
+                if is_legal_drop(turn, dest, kind, pawn_mask) {
                     self.maybe_add_move(Movement::Drop(dest, kind), kind)?;
                 }
             }
@@ -221,9 +262,10 @@ impl<'a> Context<'a> {
             self.position.get_kind(dest)
         };
 
-        // Move
-        let around_dest =
-            king_power(dest) & self.position.capturable_by(self.position.turn().opposite());
+        // Around-dest moves: pieces of any kind in king_power(dest) that can step to dest.
+        // Line-piece "step" moves are handled by the leap loop below; this loop skips them
+        // via `around_dest_move_is_generated_by_leap`.
+        let around_dest = king_power(dest) & self.position.capturable_by(opposite);
         for source_pos in around_dest {
             let source_kind = self.position.must_get_kind(source_pos);
             if source_kind == Kind::King {
@@ -232,22 +274,16 @@ impl<'a> Context<'a> {
             let source_power = self
                 .pinned()
                 .pinned_area(source_pos)
-                .unwrap_or_else(|| bitboard::power(self.position.turn(), source_pos, source_kind));
+                .unwrap_or_else(|| bitboard::power(turn, source_pos, source_kind));
             if source_power.contains(dest) {
-                if around_dest_move_is_generated_by_leap(
-                    source_pos,
-                    dest,
-                    source_kind,
-                    self.position.turn(),
-                ) {
+                if around_dest_move_is_generated_by_leap(source_pos, dest, source_kind, turn) {
                     continue;
                 }
                 for promote in [false, true] {
                     if promote && source_kind.promote().is_none() {
                         continue;
                     }
-                    if !is_legal_move(self.position.turn(), source_pos, dest, source_kind, promote)
-                    {
+                    if !is_legal_move(turn, source_pos, dest, source_kind, promote) {
                         continue;
                     }
                     let movement = Movement::move_with_hint(
@@ -262,48 +298,110 @@ impl<'a> Context<'a> {
             }
         }
 
-        for leap_kind in [Kind::Lance, Kind::Knight, Kind::Bishop, Kind::Rook] {
-            let on_board = {
-                let raw_pieces = self.position.bitboard(self.position.turn(), leap_kind);
-                let promoted_kind = leap_kind.promote().unwrap();
-                if promoted_kind.is_line_piece() {
-                    raw_pieces | self.position.bitboard(self.position.turn(), promoted_kind)
-                } else {
-                    raw_pieces
-                }
-            };
-            if on_board.is_empty() {
+        // Leap pieces: cached `LeapState` avoids 4× repeated `bitboard(turn, kind)`
+        // calls per dest. Lance/Knight specialize on a known `source_kind` so the
+        // inner `must_get_kind` lookup disappears.
+        let leap = self.leap_state();
+        if !leap.lance.is_empty() {
+            self.add_leap_simple(
+                dest,
+                capture_kind,
+                leap.lance,
+                Kind::Lance,
+                turn,
+                opposite,
+            )?;
+        }
+        if !leap.knight.is_empty() {
+            self.add_leap_simple(
+                dest,
+                capture_kind,
+                leap.knight,
+                Kind::Knight,
+                turn,
+                opposite,
+            )?;
+        }
+        if !leap.bishopish.is_empty() {
+            self.add_leap_promotable(
+                dest,
+                capture_kind,
+                leap.bishopish,
+                Kind::Bishop,
+                turn,
+                opposite,
+            )?;
+        }
+        if !leap.rookish.is_empty() {
+            self.add_leap_promotable(
+                dest,
+                capture_kind,
+                leap.rookish,
+                Kind::Rook,
+                turn,
+                opposite,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Leap path for kinds whose promoted form is not a line piece (Lance, Knight).
+    /// `source_kind` is statically known to equal `kind`, so `must_get_kind` and
+    /// the `can_promote` check are skipped.
+    fn add_leap_simple(
+        &mut self,
+        dest: Square,
+        capture_kind: Option<Kind>,
+        on_board: BitBoard,
+        kind: Kind,
+        turn: Color,
+        opposite: Color,
+    ) -> AdvanceResult<()> {
+        let sources = bitboard::reachable(self.position, opposite, dest, kind, false) & on_board;
+        for source_pos in sources {
+            if self.pinned().is_unpin_move(source_pos, dest) {
                 continue;
             }
-            let sources = bitboard::reachable(
-                self.position,
-                self.position.turn().opposite(),
-                dest,
-                leap_kind,
-                false,
-            ) & on_board;
-            for source_pos in sources {
-                if self.pinned().is_unpin_move(source_pos, dest) {
+            for promote in [false, true] {
+                if !is_legal_move(turn, source_pos, dest, kind, promote) {
                     continue;
                 }
-                let source_kind = self.position.must_get_kind(source_pos);
-                for promote in [false, true] {
-                    if promote && !source_kind.can_promote() {
-                        continue;
-                    }
-                    if !is_legal_move(self.position.turn(), source_pos, dest, source_kind, promote)
-                    {
-                        continue;
-                    }
-                    let movement = Movement::move_with_hint(
-                        source_pos,
-                        source_kind,
-                        dest,
-                        promote,
-                        capture_kind,
-                    );
-                    self.maybe_add_move(movement, source_kind)?;
+                let movement =
+                    Movement::move_with_hint(source_pos, kind, dest, promote, capture_kind);
+                self.maybe_add_move(movement, kind)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Leap path for line-piece kinds whose promoted form is also a line piece
+    /// (Bishop/ProBishop, Rook/ProRook). The actual `source_kind` must be
+    /// looked up because `on_board` mixes raw and promoted variants.
+    fn add_leap_promotable(
+        &mut self,
+        dest: Square,
+        capture_kind: Option<Kind>,
+        on_board: BitBoard,
+        kind: Kind,
+        turn: Color,
+        opposite: Color,
+    ) -> AdvanceResult<()> {
+        let sources = bitboard::reachable(self.position, opposite, dest, kind, false) & on_board;
+        for source_pos in sources {
+            if self.pinned().is_unpin_move(source_pos, dest) {
+                continue;
+            }
+            let source_kind = self.position.must_get_kind(source_pos);
+            for promote in [false, true] {
+                if promote && !source_kind.can_promote() {
+                    continue;
                 }
+                if !is_legal_move(turn, source_pos, dest, source_kind, promote) {
+                    continue;
+                }
+                let movement =
+                    Movement::move_with_hint(source_pos, source_kind, dest, promote, capture_kind);
+                self.maybe_add_move(movement, source_kind)?;
             }
         }
         Ok(())
