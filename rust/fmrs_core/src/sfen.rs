@@ -1,6 +1,4 @@
 use anyhow::bail;
-use percent_encoding::utf8_percent_encode;
-use percent_encoding::NON_ALPHANUMERIC;
 use position::PositionAux;
 use url::Url;
 
