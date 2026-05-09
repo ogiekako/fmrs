@@ -54,27 +54,44 @@ jobs:
 
       - name: Run iai-callgrind benchmarks
         run: |
-          cargo bench --bench iai_bench 2>&1 | tee iai_output.txt
+          cargo bench --bench iai_bench -- --output-format=json 2>&1 | tee iai_output.txt
           python3 - <<'PY' > iai_results.json
-          import re, json
+          import json
 
           results = []
-          current = None
           with open('iai_output.txt') as f:
               for line in f:
-                  stripped = line.strip()
-                  # Header line: module::group::function[::variant], starts at column 0
-                  if '::' in stripped and not line[0].isspace():
-                      parts = stripped.split('::')
-                      # e.g. iai_bench::advance_group::bench_black_advance::default
-                      func = parts[2] if len(parts) > 2 else parts[-1]
-                      variant = parts[3] if len(parts) > 3 else None
-                      current = func if (variant is None or variant == 'default') else f"{func}::{variant}"
-                  m = re.match(r'\s+Instructions:\s+([\d,]+)', line)
-                  if m and current:
-                      value = int(m.group(1).replace(',', ''))
-                      results.append({"name": current, "value": value, "unit": "Instructions"})
-                      current = None
+                  line = line.strip()
+                  if not line:
+                      continue
+                  try:
+                      data = json.loads(line)
+                  except json.JSONDecodeError:
+                      continue
+                  if not isinstance(data, dict):
+                      continue
+
+                  function_name = data.get('function_name', '')
+                  id_ = data.get('id')
+                  name = function_name if (id_ is None or id_ == 'default') else f"{function_name}::{id_}"
+
+                  for profile in data.get('profiles', []):
+                      if profile.get('tool') != 'Callgrind':
+                          continue
+                      try:
+                          callgrind = profile['summaries']['total']['summary']['Callgrind']
+                          metrics = callgrind['Ir']['metrics']
+                          if 'Left' in metrics:
+                              value = metrics['Left']['Int']
+                          elif 'Both' in metrics:
+                              value = metrics['Both'][0]['Int']
+                          else:
+                              continue
+                          results.append({"name": name, "value": value, "unit": "Instructions"})
+                      except (KeyError, TypeError, IndexError):
+                          pass
+                      break
+
           print(json.dumps(results, indent=2))
           PY
           echo "=== iai-callgrind results ===" >&2
