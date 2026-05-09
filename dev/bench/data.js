@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778341023358,
+  "lastUpdate": 1778341625756,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -36878,6 +36878,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 465409855,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "0cb347c1975f04b31f3ec7b22f6562a771a5ac41",
+          "message": "perf(solve): ProBishop/ProRook の利き計算を magic lookup 不要の OR 演算に変換 (-3.9%)\n\nProBishop = Bishop ∪ King-step、ProRook = Rook ∪ King-step という将棋ルールの定義を利用し、\n白玉への ProBishop/ProRook 利きを bishop_reachable/rook_reachable の結果に king_power を\nOR するだけで導出。leap_piece_direct_attack の near_mate 命令数を 159.3M→153.1M に削減。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T15:29:19Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/0cb347c1975f04b31f3ec7b22f6562a771a5ac41"
+        },
+        "date": 1778341623186,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51370,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124745,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 458571909,
             "unit": "Instructions"
           }
         ]
