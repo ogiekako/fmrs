@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778315150300,
+  "lastUpdate": 1778317741569,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1013,6 +1013,156 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 70388,
             "range": "± 77",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "e256bd06d112d7f0329c831651c7f5a446b4d48f",
+          "message": "perf(smoke): canonical-equivalent な seed 群を 1 BackwardSearch にバッチ化\n\ncanonicalize-attacker-goldish ON のとき、enumerate_final_2_positions の seed を\ncanonical_digest_for_smoke でグループ化し、各グループを 1 BackwardSearch で\n処理する。memo は canonical-keyed で seed 間で共有されるため、同じ canonical\nclass に属する seed (典型 5〜16 個) の predecessor 探索の重複作業が大幅に\n削減される。\n\n主な変更:\n- BackwardSearch::new_canonical_group: 複数 seed を受けて memo に各 seed の\n  canonical_digest を `StepRange::exact(0)` で seed する。初期 frontier は全\n  seed の core を並べる (predecessor 生成は seed 個別に走るが canonical-keyed\n  memo で共有)。0-step 詰局面のみサポート (smoke seeds 用途)。\n- ideal_backward: enumerate → grouping → shuffle → fleet_partition → truncate\n  の順に変更。canonicalize ON では seed_limit が group 数を意味する。\n- scheduler::TaskState::Cold: seed: PositionAux → seeds: Vec<PositionAux>。\n- search_single_seed: seed: &PositionAux → seeds: &[PositionAux]。canonicalize ON\n  では new_canonical_group、OFF では従来の new_with_parallel + checkpoint。\n- canon vs non-canon は record/checkpoint 互換なし (canon ON では log 読み書き\n  をスキップ)。\n\n実測 (--allowed-kinds=pawn,lance,silver,gold --parallel 8 --mate-square 99\n--max-step 11):\n              OFF              ON                改善\n  Wall:       22.3s            14.0s             1.59x\n  memo peak:  2.7M             0.15M             18x 縮小\n  prev_memo:  4.5M             0.05M             90x 縮小\n  RSS peak:   10 GB            0.5 GB            20x 削減\n  searches:   56 (24 succeed)  5 groups (11.2avg) 11.2x 集約\n  positions:  23338            23338             完全一致\n\nbest_pieces=8 で OFF/ON 一致。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T17:59:10+09:00",
+          "tree_id": "31a35dfff9d5fa3cbe70b539d9ee030ce7102daf",
+          "url": "https://github.com/ogiekako/fmrs/commit/e256bd06d112d7f0329c831651c7f5a446b4d48f"
+        },
+        "date": 1778317738747,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 786,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3283,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 275,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 861,
+            "range": "± 2904",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 33148,
+            "range": "± 130",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1487,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5199,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1783385,
+            "range": "± 856",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11174,
+            "range": "± 794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 174,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 105,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 147,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33333,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 4018,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20000,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 74624,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 39999,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 80736,
+            "range": "± 72",
             "unit": "ns/iter"
           }
         ]
