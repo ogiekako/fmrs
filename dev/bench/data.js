@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778332763675,
+  "lastUpdate": 1778333035076,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35473,6 +35473,154 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 86377,
             "range": "± 110",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "1690dbe6f68b3ff8589ae5a4563b083fdee524a4",
+          "message": "ci(test): iai_bench を除外して bench ステップの失敗を修正\n\niai_bench は Valgrind 必須のため test CI では実行不可。\n--bench bench で bench.rs のみ指定する。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T13:17:41Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/1690dbe6f68b3ff8589ae5a4563b083fdee524a4"
+        },
+        "date": 1778333034575,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 451,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2356,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 250,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 503,
+            "range": "± 510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25777,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1435,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3837,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1622338,
+            "range": "± 154",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10805,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 185,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 89,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 136,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 32376,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3984,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20319,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 81166,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 37130,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 81080,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
