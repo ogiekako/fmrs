@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778342666620,
+  "lastUpdate": 1778345349965,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37266,6 +37266,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 457068443,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "1b8217dd0d9eeaa92be6fd790458a3be90ba7265",
+          "message": "feat(gcp-spot): add per-instance ID support, switch default zone to asia-northeast1, update spot pricing\n\n- `up 2`, `run 2 CMD` 等でインスタンス名に ID suffix (fmrs-spot-2) を付与\n- デフォルトゾーンを us-central1-a → asia-northeast1-a（東京）に変更\n- spot pricing を asia-northeast1 の実レートに更新（Cloud Billing API 取得値）\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T16:31:37Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/1b8217dd0d9eeaa92be6fd790458a3be90ba7265"
+        },
+        "date": 1778345347832,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51339,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124757,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 453947150,
             "unit": "Instructions"
           }
         ]
