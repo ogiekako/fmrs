@@ -79,6 +79,11 @@ enum Action {
         #[command(subcommand)]
         cmd: SingleKingSmokeCommand,
     },
+    SolveBench {
+        files: Vec<String>,
+        #[arg(long, default_value = "10")]
+        n: usize,
+    },
 }
 
 pub async fn do_main() -> anyhow::Result<()> {
@@ -130,6 +135,7 @@ pub async fn do_main() -> anyhow::Result<()> {
         )?,
         Action::GenMagic { attr } => gen_magic(attr)?,
         Action::SingleKingSmoke { cmd } => command::single_king_smoke(cmd)?,
+        Action::SolveBench { files, n } => command::solve_bench(files, n)?,
     }
     Ok(())
 }

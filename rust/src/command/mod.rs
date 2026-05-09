@@ -9,12 +9,14 @@ mod smoke_constraints;
 pub(crate) mod smoke_features;
 mod smoke_persistence;
 mod solve;
+mod solve_bench;
 
 pub use bench::bench;
 pub use one_way_mate::{one_way_mate, OneWayMateGenerator};
 pub use server::server;
 pub use single_king_smoke::{single_king_smoke, SingleKingSmokeCommand};
 pub use solve::solve;
+pub use solve_bench::solve_bench;
 use url::Url;
 
 pub(crate) fn parse_to_sfen(sfen_or_file_or_url: &str) -> anyhow::Result<String> {

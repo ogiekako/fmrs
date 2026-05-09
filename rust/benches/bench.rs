@@ -14,6 +14,7 @@ use fmrs_core::search::canonicalize::{
     canonical_digest_for_smoke, canonicalize_attacker_goldish,
 };
 use fmrs_core::sfen::decode_position;
+use fmrs_core::solve::low_mem_standard::low_mem_standard_solve;
 use fmrs_core::solve::one_way::one_way_mate_steps;
 use fmrs_core::solve::standard_solve::standard_solve;
 use pprof::criterion::{Output, PProfProfiler};
@@ -334,6 +335,37 @@ fn bench_pinned300(c: &mut Criterion) {
     });
 }
 
+fn bench_near_mate(c: &mut Criterion) {
+    // Positions 15 moves before mate for 10 problems (≤3000 steps, excluding
+    // ofm-139_5.sfen). Generated once via `fmrs solve-bench --n 15 <files...>`
+    // and hardcoded here so the benchmark does not re-solve the full problem.
+    let sfens: &[(&str, u16)] = &[
+        ("4l1+P2/3+P1n3/S3p1+L2/1S1G1p2G/3L3kS/1N1p1l1B1/B4N2R/1P1g1K1p1/PNP1P3P b rgs7p 1", 15), // diamond (55)
+        ("ggssn2p1/lgssn3l/2b6/5N3/+R2+l5/8k/6+n2/2g4L1/KBr3PP1 b 2P13p 1", 15),                   // forest-05-13_57
+        ("s2B5/1L1S5/1PPPPL2R/1+l5N1/P6N1/2k4N1/7N1/1pgg2g2/K5+Br1 b g2sl12p 1", 15),              // forest-06-10_97
+        ("9/G2s4G/LLpNGNpPP/4L4/1sN3N2/1g1bpb1ss/1pk3P2/P2PPP3/1PP5K b 2rl5p 1", 15),              // forest-06-12_361
+        ("9/6GGr/S1ssggN1b/pL7/4P1P1K/2PP1P3/kPpll1pp+B/+n8/L3+n1+nsr b 2P6p 1", 15),              // morishige_1461
+        ("4GS2l/4S1Bp1/3N1N1N1/ssg1gp3/3gl3+R/3+npk2K/PPP5b/3P2l1r/4P4 b L3P7p 1", 15),            // morishige_1965
+        ("9/9/9/9/5S1gN/8N/7G1/6NNk/6G2 b 2r2bg3s4l18p 1", 15),                                    // ogiekako-no-pawn-smoke-43
+        ("r2GSG3/3S1S3/+BPN1N+LLg1/2pp3ps/K2N5/4P1P2/BgN3p1P/r1l3l2/5k1P1 b P8p 1", 15),           // shichiro_1001
+        ("gpn1+P2nl/p2g4+R/1lp1sp1G1/1b1l5/P1gl5/1P1s1N2K/2Pk5/4PPNP+B/3P2s1r b Ps5p 1", 15),      // wfp-56-12_2571
+        ("lgn1s2gl/p2+p5/1gp1sp1G1/1s1l5/k1bl4+R/3n1N2K/1P6+B/2P1PPNP1/3P2s1r b P7p 1", 15),       // wfp-56-12a_2683
+    ];
+    let positions: Vec<PositionAux> = sfens
+        .iter()
+        .map(|(s, _)| decode_position(s).unwrap())
+        .collect();
+    c.bench_function("near_mate", |b| {
+        b.iter(|| {
+            for (position, &(_, mate_in)) in positions.iter().zip(sfens.iter()) {
+                let result =
+                    low_mem_standard_solve(black_box(position.clone()), 1, true).unwrap();
+                debug_assert_eq!(result.mate_in(), Some(mate_in));
+            }
+        })
+    });
+}
+
 fn bench_solve97(c: &mut Criterion) {
     let position = decode_position(include_str!("../problems/forest-06-10_97.sfen")).unwrap();
     let n_samples = 3;
@@ -436,6 +468,8 @@ fn run_backward_search_bench(args: &[&str]) -> Duration {
     let start = std::time::Instant::now();
     let status = std::process::Command::new(binary)
         .args(args)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status()
         .expect("failed to run fmrs");
     assert!(status.success(), "fmrs exited with {:?}", status.code());
@@ -521,7 +555,7 @@ criterion_group!(
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
     config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
-    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker, bench_canonicalize,
+    targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker, bench_canonicalize, bench_near_mate,
 );
 
 const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
