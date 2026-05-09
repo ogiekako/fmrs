@@ -58,60 +58,102 @@ pub(super) fn ideal_backward(
         (None, None) => None,
         _ => bail!("--fleet-index and --fleet-size must both be specified"),
     };
-    let seeds = if let Some(sfen_like) = seed_sfen {
+    // Step 1: enumerate + filter (decoupled from truncate so grouping can act on
+    // the full population when canonicalize is on).
+    let raw_enumerated: Vec<(usize, PositionAux)> = if let Some(sfen_like) = seed_sfen {
         let sfen = super::super::parse_to_sfen(&sfen_like)?;
         let position = PositionAux::from_sfen(&sfen)
             .with_context(|| format!("invalid seed sfen: {sfen}"))?;
         vec![(0, position)]
     } else {
-        let shuffle_seed = random_seed.unwrap_or_else(|| {
-            if fleet_partition.is_some() {
-                0
-            } else {
-                rand::thread_rng().gen()
-            }
-        });
-        let mut rng = SmallRng::seed_from_u64(shuffle_seed);
-        let mut seeds = enumerate_final_2_positions(parallel, constraints)?
+        enumerate_final_2_positions(parallel, constraints)?
             .into_iter()
             .enumerate()
             .filter(|(_, seed)| {
                 satisfies_search_constraints(seed, constraints)
                     && satisfies_mate_square(seed, constraints.mate_squares)
             })
-            .collect::<Vec<_>>();
-        seeds.shuffle(&mut rng);
-        if let Some((idx, size)) = fleet_partition {
-            seeds = seeds
-                .into_iter()
-                .enumerate()
-                .filter(|(i, _)| i % size == idx)
-                .map(|(_, s)| s)
-                .collect();
-        }
-        if let Some(limit) = seed_limit {
-            seeds.truncate(limit);
-        }
-        seeds
+            .collect::<Vec<_>>()
     };
-    let mut pending_seeds = Vec::with_capacity(seeds.len());
+    let shuffle_seed = random_seed.unwrap_or_else(|| {
+        if fleet_partition.is_some() {
+            0
+        } else {
+            rand::thread_rng().gen()
+        }
+    });
+    let mut rng = SmallRng::seed_from_u64(shuffle_seed);
+
+    // Step 2: canonicalize ON では grouping を先に行う (seed_limit は group 単位)。
+    //         OFF では 1 seed = 1 group とみなす。
+    let groups_unshuffled: Vec<(usize, Vec<PositionAux>)> = if canonicalize_attacker_goldish {
+        use rustc_hash::FxHashMap;
+        let mut groups: FxHashMap<u64, (usize, Vec<PositionAux>)> = FxHashMap::default();
+        for (seed_index, seed) in raw_enumerated {
+            let key = fmrs_core::search::canonicalize::canonical_digest_for_smoke(&seed);
+            let entry = groups.entry(key).or_insert((seed_index, Vec::new()));
+            if seed_index < entry.0 {
+                entry.0 = seed_index;
+            }
+            entry.1.push(seed);
+        }
+        let mut v: Vec<(usize, Vec<PositionAux>)> = groups.into_values().collect();
+        v.sort_by_key(|(idx, _)| *idx);
+        v
+    } else {
+        raw_enumerated
+            .into_iter()
+            .map(|(idx, s)| (idx, vec![s]))
+            .collect()
+    };
+
+    // Step 3: shuffle + fleet partition + truncate を group 単位で適用。
+    let mut grouped_seeds: Vec<(usize, Vec<PositionAux>)> = groups_unshuffled;
+    grouped_seeds.shuffle(&mut rng);
+    if let Some((idx, size)) = fleet_partition {
+        grouped_seeds = grouped_seeds
+            .into_iter()
+            .enumerate()
+            .filter(|(i, _)| i % size == idx)
+            .map(|(_, g)| g)
+            .collect();
+    }
+    if let Some(limit) = seed_limit {
+        grouped_seeds.truncate(limit);
+    }
+    let total_seed_count: usize = grouped_seeds.iter().map(|(_, g)| g.len()).sum();
+    if canonicalize_attacker_goldish {
+        eprintln!(
+            "canonicalize: {} groups (avg group size {:.2}, max {})",
+            grouped_seeds.len(),
+            if grouped_seeds.is_empty() {
+                0.0
+            } else {
+                total_seed_count as f64 / grouped_seeds.len() as f64
+            },
+            grouped_seeds.iter().map(|(_, g)| g.len()).max().unwrap_or(0)
+        );
+    }
+    let mut grouped_seeds = grouped_seeds;
+    let mut pending_seeds: Vec<(usize, Vec<PositionAux>)> = Vec::with_capacity(grouped_seeds.len());
     let mut initial_best = (0u32, FxHashSet::default(), 0usize);
     let mut loaded_records = 0usize;
-    if beam.width.is_some() {
-        for (seed_index, seed) in seeds {
-            pending_seeds.push((seed_index, seed));
-        }
+    if beam.width.is_some() || canonicalize_attacker_goldish {
+        // canonicalize ON は checkpoint 非互換のため log を読まない。
+        pending_seeds.append(&mut grouped_seeds);
     } else {
         let seed_records = load_seed_result_log(&seed_result_log, max_step, constraints)?;
-        for (seed_index, seed) in seeds {
+        for (seed_index, group) in grouped_seeds {
+            // canon OFF のとき group は size 1 (上で初期化済み)。代表で record 検索。
+            let representative = &group[0];
             if let Some(record) = seed_records
                 .get(&seed_index)
-                .filter(|record| record.seed_sfen == seed.sfen())
+                .filter(|record| record.seed_sfen == representative.sfen())
             {
                 loaded_records += 1;
                 merge_seed_result_record(&mut initial_best, record);
             } else {
-                pending_seeds.push((seed_index, seed));
+                pending_seeds.push((seed_index, group));
             }
         }
     }
@@ -195,10 +237,11 @@ pub(super) fn ideal_backward(
         pending_seeds
             .par_iter()
             .try_for_each(|seed_entry| -> anyhow::Result<()> {
-                let (seed_index, seed) = seed_entry;
+                let (seed_index, group) = seed_entry;
+                let representative = &group[0];
                 let result = search_single_seed(
                     *seed_index,
-                    seed,
+                    group.as_slice(),
                     max_step,
                     max_memo_entries,
                     constraints,
@@ -251,12 +294,13 @@ pub(super) fn ideal_backward(
                         .best
                         .as_ref()
                         .is_none_or(|(pc, _)| *pc < target_max);
-                if beam.width.is_none() && !early_exited_partial {
+                // canonicalize ON は record 形式が非互換のため log に書かない。
+                if beam.width.is_none() && !early_exited_partial && !canonicalize_attacker_goldish {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),
                         build_seed_result_record(
                             *seed_index,
-                            seed,
+                            representative,
                             max_step,
                             constraints,
                             &result.best,

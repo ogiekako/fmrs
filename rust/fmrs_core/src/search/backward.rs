@@ -981,6 +981,85 @@ impl BackwardSearch {
         })
     }
 
+    /// Multi-seed constructor for the canonicalize-attacker-goldish flow.
+    /// すべての seed は **mated 状態 2 駒 final position** (`solution.len() == 0`、
+    /// 黒手駒空) であることを前提とする。memo は各 seed の canonical_digest をキーに
+    /// `StepRange::exact(0)` を入れる。canonical-equivalent な seed 群はキーが衝突
+    /// するため自然に 1 エントリに collapse する。初期 frontier は全 seed の core
+    /// を並べる (predecessor 生成は seed 個別に走り、canonicalize された digest で
+    /// memo 共有が起こる)。
+    ///
+    /// 互換性: 単一 seed の `new_with_parallel` とは memo 種が異なる (canonical vs
+    /// raw)。canonical 系の checkpoint は別形式 (現状未対応)。
+    pub fn new_canonical_group(
+        seeds: &[PositionAux],
+        parallel: usize,
+    ) -> anyhow::Result<Self> {
+        if seeds.is_empty() {
+            bail!("new_canonical_group: empty seed list");
+        }
+        let stone = *seeds[0].stone();
+
+        let mut memo = Memo::new();
+        let prev_memo = Memo::new();
+        let mut positions = Vec::with_capacity(seeds.len());
+
+        for seed in seeds {
+            if !satisfies_backward_constraints(seed, false) {
+                bail!("Seed has black goldish constraint failure: {}", seed.sfen());
+            }
+            // 各 seed の uniqueness を verify (最大 2 解、unique かつ 0 step)。
+            let mut sols = standard_solve(seed.clone(), 2, true)?.solutions();
+            if sols.len() != 1 {
+                bail!("Not unique seed: {}", seed.sfen());
+            }
+            let sol = sols.remove(0);
+            if !sol.is_empty() {
+                bail!(
+                    "Multi-seed only supports 0-step (mated) seeds; got len={}",
+                    sol.len()
+                );
+            }
+            if !seed.hands().is_empty(Color::BLACK) {
+                bail!("Extra black pieces in checkmate seed: {}", seed.sfen());
+            }
+
+            let key = crate::search::canonicalize::canonical_digest_for_smoke(seed);
+            memo.insert(key, StepRange::exact(0));
+            positions.push(seed.core().clone());
+        }
+
+        let parallel = parallel.max(1);
+        let pool = if parallel > 1 {
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(parallel)
+                    .build()?,
+            )
+        } else {
+            None
+        };
+
+        Ok(BackwardSearch {
+            initial_position: seeds[0].clone(),
+            solution: vec![],
+            seen_positions: 0,
+            positions,
+            prev_positions: vec![],
+            memo,
+            prev_memo,
+            stone,
+            step: 0,
+            one_way: false,
+            no_black_goldish: false,
+            parallel,
+            pool,
+            memo_entry_limit: None,
+            delta_trace: false,
+            canonicalize_attacker_goldish: true,
+        })
+    }
+
     pub fn from_resume_state(
         state: &BackwardSearchResumeState,
         parallel: usize,

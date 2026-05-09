@@ -38,7 +38,7 @@ pub(super) struct SingleSeedResult {
 #[allow(clippy::too_many_arguments)]
 pub(super) fn search_single_seed(
     seed_index: usize,
-    seed: &PositionAux,
+    seeds: &[PositionAux],
     max_step: Option<u16>,
     max_memo_entries: Option<usize>,
     constraints: SearchConstraints,
@@ -57,35 +57,68 @@ pub(super) fn search_single_seed(
     cond_hash: &str,
     canonicalize_attacker_goldish: bool,
 ) -> anyhow::Result<SingleSeedResult> {
-    let checkpoint = if beam.width.is_some() {
+    if seeds.is_empty() {
+        return Ok(SingleSeedResult {
+            best: None,
+            stats: SeedRunStats {
+                peak_frontier_size: 0,
+                peak_memo_len: 0,
+                total_seen_positions: 0,
+                terminal_step: 0,
+                termination_reason: TerminationReason::Unknown,
+            },
+        });
+    }
+    let representative = &seeds[0];
+    // canonicalize ON では canonical-grouped path を取る (checkpoint は非互換のため
+    // 読み書きしない、resume 不可)。OFF では従来通り単一 seed + checkpoint。
+    let checkpoint = if canonicalize_attacker_goldish || beam.width.is_some() {
         None
     } else {
         load_seed_checkpoint(
             seed_result_log_path,
             seed_index,
-            &seed.sfen(),
+            &representative.sfen(),
             max_step,
             constraints,
         )
     };
 
-    let mut search = match checkpoint
-        .as_ref()
-        .and_then(|cp| BackwardSearch::from_resume_state(&cp.resume_state, 1).ok())
-        .or_else(|| BackwardSearch::new_with_parallel(seed, false, 1, false).ok())
-    {
-        Some(s) => s,
-        None => {
-            return Ok(SingleSeedResult {
-                best: None,
-                stats: SeedRunStats {
-                    peak_frontier_size: 0,
-                    peak_memo_len: 0,
-                    total_seen_positions: 0,
-                    terminal_step: 0,
-                    termination_reason: TerminationReason::Unknown,
-                },
-            })
+    let mut search = if canonicalize_attacker_goldish {
+        match BackwardSearch::new_canonical_group(seeds, 1) {
+            Ok(s) => s,
+            Err(_) => {
+                return Ok(SingleSeedResult {
+                    best: None,
+                    stats: SeedRunStats {
+                        peak_frontier_size: 0,
+                        peak_memo_len: 0,
+                        total_seen_positions: 0,
+                        terminal_step: 0,
+                        termination_reason: TerminationReason::Unknown,
+                    },
+                });
+            }
+        }
+    } else {
+        match checkpoint
+            .as_ref()
+            .and_then(|cp| BackwardSearch::from_resume_state(&cp.resume_state, 1).ok())
+            .or_else(|| BackwardSearch::new_with_parallel(representative, false, 1, false).ok())
+        {
+            Some(s) => s,
+            None => {
+                return Ok(SingleSeedResult {
+                    best: None,
+                    stats: SeedRunStats {
+                        peak_frontier_size: 0,
+                        peak_memo_len: 0,
+                        total_seen_positions: 0,
+                        terminal_step: 0,
+                        termination_reason: TerminationReason::Unknown,
+                    },
+                })
+            }
         }
     };
     if let Some(limit) = max_memo_entries {
@@ -323,12 +356,13 @@ pub(super) fn search_single_seed(
             advance_elapsed_ms,
         );
 
-        if beam.width.is_none() {
+        // canonicalize ON は checkpoint 非互換のため書き出さない (resume 不可)。
+        if beam.width.is_none() && !canonicalize_attacker_goldish {
             let _ = write_seed_checkpoint(
                 seed_result_log_path,
                 &SeedCheckpoint {
                     seed_index,
-                    seed_sfen: seed.sfen(),
+                    seed_sfen: representative.sfen(),
                     max_step,
                     max_frontier: None,
                     constraints,

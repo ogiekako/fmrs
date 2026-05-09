@@ -38,11 +38,10 @@ use super::super::smoke_persistence::{
 use super::oracle::{OracleModel, StepRecord};
 use super::search::log_global_best_if_improved;
 
-/// Per-task state.
+/// Per-task state. `seeds` は canonical_digest が一致する seed のグループ
+/// (canonicalize OFF では len=1)。
 enum TaskState {
-    Cold {
-        seed: PositionAux,
-    },
+    Cold { seeds: Vec<PositionAux> },
     Active(BackwardSearch),
 }
 
@@ -59,12 +58,12 @@ struct Task {
 }
 
 impl Task {
-    fn new_cold(seed_index: usize, seed: PositionAux, score: f64) -> Self {
-        let seed_sfen = seed.sfen();
+    fn new_cold(seed_index: usize, seeds: Vec<PositionAux>, score: f64) -> Self {
+        let seed_sfen = seeds[0].sfen();
         Task {
             seed_index,
             seed_sfen,
-            state: TaskState::Cold { seed },
+            state: TaskState::Cold { seeds },
             history: Vec::new(),
             best_piece_count: 0,
             best_positions: Vec::new(),
@@ -178,16 +177,28 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
     }
 
     if matches!(task.state, TaskState::Cold { .. }) {
-        let seed = match std::mem::replace(&mut task.state, TaskState::Cold { seed: PositionAux::default() }) {
-            TaskState::Cold { seed } => seed,
+        let seeds = match std::mem::replace(
+            &mut task.state,
+            TaskState::Cold { seeds: Vec::new() },
+        ) {
+            TaskState::Cold { seeds } => seeds,
             _ => unreachable!(),
         };
-        let mut search = match BackwardSearch::new_with_parallel(&seed, false, 1, false) {
-            Ok(s) => s,
-            Err(_) => {
-                // Restore a placeholder; this task ends immediately.
-                task.state = TaskState::Cold { seed };
-                return Ok(StepOutcome::Done(TerminationReason::Unknown));
+        let mut search = if ctx.canonicalize_attacker_goldish {
+            match BackwardSearch::new_canonical_group(&seeds, 1) {
+                Ok(s) => s,
+                Err(_) => {
+                    task.state = TaskState::Cold { seeds };
+                    return Ok(StepOutcome::Done(TerminationReason::Unknown));
+                }
+            }
+        } else {
+            match BackwardSearch::new_with_parallel(&seeds[0], false, 1, false) {
+                Ok(s) => s,
+                Err(_) => {
+                    task.state = TaskState::Cold { seeds };
+                    return Ok(StepOutcome::Done(TerminationReason::Unknown));
+                }
             }
         };
         if let Some(limit) = ctx.max_memo_entries {
@@ -457,7 +468,7 @@ fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::too_many_arguments)]
 pub(super) fn run_with_oracle(
-    seeds: Vec<(usize, PositionAux)>,
+    seeds: Vec<(usize, Vec<PositionAux>)>,
     constraints: SearchConstraints,
     max_step: Option<u16>,
     max_memo_entries: Option<usize>,
@@ -484,8 +495,8 @@ pub(super) fn run_with_oracle(
         cold_score
     );
 
-    for (idx, seed) in seeds {
-        scheduler.push(Task::new_cold(idx, seed, cold_score));
+    for (idx, group) in seeds {
+        scheduler.push(Task::new_cold(idx, group, cold_score));
     }
 
     let oracle = Arc::new(oracle);
