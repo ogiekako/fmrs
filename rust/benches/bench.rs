@@ -558,10 +558,8 @@ criterion_group!(
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker, bench_canonicalize, bench_near_mate,
 );
 
-const EXTRA: bool = option_env!("FMRS_ENABLE_EXTRA_BENCH").is_some();
-
 fn bench_extra() {
-    if !EXTRA {
+    if std::env::var("FMRS_ENABLE_EXTRA_BENCH").is_err() {
         return;
     }
     bench_extra_inner();
@@ -573,10 +571,8 @@ criterion_group!(
     targets = bench_jugemu, bench_1965, bench_1461, bench_backward_search,
 );
 
-const HEAVY: bool = option_env!("FMRS_ENABLE_HEAVY_BENCH").is_some();
-
 fn bench_heavy() {
-    if !HEAVY {
+    if std::env::var("FMRS_ENABLE_HEAVY_BENCH").is_err() {
         return;
     }
     bench_heavy_inner();
