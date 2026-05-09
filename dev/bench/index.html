@@ -82,6 +82,18 @@
       .benchmark-chart {
         max-width: 1000px;
       }
+      .benchmark-graph-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .benchmark-graph-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 4px 0 0;
+        text-align: center;
+        word-break: break-all;
+      }
     </style>
     <title>Benchmarks</title>
   </head>
@@ -171,9 +183,18 @@
         function renderAllChars(dataSets) {
 
           function renderGraph(parent, name, dataset) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'benchmark-graph-wrapper';
+            parent.appendChild(wrapper);
+
+            const title = document.createElement('p');
+            title.className = 'benchmark-graph-title';
+            title.textContent = name;
+            wrapper.appendChild(title);
+
             const canvas = document.createElement('canvas');
             canvas.className = 'benchmark-chart';
-            parent.appendChild(canvas);
+            wrapper.appendChild(canvas);
 
             const color = toolColors[dataset.length > 0 ? dataset[0].tool : '_'];
             const data = {
