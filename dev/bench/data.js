@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778333035076,
+  "lastUpdate": 1778333923184,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -35692,6 +35692,53 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/5fb5245b36c44291cd971488a7996d7079def109"
         },
         "date": 1778331766876,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51644,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124796,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "1690dbe6f68b3ff8589ae5a4563b083fdee524a4",
+          "message": "ci(test): iai_bench を除外して bench ステップの失敗を修正\n\niai_bench は Valgrind 必須のため test CI では実行不可。\n--bench bench で bench.rs のみ指定する。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T13:17:41Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/1690dbe6f68b3ff8589ae5a4563b083fdee524a4"
+        },
+        "date": 1778333920959,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
