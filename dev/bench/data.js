@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778341627566,
+  "lastUpdate": 1778342664434,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37072,6 +37072,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 458571909,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "2b3e15937c56f5fa12cd908630a6fa7205bf701a",
+          "message": "perf(solve): discovered_attack_moves に line attacker pre-check を追加 (-1.4%)\n\npinned(WHITE, BLACK) の full 計算前に「黒の line 駒が白玉のラインに乗っ\nているか」を 4 BB ops でチェック。乗っていなければ開き王手は数学的に不\n可能なので即 return。\n\n詰将棋では黒の line 駒（飛角香）が白玉のラインに乗っている局面はそこそ\nこ多いが、empty pre-check 経由で skip できる比率も多く、pinned() call\nを 1/8 弱削減できる。\n\niai_bench::solve_group::bench_near_mate:\n- Instructions: 153.1M → 150.9M (-1.43%)\n- 累積 (元から): 167.3M → 150.9M (-9.8%)\n- pinned 関数の flat: 16.46% → 14.39%\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T15:46:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/2b3e15937c56f5fa12cd908630a6fa7205bf701a"
+        },
+        "date": 1778342661997,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51366,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124757,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2198,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 457068443,
             "unit": "Instructions"
           }
         ]
