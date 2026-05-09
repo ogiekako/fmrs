@@ -25,9 +25,16 @@ jobs:
           npm run build
           rm ./docs/.gitignore
           rm ./docs/pkg/.gitignore
+      - name: Preserve dev directory from gh-pages
+        run: |
+          git fetch origin gh-pages --depth 1 2>/dev/null || true
+          git checkout FETCH_HEAD -- dev/ 2>/dev/null || true
+          if [ -d dev ]; then
+            mkdir -p docs/dev
+            cp -r dev/. docs/dev/
+          fi
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4.7.2
         with:
           branch: gh-pages
           folder: docs
-          clean-exclude: dev
