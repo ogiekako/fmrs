@@ -216,12 +216,29 @@ impl<'a> Context<'a> {
         let white_king_pos = self.position.white_king_pos();
 
         // Lance and Knight: standard approach (non-symmetric promotion kinds).
-        for attacker_source_kind in [Kind::Lance, Kind::Knight] {
-            let attackers = self.position.bitboard(Color::BLACK, attacker_source_kind);
+        // Both promote to gold-likes (ProLance / ProKnight) which share the
+        // Gold attack pattern, so the `promotion_dest_cands` BB is identical
+        // for both — share it across the two iterations to skip one
+        // `reachable()` call when both kinds are present.
+        let lance_bb = self.position.bitboard(Color::BLACK, Kind::Lance);
+        let knight_bb = self.position.bitboard(Color::BLACK, Kind::Knight);
+        let promotion_dest_cands_gold = if !lance_bb.is_empty() || !knight_bb.is_empty() {
+            Some(reachable(
+                self.position,
+                Color::WHITE,
+                white_king_pos,
+                Kind::Gold,
+                true,
+            ))
+        } else {
+            None
+        };
+        for (attacker_source_kind, attackers) in
+            [(Kind::Lance, lance_bb), (Kind::Knight, knight_bb)]
+        {
             if attackers.is_empty() {
                 continue;
             }
-            let promoted_kind = attacker_source_kind.promote();
             let no_promotion_dest_cands = reachable(
                 self.position,
                 Color::WHITE,
@@ -229,8 +246,7 @@ impl<'a> Context<'a> {
                 attacker_source_kind,
                 true,
             );
-            let promotion_dest_cands = promoted_kind
-                .map(|k| reachable(self.position, Color::WHITE, white_king_pos, k, true));
+            let promotion_dest_cands = promotion_dest_cands_gold;
             let source_kind = attacker_source_kind;
             for attacker_pos in attackers {
                 let attacker_reachable =
