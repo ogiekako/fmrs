@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use crate::{
-    piece::{Kind, NUM_KIND},
+    piece::Kind,
     sfen,
 };
 
@@ -164,56 +164,6 @@ impl std::fmt::Debug for Movement {
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct MovementSet {
-    bits: [u64; Self::LIMBS],
-}
-
-impl Default for MovementSet {
-    fn default() -> Self {
-        Self {
-            bits: [0; Self::LIMBS],
-        }
-    }
-}
-
-impl MovementSet {
-    const SQUARES: usize = 81;
-    const MOVE_KEYS: usize = Self::SQUARES * Self::SQUARES * 2;
-    const DROP_KEYS: usize = Self::SQUARES * NUM_KIND;
-    const KEYS: usize = Self::MOVE_KEYS + Self::DROP_KEYS;
-    const LIMBS: usize = Self::KEYS.div_ceil(u64::BITS as usize);
-
-    pub(crate) fn insert_new(&mut self, movement: Movement) -> bool {
-        let key = Self::key(&movement);
-        let bit = 1 << (key % 64);
-        let limb = &mut self.bits[key / 64];
-        let inserted = *limb & bit == 0;
-        *limb |= bit;
-        inserted
-    }
-
-    /// Read-only membership test. Useful for checking whether a move would
-    /// duplicate one already added before doing expensive setup work.
-    pub(crate) fn contains(&self, movement: &Movement) -> bool {
-        let key = Self::key(movement);
-        let bit = 1 << (key % 64);
-        self.bits[key / 64] & bit != 0
-    }
-
-    fn key(movement: &Movement) -> usize {
-        match *movement {
-            Movement::Drop(pos, kind) => Self::MOVE_KEYS + pos.index() * NUM_KIND + kind.index(),
-            Movement::Move {
-                source,
-                dest,
-                promote,
-                ..
-            } => (source.index() * Self::SQUARES + dest.index()) * 2 + promote as usize,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,17 +176,5 @@ mod tests {
 
         assert_eq!(movement, same_without_hint);
         assert_ne!(movement, different_promote);
-    }
-
-    #[test]
-    fn movement_set_uses_movement_equality() {
-        let mut seen = MovementSet::default();
-        let movement = Movement::move_with_hint(Square::S11, Kind::Pawn, Square::S12, false, None);
-        let same_without_hint = Movement::move_without_hint(Square::S11, Square::S12, false);
-        let different_promote = Movement::move_without_hint(Square::S11, Square::S12, true);
-
-        assert!(seen.insert_new(movement));
-        assert!(!seen.insert_new(same_without_hint));
-        assert!(seen.insert_new(different_promote));
     }
 }

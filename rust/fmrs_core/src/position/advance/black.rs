@@ -7,7 +7,7 @@ use crate::piece::{Color, Kind};
 
 use crate::position::{
     bitboard::{self, BitBoard},
-    Movement, MovementSet,
+    Movement,
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
@@ -38,7 +38,6 @@ struct Context<'a> {
     // Mutable fields
     result: &'a mut Vec<Movement>,
     num_branches_without_pawn_drop: usize,
-    seen: MovementSet,
 }
 
 impl<'a> Context<'a> {
@@ -69,7 +68,6 @@ impl<'a> Context<'a> {
             result,
             num_branches_without_pawn_drop: 0,
             options,
-            seen: MovementSet::default(),
         })
     }
 
@@ -276,11 +274,16 @@ impl<'a> Context<'a> {
             return Ok(());
         }
 
-        // Dedup against direct-attack moves via the existing `Context::seen`
-        // (a `MovementSet` populated by every prior `maybe_add_move`). Skipping
-        // a candidate before `maybe_add_move` avoids double-counting against
-        // `num_branches_without_pawn_drop`, matching the previous local-MoveSet
-        // behavior without the per-call ~1.6 KB zero-init + populate cost.
+        // 直接攻撃手と一致する dest を BitBoard で先に除外して
+        // (blocker, dest, promote) 単位の集合的 dedup を行う。
+        // 必要十分な理由:
+        //  - 直接攻撃手 = blocker_kind が dest から白王を取れる手
+        //  - power(WHITE, white_king_pos, kind) (非 line) /
+        //    reachable_sub(WHITE, white_king_pos, kind) (line) が
+        //    その dest 集合を表す
+        //  - 開き王手 = pin 線から外れる手なので、両者の交差が
+        //    direct_attack_moves で既に追加された手と一致する
+        let white_king_pos = self.position.white_king_pos();
         for &(blocker_pos, blocker_pinned_area) in blockers.iter() {
             let blocker_kind = self.position.must_get_kind(blocker_pos);
 
@@ -297,33 +300,65 @@ impl<'a> Context<'a> {
                 blocker_dest_cands &= area;
             }
 
-            let maybe_promotable = blocker_kind.can_promote();
-            for blocker_dest in blocker_dest_cands {
-                for promote in [false, true] {
-                    if promote && !maybe_promotable {
-                        continue;
-                    }
+            // 直接攻撃手で生成される dest を除外。
+            let direct_unpromoted = bitboard::reachable_sub(
+                self.position,
+                Color::WHITE,
+                white_king_pos,
+                blocker_kind,
+            );
+            let pure_unpromoted = blocker_dest_cands.and_not(direct_unpromoted);
+
+            let promoted_kind = blocker_kind.promote();
+            let direct_promoted = promoted_kind
+                .map(|k| bitboard::reachable_sub(self.position, Color::WHITE, white_king_pos, k));
+
+            for blocker_dest in pure_unpromoted {
+                if !is_legal_move(
+                    Color::BLACK,
+                    blocker_pos,
+                    blocker_dest,
+                    blocker_kind,
+                    false,
+                ) {
+                    continue;
+                }
+                let capture_kind = self.position.get_kind(blocker_dest);
+                self.maybe_add_move(
+                    Movement::move_with_hint(
+                        blocker_pos,
+                        blocker_kind,
+                        blocker_dest,
+                        false,
+                        capture_kind,
+                    ),
+                    blocker_kind,
+                )?;
+            }
+
+            if let Some(direct_promoted) = direct_promoted {
+                let pure_promoted = blocker_dest_cands.and_not(direct_promoted);
+                for blocker_dest in pure_promoted {
                     if !is_legal_move(
                         Color::BLACK,
                         blocker_pos,
                         blocker_dest,
                         blocker_kind,
-                        promote,
+                        true,
                     ) {
                         continue;
                     }
-
                     let capture_kind = self.position.get_kind(blocker_dest);
-                    let movement = Movement::move_with_hint(
-                        blocker_pos,
+                    self.maybe_add_move(
+                        Movement::move_with_hint(
+                            blocker_pos,
+                            blocker_kind,
+                            blocker_dest,
+                            true,
+                            capture_kind,
+                        ),
                         blocker_kind,
-                        blocker_dest,
-                        promote,
-                        capture_kind,
-                    );
-                    if !self.seen.contains(&movement) {
-                        self.maybe_add_move(movement, blocker_kind)?;
-                    }
+                    )?;
                 }
             }
         }
@@ -362,9 +397,11 @@ impl Context<'_> {
                 .check_allowed_branches(self.num_branches_without_pawn_drop)?;
         }
 
-        if self.seen.insert_new(movement) {
-            self.result.push(movement);
-        }
+        // Each phase (drops / non_leap_direct / leap_direct / discovered) emits
+        // unique (source, dest, promote) tuples internally, and the bitboard
+        // filter inside `discovered_attack_moves` removes overlap with direct
+        // moves. No `seen`-based dedup is needed.
+        self.result.push(movement);
 
         Ok(())
     }
