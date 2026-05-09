@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778317741569,
+  "lastUpdate": 1778322527322,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -1163,6 +1163,156 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search_seed_sfen",
             "value": 80736,
             "range": "± 72",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "6a1a3bcbdd8ba43551e187ec7731fd5e256097a6",
+          "message": "chore: sfen.rs の未使用 percent_encoding インポートを削除\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-09T19:15:58+09:00",
+          "tree_id": "2f59c5de2e78890a3a6983acf7810361352e3f6c",
+          "url": "https://github.com/ogiekako/fmrs/commit/6a1a3bcbdd8ba43551e187ec7731fd5e256097a6"
+        },
+        "date": 1778322523647,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 664,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2739,
+            "range": "± 70",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 204,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 713,
+            "range": "± 2094",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 27410,
+            "range": "± 65",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1204,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3887,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1508374,
+            "range": "± 884",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 9014,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 141,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 86,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 40,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 113,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 11,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28098,
+            "range": "± 199",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3307,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17858,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_bataco",
+            "value": 61707,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 32609,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search_seed_sfen",
+            "value": 70342,
+            "range": "± 48",
             "unit": "ns/iter"
           }
         ]
