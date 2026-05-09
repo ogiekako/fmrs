@@ -18,6 +18,17 @@
 #   ./scripts/gcp-spot.sh pull          # 結果 (jsonl 等) を手元に同期
 #   ./scripts/gcp-spot.sh down          # インスタンスを削除
 #
+# ---- 複数インスタンスの同時管理 ----
+#
+# 各コマンドの第 1 引数に整数 ID を渡すと、fmrs-spot-<ID> を操作する。
+#
+#   ./scripts/gcp-spot.sh up 2          # fmrs-spot-2 を作成/起動
+#   ./scripts/gcp-spot.sh push 2        # fmrs-spot-2 へソースを転送
+#   ./scripts/gcp-spot.sh run 2 'cargo run --release -- ...'
+#   ./scripts/gcp-spot.sh down 2        # fmrs-spot-2 を削除
+#
+# ID なし (従来通り) は fmrs-spot を操作する。
+#
 # ---- 全コマンド一覧 ----
 #
 #   up       インスタンスを作成または再起動
@@ -33,7 +44,7 @@
 # ---- カスタマイズ (環境変数) ----
 #
 #   GCP_SPOT_INSTANCE   インスタンス名       (default: fmrs-spot)
-#   GCP_SPOT_ZONE       ゾーン               (default: us-central1-a)
+#   GCP_SPOT_ZONE       ゾーン               (default: asia-northeast1-a)
 #   GCP_SPOT_MACHINE    マシンタイプ         (default: n2d-highmem-96)
 #   GCP_SPOT_DISK_SIZE  ディスクサイズ       (default: 200GB)
 #   GCP_SPOT_DISK_TYPE  ディスクタイプ       (default: pd-ssd, c4d は pd-balanced)
@@ -53,7 +64,7 @@ set -euo pipefail
 
 # --- Configuration (override via environment) ---
 INSTANCE_NAME="${GCP_SPOT_INSTANCE:-fmrs-spot}"
-ZONE="${GCP_SPOT_ZONE:-us-central1-a}"
+ZONE="${GCP_SPOT_ZONE:-asia-northeast1-a}"
 MACHINE_TYPE="${GCP_SPOT_MACHINE:-n2d-highmem-96}"
 IMAGE_FAMILY="${GCP_SPOT_IMAGE_FAMILY:-ubuntu-2404-lts-amd64}"
 IMAGE_PROJECT="${GCP_SPOT_IMAGE_PROJECT:-ubuntu-os-cloud}"
@@ -324,23 +335,23 @@ cmd_status() {
 }
 
 cmd_cost() {
-  # --- Spot pricing for n2d (us-central1, as of 2025) ---
+  # --- Spot pricing for n2d (asia-northeast1, as of 2025) ---
   # Source: https://cloud.google.com/compute/vm-instance-pricing
   # These are approximate; actual billing may differ slightly.
   local -A SPOT_VCPU_RATE  # $/vCPU/hr
-  local -A SPOT_RAM_RATE   # $/GB/hr
-  SPOT_VCPU_RATE[n2d]=0.004855
-  SPOT_RAM_RATE[n2d]=0.000671
-  SPOT_VCPU_RATE[n2]=0.006655
-  SPOT_RAM_RATE[n2]=0.000892
-  SPOT_VCPU_RATE[c3]=0.007180
-  SPOT_RAM_RATE[c3]=0.000962
-  SPOT_VCPU_RATE[c3d]=0.005765
-  SPOT_RAM_RATE[c3d]=0.000773
-  SPOT_VCPU_RATE[c4]=0.007735
-  SPOT_RAM_RATE[c4]=0.001036
-  SPOT_VCPU_RATE[c4d]=0.005440
-  SPOT_RAM_RATE[c4d]=0.000729
+  local -A SPOT_RAM_RATE   # $/GiB/hr
+  SPOT_VCPU_RATE[n2]=0.009670
+  SPOT_RAM_RATE[n2]=0.001290
+  SPOT_VCPU_RATE[n2d]=0.011740
+  SPOT_RAM_RATE[n2d]=0.001565
+  SPOT_VCPU_RATE[c3]=0.004150
+  SPOT_RAM_RATE[c3]=0.000562
+  SPOT_VCPU_RATE[c3d]=0.006850
+  SPOT_RAM_RATE[c3d]=0.000919
+  SPOT_VCPU_RATE[c4]=0.022250
+  SPOT_RAM_RATE[c4]=0.002527
+  SPOT_VCPU_RATE[c4d]=0.013900
+  SPOT_RAM_RATE[c4d]=0.001592
 
   local instance_json
   instance_json=$(gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" --format=json 2>/dev/null) || {
@@ -378,14 +389,14 @@ parts = machine_type.split('-')
 family_key = parts[0] if len(parts) >= 2 else machine_type
 # Try with first part, then first two parts for families like c3d
 spot_vcpu_rates = {
-    'n2d': 0.004855, 'n2': 0.006655, 'c3': 0.007180,
-    'c3d': 0.005765, 'c4': 0.007735, 'c4d': 0.005440,
-    'n1': 0.006655, 'e2': 0.006655,
+    'n2': 0.009670, 'n2d': 0.011740,
+    'c3': 0.004150, 'c3d': 0.006850,
+    'c4': 0.022250, 'c4d': 0.013900,
 }
 spot_ram_rates = {
-    'n2d': 0.000671, 'n2': 0.000892, 'c3': 0.000962,
-    'c3d': 0.000773, 'c4': 0.001036, 'c4d': 0.000729,
-    'n1': 0.000892, 'e2': 0.000892,
+    'n2': 0.001290, 'n2d': 0.001565,
+    'c3': 0.000562, 'c3d': 0.000919,
+    'c4': 0.002527, 'c4d': 0.001592,
 }
 
 # Try 'n2d' first, then 'n2'
@@ -431,7 +442,7 @@ else:
     print(f'Last start: {last_start or \"unknown\"}')
 
 print()
-print('Note: spot prices are approximate (us-central1, 2025 rates).')
+print('Note: spot prices are approximate (asia-northeast1, 2025 rates).')
 print('      Actual billing: https://console.cloud.google.com/billing')
 "
 }
@@ -887,20 +898,33 @@ cmd_fleet_cost() {
 }
 
 # --- Main dispatch ---
-case "${1:-help}" in
+SUBCOMMAND="${1:-help}"
+shift || true
+
+# Optional integer ID: selects a named instance variant.
+#   up 2        → operates on fmrs-spot-2
+#   run 2 CMD   → runs CMD on fmrs-spot-2
+# Only applies to single-instance commands; fleet-* and help are unaffected.
+if [[ "$SUBCOMMAND" != fleet-* ]] && [[ "$SUBCOMMAND" != "help" ]] && \
+   [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+  INSTANCE_NAME="${INSTANCE_NAME}-$1"
+  shift
+fi
+
+case "$SUBCOMMAND" in
   up)       cmd_up ;;
-  push)     shift; cmd_push "$@" ;;
+  push)     cmd_push "$@" ;;
   pull)     cmd_pull ;;
-  run)      shift; cmd_run "$@" ;;
-  run-bg)   shift; cmd_run_bg "$@" ;;
+  run)      cmd_run "$@" ;;
+  run-bg)   cmd_run_bg "$@" ;;
   tail)     cmd_tail ;;
   ssh)      cmd_ssh ;;
   down)     cmd_down ;;
   cost)     cmd_cost ;;
   status)   cmd_status ;;
-  fleet-up)     shift; cmd_fleet_up "$@" ;;
+  fleet-up)     cmd_fleet_up "$@" ;;
   fleet-push)   cmd_fleet_push ;;
-  fleet-run)    shift; cmd_fleet_run "$@" ;;
+  fleet-run)    cmd_fleet_run "$@" ;;
   fleet-tail)   cmd_fleet_tail ;;
   fleet-stop)   cmd_fleet_stop ;;
   fleet-pull)   cmd_fleet_pull ;;
@@ -908,20 +932,20 @@ case "${1:-help}" in
   fleet-status) cmd_fleet_status ;;
   fleet-cost)   cmd_fleet_cost ;;
   help|*)
-    echo "Usage: $0 {up|push|run|run-bg|tail|pull|ssh|down|status|cost}"
+    echo "Usage: $0 {up|push|run|run-bg|tail|pull|ssh|down|status|cost} [ID]"
     echo "       $0 {fleet-up|fleet-push|fleet-run|fleet-tail|fleet-stop|fleet-pull|fleet-down|fleet-status|fleet-cost}"
     echo ""
-    echo "Single-instance commands:"
-    echo "  up       Create/start the spot instance"
-    echo "  push     Sync local source to instance (excludes target/)"
-    echo "  run CMD  Run a command on the instance (foreground, auto-restart on preempt)"
-    echo "  run-bg CMD  Run a command in background (tmux)"
-    echo "  tail     Tail the background job log"
-    echo "  pull     Sync instance results back to local"
-    echo "  ssh      Interactive SSH session"
-    echo "  down     Delete the instance"
-    echo "  cost     Show estimated cost and uptime"
-    echo "  status   Show instance status"
+    echo "Single-instance commands (optional integer ID selects a named variant):"
+    echo "  up [ID]          Create/start the spot instance (e.g. 'up 2' → fmrs-spot-2)"
+    echo "  push [ID]        Sync local source to instance (excludes target/)"
+    echo "  run [ID] CMD     Run a command on the instance (foreground, auto-restart on preempt)"
+    echo "  run-bg [ID] CMD  Run a command in background (tmux)"
+    echo "  tail [ID]        Tail the background job log"
+    echo "  pull [ID]        Sync instance results back to local"
+    echo "  ssh [ID]         Interactive SSH session"
+    echo "  down [ID]        Delete the instance"
+    echo "  cost [ID]        Show estimated cost and uptime"
+    echo "  status [ID]      Show instance status"
     echo ""
     echo "Fleet commands:"
     echo "  fleet-up N       Create N spot instances"
@@ -936,7 +960,7 @@ case "${1:-help}" in
     echo ""
     echo "Environment variables:"
     echo "  GCP_SPOT_INSTANCE      Instance name (default: fmrs-spot)"
-    echo "  GCP_SPOT_ZONE          Zone (default: us-central1-a)"
+    echo "  GCP_SPOT_ZONE          Zone (default: asia-northeast1-a)"
     echo "  GCP_SPOT_MACHINE       Machine type (default: n2d-highmem-96)"
     echo "  GCP_SPOT_DISK_SIZE     Disk size (default: 200GB)"
     echo "  GCP_SPOT_DISK_TYPE     Disk type (default: pd-ssd)"
