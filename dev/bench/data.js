@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778399507108,
+  "lastUpdate": 1778399690495,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -38288,6 +38288,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 436352959,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "2e89ef4a9101d21362968e51544fe07ddd9db5e4",
+          "message": "perf(black): bishopish_black/rookish_black の emptiness check 統一 (-0.44%)\n\nBishop/Rook セクションの \\`!bishop_bb.is_empty() || !pro_bishop_bb.is_empty()\\`\nを \\`!bishopish_black.is_empty()\\` 単一チェックに簡略化 (rookish も同様)。\n2 つの emptiness check + OR が 1 つに減り、bb 派生は section 内で行う。\n\nCumulative: 146.04M → 128.30M (-12.15%).\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-10T07:36:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/2e89ef4a9101d21362968e51544fe07ddd9db5e4"
+        },
+        "date": 1778399688083,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50873,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124440,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435835443,
             "unit": "Instructions"
           }
         ]
