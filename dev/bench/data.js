@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778349386214,
+  "lastUpdate": 1778390048933,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37654,6 +37654,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 454118866,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "8df6990d149899d0779a996cb5d608066dc107c5",
+          "message": "feat(smoke): canonicalize ON でも中断後に resume できるように\n\nON/OFF はファイル形式が非互換なため互いに分離する必要があるが、ON/ON は\n従来 record も checkpoint も書かれず常に最初から再実行されていた。\n\n- record/checkpoint に canonicalize_attacker_goldish フィールドを追加\n  (#[serde(default)] で旧 record は OFF 扱い)。load 時に flag で filter。\n- canonical 用 checkpoint は filename に _canon suffix を付け OFF と隔離\n  (condition_key は据え置きで OFF の既存 checkpoint path を不変に保つ)。\n- BackwardSearch::from_resume_state_canonical_group を追加: new_canonical_group\n  で memo を seed し直してから frontier/step を resume_state で上書きする。\n- ideal_backward / search / scheduler から canonicalize 専用の skip 分岐を撤去。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-10T04:58:15Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/8df6990d149899d0779a996cb5d608066dc107c5"
+        },
+        "date": 1778390045510,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51339,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124743,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 16786,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 454125669,
             "unit": "Instructions"
           }
         ]
