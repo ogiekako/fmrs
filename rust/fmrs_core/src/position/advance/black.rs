@@ -142,6 +142,13 @@ impl<'a> Context<'a> {
     fn non_leap_piece_direct_attack(&mut self) -> AdvanceResult<()> {
         let white_king_pos = self.position.white_king_pos();
         let lion_king_range = lion_king_power(white_king_pos);
+
+        let attacker_cands =
+            self.position.pawn_silver_goldish() & lion_king_range & self.position.black_bb();
+        if attacker_cands.is_empty() {
+            return Ok(());
+        }
+
         let king_range =
             king_power(white_king_pos).and_not(self.position.color_bb_and_stone(Color::BLACK));
 
@@ -152,9 +159,6 @@ impl<'a> Context<'a> {
         let attack_pawn = power(Color::WHITE, white_king_pos, Kind::Pawn);
         let attack_silver = power(Color::WHITE, white_king_pos, Kind::Silver);
         let attack_gold = power(Color::WHITE, white_king_pos, Kind::Gold);
-
-        let attacker_cands =
-            self.position.pawn_silver_goldish() & lion_king_range & self.position.black_bb();
 
         for attacker_pos in attacker_cands {
             // pawn_silver_goldish includes various non-line kinds; lookup needed.

@@ -124,6 +124,12 @@ impl Pinned {
     pub fn iter(&self) -> impl Iterator<Item = &(Square, BitBoard)> {
         self.pinned_area.iter()
     }
+    /// Bitboard of all pinned source squares; useful for hoisting "any pin"
+    /// emptiness checks out of per-source loops.
+    #[inline(always)]
+    pub fn pinned_bb(&self) -> BitBoard {
+        self.pinned_bb
+    }
     pub fn is_unpin_move(&self, source: Square, dest: Square) -> bool {
         self.pinned_area(source)
             .map(|area| !area.contains(dest))
@@ -225,7 +231,7 @@ fn check_line_pin(
     res.push(blocker_pos, reach);
 }
 
-// #[inline(never)]
+#[inline]
 fn lance_pinned(
     position: &mut PositionAux,
     king_color: Color,
