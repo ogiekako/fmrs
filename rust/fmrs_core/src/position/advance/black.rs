@@ -291,9 +291,9 @@ impl<'a> Context<'a> {
         // dispatch inside `bitboard(BLACK, kind)` (~6 ops total).
         let bishopish_black = self.position.bishopish() & self.position.black_bb();
         let promote_layer = self.position.kind_bb_promote_layer();
-        let bishop_bb = bishopish_black.and_not(promote_layer);
-        let pro_bishop_bb = bishopish_black & promote_layer;
-        if !bishop_bb.is_empty() || !pro_bishop_bb.is_empty() {
+        if !bishopish_black.is_empty() {
+            let bishop_bb = bishopish_black.and_not(promote_layer);
+            let pro_bishop_bb = bishopish_black & promote_layer;
             let (king_reach_bishop, king_reach_pro_bishop) = if !bishop_bb.is_empty() {
                 let occ = self.position.occupied_bb();
                 let excl = self.position.color_bb_and_stone(Color::BLACK);
@@ -360,9 +360,9 @@ impl<'a> Context<'a> {
 
         // Rook + ProRook: same pattern (ProRook = Rook ∪ King-step moves).
         let rookish_black = self.position.rookish() & self.position.black_bb();
-        let rook_bb = rookish_black.and_not(promote_layer);
-        let pro_rook_bb = rookish_black & promote_layer;
-        if !rook_bb.is_empty() || !pro_rook_bb.is_empty() {
+        if !rookish_black.is_empty() {
+            let rook_bb = rookish_black.and_not(promote_layer);
+            let pro_rook_bb = rookish_black & promote_layer;
             let (king_reach_rook, king_reach_pro_rook) = if !rook_bb.is_empty() {
                 let occ = self.position.occupied_bb();
                 let excl = self.position.color_bb_and_stone(Color::BLACK);
