@@ -256,16 +256,18 @@ impl PositionAux {
         }
     }
 
+    /// Returns `color's pieces ∪ stones`. `occupied` already carries stone bits
+    /// (see set_stone), so this can be expressed as `occupied & ~other_color`,
+    /// a single bitboard op — replaces the previous "color_bb (| stone if Some)"
+    /// pattern that required reading the `stone` field on every call.
+    #[inline(always)]
     pub(crate) fn color_bb_and_stone(&self, color: Color) -> BitBoard {
-        let mut res = if color.is_black() {
-            self.core.black()
-        } else {
+        let other_color_bb = if color.is_black() {
             self.white_bb()
+        } else {
+            self.core.black()
         };
-        if let Some(stone) = self.stone() {
-            res |= *stone;
-        }
-        res
+        self.occupied.and_not(other_color_bb)
     }
 
     pub fn black_bb(&self) -> BitBoard {
