@@ -416,8 +416,6 @@ pub fn encode_move(m: &Movement) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use url::Url;
-
     use crate::{piece::Kind, position::Movement, position::Square};
 
     use super::{decode_moves, decode_position, encode_position, position::PositionAux};
