@@ -116,6 +116,21 @@ impl Position {
         self.kind_bb.change_kind(pos, old, new);
     }
 
+    /// Move a piece (same color, same kind) from `src` to `dst`. Equivalent to
+    /// `unset(src, c, k); set(dst, c, k)` but uses XOR-toggle on layer bitboards
+    /// (one op per layer instead of two) and merges the two digest XORs.
+    #[inline(always)]
+    pub fn move_piece(&mut self, src: Square, dst: Square, c: Color, k: Kind) {
+        debug_assert_eq!(self.get(src), Some((c, k)));
+        debug_assert_eq!(self.get(dst), None);
+        if c.is_black() {
+            let mask = (1u128 << src.index()) | (1u128 << dst.index());
+            self.black_bb.toggle_mask(mask);
+        }
+        self.kind_bb.move_piece(src, dst, k);
+        self.digest ^= zobrist(c, src, k) ^ zobrist(c, dst, k);
+    }
+
     pub fn shift(&mut self, dir: Direction) {
         self.black_bb.shift(dir);
         self.kind_bb.shift(dir);
@@ -366,17 +381,20 @@ impl PositionAux {
             } => {
                 let source_kind = source_kind_hint.unwrap_or_else(|| self.must_get_kind(*source));
                 let capture_kind = capture_kind_hint.unwrap_or_else(|| self.get_kind(*dest));
-                let dest_kind = if *promote {
-                    source_kind.promote().unwrap()
-                } else {
-                    source_kind
-                };
                 if let Some(capture_kind) = capture_kind {
                     self.unset(*dest, turn.opposite(), capture_kind);
                     self.hands_mut().add(turn, capture_kind.maybe_unpromote());
                 }
-                self.unset(*source, turn, source_kind);
-                self.set(*dest, turn, dest_kind);
+                if *promote {
+                    let dest_kind = source_kind.promote().unwrap();
+                    self.unset(*source, turn, source_kind);
+                    self.set(*dest, turn, dest_kind);
+                } else {
+                    // Common path (~70% of moves): no promotion, no kind change.
+                    // `move_piece` fuses unset(src) + set(dst) into a single
+                    // XOR-toggle on each layer bitboard.
+                    self.move_piece(*source, *dest, turn, source_kind);
+                }
 
                 self.core.set_pawn_drop(false);
                 self.core.set_turn(turn.opposite());
@@ -439,6 +457,27 @@ impl PositionAux {
         debug_assert_ne!(old, Kind::King);
         debug_assert_ne!(new, Kind::King);
         self.core.change_kind(pos, color, old, new);
+    }
+
+    /// Move a piece from `src` to `dst` (same color, same kind). Faster than
+    /// `unset(src) + set(dst)` due to XOR-toggle on bitboards (one op per
+    /// layer/color bitboard instead of two) and a single combined digest XOR.
+    #[inline(always)]
+    pub fn move_piece(&mut self, src: Square, dst: Square, color: Color, kind: Kind) {
+        debug_assert!(!self.has_stone(dst));
+        let mask = (1u128 << src.index()) | (1u128 << dst.index());
+        self.occupied.toggle_mask(mask);
+        if color.is_white() {
+            self.white_bb.toggle_mask(mask);
+        }
+        if kind == Kind::King {
+            if color.is_black() {
+                self.black_king_pos = Some(Some(dst));
+            } else {
+                self.white_king_pos = Some(dst);
+            }
+        }
+        self.core.move_piece(src, dst, color, kind);
     }
 
     pub fn hands_mut(&mut self) -> &mut Hands {

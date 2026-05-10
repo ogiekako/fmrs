@@ -119,6 +119,13 @@ impl BitBoard {
         let i = pos.index();
         self.0 &= !(1 << i);
     }
+    /// XOR-toggle multiple bits at once. Caller is responsible for the mask
+    /// representing valid moves (e.g. for piece moves, exactly one bit being
+    /// set on `self` and one bit being clear).
+    #[inline(always)]
+    pub(crate) const fn toggle_mask(&mut self, mask: u128) {
+        self.0 ^= mask;
+    }
     pub const fn contains(&self, pos: Square) -> bool {
         let i = pos.index();
         self.0 >> i & 1 != 0

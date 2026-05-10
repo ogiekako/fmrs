@@ -102,10 +102,18 @@ fn bishop_between(a: Square, b: Square) -> BitBoard {
 }
 
 // pinned piece and its movable positions (capturing included) pairs.
+//
+// SmallVec inline-buffers up to PINNED_INLINE_CAP entries; tsumeshogi rarely
+// produces >2 pinned pieces per king (theoretical max ~8: 4 diagonals + 4
+// orthogonals through the king, plus lance, minus overlaps). Storing inline
+// avoids the malloc/free pair that `Vec::push` triggered on first push
+// (~3% of total instructions on near_mate).
+const PINNED_INLINE_CAP: usize = 2;
+
 #[derive(Debug, Default)]
 pub struct Pinned {
     pinned_bb: BitBoard,
-    pinned_area: Vec<(Square, BitBoard)>,
+    pinned_area: smallvec::SmallVec<[(Square, BitBoard); PINNED_INLINE_CAP]>,
 }
 
 impl Pinned {
@@ -136,17 +144,30 @@ impl Pinned {
 }
 
 pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Color) -> Pinned {
-    let Some(king_pos) = position.king_pos(king_color) else {
-        return Pinned::default();
-    };
     let mut res = Pinned::default();
+    pinned_into(position, king_color, blocker_color, &mut res);
+    res
+}
+
+/// Same as `pinned`, but writes into a caller-supplied `Pinned`. Saves the
+/// return-by-value move (~96 bytes copy with PINNED_INLINE_CAP=2 SmallVec)
+/// at hot call sites that own a `Pinned` slot inline.
+pub fn pinned_into(
+    position: &mut PositionAux,
+    king_color: Color,
+    blocker_color: Color,
+    res: &mut Pinned,
+) {
+    let Some(king_pos) = position.king_pos(king_color) else {
+        return;
+    };
 
     let attacker_color = king_color.opposite();
     let attacker_bb = position.color_bb(attacker_color);
     let occupied = position.occupied_bb();
     let blocker_bb = position.color_bb(blocker_color);
 
-    lance_pinned(position, king_color, blocker_color, &mut res);
+    lance_pinned(position, king_color, blocker_color, res);
 
     let bishop_attackers =
         position.bishopish() & attacker_bb & bishop_power(king_pos);
@@ -159,7 +180,7 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
             occupied,
             attacker_pos,
             between,
-            &mut res,
+            res,
         );
     }
 
@@ -173,11 +194,9 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
             occupied,
             attacker_pos,
             between,
-            &mut res,
+            res,
         );
     }
-
-    res
 }
 
 #[inline]

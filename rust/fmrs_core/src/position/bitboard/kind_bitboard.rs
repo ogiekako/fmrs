@@ -249,6 +249,31 @@ impl KindBitBoard {
         self.write_kind_idx(pos.index(), encoded);
     }
 
+    /// Move a piece from `src` to `dst` without changing kind. Faster than
+    /// `unset(src) + set(dst)` because each layer bitboard sees a single XOR
+    /// that flips both bits simultaneously, and only one combined zobrist XOR
+    /// is needed at the call site.
+    #[inline(always)]
+    pub fn move_piece(&mut self, src: Square, dst: Square, kind: Kind) {
+        let (promote, i) = Self::ids(kind);
+        let mask = (1u128 << src.index()) | (1u128 << dst.index());
+        if promote {
+            self.promote.toggle_mask(mask);
+        }
+        if (i & 1) != 0 {
+            self.kind0.toggle_mask(mask);
+        }
+        if (i & 2) != 0 {
+            self.kind1.toggle_mask(mask);
+        }
+        if (i & 4) != 0 {
+            self.kind2.toggle_mask(mask);
+        }
+        let encoded = (i | if promote { 8 } else { 0 }) as u8;
+        self.write_kind_idx(src.index(), 0);
+        self.write_kind_idx(dst.index(), encoded);
+    }
+
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
         self.promote.shift(dir);
         self.kind0.shift(dir);

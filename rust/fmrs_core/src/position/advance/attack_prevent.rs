@@ -19,7 +19,7 @@ use crate::{
 
 use super::{
     common,
-    pinned::{pinned, Pinned},
+    pinned::{pinned_into, Pinned},
     AdvanceOptions,
 };
 
@@ -48,7 +48,9 @@ struct Context<'a> {
     /// Lazy: pinned は `add_movements_to` (capture/block) でしか参照されない。
     /// `king_move` が早期に脱出を見つけて Err 返すと参照されないので、
     /// 計算 (~6% CPU) を回避できる。
-    pinned: Option<Pinned>,
+    /// Inlined Pinned + flag avoids the return-by-value memcpy of `pinned()`.
+    pinned: Pinned,
+    pinned_initialized: bool,
     /// Lazy: own-color leap pieces grouped per leap_kind. Computed once and
     /// reused across capture/block dest iterations to avoid redundant
     /// `bitboard(turn, kind)` lookups.
@@ -97,7 +99,8 @@ impl<'a> Context<'a> {
         Ok(Self {
             position,
             occupied_without_king,
-            pinned: None,
+            pinned: Pinned::default(),
+            pinned_initialized: false,
             leap_state: None,
             attacker,
             pawn_mask: None, // TODO: move to PositionAux
@@ -141,11 +144,12 @@ impl<'a> Context<'a> {
     }
 
     fn pinned(&mut self) -> &Pinned {
-        if self.pinned.is_none() {
+        if !self.pinned_initialized {
             let turn = self.position.turn();
-            self.pinned = Some(pinned(self.position, turn, turn));
+            pinned_into(self.position, turn, turn, &mut self.pinned);
+            self.pinned_initialized = true;
         }
-        self.pinned.as_ref().unwrap()
+        &self.pinned
     }
 
     // #[inline(never)]
@@ -265,12 +269,14 @@ impl<'a> Context<'a> {
         // Around-dest moves: pieces of any kind in king_power(dest) that can step to dest.
         // Line-piece "step" moves are handled by the leap loop below; this loop skips them
         // via `around_dest_move_is_generated_by_leap`.
-        let around_dest = king_power(dest) & self.position.capturable_by(opposite);
+        // Exclude turn-side king up-front so we don't evaluate it as a source. King moves
+        // are emitted by `king_move()`; including the king here only adds a per-source
+        // dispatch + branch.
+        let king_excl = BitBoard::EMPTY.with(self.position.must_turn_king_pos());
+        let around_dest =
+            (king_power(dest) & self.position.capturable_by(opposite)).and_not(king_excl);
         for source_pos in around_dest {
             let source_kind = self.position.must_get_kind(source_pos);
-            if source_kind == Kind::King {
-                continue;
-            }
             let source_power = self
                 .pinned()
                 .pinned_area(source_pos)

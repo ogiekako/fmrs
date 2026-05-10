@@ -140,7 +140,10 @@ impl LowMemStandardSolver {
 
         let initial_position_digests: NoHashSet64 = positions.iter().map(|p| p.digest()).collect();
 
-        let mut memo = Memo::default();
+        // Pre-allocate memo to skip ~5 rehashes during early growth (typical
+        // near_mate searches end with ~10K-100K entries; 4K is a reasonable
+        // mid-point that avoids over-committing memory for shallow searches).
+        let mut memo = Memo::with_capacity(4096);
         for digest in initial_position_digests.iter() {
             memo.contains_or_insert(*digest, 0);
         }
@@ -162,7 +165,7 @@ impl LowMemStandardSolver {
         let mut step = 0;
 
         if turn.is_black() {
-            let mut memo_next = Memo::default();
+            let mut memo_next = Memo::with_capacity(4096);
             next_positions(
                 &mut mate_positions,
                 &mut memo_next,

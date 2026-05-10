@@ -53,8 +53,6 @@ impl PositionExt for Position {
                     self.kind_bb().must_get(source)
                 };
 
-                self.unset(source, color, kind);
-
                 let capture = if let Some(capture) = capture_kind_hint {
                     capture
                 } else {
@@ -66,9 +64,12 @@ impl PositionExt for Position {
                     self.hands_mut().add(color, capture.maybe_unpromote());
                 }
                 if promote {
+                    self.unset(source, color, kind);
                     self.set(dest, color, kind.promote().unwrap());
                 } else {
-                    self.set(dest, color, kind);
+                    // Common path: no promotion. `move_piece` fuses
+                    // unset(src) + set(dst) on layer/color bitboards.
+                    self.move_piece(source, dest, color, kind);
                 }
                 self.set_pawn_drop(false);
             }

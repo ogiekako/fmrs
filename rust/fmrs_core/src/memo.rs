@@ -1,5 +1,6 @@
 use dashmap::DashMap;
 
+#[allow(unused_imports)]
 use crate::nohash::{BuildNoHasher, NoHashMap64};
 
 pub trait MemoTrait {
@@ -45,6 +46,11 @@ pub struct Memo {
 impl Memo {
     pub fn clear(&mut self) {
         self.steps.clear();
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        let steps = NoHashMap64::with_capacity_and_hasher(capacity, BuildNoHasher);
+        Memo { steps }
     }
 }
 

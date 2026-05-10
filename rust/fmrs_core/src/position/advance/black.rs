@@ -13,7 +13,7 @@ use crate::position::{
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
-use super::pinned::{pinned, Pinned};
+use super::pinned::{pinned, pinned_into, Pinned};
 use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
@@ -33,7 +33,10 @@ struct Context<'a> {
     attacker: Option<Attacker>,
     /// Lazy: drops() では未使用、direct_attack/discovered_attack でのみ参照。
     /// max_allowed_branches=0 で drops() が早期 Err 返した場合 pinned 不要。
-    pinned: Option<Pinned>,
+    /// Inline storage avoids the ~96-byte return-value memcpy that `pinned()`
+    /// would otherwise pay each invocation; flag tracks lazy-init.
+    pinned: Pinned,
+    pinned_initialized: bool,
     pawn_mask: usize,
     options: &'a AdvanceOptions,
 
@@ -70,7 +73,8 @@ impl<'a> Context<'a> {
         Ok(Self {
             position,
             attacker,
-            pinned: None,
+            pinned: Pinned::default(),
+            pinned_initialized: false,
             pawn_mask,
             result,
             num_branches_without_pawn_drop: 0,
@@ -79,14 +83,13 @@ impl<'a> Context<'a> {
     }
 
     fn pinned(&mut self) -> &Pinned {
-        if self.pinned.is_none() {
-            self.pinned = Some(if self.position.black_king_pos().is_some() {
-                pinned(self.position, Color::BLACK, Color::BLACK)
-            } else {
-                Pinned::default()
-            });
+        if !self.pinned_initialized {
+            if self.position.black_king_pos().is_some() {
+                pinned_into(self.position, Color::BLACK, Color::BLACK, &mut self.pinned);
+            }
+            self.pinned_initialized = true;
         }
-        self.pinned.as_ref().unwrap()
+        &self.pinned
     }
 
     fn advance(&mut self) -> AdvanceResult<()> {
