@@ -31,6 +31,7 @@ pub trait PositionExt {
 }
 
 impl PositionExt for Position {
+    #[inline]
     fn do_move(&mut self, m: &Movement) {
         let color = self.turn();
         self.toggle_turn();
