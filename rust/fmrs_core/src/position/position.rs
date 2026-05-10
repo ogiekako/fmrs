@@ -251,6 +251,7 @@ impl PositionAux {
         res
     }
 
+    #[inline]
     pub(crate) fn moved_digest(&self, movement: &Movement) -> u64 {
         self.core.moved_digest(movement) ^ self.stone_digest
     }
