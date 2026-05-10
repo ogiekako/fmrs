@@ -13,7 +13,7 @@ use crate::position::{
 };
 
 use super::attack_prevent::{attack_preventing_movements, attacker, Attacker};
-use super::pinned::{pinned, pinned_into, Pinned};
+use super::pinned::{pinned_into, Pinned};
 use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
@@ -286,8 +286,13 @@ impl<'a> Context<'a> {
         // Bishop + ProBishop: ProBishop = Bishop ∪ King-step moves, so when unpromoted
         // bishops are present we derive king_reach_pro_bishop = king_reach_bishop |
         // king_power_excl without an extra magic lookup.
-        let bishop_bb = self.position.bitboard(Color::BLACK, Kind::Bishop);
-        let pro_bishop_bb = self.position.bitboard(Color::BLACK, Kind::ProBishop);
+        // Derive bishop_bb/pro_bishop_bb from a single bishopish() & black_bb
+        // intersection split by the promote layer; saves the per-kind layer
+        // dispatch inside `bitboard(BLACK, kind)` (~6 ops total).
+        let bishopish_black = self.position.bishopish() & self.position.black_bb();
+        let promote_layer = self.position.kind_bb_promote_layer();
+        let bishop_bb = bishopish_black.and_not(promote_layer);
+        let pro_bishop_bb = bishopish_black & promote_layer;
         if !bishop_bb.is_empty() || !pro_bishop_bb.is_empty() {
             let (king_reach_bishop, king_reach_pro_bishop) = if !bishop_bb.is_empty() {
                 let occ = self.position.occupied_bb();
@@ -354,8 +359,9 @@ impl<'a> Context<'a> {
         }
 
         // Rook + ProRook: same pattern (ProRook = Rook ∪ King-step moves).
-        let rook_bb = self.position.bitboard(Color::BLACK, Kind::Rook);
-        let pro_rook_bb = self.position.bitboard(Color::BLACK, Kind::ProRook);
+        let rookish_black = self.position.rookish() & self.position.black_bb();
+        let rook_bb = rookish_black.and_not(promote_layer);
+        let pro_rook_bb = rookish_black & promote_layer;
         if !rook_bb.is_empty() || !pro_rook_bb.is_empty() {
             let (king_reach_rook, king_reach_pro_rook) = if !rook_bb.is_empty() {
                 let occ = self.position.occupied_bb();

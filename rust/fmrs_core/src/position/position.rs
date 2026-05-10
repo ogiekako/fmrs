@@ -351,6 +351,13 @@ impl PositionAux {
         self.core.kind_bb.rookish()
     }
 
+    /// Promote-layer bitboard accessor; splits `bishopish() & black_bb` into
+    /// raw and promoted variants without two `bitboard(BLACK, kind)` lookups.
+    #[inline(always)]
+    pub(crate) fn kind_bb_promote_layer(&self) -> BitBoard {
+        self.core.kind_bb.promote_layer()
+    }
+
     pub fn pawn_drop(&self) -> bool {
         self.core.pawn_drop()
     }

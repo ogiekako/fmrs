@@ -307,6 +307,14 @@ impl KindBitBoard {
     pub fn occupied(&self) -> BitBoard {
         self.kind0 | self.kind1 | self.kind2
     }
+
+    /// Promote-layer bitboard: set bit for any "promoted" kind (or King).
+    /// Useful for splitting `bishopish() / rookish()` into raw vs. promoted
+    /// without two separate `bitboard(kind)` lookups.
+    #[inline(always)]
+    pub fn promote_layer(&self) -> BitBoard {
+        self.promote
+    }
 }
 
 #[cfg(test)]
