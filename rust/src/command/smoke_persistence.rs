@@ -55,6 +55,8 @@ pub(super) struct SeedResultRecord {
     pub(super) terminal_step: u16,
     #[serde(default)]
     pub(super) termination_reason: TerminationReason,
+    #[serde(default)]
+    pub(super) canonicalize_attacker_goldish: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -67,6 +69,8 @@ pub(super) struct SeedCheckpoint {
     pub(super) resume_state: BackwardSearchResumeState,
     pub(super) best_piece_count: u32,
     pub(super) best_sfens: Vec<String>,
+    #[serde(default)]
+    pub(super) canonicalize_attacker_goldish: bool,
 }
 
 pub(super) fn condition_key(max_step: Option<u16>, constraints: SearchConstraints) -> String {
@@ -90,8 +94,18 @@ pub(super) fn checkpoint_path(
     seed_result_log: &Path,
     seed_index: usize,
     key: &str,
+    canonicalize_attacker_goldish: bool,
 ) -> PathBuf {
-    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}.json"))
+    let suffix = canonical_path_suffix(canonicalize_attacker_goldish);
+    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}.json"))
+}
+
+fn canonical_path_suffix(canonicalize_attacker_goldish: bool) -> &'static str {
+    if canonicalize_attacker_goldish {
+        "_canon"
+    } else {
+        ""
+    }
 }
 
 pub(super) fn write_seed_checkpoint(
@@ -101,9 +115,15 @@ pub(super) fn write_seed_checkpoint(
     let dir = checkpoint_dir(seed_result_log);
     fs::create_dir_all(&dir)?;
     let key = condition_key(checkpoint.max_step, checkpoint.constraints);
-    let path = checkpoint_path(seed_result_log, checkpoint.seed_index, &key);
+    let path = checkpoint_path(
+        seed_result_log,
+        checkpoint.seed_index,
+        &key,
+        checkpoint.canonicalize_attacker_goldish,
+    );
+    let suffix = canonical_path_suffix(checkpoint.canonicalize_attacker_goldish);
     let tmp_path = dir.join(format!(
-        ".seed_{}_{}.json.tmp",
+        ".seed_{}_{}{suffix}.json.tmp",
         checkpoint.seed_index, key
     ));
     serde_json::to_writer(fs::File::create(&tmp_path)?, checkpoint)?;
@@ -117,18 +137,26 @@ pub(super) fn load_seed_checkpoint(
     seed_sfen: &str,
     max_step: Option<u16>,
     constraints: SearchConstraints,
+    canonicalize_attacker_goldish: bool,
 ) -> Option<SeedCheckpoint> {
     let key = condition_key(max_step, constraints);
-    let new_path = checkpoint_path(seed_result_log, seed_index, &key);
+    let new_path =
+        checkpoint_path(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
     if let Ok(file) = fs::File::open(&new_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(file) {
             if cp.seed_index == seed_index
                 && cp.seed_sfen == seed_sfen
                 && cp.max_frontier.is_none()
+                && cp.canonicalize_attacker_goldish == canonicalize_attacker_goldish
             {
                 return Some(cp);
             }
         }
+    }
+
+    if canonicalize_attacker_goldish {
+        // Canonical mode never had a legacy un-suffixed path.
+        return None;
     }
 
     // Legacy fallback: older runs used seed_{i}.json without the condition
@@ -142,6 +170,7 @@ pub(super) fn load_seed_checkpoint(
         && checkpoint.max_step == max_step
         && checkpoint.max_frontier.is_none()
         && checkpoint.constraints == constraints
+        && !checkpoint.canonicalize_attacker_goldish
     {
         let _ = fs::rename(&legacy_path, &new_path);
         Some(checkpoint)
@@ -155,15 +184,22 @@ pub(super) fn remove_seed_checkpoint(
     seed_index: usize,
     max_step: Option<u16>,
     constraints: SearchConstraints,
+    canonicalize_attacker_goldish: bool,
 ) {
     let key = condition_key(max_step, constraints);
-    let _ = fs::remove_file(checkpoint_path(seed_result_log, seed_index, &key));
+    let _ = fs::remove_file(checkpoint_path(
+        seed_result_log,
+        seed_index,
+        &key,
+        canonicalize_attacker_goldish,
+    ));
 }
 
 pub(super) fn load_seed_result_log(
     path: &Path,
     max_step: Option<u16>,
     constraints: SearchConstraints,
+    canonicalize_attacker_goldish: bool,
 ) -> anyhow::Result<FxHashMap<usize, SeedResultRecord>> {
     let Ok(file) = fs::File::open(path) else {
         return Ok(FxHashMap::default());
@@ -186,6 +222,7 @@ pub(super) fn load_seed_result_log(
             && record.max_step == max_step
             && record.max_frontier.is_none()
             && record.constraints == constraints
+            && record.canonicalize_attacker_goldish == canonicalize_attacker_goldish
         {
             records.insert(record.seed_index, record);
         }
@@ -243,6 +280,7 @@ pub(super) fn build_seed_result_record(
     constraints: SearchConstraints,
     best: &Option<(u32, Vec<PositionAux>)>,
     stats: SeedRunStats,
+    canonicalize_attacker_goldish: bool,
 ) -> SeedResultRecord {
     let (best_piece_count, positions, representative_sfen) =
         if let Some((piece_count, positions)) = best.as_ref() {
@@ -269,6 +307,7 @@ pub(super) fn build_seed_result_record(
         total_seen_positions: stats.total_seen_positions,
         terminal_step: stats.terminal_step,
         termination_reason: stats.termination_reason,
+        canonicalize_attacker_goldish,
     }
 }
 
@@ -322,6 +361,17 @@ mod tests {
         constraints: SearchConstraints,
         marker: u32,
     ) -> SeedCheckpoint {
+        dummy_checkpoint_with_canonical(seed_index, seed_sfen, max_step, constraints, marker, false)
+    }
+
+    fn dummy_checkpoint_with_canonical(
+        seed_index: usize,
+        seed_sfen: &str,
+        max_step: Option<u16>,
+        constraints: SearchConstraints,
+        marker: u32,
+        canonicalize_attacker_goldish: bool,
+    ) -> SeedCheckpoint {
         SeedCheckpoint {
             seed_index,
             seed_sfen: seed_sfen.to_string(),
@@ -338,6 +388,7 @@ mod tests {
             },
             best_piece_count: marker,
             best_sfens: vec![],
+            canonicalize_attacker_goldish,
         }
     }
 
@@ -361,7 +412,7 @@ mod tests {
         let cp = dummy_checkpoint(7, "sfen-x", Some(5), constraints, 42);
         write_seed_checkpoint(&log, &cp).unwrap();
 
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), constraints);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), constraints, false);
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().best_piece_count, 42);
 
@@ -381,8 +432,8 @@ mod tests {
         write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, a, 1)).unwrap();
         write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, b, 2)).unwrap();
 
-        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, a).unwrap();
-        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, b).unwrap();
+        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false).unwrap();
+        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false).unwrap();
         assert_eq!(la.best_piece_count, 1);
         assert_eq!(lb.best_piece_count, 2);
 
@@ -401,7 +452,7 @@ mod tests {
         let legacy_path = cp_dir.join("seed_7.json");
         serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
 
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false);
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().best_piece_count, 99);
 
@@ -430,14 +481,46 @@ mod tests {
         serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
 
         // Loading with mismatched conditions should not migrate or use it.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, b);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false);
         assert!(loaded.is_none());
         assert!(legacy_path.exists(), "legacy file must remain for future runs");
 
         // Subsequent load with matching conditions still picks it up.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false);
         assert!(loaded.is_some());
         assert!(!legacy_path.exists(), "legacy file should now be migrated");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn canonical_and_regular_checkpoints_are_isolated() {
+        let dir = unique_test_dir("canon-isolated");
+        let log = dir.join("log.jsonl");
+        let constraints = SearchConstraints::default();
+
+        write_seed_checkpoint(
+            &log,
+            &dummy_checkpoint_with_canonical(7, "sfen-x", None, constraints, 11, false),
+        )
+        .unwrap();
+        write_seed_checkpoint(
+            &log,
+            &dummy_checkpoint_with_canonical(7, "sfen-x", None, constraints, 22, true),
+        )
+        .unwrap();
+
+        let off = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false).unwrap();
+        let on = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, true).unwrap();
+        assert_eq!(off.best_piece_count, 11);
+        assert_eq!(on.best_piece_count, 22);
+        assert!(!off.canonicalize_attacker_goldish);
+        assert!(on.canonicalize_attacker_goldish);
+
+        // Files live at distinct paths so removal is mode-specific.
+        remove_seed_checkpoint(&log, 7, None, constraints, true);
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, true).is_none());
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false).is_some());
 
         let _ = fs::remove_dir_all(&dir);
     }

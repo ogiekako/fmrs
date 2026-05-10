@@ -330,6 +330,7 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
             resume_state: search.resume_state(),
             best_piece_count: task.best_piece_count,
             best_sfens: task.best_positions.iter().map(PositionAux::sfen).collect(),
+            canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
         },
     );
 
@@ -452,6 +453,7 @@ fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>
                 ctx.constraints,
                 &best,
                 stats,
+                ctx.canonicalize_attacker_goldish,
             );
             append_seed_result_record(&mut ctx.seed_result_log.lock().unwrap(), record)?;
             remove_seed_checkpoint(
@@ -459,6 +461,7 @@ fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>
                 task.seed_index,
                 ctx.max_step,
                 ctx.constraints,
+                ctx.canonicalize_attacker_goldish,
             );
         }
     }

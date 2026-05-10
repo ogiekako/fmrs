@@ -138,13 +138,22 @@ pub(super) fn ideal_backward(
     let mut pending_seeds: Vec<(usize, Vec<PositionAux>)> = Vec::with_capacity(grouped_seeds.len());
     let mut initial_best = (0u32, FxHashSet::default(), 0usize);
     let mut loaded_records = 0usize;
-    if beam.width.is_some() || canonicalize_attacker_goldish {
-        // canonicalize ON は checkpoint 非互換のため log を読まない。
+    if beam.width.is_some() {
+        // beam モードは record 形式が部分結果のため互換性なし。常に再実行。
         pending_seeds.append(&mut grouped_seeds);
     } else {
-        let seed_records = load_seed_result_log(&seed_result_log, max_step, constraints)?;
+        // canonicalize ON/OFF はファイル / レコード上で隔離されている (path suffix
+        // と record の `canonicalize_attacker_goldish` フィールド)。同 flag の run
+        // 同士は中断後に再開できる。
+        let seed_records = load_seed_result_log(
+            &seed_result_log,
+            max_step,
+            constraints,
+            canonicalize_attacker_goldish,
+        )?;
         for (seed_index, group) in grouped_seeds {
-            // canon OFF のとき group は size 1 (上で初期化済み)。代表で record 検索。
+            // canon OFF: group size = 1。canon ON: group[0] は raw_enumerated 順での
+            // 最初の seed (確定的)。書き込み時と読み込み時で同じ representative。
             let representative = &group[0];
             if let Some(record) = seed_records
                 .get(&seed_index)
@@ -294,8 +303,7 @@ pub(super) fn ideal_backward(
                         .best
                         .as_ref()
                         .is_none_or(|(pc, _)| *pc < target_max);
-                // canonicalize ON は record 形式が非互換のため log に書かない。
-                if beam.width.is_none() && !early_exited_partial && !canonicalize_attacker_goldish {
+                if beam.width.is_none() && !early_exited_partial {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),
                         build_seed_result_record(
@@ -305,6 +313,7 @@ pub(super) fn ideal_backward(
                             constraints,
                             &result.best,
                             result.stats,
+                            canonicalize_attacker_goldish,
                         ),
                     )?;
                     remove_seed_checkpoint(
@@ -312,6 +321,7 @@ pub(super) fn ideal_backward(
                         *seed_index,
                         max_step,
                         constraints,
+                        canonicalize_attacker_goldish,
                     );
                 }
                 if let Some((piece_count, positions)) = result.best {

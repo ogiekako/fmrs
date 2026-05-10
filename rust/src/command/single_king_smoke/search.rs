@@ -70,9 +70,9 @@ pub(super) fn search_single_seed(
         });
     }
     let representative = &seeds[0];
-    // canonicalize ON では canonical-grouped path を取る (checkpoint は非互換のため
-    // 読み書きしない、resume 不可)。OFF では従来通り単一 seed + checkpoint。
-    let checkpoint = if canonicalize_attacker_goldish || beam.width.is_some() {
+    // canonicalize ON/OFF は path suffix + record フィールドで隔離されており、
+    // 同 flag 同士の resume が可能。
+    let checkpoint = if beam.width.is_some() {
         None
     } else {
         load_seed_checkpoint(
@@ -81,11 +81,19 @@ pub(super) fn search_single_seed(
             &representative.sfen(),
             max_step,
             constraints,
+            canonicalize_attacker_goldish,
         )
     };
 
     let mut search = if canonicalize_attacker_goldish {
-        match BackwardSearch::new_canonical_group(seeds, 1) {
+        let resumed = checkpoint.as_ref().and_then(|cp| {
+            BackwardSearch::from_resume_state_canonical_group(&cp.resume_state, seeds, 1).ok()
+        });
+        let result = match resumed {
+            Some(s) => Ok(s),
+            None => BackwardSearch::new_canonical_group(seeds, 1),
+        };
+        match result {
             Ok(s) => s,
             Err(_) => {
                 return Ok(SingleSeedResult {
@@ -356,8 +364,7 @@ pub(super) fn search_single_seed(
             advance_elapsed_ms,
         );
 
-        // canonicalize ON は checkpoint 非互換のため書き出さない (resume 不可)。
-        if beam.width.is_none() && !canonicalize_attacker_goldish {
+        if beam.width.is_none() {
             let _ = write_seed_checkpoint(
                 seed_result_log_path,
                 &SeedCheckpoint {
@@ -369,6 +376,7 @@ pub(super) fn search_single_seed(
                     resume_state: search.resume_state(),
                     best_piece_count,
                     best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
+                    canonicalize_attacker_goldish,
                 },
             );
         }
