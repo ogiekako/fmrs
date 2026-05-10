@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778390051381,
+  "lastUpdate": 1778393821666,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37848,6 +37848,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 454125669,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "0372432b475aa1bd5692da91fa81010e07de9485",
+          "message": "perf(position): color_bb_and_stone を occupied.and_not(other_color) で 1 op 化 (near_mate -1.31%)\n\n`occupied` は set_stone 時点で stone bits を OR されているので、\n`color のコマ ∪ stone = occupied & ~相手色` という不変条件が成り立つ。\nこれを使うと従来の \"color_bb をロード → stone Option を読む → Some なら OR\"\nの 2 ステップ + 分岐が、1 BB AND_NOT に圧縮できる。stoneless の near_mate\nでも毎回走っていた self.stone field read + Option discriminant 分岐が消える。\n\niai-callgrind 実測:\n- bench_near_mate (e2e): 212,704,326 → 209,918,883 cycles (-1.31%)\n- bench_reachable (micro): +10.7% — stoneless fast-skip (Option None branch)\n  が効いていた random_positions ベンチで instruction count が増えるが、\n  e2e の advance_aux 経由の hot path とはアクセスパターンが違う。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-10T05:59:13Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/0372432b475aa1bd5692da91fa81010e07de9485"
+        },
+        "date": 1778393819071,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 51457,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125516,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121693,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 452998843,
             "unit": "Instructions"
           }
         ]
