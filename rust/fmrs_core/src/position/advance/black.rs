@@ -440,7 +440,8 @@ impl<'a> Context<'a> {
             return Ok(());
         }
 
-        let blockers = pinned(self.position, Color::WHITE, Color::BLACK);
+        let mut blockers = Pinned::default();
+        pinned_into(self.position, Color::WHITE, Color::BLACK, &mut blockers);
         if blockers.iter().next().is_none() {
             return Ok(());
         }

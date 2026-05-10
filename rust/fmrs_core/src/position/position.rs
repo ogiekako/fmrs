@@ -41,6 +41,11 @@ impl Position {
     pub fn set_turn(&mut self, c: Color) {
         self.hands.set_turn(c);
     }
+    /// Flip the turn bit; cheaper than `set_turn(c.opposite())` when toggling.
+    #[inline(always)]
+    pub fn toggle_turn(&mut self) {
+        self.hands.toggle_turn();
+    }
     pub fn hands(&self) -> Hands {
         self.hands
     }
@@ -397,14 +402,14 @@ impl PositionAux {
                 }
 
                 self.core.set_pawn_drop(false);
-                self.core.set_turn(turn.opposite());
+                self.core.toggle_turn();
             }
             Movement::Drop(pos, kind) => {
                 self.set(*pos, turn, *kind);
                 self.hands_mut().remove(turn, *kind);
 
                 self.core.set_pawn_drop(*kind == Kind::Pawn);
-                self.core.set_turn(turn.opposite());
+                self.core.toggle_turn();
             }
         }
     }

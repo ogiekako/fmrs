@@ -106,6 +106,12 @@ impl Hands {
             self.x &= !TURN_FLAG;
         }
     }
+    /// Flip the turn bit; cheaper than `set_turn(c.opposite())` when the
+    /// current turn is already known: a single XOR instead of branch+OR/AND.
+    #[inline(always)]
+    pub fn toggle_turn(&mut self) {
+        self.x ^= TURN_FLAG;
+    }
     pub fn turn(&self) -> Color {
         Color::from_is_white(self.x & TURN_FLAG != 0)
     }

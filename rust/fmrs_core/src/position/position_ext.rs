@@ -33,7 +33,7 @@ pub trait PositionExt {
 impl PositionExt for Position {
     fn do_move(&mut self, m: &Movement) {
         let color = self.turn();
-        self.set_turn(color.opposite());
+        self.toggle_turn();
         match *m {
             Movement::Drop(pos, k) => {
                 self.hands_mut().remove(color, k);
