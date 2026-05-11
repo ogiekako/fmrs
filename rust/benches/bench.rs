@@ -10,9 +10,7 @@ use fmrs_core::position::advance::pinned::pinned;
 use fmrs_core::position::bitboard::reachable;
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::position::{checked, AdvanceOptions, Position, Square};
-use fmrs_core::search::canonicalize::{
-    canonical_digest_for_smoke, canonicalize_attacker_goldish,
-};
+use fmrs_core::search::canonicalize::{canonical_digest_for_smoke, canonicalize_attacker_goldish};
 use fmrs_core::sfen::decode_position;
 use fmrs_core::solve::low_mem_standard::low_mem_standard_solve;
 use fmrs_core::solve::one_way::one_way_mate_steps;
@@ -251,10 +249,7 @@ fn bench_canonicalize(c: &mut Criterion) {
         "8k/9/9/9/9/9/G+S+N+L+SG3/+N+L+SG5/9 b 4r4b1gs2n2l13p 1",
         "8k/9/9/9/9/9/9/9/G8 b 4r4b3g4s4n4l 1",
     ];
-    let positions: Vec<PositionAux> = sfens
-        .iter()
-        .map(|s| decode_position(s).unwrap())
-        .collect();
+    let positions: Vec<PositionAux> = sfens.iter().map(|s| decode_position(s).unwrap()).collect();
     c.bench_function("canonicalize_attacker_goldish", |b| {
         b.iter_with_setup(
             || positions.clone(),
@@ -340,16 +335,43 @@ fn bench_near_mate(c: &mut Criterion) {
     // ofm-139_5.sfen). Generated once via `fmrs solve-bench --n 15 <files...>`
     // and hardcoded here so the benchmark does not re-solve the full problem.
     let sfens: &[(&str, u16)] = &[
-        ("4l1+P2/3+P1n3/S3p1+L2/1S1G1p2G/3L3kS/1N1p1l1B1/B4N2R/1P1g1K1p1/PNP1P3P b rgs7p 1", 15), // diamond (55)
-        ("ggssn2p1/lgssn3l/2b6/5N3/+R2+l5/8k/6+n2/2g4L1/KBr3PP1 b 2P13p 1", 15),                   // forest-05-13_57
-        ("s2B5/1L1S5/1PPPPL2R/1+l5N1/P6N1/2k4N1/7N1/1pgg2g2/K5+Br1 b g2sl12p 1", 15),              // forest-06-10_97
-        ("9/G2s4G/LLpNGNpPP/4L4/1sN3N2/1g1bpb1ss/1pk3P2/P2PPP3/1PP5K b 2rl5p 1", 15),              // forest-06-12_361
-        ("9/6GGr/S1ssggN1b/pL7/4P1P1K/2PP1P3/kPpll1pp+B/+n8/L3+n1+nsr b 2P6p 1", 15),              // morishige_1461
-        ("4GS2l/4S1Bp1/3N1N1N1/ssg1gp3/3gl3+R/3+npk2K/PPP5b/3P2l1r/4P4 b L3P7p 1", 15),            // morishige_1965
-        ("9/9/9/9/5S1gN/8N/7G1/6NNk/6G2 b 2r2bg3s4l18p 1", 15),                                    // ogiekako-no-pawn-smoke-43
-        ("r2GSG3/3S1S3/+BPN1N+LLg1/2pp3ps/K2N5/4P1P2/BgN3p1P/r1l3l2/5k1P1 b P8p 1", 15),           // shichiro_1001
-        ("gpn1+P2nl/p2g4+R/1lp1sp1G1/1b1l5/P1gl5/1P1s1N2K/2Pk5/4PPNP+B/3P2s1r b Ps5p 1", 15),      // wfp-56-12_2571
-        ("lgn1s2gl/p2+p5/1gp1sp1G1/1s1l5/k1bl4+R/3n1N2K/1P6+B/2P1PPNP1/3P2s1r b P7p 1", 15),       // wfp-56-12a_2683
+        (
+            "4l1+P2/3+P1n3/S3p1+L2/1S1G1p2G/3L3kS/1N1p1l1B1/B4N2R/1P1g1K1p1/PNP1P3P b rgs7p 1",
+            15,
+        ), // diamond (55)
+        (
+            "ggssn2p1/lgssn3l/2b6/5N3/+R2+l5/8k/6+n2/2g4L1/KBr3PP1 b 2P13p 1",
+            15,
+        ), // forest-05-13_57
+        (
+            "s2B5/1L1S5/1PPPPL2R/1+l5N1/P6N1/2k4N1/7N1/1pgg2g2/K5+Br1 b g2sl12p 1",
+            15,
+        ), // forest-06-10_97
+        (
+            "9/G2s4G/LLpNGNpPP/4L4/1sN3N2/1g1bpb1ss/1pk3P2/P2PPP3/1PP5K b 2rl5p 1",
+            15,
+        ), // forest-06-12_361
+        (
+            "9/6GGr/S1ssggN1b/pL7/4P1P1K/2PP1P3/kPpll1pp+B/+n8/L3+n1+nsr b 2P6p 1",
+            15,
+        ), // morishige_1461
+        (
+            "4GS2l/4S1Bp1/3N1N1N1/ssg1gp3/3gl3+R/3+npk2K/PPP5b/3P2l1r/4P4 b L3P7p 1",
+            15,
+        ), // morishige_1965
+        ("9/9/9/9/5S1gN/8N/7G1/6NNk/6G2 b 2r2bg3s4l18p 1", 15), // ogiekako-no-pawn-smoke-43
+        (
+            "r2GSG3/3S1S3/+BPN1N+LLg1/2pp3ps/K2N5/4P1P2/BgN3p1P/r1l3l2/5k1P1 b P8p 1",
+            15,
+        ), // shichiro_1001
+        (
+            "gpn1+P2nl/p2g4+R/1lp1sp1G1/1b1l5/P1gl5/1P1s1N2K/2Pk5/4PPNP+B/3P2s1r b Ps5p 1",
+            15,
+        ), // wfp-56-12_2571
+        (
+            "lgn1s2gl/p2+p5/1gp1sp1G1/1s1l5/k1bl4+R/3n1N2K/1P6+B/2P1PPNP1/3P2s1r b P7p 1",
+            15,
+        ), // wfp-56-12a_2683
     ];
     let positions: Vec<PositionAux> = sfens
         .iter()
@@ -358,8 +380,7 @@ fn bench_near_mate(c: &mut Criterion) {
     c.bench_function("near_mate", |b| {
         b.iter(|| {
             for (position, &(_, mate_in)) in positions.iter().zip(sfens.iter()) {
-                let result =
-                    low_mem_standard_solve(black_box(position.clone()), 1, true).unwrap();
+                let result = low_mem_standard_solve(black_box(position.clone()), 1, true).unwrap();
                 debug_assert_eq!(result.mate_in(), Some(mate_in));
             }
         })
@@ -480,14 +501,21 @@ fn bench_backward_search(c: &mut Criterion) {
     let tmp_log = std::env::temp_dir().join("bench-backward-seeds.jsonl");
     let _ = std::fs::remove_file(&tmp_log);
     let elapsed = run_backward_search_bench(&[
-        "single-king-smoke", "ideal-backward",
-        "--max-step", "21",
-        "--parallel", "8",
-        "--seed-limit", "15",
-        "--random-seed", "42",
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "21",
+        "--parallel",
+        "8",
+        "--seed-limit",
+        "15",
+        "--random-seed",
+        "42",
         "--no-pawn",
-        "--max-promoted-pct", "15",
-        "--seed-result-log", tmp_log.to_str().unwrap(),
+        "--max-promoted-pct",
+        "15",
+        "--seed-result-log",
+        tmp_log.to_str().unwrap(),
     ]);
     let _ = std::fs::remove_file(&tmp_log);
 
@@ -504,14 +532,21 @@ fn bench_backward_search(c: &mut Criterion) {
 
 fn bench_backward_search_seed_sfen(c: &mut Criterion) {
     let elapsed = run_backward_search_bench(&[
-        "single-king-smoke", "ideal-backward",
-        "--max-step", "11",
-        "--parallel", "8",
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "11",
+        "--parallel",
+        "8",
         "--no-pawn",
-        "--max-promoted-pct", "34",
-        "--max-promoted-pct-after-step", "4",
-        "--seed-result-log", "/dev/null",
-        "--seed-sfen", "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+        "--max-promoted-pct",
+        "34",
+        "--max-promoted-pct-after-step",
+        "4",
+        "--seed-result-log",
+        "/dev/null",
+        "--seed-sfen",
+        "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
     ]);
 
     let mut i = 0;
@@ -527,15 +562,23 @@ fn bench_backward_search_seed_sfen(c: &mut Criterion) {
 
 fn bench_backward_search_seed_sfen_allowed_kinds(c: &mut Criterion) {
     let elapsed = run_backward_search_bench(&[
-        "single-king-smoke", "ideal-backward",
-        "--max-step", "19",
-        "--parallel", "8",
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "19",
+        "--parallel",
+        "8",
         "--no-pawn",
-        "--max-promoted-pct", "20",
-        "--max-promoted-pct-after-step", "5",
-        "--seed-result-log", "/dev/null",
-        "--seed-sfen", "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
-        "--allowed-kinds", "pawn,lance,knight,silver,gold",
+        "--max-promoted-pct",
+        "20",
+        "--max-promoted-pct-after-step",
+        "5",
+        "--seed-result-log",
+        "/dev/null",
+        "--seed-sfen",
+        "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+        "--allowed-kinds",
+        "pawn,lance,knight,silver,gold",
     ]);
 
     let mut i = 0;

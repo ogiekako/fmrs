@@ -1,8 +1,5 @@
 use anyhow::Context as _;
-use fmrs_core::{
-    position::position::PositionAux,
-    search::backward::BackwardSearchResumeState,
-};
+use fmrs_core::{position::position::PositionAux, search::backward::BackwardSearchResumeState};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -179,7 +176,10 @@ fn load_seed_checkpoint_bin(path: &Path) -> anyhow::Result<SeedCheckpoint> {
     let mut u32_buf = [0u8; 4];
     f.read_exact(&mut u32_buf)?;
     let version = u32::from_le_bytes(u32_buf);
-    anyhow::ensure!(version == CKPT_VERSION, "unsupported .ckpt version {version}");
+    anyhow::ensure!(
+        version == CKPT_VERSION,
+        "unsupported .ckpt version {version}"
+    );
 
     f.read_exact(&mut u32_buf)?;
     let meta_len = u32::from_le_bytes(u32_buf) as usize;
@@ -242,8 +242,12 @@ pub(super) fn load_seed_checkpoint(
     let key = condition_key(max_step, constraints);
 
     // 1. Try binary .ckpt (current format).
-    let bin_path =
-        checkpoint_path_bin(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
+    let bin_path = checkpoint_path_bin(
+        seed_result_log,
+        seed_index,
+        &key,
+        canonicalize_attacker_goldish,
+    );
     if let Ok(cp) = load_seed_checkpoint_bin(&bin_path) {
         if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
             return Some(cp);
@@ -251,8 +255,12 @@ pub(super) fn load_seed_checkpoint(
     }
 
     // 2. Try legacy JSON (keyed format: seed_N_KEY.json).
-    let json_path =
-        checkpoint_path(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
+    let json_path = checkpoint_path(
+        seed_result_log,
+        seed_index,
+        &key,
+        canonicalize_attacker_goldish,
+    );
     if let Ok(file) = fs::File::open(&json_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(BufReader::new(file)) {
             if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
@@ -573,8 +581,14 @@ mod tests {
 
         let key = condition_key(None, constraints);
         let ckpt_path = cp_dir.join(format!("seed_7_{key}.ckpt"));
-        assert!(ckpt_path.exists(), "binary .ckpt file should exist after migrate");
-        assert!(legacy_path.exists(), "legacy JSON file should be kept after migrate");
+        assert!(
+            ckpt_path.exists(),
+            "binary .ckpt file should exist after migrate"
+        );
+        assert!(
+            legacy_path.exists(),
+            "legacy JSON file should be kept after migrate"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -598,12 +612,18 @@ mod tests {
         // Loading with mismatched conditions should not migrate or use it.
         let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false);
         assert!(loaded.is_none());
-        assert!(legacy_path.exists(), "legacy file must remain for future runs");
+        assert!(
+            legacy_path.exists(),
+            "legacy file must remain for future runs"
+        );
 
         // Subsequent load with matching conditions still picks it up.
         let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false);
         assert!(loaded.is_some());
-        assert!(legacy_path.exists(), "legacy JSON file should remain after migration");
+        assert!(
+            legacy_path.exists(),
+            "legacy JSON file should remain after migration"
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }

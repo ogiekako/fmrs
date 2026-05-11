@@ -129,8 +129,7 @@ pub fn extract_features(position: &PositionAux) -> Vec<f32> {
         f.push(kp.col() as f32);
         let r = kp.row();
         let c = kp.col();
-        let min_edge =
-            r.min(8 - r).min(c.min(8 - c)) as f32;
+        let min_edge = r.min(8 - r).min(c.min(8 - c)) as f32;
         f.push(min_edge);
 
         let ring1 = king_power(kp);
@@ -143,8 +142,7 @@ pub fn extract_features(position: &PositionAux) -> Vec<f32> {
         f.push((ring2 & black).count_ones() as f32);
 
         // Attacker count and kiki on king ring.
-        let (total_kiki, attacker_count_per_square) =
-            black_kiki_per_square(position);
+        let (total_kiki, attacker_count_per_square) = black_kiki_per_square(position);
         let attackers_on_king = attacker_count_per_square[kp.index()];
         f.push(attackers_on_king as f32);
 
@@ -351,18 +349,23 @@ mod tests {
             weights: weights.clone(),
             intercept: 1.5,
         };
-        let dir = std::env::temp_dir().join(format!(
-            "fmrs-model-test-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("fmrs-model-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("model.json");
         std::fs::write(&path, serde_json::to_string(&model).unwrap()).unwrap();
         let loaded = LinearModel::load(&path).unwrap();
         let features: Vec<f32> = (0..names.len()).map(|i| i as f32).collect();
-        let expected = 1.5 + (0..names.len()).map(|i| (i as f32) * (i as f32) * 0.01).sum::<f32>();
+        let expected = 1.5
+            + (0..names.len())
+                .map(|i| (i as f32) * (i as f32) * 0.01)
+                .sum::<f32>();
         let score = loaded.score(&features);
-        assert!((score - expected).abs() < 1e-3, "score={} expected={}", score, expected);
+        assert!(
+            (score - expected).abs() < 1e-3,
+            "score={} expected={}",
+            score,
+            expected
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -373,10 +376,7 @@ mod tests {
             weights: vec![1.0, 2.0],
             intercept: 0.0,
         };
-        let dir = std::env::temp_dir().join(format!(
-            "fmrs-model-bad-{}",
-            std::process::id()
-        ));
+        let dir = std::env::temp_dir().join(format!("fmrs-model-bad-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("model.json");
         std::fs::write(&path, serde_json::to_string(&model).unwrap()).unwrap();

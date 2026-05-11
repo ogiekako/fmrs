@@ -309,14 +309,7 @@ impl<'a> Context<'a> {
         // inner `must_get_kind` lookup disappears.
         let leap = self.leap_state();
         if !leap.lance.is_empty() {
-            self.add_leap_simple(
-                dest,
-                capture_kind,
-                leap.lance,
-                Kind::Lance,
-                turn,
-                opposite,
-            )?;
+            self.add_leap_simple(dest, capture_kind, leap.lance, Kind::Lance, turn, opposite)?;
         }
         if !leap.knight.is_empty() {
             self.add_leap_simple(
@@ -339,14 +332,7 @@ impl<'a> Context<'a> {
             )?;
         }
         if !leap.rookish.is_empty() {
-            self.add_leap_promotable(
-                dest,
-                capture_kind,
-                leap.rookish,
-                Kind::Rook,
-                turn,
-                opposite,
-            )?;
+            self.add_leap_promotable(dest, capture_kind, leap.rookish, Kind::Rook, turn, opposite)?;
         }
         Ok(())
     }

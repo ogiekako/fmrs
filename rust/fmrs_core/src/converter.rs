@@ -269,10 +269,8 @@ mod tests {
 
     #[test]
     fn convert_to_kif_inserts_gote_ban_for_white_first() {
-        let mut pos = crate::sfen::decode_position(
-            "9/2k6/2+P6/9/9/2L6/9/9/9 w 2r2b4g4s4n3l17p 1",
-        )
-        .unwrap();
+        let mut pos =
+            crate::sfen::decode_position("9/2k6/2+P6/9/9/2L6/9/9/9 w 2r2b4g4s4n3l17p 1").unwrap();
         let kif = super::convert_to_kif(&mut pos, &[]);
         assert!(
             kif.contains("後手番"),
@@ -283,10 +281,8 @@ mod tests {
 
     #[test]
     fn convert_to_kif_no_gote_ban_for_black_first() {
-        let mut pos = crate::sfen::decode_position(
-            "7k1/9/7P1/9/9/9/9/9/9 b G2r2b3g4s4n4l17p 1",
-        )
-        .unwrap();
+        let mut pos =
+            crate::sfen::decode_position("7k1/9/7P1/9/9/9/9/9/9 b G2r2b3g4s4n4l17p 1").unwrap();
         let kif = super::convert_to_kif(&mut pos, &[]);
         assert!(
             !kif.contains("後手番"),

@@ -125,7 +125,13 @@ fn setup_reachable() -> Vec<ReachableCase> {
             }
         };
         let capture_same_color: bool = rng.gen();
-        cases.push((PositionAux::new(position, None), color, pos, kind, capture_same_color));
+        cases.push((
+            PositionAux::new(position, None),
+            color,
+            pos,
+            kind,
+            capture_same_color,
+        ));
     }
     cases
 }
@@ -230,4 +236,8 @@ library_benchmark_group!(
     benchmarks = bench_near_mate
 );
 
-main!(library_benchmark_groups = advance_group, position_group, solve_group);
+main!(
+    library_benchmark_groups = advance_group,
+    position_group,
+    solve_group
+);

@@ -119,9 +119,7 @@ fn enumerate_for_white_king(
     if !square_in_bounds(white_king, constraints) {
         return results;
     }
-    if constraints.mate_squares != 0
-        && (constraints.mate_squares >> white_king.index()) & 1 == 0
-    {
+    if constraints.mate_squares != 0 && (constraints.mate_squares >> white_king.index()) & 1 == 0 {
         return results;
     }
     for &(kind1, kind2) in kind_pairs {

@@ -383,9 +383,7 @@ pub(super) fn satisfies_natural_piece_limit(position: &PositionAux) -> bool {
                 0
             }
     };
-    let count_with_promoted = |base: Kind, promoted: Kind| -> u32 {
-        count(base) + count(promoted)
-    };
+    let count_with_promoted = |base: Kind, promoted: Kind| -> u32 { count(base) + count(promoted) };
     count_with_promoted(Kind::Pawn, Kind::ProPawn) <= 9
         && count_with_promoted(Kind::Lance, Kind::ProLance) <= 2
         && count_with_promoted(Kind::Knight, Kind::ProKnight) <= 2
@@ -456,9 +454,7 @@ where
     F: Fn(Kind) -> bool,
 {
     match undo_move {
-        UndoMove::UnDrop(square, _) => position
-            .get(*square)
-            .is_some_and(|(_, kind)| matches(kind)),
+        UndoMove::UnDrop(square, _) => position.get(*square).is_some_and(|(_, kind)| matches(kind)),
         UndoMove::UnMove {
             dest,
             promote,
@@ -883,8 +879,7 @@ mod tests {
         assert_eq!(theoretical_max_piece_count(no_pawn_natural), 11);
 
         // allowed_kinds = pawn のみ → 1 + 18 = 19
-        let pawn_only_mask =
-            parse_allowed_kinds(&["pawn".to_string()]).unwrap();
+        let pawn_only_mask = parse_allowed_kinds(&["pawn".to_string()]).unwrap();
         let allowed_pawn = SearchConstraints {
             allowed_kinds_mask: Some(pawn_only_mask),
             ..Default::default()
@@ -895,10 +890,8 @@ mod tests {
     #[test]
     fn seed_log_constraints_treat_missing_and_null_max_file_as_none() {
         let missing = serde_json::from_str::<SearchConstraints>(r#"{"no_gold":true}"#).unwrap();
-        let null = serde_json::from_str::<SearchConstraints>(
-            r#"{"no_gold":true,"max_file":null}"#,
-        )
-        .unwrap();
+        let null = serde_json::from_str::<SearchConstraints>(r#"{"no_gold":true,"max_file":null}"#)
+            .unwrap();
         let explicit = SearchConstraints {
             no_gold: true,
             ..Default::default()

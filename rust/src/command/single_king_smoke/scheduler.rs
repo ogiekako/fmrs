@@ -31,9 +31,8 @@ use super::super::smoke_constraints::{
     SearchConstraints,
 };
 use super::super::smoke_persistence::{
-    append_seed_result_record, build_seed_result_record, condition_key,
-    remove_seed_checkpoint, write_seed_checkpoint, SeedCheckpoint, SeedRunStats,
-    TerminationReason,
+    append_seed_result_record, build_seed_result_record, condition_key, remove_seed_checkpoint,
+    write_seed_checkpoint, SeedCheckpoint, SeedRunStats, TerminationReason,
 };
 use super::oracle::{OracleModel, StepRecord};
 use super::search::log_global_best_if_improved;
@@ -180,10 +179,8 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
     }
 
     if matches!(task.state, TaskState::Cold { .. }) {
-        let seeds = match std::mem::replace(
-            &mut task.state,
-            TaskState::Cold { seeds: Vec::new() },
-        ) {
+        let seeds = match std::mem::replace(&mut task.state, TaskState::Cold { seeds: Vec::new() })
+        {
             TaskState::Cold { seeds } => seeds,
             _ => unreachable!(),
         };
@@ -268,13 +265,9 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
         return Ok(StepOutcome::Done(TerminationReason::EarlyExit));
     }
 
-    let search_limit = ctx.max_step.map(|l| {
-        if l % 2 == 0 {
-            l.saturating_sub(1)
-        } else {
-            l
-        }
-    });
+    let search_limit = ctx
+        .max_step
+        .map(|l| if l % 2 == 0 { l.saturating_sub(1) } else { l });
     if search_limit.is_some_and(|l| search.step() >= l) {
         return Ok(StepOutcome::Done(TerminationReason::MaxStep));
     }
@@ -323,8 +316,7 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
 
     // Persist checkpoint throttled by interval so large-frontier searches
     // don't saturate disk I/O on big instances.
-    let checkpoint_interval =
-        std::time::Duration::from_secs(ctx.checkpoint_interval_secs);
+    let checkpoint_interval = std::time::Duration::from_secs(ctx.checkpoint_interval_secs);
     let should_checkpoint = match task.last_checkpoint_time {
         None => true,
         Some(t) => t.elapsed() >= checkpoint_interval,
@@ -368,12 +360,7 @@ fn track_peaks_from_stats(task: &mut Task, positions_len: usize, memo_len: usize
     }
 }
 
-fn emit_trajectory_row(
-    log: &Mutex<File>,
-    cond_hash: &str,
-    seed_index: usize,
-    record: &StepRecord,
-) {
+fn emit_trajectory_row(log: &Mutex<File>, cond_hash: &str, seed_index: usize, record: &StepRecord) {
     let mut file = log.lock().unwrap();
     let _ = writeln!(
         file,
@@ -388,7 +375,11 @@ fn emit_trajectory_row(
     );
 }
 
-fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>) -> anyhow::Result<()> {
+fn finalize_task(
+    task: &mut Task,
+    reason: TerminationReason,
+    ctx: &WorkerCtx<'_>,
+) -> anyhow::Result<()> {
     // Push observed peaks to capture state at termination, in case the last
     // advance bumped them.
     let post_stats = match &task.state {
@@ -434,7 +425,10 @@ fn finalize_task(task: &mut Task, reason: TerminationReason, ctx: &WorkerCtx<'_>
             Some((task.best_piece_count, verified))
         }
     } else {
-        Some((task.best_piece_count, std::mem::take(&mut task.best_positions)))
+        Some((
+            task.best_piece_count,
+            std::mem::take(&mut task.best_positions),
+        ))
     };
 
     // Update global best.
@@ -598,4 +592,3 @@ pub(super) fn run_with_oracle(
 
     Ok(best.into_inner().unwrap())
 }
-

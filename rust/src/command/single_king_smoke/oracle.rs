@@ -88,14 +88,11 @@ fn compute_features(history: &[StepRecord], names: &[String]) -> Vec<f64> {
 
     let deltas_f: Vec<f64> = (1..history.len())
         .map(|i| {
-            (history[i].frontier.max(1) as f64).ln()
-                - (history[i - 1].frontier.max(1) as f64).ln()
+            (history[i].frontier.max(1) as f64).ln() - (history[i - 1].frontier.max(1) as f64).ln()
         })
         .collect();
     let deltas_m: Vec<f64> = (1..history.len())
-        .map(|i| {
-            (history[i].memo.max(1) as f64).ln() - (history[i - 1].memo.max(1) as f64).ln()
-        })
+        .map(|i| (history[i].memo.max(1) as f64).ln() - (history[i - 1].memo.max(1) as f64).ln())
         .collect();
 
     let back = |seq: &[f64], idx: usize| -> f64 {
@@ -132,7 +129,10 @@ fn compute_features(history: &[StepRecord], names: &[String]) -> Vec<f64> {
             .iter()
             .map(|r| (r.frontier.max(1) as f64).ln())
             .collect();
-        let ys_m: Vec<f64> = history.iter().map(|r| (r.memo.max(1) as f64).ln()).collect();
+        let ys_m: Vec<f64> = history
+            .iter()
+            .map(|r| (r.memo.max(1) as f64).ln())
+            .collect();
         (linear_slope(&xs, &ys_f), linear_slope(&xs, &ys_m))
     } else {
         (0.0, 0.0)

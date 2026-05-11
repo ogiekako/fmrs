@@ -63,8 +63,8 @@ pub(super) fn ideal_backward(
     // the full population when canonicalize is on).
     let raw_enumerated: Vec<(usize, PositionAux)> = if let Some(sfen_like) = seed_sfen {
         let sfen = super::super::parse_to_sfen(&sfen_like)?;
-        let position = PositionAux::from_sfen(&sfen)
-            .with_context(|| format!("invalid seed sfen: {sfen}"))?;
+        let position =
+            PositionAux::from_sfen(&sfen).with_context(|| format!("invalid seed sfen: {sfen}"))?;
         vec![(0, position)]
     } else {
         enumerate_final_2_positions(parallel, constraints)?
@@ -132,7 +132,11 @@ pub(super) fn ideal_backward(
             } else {
                 total_seed_count as f64 / grouped_seeds.len() as f64
             },
-            grouped_seeds.iter().map(|(_, g)| g.len()).max().unwrap_or(0)
+            grouped_seeds
+                .iter()
+                .map(|(_, g)| g.len())
+                .max()
+                .unwrap_or(0)
         );
     }
     let mut grouped_seeds = grouped_seeds;
@@ -200,9 +204,8 @@ pub(super) fn ideal_backward(
         if beam.width.is_some() {
             bail!("--oracle-model is incompatible with --beam-width (use one or the other)");
         }
-        let oracle = OracleModel::load(&oracle_path).with_context(|| {
-            format!("loading oracle model from {}", oracle_path.display())
-        })?;
+        let oracle = OracleModel::load(&oracle_path)
+            .with_context(|| format!("loading oracle model from {}", oracle_path.display()))?;
         eprintln!(
             "oracle: loaded {} ({} features) from {}",
             oracle.model_type,
@@ -302,10 +305,7 @@ pub(super) fn ideal_backward(
                 // 自身が target_max に到達した seed は EarlyExit でも保存する。
                 let early_exited_partial = result.stats.termination_reason
                     == TerminationReason::EarlyExit
-                    && result
-                        .best
-                        .as_ref()
-                        .is_none_or(|(pc, _)| *pc < target_max);
+                    && result.best.as_ref().is_none_or(|(pc, _)| *pc < target_max);
                 if beam.width.is_none() && !early_exited_partial {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),

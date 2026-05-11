@@ -80,7 +80,15 @@ pub fn canonicalize_attacker_goldish(position: &mut PositionAux) {
     }
 
     // Slow path: Pawn 不足、square 順に Phase A → Phase B 切替。
-    canonicalize_slow(position, combined, bb_gold, bb_prolance, bb_proknight, pawn_avail, k);
+    canonicalize_slow(
+        position,
+        combined,
+        bb_gold,
+        bb_prolance,
+        bb_proknight,
+        pawn_avail,
+        k,
+    );
 }
 
 #[cold]
@@ -249,8 +257,16 @@ mod tests {
             Some((crate::piece::Color::BLACK, crate::piece::Kind::ProPawn))
         );
         // 白手駒: Gold 4, Pawn 16 (17 - 1)。
-        assert_eq!(p.hands().count(crate::piece::Color::WHITE, crate::piece::Kind::Gold), 4);
-        assert_eq!(p.hands().count(crate::piece::Color::WHITE, crate::piece::Kind::Pawn), 16);
+        assert_eq!(
+            p.hands()
+                .count(crate::piece::Color::WHITE, crate::piece::Kind::Gold),
+            4
+        );
+        assert_eq!(
+            p.hands()
+                .count(crate::piece::Color::WHITE, crate::piece::Kind::Pawn),
+            16
+        );
     }
 
     #[test]
@@ -271,8 +287,16 @@ mod tests {
             p.get(crate::position::Square::S99),
             Some((crate::piece::Color::BLACK, crate::piece::Kind::ProLance))
         );
-        assert_eq!(p.hands().count(crate::piece::Color::WHITE, crate::piece::Kind::Gold), 4);
-        assert_eq!(p.hands().count(crate::piece::Color::WHITE, crate::piece::Kind::Lance), 3);
+        assert_eq!(
+            p.hands()
+                .count(crate::piece::Color::WHITE, crate::piece::Kind::Gold),
+            4
+        );
+        assert_eq!(
+            p.hands()
+                .count(crate::piece::Color::WHITE, crate::piece::Kind::Lance),
+            3
+        );
     }
 
     #[test]
@@ -327,7 +351,10 @@ mod tests {
         let before_black_silver = p.hands().count(Color::BLACK, Kind::Silver);
         canonicalize_attacker_goldish(&mut p);
         assert_eq!(p.hands().count(Color::BLACK, Kind::Gold), before_black_gold);
-        assert_eq!(p.hands().count(Color::BLACK, Kind::Silver), before_black_silver);
+        assert_eq!(
+            p.hands().count(Color::BLACK, Kind::Silver),
+            before_black_silver
+        );
     }
 
     #[test]
@@ -346,15 +373,27 @@ mod tests {
         use crate::piece::{Color, Kind};
         let s = "9/9/9/9/9/9/6+L+L+S/5L2S/6kSL b 2r2b4gs4n18p 1";
         let mut p = PositionAux::from_sfen(s).unwrap();
-        let totals_before: Vec<usize> = [Kind::Pawn, Kind::Lance, Kind::Knight, Kind::Silver, Kind::Gold]
-            .iter()
-            .map(|&k| total_kind_count(&p, k))
-            .collect();
+        let totals_before: Vec<usize> = [
+            Kind::Pawn,
+            Kind::Lance,
+            Kind::Knight,
+            Kind::Silver,
+            Kind::Gold,
+        ]
+        .iter()
+        .map(|&k| total_kind_count(&p, k))
+        .collect();
         canonicalize_attacker_goldish(&mut p);
-        let totals_after: Vec<usize> = [Kind::Pawn, Kind::Lance, Kind::Knight, Kind::Silver, Kind::Gold]
-            .iter()
-            .map(|&k| total_kind_count(&p, k))
-            .collect();
+        let totals_after: Vec<usize> = [
+            Kind::Pawn,
+            Kind::Lance,
+            Kind::Knight,
+            Kind::Silver,
+            Kind::Gold,
+        ]
+        .iter()
+        .map(|&k| total_kind_count(&p, k))
+        .collect();
         assert_eq!(totals_before, totals_after);
         // 黒の goldish は ProPawn のみ (canonicalize 後)。
         for sq in crate::position::Square::iter() {
@@ -373,11 +412,7 @@ mod tests {
         use crate::piece::{Color, Kind};
         let on_board = |target: Kind| -> usize {
             crate::position::Square::iter()
-                .filter(|&sq| {
-                    p.get(sq)
-                        .map(|(_, kind)| kind == target)
-                        .unwrap_or(false)
-                })
+                .filter(|&sq| p.get(sq).map(|(_, kind)| kind == target).unwrap_or(false))
                 .count()
         };
         match k {
@@ -434,7 +469,7 @@ mod tests {
             "8k/9/9/9/9/9/9/9/+P+P+P6 b 4r4b4g4s4n4l15p 1",
             "8k/9/9/9/9/9/9/9/G+S+N6 b 4r4b3g3s3n4l16p 1",
             "8k/9/9/9/9/9/G+S+N+L+SG3/+N+L+SG5/9 b 4r4b1gs2n2l13p 1",
-            "8k/9/9/9/9/9/9/9/G8 b 4r4b3g4s4n4l 1",          // Phase B (no pawn)
+            "8k/9/9/9/9/9/9/9/G8 b 4r4b3g4s4n4l 1", // Phase B (no pawn)
             "8k/9/9/9/9/9/9/9/GG+S6 b 4r4b2g3s4n4l16p 1",
             "8k/9/9/9/9/9/9/9/+S+NG6 b 4r4b3g3s3n4l16p 1",
             "9/9/9/9/9/9/6+L+L+S/5L2S/6kSL b 2r2b4gs4n18p 1",

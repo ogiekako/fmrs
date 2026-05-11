@@ -4,10 +4,7 @@ pub mod magics_generator;
 use crate::{
     piece::{Color, Kind},
     position::{
-        bitboard::{
-            bishop_power, lance_power, reachable, rook_power,
-            BitBoard,
-        },
+        bitboard::{bishop_power, lance_power, reachable, rook_power, BitBoard},
         position::PositionAux,
         Square,
     },
@@ -175,8 +172,7 @@ pub fn pinned_into(
 
     lance_pinned(position, king_color, blocker_color, res);
 
-    let bishop_attackers =
-        position.bishopish() & attacker_bb & bishop_power(king_pos);
+    let bishop_attackers = position.bishopish() & attacker_bb & bishop_power(king_pos);
     for attacker_pos in bishop_attackers {
         let between = bishop_between(king_pos, attacker_pos);
         check_line_pin(

@@ -237,10 +237,7 @@ pub fn decode_position(sfen: &str) -> anyhow::Result<PositionAux> {
 }
 
 pub fn sfen_to_image_url(sfen: &str) -> String {
-    format!(
-        "https://ogiekako.github.io/fmrs/{}",
-        sfen.replace(' ', "_")
-    )
+    format!("https://ogiekako.github.io/fmrs/{}", sfen.replace(' ', "_"))
 }
 
 pub fn from_image_url(url: &str) -> anyhow::Result<String> {

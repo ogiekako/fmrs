@@ -1,9 +1,6 @@
 use std::hash::Hash;
 
-use crate::{
-    piece::Kind,
-    sfen,
-};
+use crate::{piece::Kind, sfen};
 
 use super::Square;
 

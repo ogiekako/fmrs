@@ -268,7 +268,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & no_promotion_dest_cands {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, source_kind, dest, false, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            source_kind,
+                            dest,
+                            false,
+                            capture_kind,
+                        ),
                         source_kind,
                     )?;
                 }
@@ -279,7 +285,13 @@ impl<'a> Context<'a> {
                     for dest in attacker_reachable & dest_cands {
                         let capture_kind = self.position.get_kind(dest);
                         self.maybe_add_move(
-                            Movement::move_with_hint(attacker_pos, source_kind, dest, true, capture_kind),
+                            Movement::move_with_hint(
+                                attacker_pos,
+                                source_kind,
+                                dest,
+                                true,
+                                capture_kind,
+                            ),
                             source_kind,
                         )?;
                     }
@@ -306,7 +318,13 @@ impl<'a> Context<'a> {
             } else {
                 (
                     BitBoard::EMPTY,
-                    reachable(self.position, Color::WHITE, white_king_pos, Kind::ProBishop, true),
+                    reachable(
+                        self.position,
+                        Color::WHITE,
+                        white_king_pos,
+                        Kind::ProBishop,
+                        true,
+                    ),
                 )
             };
             let king_reach_pro_bishop_restricted =
@@ -325,7 +343,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & king_reach_bishop {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, Kind::Bishop, dest, false, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            Kind::Bishop,
+                            dest,
+                            false,
+                            capture_kind,
+                        ),
                         Kind::Bishop,
                     )?;
                 }
@@ -337,7 +361,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & promo_cands {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, Kind::Bishop, dest, true, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            Kind::Bishop,
+                            dest,
+                            true,
+                            capture_kind,
+                        ),
                         Kind::Bishop,
                     )?;
                 }
@@ -355,7 +385,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & king_reach_pro_bishop {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, Kind::ProBishop, dest, false, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            Kind::ProBishop,
+                            dest,
+                            false,
+                            capture_kind,
+                        ),
                         Kind::ProBishop,
                     )?;
                 }
@@ -375,7 +411,13 @@ impl<'a> Context<'a> {
             } else {
                 (
                     BitBoard::EMPTY,
-                    reachable(self.position, Color::WHITE, white_king_pos, Kind::ProRook, true),
+                    reachable(
+                        self.position,
+                        Color::WHITE,
+                        white_king_pos,
+                        Kind::ProRook,
+                        true,
+                    ),
                 )
             };
             let king_reach_pro_rook_restricted = king_reach_pro_rook & BitBoard::BLACK_PROMOTABLE;
@@ -393,7 +435,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & king_reach_rook {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, Kind::Rook, dest, false, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            Kind::Rook,
+                            dest,
+                            false,
+                            capture_kind,
+                        ),
                         Kind::Rook,
                     )?;
                 }
@@ -405,7 +453,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & promo_cands {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, Kind::Rook, dest, true, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            Kind::Rook,
+                            dest,
+                            true,
+                            capture_kind,
+                        ),
                         Kind::Rook,
                     )?;
                 }
@@ -423,7 +477,13 @@ impl<'a> Context<'a> {
                 for dest in attacker_reachable & king_reach_pro_rook {
                     let capture_kind = self.position.get_kind(dest);
                     self.maybe_add_move(
-                        Movement::move_with_hint(attacker_pos, Kind::ProRook, dest, false, capture_kind),
+                        Movement::move_with_hint(
+                            attacker_pos,
+                            Kind::ProRook,
+                            dest,
+                            false,
+                            capture_kind,
+                        ),
                         Kind::ProRook,
                     )?;
                 }
@@ -482,12 +542,8 @@ impl<'a> Context<'a> {
             }
 
             // 直接攻撃手で生成される dest を除外。
-            let direct_unpromoted = bitboard::reachable_sub(
-                self.position,
-                Color::WHITE,
-                white_king_pos,
-                blocker_kind,
-            );
+            let direct_unpromoted =
+                bitboard::reachable_sub(self.position, Color::WHITE, white_king_pos, blocker_kind);
             let pure_unpromoted = blocker_dest_cands.and_not(direct_unpromoted);
 
             let promoted_kind = blocker_kind.promote();

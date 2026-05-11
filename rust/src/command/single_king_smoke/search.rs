@@ -132,7 +132,9 @@ pub(super) fn search_single_seed(
                 BackwardSearch::from_resume_state(&cp.resume_state, 1).ok()
             }
         });
-        match resumed.or_else(|| BackwardSearch::new_with_parallel(representative, false, 1, false).ok()) {
+        match resumed
+            .or_else(|| BackwardSearch::new_with_parallel(representative, false, 1, false).ok())
+        {
             Some(s) => s,
             None => {
                 return Ok(SingleSeedResult {
@@ -158,7 +160,12 @@ pub(super) fn search_single_seed(
     let mut applied_memo_limit = max_memo_entries;
     search.set_delta_trace(mem_trace);
     search.set_canonicalize_attacker_goldish(canonicalize_attacker_goldish);
-    mt(mem_trace, seed_index, &search, format_args!("start resumed={}", checkpoint.is_some()));
+    mt(
+        mem_trace,
+        seed_index,
+        &search,
+        format_args!("start resumed={}", checkpoint.is_some()),
+    );
     let mut best_piece_count = 0u32;
     let mut best_positions: Vec<PositionAux> = vec![];
     if let Some(ref cp) = checkpoint {
@@ -245,10 +252,13 @@ pub(super) fn search_single_seed(
                     // しており、push されるのは単一の output_positions の filtered
                     // 結果のみ。output_positions は frontier (一意) に基づくので
                     // 重複は発生しない。
-                    debug_assert!({
-                        let mut seen = fmrs_core::nohash::NoHashSet64::default();
-                        best_positions.iter().all(|p| seen.insert(p.digest()))
-                    }, "best_positions has duplicates after improvement");
+                    debug_assert!(
+                        {
+                            let mut seen = fmrs_core::nohash::NoHashSet64::default();
+                            best_positions.iter().all(|p| seen.insert(p.digest()))
+                        },
+                        "best_positions has duplicates after improvement"
+                    );
                 }
                 let positions_increased = best_positions.len() > prev_positions_len;
                 if (improved || positions_increased) && best_piece_count >= 8 {
@@ -342,8 +352,7 @@ pub(super) fn search_single_seed(
             .max(1);
         let dynamic_inner = (parallel / remaining).max(1);
         let frontier = search.stats().positions_len;
-        let use_inner_parallel =
-            dynamic_inner > 1 && frontier >= FRONTIER_PARALLEL_THRESHOLD;
+        let use_inner_parallel = dynamic_inner > 1 && frontier >= FRONTIER_PARALLEL_THRESHOLD;
         search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
         // Dynamic memo budget: as `remaining` drops, the surviving seed gets
         // a larger share of the total memo budget. Only grow (never shrink)

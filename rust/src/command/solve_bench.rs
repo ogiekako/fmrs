@@ -23,9 +23,7 @@ pub fn solve_bench(files: Vec<String>, n: usize) -> anyhow::Result<()> {
         let steps = solution.len();
 
         if steps < n {
-            anyhow::bail!(
-                "{file}: solution has only {steps} steps, cannot go {n} before mate"
-            );
+            anyhow::bail!("{file}: solution has only {steps} steps, cannot go {n} before mate");
         }
 
         let replay_count = steps - n;

@@ -126,25 +126,40 @@ struct FlatShardInner {
     capacity_threshold: usize,
 }
 
-/// Slice backed by an anonymous `mmap` allocation.
+/// Slice backed by an anonymous `mmap` allocation on Unix targets.
 ///
 /// Guarantees 2 MiB virtual-address alignment so the kernel can satisfy
 /// `MADV_HUGEPAGE` at fault time (one 2 MiB huge page per block, never split
 /// across NUMA nodes), while `mbind(MPOL_INTERLEAVE)` distributes those huge
 /// pages across NUMA nodes for balanced bandwidth on multi-socket machines.
+///
+/// Non-Unix targets such as `wasm32-unknown-unknown` fall back to the global
+/// allocator because `libc::mmap` is not available there.
 struct MmapSlice<T> {
     ptr: NonNull<T>,
     len: usize,
+    #[cfg(target_family = "unix")]
     mmap_size: usize, // rounded-up byte length passed to mmap / munmap
 }
 
 unsafe impl<T: Send> Send for MmapSlice<T> {}
 unsafe impl<T: Sync> Sync for MmapSlice<T> {}
 
+#[cfg(target_family = "unix")]
 impl<T> Drop for MmapSlice<T> {
     fn drop(&mut self) {
         unsafe {
             libc::munmap(self.ptr.as_ptr().cast(), self.mmap_size);
+        }
+    }
+}
+
+#[cfg(not(target_family = "unix"))]
+impl<T> Drop for MmapSlice<T> {
+    fn drop(&mut self) {
+        unsafe {
+            let layout = std::alloc::Layout::array::<T>(self.len).unwrap();
+            std::alloc::dealloc(self.ptr.as_ptr() as *mut u8, layout);
         }
     }
 }
@@ -173,9 +188,14 @@ fn shard_index(key: u64) -> usize {
 }
 
 fn alloc_slot_arrays(size: usize) -> (MmapSlice<u64>, MmapSlice<u32>) {
-    (alloc_zeroed_slice::<u64>(size), alloc_zeroed_slice::<u32>(size))
+    (
+        alloc_zeroed_slice::<u64>(size),
+        alloc_zeroed_slice::<u32>(size),
+    )
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_family = "unix")]
 fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
     debug_assert!(len > 0);
     debug_assert!(len.is_power_of_two());
@@ -197,9 +217,7 @@ fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
             0,
         );
         if raw == libc::MAP_FAILED {
-            std::alloc::handle_alloc_error(
-                std::alloc::Layout::array::<T>(len).unwrap(),
-            );
+            std::alloc::handle_alloc_error(std::alloc::Layout::array::<T>(len).unwrap());
         }
 
         // Trim to a 2 MiB-aligned region of exactly mmap_size bytes.
@@ -242,7 +260,29 @@ fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
             }
         }
 
-        MmapSlice { ptr: NonNull::new_unchecked(ptr), len, mmap_size }
+        MmapSlice {
+            ptr: NonNull::new_unchecked(ptr),
+            len,
+            mmap_size,
+        }
+    }
+}
+
+#[cfg(not(target_family = "unix"))]
+fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
+    debug_assert!(len > 0);
+    debug_assert!(len.is_power_of_two());
+
+    let layout = std::alloc::Layout::array::<T>(len).unwrap();
+    unsafe {
+        let ptr = std::alloc::alloc_zeroed(layout).cast::<T>();
+        if ptr.is_null() {
+            std::alloc::handle_alloc_error(layout);
+        }
+        MmapSlice {
+            ptr: NonNull::new_unchecked(ptr),
+            len,
+        }
     }
 }
 
@@ -291,7 +331,7 @@ impl ShardedFlatMemo {
         let key_ptr = unsafe { inner.keys.get_unchecked(idx) } as *const u64;
         #[cfg(target_arch = "x86_64")]
         unsafe {
-            use std::arch::x86_64::{_MM_HINT_T0, _mm_prefetch};
+            use std::arch::x86_64::{_mm_prefetch, _MM_HINT_T0};
             _mm_prefetch(key_ptr as *const i8, _MM_HINT_T0);
         }
         #[cfg(not(target_arch = "x86_64"))]
@@ -305,7 +345,11 @@ impl ShardedFlatMemo {
         }
         // SAFETY: &mut self ⇒ exclusive access.
         let idx = shard_index(key);
-        unsafe { self.shards.get_unchecked(idx).insert_unsynchronized(key, value) };
+        unsafe {
+            self.shards
+                .get_unchecked(idx)
+                .insert_unsynchronized(key, value)
+        };
     }
 
     /// SAFETY: caller must ensure no concurrent insert/remove targets the same
@@ -330,7 +374,10 @@ impl ShardedFlatMemo {
     }
 
     fn len(&self) -> usize {
-        self.shards.iter().map(|s| s.len.load(Ordering::Relaxed)).sum()
+        self.shards
+            .iter()
+            .map(|s| s.len.load(Ordering::Relaxed))
+            .sum()
     }
 
     #[allow(dead_code)]
@@ -412,7 +459,13 @@ impl Default for ShardedFlatMemo {
 /// * The table has at least one empty slot (otherwise this loops forever)
 /// * `keys` and `values` have the same length
 #[inline(always)]
-unsafe fn probe_insert_into_clear(keys: &mut [u64], values: &mut [u32], mask: usize, key: u64, packed: u32) {
+unsafe fn probe_insert_into_clear(
+    keys: &mut [u64],
+    values: &mut [u32],
+    mask: usize,
+    key: u64,
+    packed: u32,
+) {
     let mut idx = (key as usize) & mask;
     loop {
         let slot = unsafe { keys.get_unchecked_mut(idx) };
@@ -459,7 +512,15 @@ impl FlatShard {
             if k == FLAT_EMPTY_KEY {
                 continue;
             }
-            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, new_mask, k, old_values[i]) };
+            unsafe {
+                probe_insert_into_clear(
+                    &mut inner.keys,
+                    &mut inner.values,
+                    new_mask,
+                    k,
+                    old_values[i],
+                )
+            };
         }
     }
 
@@ -532,7 +593,15 @@ impl FlatShard {
             if k == FLAT_EMPTY_KEY {
                 continue;
             }
-            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, new_mask, k, old_values[i]) };
+            unsafe {
+                probe_insert_into_clear(
+                    &mut inner.keys,
+                    &mut inner.values,
+                    new_mask,
+                    k,
+                    old_values[i],
+                )
+            };
         }
     }
 
@@ -639,7 +708,9 @@ impl FlatShard {
         }
         let mask = inner.mask;
         for &(_, key, packed) in &entries[to_remove..] {
-            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, mask, key, packed) };
+            unsafe {
+                probe_insert_into_clear(&mut inner.keys, &mut inner.values, mask, key, packed)
+            };
         }
         self.len.store(entries.len() - to_remove, Ordering::Relaxed);
     }
@@ -660,7 +731,9 @@ impl FlatShard {
         let mask = inner.mask;
         for &(key, value) in kept {
             let packed = pack_step_range(value);
-            unsafe { probe_insert_into_clear(&mut inner.keys, &mut inner.values, mask, key, packed) };
+            unsafe {
+                probe_insert_into_clear(&mut inner.keys, &mut inner.values, mask, key, packed)
+            };
         }
         self.len.store(kept.len(), Ordering::Relaxed);
     }
@@ -704,8 +777,6 @@ fn merge_deltas_sharded(memo: &Memo, deltas: Vec<NoHashMap64<StepRange>>) {
     });
 }
 // ===== End ShardedFlatMemo =====
-
-
 
 pub fn backward_initial_variants(initial_position: &PositionAux) -> Vec<PositionAux> {
     let mut variants = Vec::with_capacity(2);
@@ -1076,10 +1147,7 @@ impl BackwardSearch {
     ///
     /// 互換性: 単一 seed の `new_with_parallel` とは memo 種が異なる (canonical vs
     /// raw)。canonical 系の checkpoint は別形式 (現状未対応)。
-    pub fn new_canonical_group(
-        seeds: &[PositionAux],
-        parallel: usize,
-    ) -> anyhow::Result<Self> {
+    pub fn new_canonical_group(seeds: &[PositionAux], parallel: usize) -> anyhow::Result<Self> {
         if seeds.is_empty() {
             bail!("new_canonical_group: empty seed list");
         }
@@ -1118,7 +1186,9 @@ impl BackwardSearch {
                 Some(s) if s == seed_step => {}
                 Some(s) => bail!(
                     "Step mismatch in canonical group: expected {} got {} for {}",
-                    s, seed_step, seed.sfen()
+                    s,
+                    seed_step,
+                    seed.sfen()
                 ),
             }
             positions.push(seed.core().clone());
@@ -1290,11 +1360,7 @@ impl BackwardSearch {
     pub fn resume_state_header(&self) -> BackwardSearchResumeState {
         BackwardSearchResumeState {
             initial_position_sfen: self.initial_position.sfen(),
-            remaining_solution_moves: self
-                .solution
-                .iter()
-                .map(crate::sfen::encode_move)
-                .collect(),
+            remaining_solution_moves: self.solution.iter().map(crate::sfen::encode_move).collect(),
             frontier_sfens: vec![],
             step: self.step,
             one_way: self.one_way,
@@ -1751,84 +1817,83 @@ impl BackwardSearch {
             let prev_memo_ref: &Memo = &prev_memo;
 
             let wave_start = std::time::Instant::now();
-            let wave_results: Vec<(Vec<Position>, NoHashMap64<StepRange>, NoHashMap64<StepRange>)> =
-                self.install_or_run(|| {
-                    wave.par_chunks(chunk_size)
-                        .map(|chunk| {
-                            // 初期 capacity を高めに取って rehash (memset 込み) を回避。
-                            // 4096 で数 KB の確保コストと引き換えに数回の rehash を skip。
-                            // 1024 / 4096 / 16384 を試した結果、4096 が sweet spot。
-                            let mut memo_delta = NoHashMap64::with_capacity_and_hasher(
-                                4096,
-                                Default::default(),
-                            );
-                            let mut prev_memo_delta = NoHashMap64::with_capacity_and_hasher(
-                                4096,
-                                Default::default(),
-                            );
-                            let mut prev_positions = vec![];
-                            let mut solution_scratch = vec![];
-                            let mut killers = Killers::new();
-                            let mut history = HistoryTable::new();
+            let wave_results: Vec<(
+                Vec<Position>,
+                NoHashMap64<StepRange>,
+                NoHashMap64<StepRange>,
+            )> = self.install_or_run(|| {
+                wave.par_chunks(chunk_size)
+                    .map(|chunk| {
+                        // 初期 capacity を高めに取って rehash (memset 込み) を回避。
+                        // 4096 で数 KB の確保コストと引き換えに数回の rehash を skip。
+                        // 1024 / 4096 / 16384 を試した結果、4096 が sweet spot。
+                        let mut memo_delta =
+                            NoHashMap64::with_capacity_and_hasher(4096, Default::default());
+                        let mut prev_memo_delta =
+                            NoHashMap64::with_capacity_and_hasher(4096, Default::default());
+                        let mut prev_positions = vec![];
+                        let mut solution_scratch = vec![];
+                        let mut killers = Killers::new();
+                        let mut history = HistoryTable::new();
 
-                            for core in chunk.iter() {
-                                let mut pp = PositionAux::new(core.clone(), stone);
-                                // smoke 用 canonicalize: hit を期待して digest 先取得、
-                                // miss 時のみ実 mutation して solutions に渡す。
-                                let pp_digest = if canonicalize {
-                                    crate::search::canonicalize::canonical_digest_for_smoke(&pp)
-                                } else {
-                                    pp.digest()
-                                };
-                                if let Some(ans) =
-                                    get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
-                                        .filter(|ans| !ans.needs_investigation(step + 1))
-                                {
-                                    if ans.is_uniquely(step + 1) {
-                                        prev_positions.push(core.clone());
-                                    }
-                                    continue;
-                                }
-
-                                let ans = if canonicalize {
-                                    let mut pp_canonical = pp.clone();
-                                    crate::search::canonicalize::canonicalize_attacker_goldish(
-                                        &mut pp_canonical,
-                                    );
-                                    debug_assert_eq!(pp_canonical.digest(), pp_digest);
-                                    solutions_overlay(
-                                        &mut pp_canonical,
-                                        prev_memo_ref,
-                                        &mut prev_memo_delta,
-                                        memo_ref,
-                                        &mut memo_delta,
-                                        step + 1,
-                                        &mut solution_scratch,
-                                        &mut killers,
-                                        &mut history,
-                                    )
-                                } else {
-                                    solutions_overlay(
-                                        &mut pp,
-                                        prev_memo_ref,
-                                        &mut prev_memo_delta,
-                                        memo_ref,
-                                        &mut memo_delta,
-                                        step + 1,
-                                        &mut solution_scratch,
-                                        &mut killers,
-                                        &mut history,
-                                    )
-                                };
+                        for core in chunk.iter() {
+                            let mut pp = PositionAux::new(core.clone(), stone);
+                            // smoke 用 canonicalize: hit を期待して digest 先取得、
+                            // miss 時のみ実 mutation して solutions に渡す。
+                            let pp_digest = if canonicalize {
+                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
+                            } else {
+                                pp.digest()
+                            };
+                            if let Some(ans) =
+                                get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
+                                    .filter(|ans| !ans.needs_investigation(step + 1))
+                            {
                                 if ans.is_uniquely(step + 1) {
                                     prev_positions.push(core.clone());
                                 }
+                                continue;
                             }
 
-                            (prev_positions, memo_delta, prev_memo_delta)
-                        })
-                        .collect()
-                });
+                            let ans = if canonicalize {
+                                let mut pp_canonical = pp.clone();
+                                crate::search::canonicalize::canonicalize_attacker_goldish(
+                                    &mut pp_canonical,
+                                );
+                                debug_assert_eq!(pp_canonical.digest(), pp_digest);
+                                solutions_overlay(
+                                    &mut pp_canonical,
+                                    prev_memo_ref,
+                                    &mut prev_memo_delta,
+                                    memo_ref,
+                                    &mut memo_delta,
+                                    step + 1,
+                                    &mut solution_scratch,
+                                    &mut killers,
+                                    &mut history,
+                                )
+                            } else {
+                                solutions_overlay(
+                                    &mut pp,
+                                    prev_memo_ref,
+                                    &mut prev_memo_delta,
+                                    memo_ref,
+                                    &mut memo_delta,
+                                    step + 1,
+                                    &mut solution_scratch,
+                                    &mut killers,
+                                    &mut history,
+                                )
+                            };
+                            if ans.is_uniquely(step + 1) {
+                                prev_positions.push(core.clone());
+                            }
+                        }
+
+                        (prev_positions, memo_delta, prev_memo_delta)
+                    })
+                    .collect()
+            });
             phase2_only_ms += wave_start.elapsed().as_millis();
 
             let mut wave_memo_deltas = Vec::with_capacity(wave_chunk_count);
@@ -2310,7 +2375,11 @@ fn solutions_inner(
     // alone prove non-uniqueness or a shorter mate. hit_mask records pass-1 hits.
     let mut hit_mask = [0u64; 2];
     for (i, m) in movements.iter().enumerate() {
-        let child_digest = if i < nchildren { child_digests[i] } else { position.moved_digest(m) };
+        let child_digest = if i < nchildren {
+            child_digests[i]
+        } else {
+            position.moved_digest(m)
+        };
         if let Some(child) = next_memo
             .get(child_digest)
             .filter(|a| !a.needs_investigation(mate_in - 1))
@@ -2433,7 +2502,6 @@ fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Opti
     delta.get(&digest).copied().or_else(|| base.get(digest))
 }
 
-
 /// Per-chunk killer move table indexed by mate_in.
 /// Records up to KILLER_COUNT recent moves that caused a cutoff at each mate_in
 /// level so pass-1 can try them first for subsequent calls. Persistent across
@@ -2508,9 +2576,7 @@ impl HistoryTable {
     #[inline(always)]
     fn score(&self, mate_in: u16, m: &Movement) -> u16 {
         let idx = movement_hist_idx(m);
-        self.counts
-            .get(mate_in as usize)
-            .map_or(0, |row| row[idx])
+        self.counts.get(mate_in as usize).map_or(0, |row| row[idx])
     }
 }
 
@@ -2940,7 +3006,6 @@ impl StepRange {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::{memo_retention_score, shrink_memo, Memo, StepRange};
@@ -3021,13 +3086,8 @@ mod tests {
         let sfen = "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1";
         let initial_position = PositionAux::from_sfen(sfen).unwrap();
 
-        let mut search = super::BackwardSearch::new_with_parallel(
-            &initial_position,
-            false,
-            2,
-            false,
-        )
-        .unwrap();
+        let mut search =
+            super::BackwardSearch::new_with_parallel(&initial_position, false, 2, false).unwrap();
 
         while search.advance().unwrap() {}
 
@@ -3043,12 +3103,9 @@ mod tests {
         // N-step seed でも構築でき step が解の長さに揃うことを保証する。
         //
         // 1-step seed: black to move, 7c の +P が 7b に動いて 7a の白玉を詰ます一手詰。
-        let seed = PositionAux::from_sfen(
-            "2k6/9/2+P6/9/9/9/9/2L6/9 b 2r2b4g4s4n3l17p 1",
-        )
-        .unwrap();
-        let search = super::BackwardSearch::new_canonical_group(std::slice::from_ref(&seed), 1)
-            .unwrap();
+        let seed = PositionAux::from_sfen("2k6/9/2+P6/9/9/9/9/2L6/9 b 2r2b4g4s4n3l17p 1").unwrap();
+        let search =
+            super::BackwardSearch::new_canonical_group(std::slice::from_ref(&seed), 1).unwrap();
         assert_eq!(search.step(), 1, "step should equal solution length");
         let stats = search.stats();
         assert_eq!(stats.positions_len, 1, "frontier should contain the seed");
@@ -3058,10 +3115,7 @@ mod tests {
         assert!(stats.prev_memo_len >= 1);
 
         // 0-step seed もこれまで通り受理されること (既存挙動の確認)。
-        let mated_seed = PositionAux::from_sfen(
-            "9/9/9/9/9/6OOO/6O1k/6OO+P/8P w - 1",
-        )
-        .unwrap();
+        let mated_seed = PositionAux::from_sfen("9/9/9/9/9/6OOO/6O1k/6OO+P/8P w - 1").unwrap();
         let mated_search =
             super::BackwardSearch::new_canonical_group(std::slice::from_ref(&mated_seed), 1)
                 .unwrap();
@@ -3075,21 +3129,16 @@ mod tests {
         // search. The reconstructed run should reach the same terminal step as
         // a fresh full run (memo loss only causes redundant work, not a
         // different terminus).
-        let seed = PositionAux::from_sfen(
-            "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1",
-        )
-        .unwrap();
+        let seed = PositionAux::from_sfen("9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1").unwrap();
         let seeds = std::slice::from_ref(&seed);
 
         // Reference: fresh full run.
-        let mut reference =
-            super::BackwardSearch::new_canonical_group(seeds, 1).unwrap();
+        let mut reference = super::BackwardSearch::new_canonical_group(seeds, 1).unwrap();
         while reference.advance().unwrap() {}
         let reference_step = reference.step();
 
         // Run a few steps, then snapshot.
-        let mut staged =
-            super::BackwardSearch::new_canonical_group(seeds, 1).unwrap();
+        let mut staged = super::BackwardSearch::new_canonical_group(seeds, 1).unwrap();
         for _ in 0..2 {
             if !staged.advance().unwrap() {
                 break;
@@ -3099,12 +3148,9 @@ mod tests {
         let snapshot_frontier_len = staged.stats().positions_len;
         let resume_state = staged.resume_state();
 
-        let mut resumed = super::BackwardSearch::from_resume_state_canonical_group(
-            &resume_state,
-            seeds,
-            1,
-        )
-        .unwrap();
+        let mut resumed =
+            super::BackwardSearch::from_resume_state_canonical_group(&resume_state, seeds, 1)
+                .unwrap();
         assert_eq!(resumed.step(), snapshot_step);
         assert_eq!(resumed.stats().positions_len, snapshot_frontier_len);
         assert!(resumed.canonicalize_attacker_goldish);
@@ -3115,14 +3161,9 @@ mod tests {
 
     #[test]
     fn from_resume_state_canonical_group_rejects_seed_mismatch() {
-        let seed_a = PositionAux::from_sfen(
-            "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1",
-        )
-        .unwrap();
-        let seed_b = PositionAux::from_sfen(
-            "2k6/9/2+P6/9/9/9/9/2L6/9 b 2r2b4g4s4n3l17p 1",
-        )
-        .unwrap();
+        let seed_a = PositionAux::from_sfen("9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1").unwrap();
+        let seed_b =
+            PositionAux::from_sfen("2k6/9/2+P6/9/9/9/9/2L6/9 b 2r2b4g4s4n3l17p 1").unwrap();
         let search =
             super::BackwardSearch::new_canonical_group(std::slice::from_ref(&seed_a), 1).unwrap();
         let state = search.resume_state();

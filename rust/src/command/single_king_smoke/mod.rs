@@ -166,7 +166,10 @@ pub enum SingleKingSmokeCommand {
     #[command(name = "train-model")]
     TrainModel {
         /// Seed result log (jsonl).
-        #[arg(long, default_value = "target/single-king-smoke-ideal-backward-seeds.jsonl")]
+        #[arg(
+            long,
+            default_value = "target/single-king-smoke-ideal-backward-seeds.jsonl"
+        )]
         seed_result_log: PathBuf,
         /// Output model JSON path.
         #[arg(long, short = 'o', default_value = "models/beam_model.json")]

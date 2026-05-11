@@ -62,8 +62,10 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
             let mut indices: Vec<usize> = (0..n).collect();
             let mut rng = SmallRng::from_entropy();
             indices.partial_shuffle(&mut rng, width);
-            let kept: Vec<Position> =
-                indices[..width].iter().map(|&i| positions[i].clone()).collect();
+            let kept: Vec<Position> = indices[..width]
+                .iter()
+                .map(|&i| positions[i].clone())
+                .collect();
             search.replace_positions(kept);
         }
         scorer => {
@@ -83,8 +85,7 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
             scored.select_nth_unstable_by(width - 1, |a, b| {
                 b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
             });
-            let truncated: Vec<Position> =
-                scored.into_iter().take(width).map(|(_, p)| p).collect();
+            let truncated: Vec<Position> = scored.into_iter().take(width).map(|(_, p)| p).collect();
             search.replace_positions(truncated);
         }
     }

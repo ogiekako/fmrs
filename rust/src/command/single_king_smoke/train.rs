@@ -140,8 +140,7 @@ pub(super) fn train_model(
     let names = feature_names();
     let csv_path = model_out.with_extension("csv");
     let mut writer = std::io::BufWriter::new(
-        fs::File::create(&csv_path)
-            .with_context(|| format!("create {}", csv_path.display()))?,
+        fs::File::create(&csv_path).with_context(|| format!("create {}", csv_path.display()))?,
     );
     write!(writer, "seed_index,step,label")?;
     for n in names.iter() {
