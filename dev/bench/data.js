@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778482287291,
+  "lastUpdate": 1778482288998,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37763,6 +37763,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 37036,
             "range": "± 5",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "853b7c40dfcea4d71dfe477aa7a52adeab565e07",
+          "message": "perf(smoke): チェックポイント書き込みを時間ベースで間引き、軌跡ログをバッファ化\n\n- --checkpoint-interval-secs (default 60) を追加。96 並列で毎ステップ書いて\n  いた I/O を ~60× 削減し、大フロンティア時のディスク枯渇を防ぐ。\n- write_seed_checkpoint の tmp ファイルをディスク満杯時に確実に削除。\n  書き込み途中で失敗した .json.tmp が残留しディスクを圧迫するバグを修正。\n- 軌跡ログの書き込みを seed 完了時に 1 回のロック取得でまとめて flush し、\n  毎ステップの Mutex 競合を排除。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T06:30:33Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/853b7c40dfcea4d71dfe477aa7a52adeab565e07"
+        },
+        "date": 1778482288665,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 414,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2722,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 421,
+            "range": "± 620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25926,
+            "range": "± 356",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1697,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4721,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1330086,
+            "range": "± 95",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11721,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 178,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 106,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 50,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 148,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19339196,
+            "range": "± 109342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26152,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3238,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16686,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 32257,
+            "range": "± 2",
             "unit": "ns/iter"
           }
         ]
