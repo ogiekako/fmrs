@@ -2,7 +2,10 @@ use std::{
     cell::UnsafeCell,
     ops::Range,
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    },
 };
 
 use anyhow::bail;
@@ -1704,16 +1707,36 @@ impl BackwardSearch {
         let position_parallel = self.parallel.min(self.positions.len());
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
 
-        // Phase 1: generate candidates in parallel (with filters)
-        // Each chunk deduplicates locally; cross-chunk dedup follows after merge.
+        // Phase 1: generate candidates in parallel (with filters).
+        //
+        // Sharded shared dedup: candidates are routed by digest shard to one of
+        // NUM_SHARDS shared buckets, each guarded by its own Mutex. Each chunk
+        // thread accumulates per-shard locals lock-free, then batch-merges into
+        // the shared buckets at chunk end (cross-chunk dedup happens inside the
+        // lock). This replaces the older "collect Vec<Vec<Position>>, extend
+        // into a single Vec, then global retain" pattern, which materialized
+        // every chunk-local-dedupped candidate (~75% later dropped by global
+        // dedup) and contributed ~10–20 GB of transient RSS at deep steps.
+        //
+        // Peak memory is now bounded by (per-thread chunk output) + (final
+        // unique candidates), not by total raw candidates.
         let positions = &self.positions;
-        let candidate_chunks = self.install_or_run(|| {
+        let dedup_count = AtomicUsize::new(0);
+        let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
+            .map(|_| Mutex::new((NoHashSet64::default(), Vec::new())))
+            .collect();
+
+        self.install_or_run(|| {
             positions
                 .par_chunks(position_chunk_size)
-                .map(|chunk| {
+                .enumerate()
+                .for_each(|(chunk_idx, chunk)| {
                     let mut undo_moves = vec![];
-                    let mut candidates = vec![];
-                    let mut chunk_seen: NoHashSet64 = Default::default();
+                    let mut local_seens: [NoHashSet64; NUM_SHARDS] =
+                        std::array::from_fn(|_| NoHashSet64::default());
+                    let mut local_outs: [Vec<Position>; NUM_SHARDS] =
+                        std::array::from_fn(|_| Vec::new());
+                    let mut chunk_dedup = 0usize;
 
                     for core in chunk.iter() {
                         let mut position = PositionAux::new(core.clone(), stone);
@@ -1735,31 +1758,55 @@ impl BackwardSearch {
                             if !filter(pp.core(), stone) {
                                 continue;
                             }
-                            if chunk_seen.insert(pp.core().digest()) {
-                                candidates.push(pp.core().clone());
+                            let digest = pp.core().digest();
+                            let shard_idx = shard_index(digest);
+                            if local_seens[shard_idx].insert(digest) {
+                                local_outs[shard_idx].push(pp.core().clone());
+                                chunk_dedup += 1;
                             }
                         }
                     }
+                    dedup_count.fetch_add(chunk_dedup, Ordering::Relaxed);
 
-                    candidates
-                })
-                .collect::<Vec<_>>()
+                    // Release per-thread chunk-local seen sets before taking
+                    // shared shard locks.
+                    drop(local_seens);
+
+                    // Stagger shard visit order to spread lock contention.
+                    let stagger = chunk_idx % NUM_SHARDS;
+                    for i in 0..NUM_SHARDS {
+                        let shard_idx = (i + stagger) % NUM_SHARDS;
+                        let local = std::mem::take(&mut local_outs[shard_idx]);
+                        if local.is_empty() {
+                            continue;
+                        }
+                        let mut guard = shard_buckets[shard_idx].lock().unwrap();
+                        let (seen, out) = &mut *guard;
+                        out.reserve(local.len());
+                        for pos in local {
+                            if seen.insert(pos.digest()) {
+                                out.push(pos);
+                            }
+                        }
+                    }
+                });
         });
-        let candidate_len = candidate_chunks.iter().map(Vec::len).sum::<usize>();
-        let mut candidates = Vec::with_capacity(candidate_len);
-        for chunk in candidate_chunks {
-            candidates.extend(chunk);
+
+        let candidate_len = dedup_count.into_inner();
+
+        let total_unique: usize = shard_buckets
+            .iter()
+            .map(|m| m.lock().unwrap().1.len())
+            .sum();
+        let mut candidates = Vec::with_capacity(total_unique);
+        for bucket in shard_buckets {
+            let (_, out) = bucket.into_inner().unwrap();
+            candidates.extend(out);
         }
 
         if candidates.is_empty() {
             return Ok(false);
         }
-
-        // Deduplicate candidates: same predecessor can be generated from multiple
-        // frontier positions. Without dedup, duplicate positions accumulate across
-        // parallel chunks and waves, causing exponential frontier growth.
-        let mut seen_digests = NoHashSet64::default();
-        candidates.retain(|core| seen_digests.insert(core.digest()));
 
         // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
@@ -3092,6 +3139,113 @@ mod tests {
         while search.advance().unwrap() {}
 
         assert!(search.step() > 0);
+    }
+
+    /// Sharded Phase 1 (advance_parallel_filtered) と sequential path
+    /// (advance_upto) が同じ frontier に到達することを各 step で確認する。
+    /// 直前の "Vec<Vec<Position>> + global retain" → sharded shared dedup へ
+    /// の置き換えで、digest 分割や cross-chunk dedup の欠落、shard 単位の
+    /// 取りこぼしが起きないことを保証する。
+    #[test]
+    fn advance_parallel_filtered_matches_sequential_each_step() {
+        let sfen = "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1";
+        let initial_position = PositionAux::from_sfen(sfen).unwrap();
+
+        let mut seq =
+            super::BackwardSearch::new_with_parallel(&initial_position, false, 1, false).unwrap();
+        let mut par =
+            super::BackwardSearch::new_with_parallel(&initial_position, false, 4, false).unwrap();
+
+        loop {
+            let seq_advanced = seq.advance().unwrap();
+            let par_advanced = par.advance().unwrap();
+            assert_eq!(
+                seq_advanced, par_advanced,
+                "advance() return differs at step {}",
+                seq.step()
+            );
+            assert_eq!(seq.step(), par.step(), "step diverged");
+
+            let mut seq_pos: Vec<_> = seq.positions().1.to_vec();
+            let mut par_pos: Vec<_> = par.positions().1.to_vec();
+            assert_eq!(
+                seq_pos.len(),
+                par_pos.len(),
+                "frontier size diverged at step {} (seq={} par={})",
+                seq.step(),
+                seq_pos.len(),
+                par_pos.len(),
+            );
+            seq_pos.sort_by_key(|p| p.digest());
+            par_pos.sort_by_key(|p| p.digest());
+            assert_eq!(
+                seq_pos,
+                par_pos,
+                "frontier content diverged at step {}",
+                seq.step()
+            );
+
+            if !seq_advanced {
+                break;
+            }
+        }
+        assert!(seq.step() > 1, "needs a deep enough search to exercise dedup");
+    }
+
+    /// 各 step で frontier の digest がすべて unique であることを確認する。
+    /// Sharded Phase 1 の cross-chunk dedup が抜け落ちると同じ position が
+    /// 複数 shard 経由ではなく同じ shard 内で重複して残る可能性があるので
+    /// 直接の保証として欲しい。
+    #[test]
+    fn advance_parallel_filtered_frontier_is_unique() {
+        let sfen = "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1";
+        let initial_position = PositionAux::from_sfen(sfen).unwrap();
+        let mut search =
+            super::BackwardSearch::new_with_parallel(&initial_position, false, 4, false).unwrap();
+
+        while search.advance().unwrap() {
+            let positions = search.positions().1;
+            let original_len = positions.len();
+            let mut digests: Vec<u64> = positions.iter().map(|p| p.digest()).collect();
+            digests.sort_unstable();
+            digests.dedup();
+            assert_eq!(
+                digests.len(),
+                original_len,
+                "frontier has duplicates at step {}",
+                search.step()
+            );
+        }
+    }
+
+    /// Parallel 度を変えても最終 frontier が一致することを確認 (NUM_SHARDS
+    /// との相互作用を含む sharded 振り分けの不変性検証)。
+    #[test]
+    fn advance_parallel_filtered_invariant_under_parallelism() {
+        let sfen = "9/9/9/9/9/5OOOO/5OR1k/5O1p1/5O2P w - 1";
+        let initial_position = PositionAux::from_sfen(sfen).unwrap();
+
+        let run = |parallel: usize| -> (u16, Vec<super::Position>) {
+            let mut search =
+                super::BackwardSearch::new_with_parallel(&initial_position, false, parallel, false)
+                    .unwrap();
+            while search.advance().unwrap() {}
+            let mut positions = search.positions().1.to_vec();
+            positions.sort_by_key(|p| p.digest());
+            (search.step(), positions)
+        };
+
+        let (step1, pos1) = run(1);
+        let (step2, pos2) = run(2);
+        let (step4, pos4) = run(4);
+        let (step8, pos8) = run(8);
+
+        assert_eq!(step1, step2);
+        assert_eq!(step1, step4);
+        assert_eq!(step1, step8);
+        assert_eq!(pos1, pos2);
+        assert_eq!(pos1, pos4);
+        assert_eq!(pos1, pos8);
     }
 
     #[test]
