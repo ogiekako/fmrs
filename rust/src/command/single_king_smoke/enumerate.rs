@@ -3,6 +3,7 @@ use fmrs_core::{
     piece::{Color, Kind, KINDS},
     position::{
         advance::{advance::advance_aux, AdvanceOptions},
+        bitboard::rule::power,
         position::PositionAux,
         previous, Movement, Square,
     },
@@ -233,13 +234,28 @@ fn enumerate_miyako_4piece_double_king(
         return results;
     }
 
+    // Pruning: at least one piece (black king or either non-king piece) must
+    // give check to the white king.
     let pieces = miyako_piece_list(constraints);
     let n = pieces.len();
+    let attacker_sqs: Vec<Vec<Square>> = pieces
+        .iter()
+        .map(|&(c, k)| {
+            if c != Color::BLACK {
+                return vec![];
+            }
+            piece_squares(c, k)
+                .into_iter()
+                .filter(|&sq| black_attacks_sq(k, sq, white_king))
+                .collect()
+        })
+        .collect();
 
     for black_king in Square::iter() {
         if black_king == white_king || !square_in_bounds(black_king, constraints) {
             continue;
         }
+        let king_atk = black_attacks_sq(Kind::King, black_king, white_king);
         for i in 0..n {
             let (c1, k1) = pieces[i];
             let sqs1 = piece_squares(c1, k1);
@@ -247,10 +263,22 @@ fn enumerate_miyako_4piece_double_king(
                 if sq1 == white_king || sq1 == black_king || !square_in_bounds(sq1, constraints) {
                     continue;
                 }
+                let sq1_atk = c1 == Color::BLACK && black_attacks_sq(k1, sq1, white_king);
+                let king_or_sq1_atk = king_atk || sq1_atk;
                 for j in (i + 1)..n {
                     let (c2, k2) = pieces[j];
-                    let sqs2 = piece_squares(c2, k2);
-                    for &sq2 in &sqs2 {
+                    // If neither black king nor piece 1 gives check, piece 2 must be black.
+                    if !king_or_sq1_atk && c2 != Color::BLACK {
+                        continue;
+                    }
+                    let ps2_buf;
+                    let sqs2: &[Square] = if king_or_sq1_atk {
+                        ps2_buf = piece_squares(c2, k2);
+                        &ps2_buf
+                    } else {
+                        &attacker_sqs[j]
+                    };
+                    for &sq2 in sqs2 {
                         if sq2 == white_king
                             || sq2 == black_king
                             || sq2 == sq1
@@ -296,8 +324,26 @@ fn enumerate_miyako_4piece(
         return results;
     }
 
+    // Pruning: at least one piece must give check to the white king (i.e. be a
+    // black piece that attacks white_king on an empty board). White pieces can
+    // never check their own king, so they are skipped when needed.
     let pieces = miyako_piece_list(constraints);
     let n = pieces.len();
+    // Precompute per (kind, square): attacking squares for each black kind
+    // (used to restrict sq3 iteration when neither piece 1 nor 2 gives check).
+    let attacker_sqs: Vec<Vec<Square>> = pieces
+        .iter()
+        .map(|&(c, k)| {
+            if c != Color::BLACK {
+                return vec![];
+            }
+            piece_squares(c, k)
+                .into_iter()
+                .filter(|&sq| black_attacks_sq(k, sq, white_king))
+                .collect()
+        })
+        .collect();
+
     for i in 0..n {
         let (c1, k1) = pieces[i];
         let sqs1 = piece_squares(c1, k1);
@@ -305,6 +351,7 @@ fn enumerate_miyako_4piece(
             if sq1 == white_king || !square_in_bounds(sq1, constraints) {
                 continue;
             }
+            let sq1_atk = c1 == Color::BLACK && black_attacks_sq(k1, sq1, white_king);
             for j in (i + 1)..n {
                 let (c2, k2) = pieces[j];
                 let sqs2 = piece_squares(c2, k2);
@@ -322,10 +369,23 @@ fn enumerate_miyako_4piece(
                     {
                         continue;
                     }
+                    let sq2_atk = c2 == Color::BLACK && black_attacks_sq(k2, sq2, white_king);
+                    let first_two_atk = sq1_atk || sq2_atk;
                     for k in (j + 1)..n {
                         let (c3, k3) = pieces[k];
-                        let sqs3 = piece_squares(c3, k3);
-                        for &sq3 in &sqs3 {
+                        // If neither piece 1 nor 2 gives check, piece 3 must.
+                        // White pieces can never give check → skip them.
+                        if !first_two_atk && c3 != Color::BLACK {
+                            continue;
+                        }
+                        let ps3_buf;
+                        let sqs3: &[Square] = if first_two_atk {
+                            ps3_buf = piece_squares(c3, k3);
+                            &ps3_buf
+                        } else {
+                            &attacker_sqs[k]
+                        };
+                        for &sq3 in sqs3 {
                             if sq3 == white_king
                                 || sq3 == sq1
                                 || sq3 == sq2
@@ -358,6 +418,14 @@ fn enumerate_miyako_4piece(
         }
     }
     results
+}
+
+/// Returns true if a black piece of the given kind at `from` can attack `target`
+/// on an empty board. White pieces can never attack the white king, so they
+/// always return false. Used as a cheap pre-filter before `try_register_mate`.
+#[inline]
+fn black_attacks_sq(kind: Kind, from: Square, target: Square) -> bool {
+    power(Color::BLACK, from, kind).contains(target)
 }
 
 fn miyako_piece_list(constraints: SearchConstraints) -> Vec<(Color, Kind)> {
