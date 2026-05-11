@@ -152,11 +152,32 @@ fn alloc_zeroed_slice<T: Copy>(size: usize) -> Box<[T]> {
             std::alloc::handle_alloc_error(layout);
         }
         // Hint transparent huge pages — beneficial for multi-GB tables.
+        // Also request NUMA interleave so pages are spread across all NUMA nodes
+        // instead of landing on whichever node first-touches them. On a 2-socket
+        // machine (NUMA distance 10:20) cross-socket reads are ~2× slower; interleave
+        // halves the average penalty for random hash-table access patterns.
+        // nodemask = all-bits-set covers up to 64 nodes; mbind errors are ignored
+        // (single-node machines silently succeed; unusual kernels degrade gracefully).
         #[cfg(target_os = "linux")]
         {
             let bytes = layout.size();
             // ignore errors (kernel may not support, alignment may not match)
             let _ = libc::madvise(ptr.cast(), bytes, libc::MADV_HUGEPAGE);
+            // libc crate does not expose mbind(); call via raw syscall.
+            // SYS_mbind = 237 on x86_64; other arches use the same number.
+            #[cfg(target_arch = "x86_64")]
+            {
+                let nodemask: libc::c_ulong = !0;
+                let _ = libc::syscall(
+                    libc::SYS_mbind,
+                    ptr as *mut libc::c_void,
+                    bytes,
+                    libc::MPOL_INTERLEAVE as libc::c_long,
+                    &nodemask as *const libc::c_ulong,
+                    65usize, // maxnode: covers up to 64 NUMA nodes
+                    0u32,
+                );
+            }
         }
         Box::from_raw(std::slice::from_raw_parts_mut(ptr, size))
     }
