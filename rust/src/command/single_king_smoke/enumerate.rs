@@ -505,9 +505,19 @@ fn black_piece_can_stand_on(kind: Kind, sq: Square) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::super::super::smoke_constraints::{with_white_complement, SearchConstraints};
-    use super::enumerate_final_2_sfens;
-    use fmrs_core::position::position::PositionAux;
+    use super::super::super::smoke_constraints::{
+        parse_allowed_kinds, with_white_complement, SearchConstraints,
+    };
+    use super::{
+        black_attacks_sq, enumerate_final_2_sfens, enumerate_miyako_4piece,
+        enumerate_miyako_4piece_double_king, has_nifu, miyako_piece_list, piece_squares,
+        square_in_bounds, try_register_mate,
+    };
+    use fmrs_core::{
+        piece::{Color, Kind},
+        position::{position::PositionAux, Square},
+    };
+    use rustc_hash::FxHashSet;
 
     #[test]
     fn enumerate_final_2_contains_known_single_king_smoke_final() {
@@ -520,6 +530,216 @@ mod tests {
             )
             .sfen(),
             "6k1+R/4R4/9/9/9/9/9/9/9 w 2b4g4s4n4l18p 1"
+        );
+    }
+
+    // --- black_attacks_sq tests ---
+
+    #[test]
+    fn black_attacks_sq_rook() {
+        // Rook on same column attacks 5五
+        assert!(black_attacks_sq(Kind::Rook, Square::S51, Square::S55));
+        // Rook on same row attacks 5五
+        assert!(black_attacks_sq(Kind::Rook, Square::S15, Square::S55));
+        // Rook on different row AND column does NOT attack 5五
+        assert!(!black_attacks_sq(Kind::Rook, Square::S11, Square::S55));
+    }
+
+    #[test]
+    fn black_attacks_sq_bishop() {
+        // Bishop on diagonal (4四) attacks 5五
+        assert!(black_attacks_sq(Kind::Bishop, Square::S44, Square::S55));
+        // Bishop on diagonal (6六) attacks 5五
+        assert!(black_attacks_sq(Kind::Bishop, Square::S66, Square::S55));
+        // Bishop NOT on diagonal does NOT attack 5五
+        assert!(!black_attacks_sq(Kind::Bishop, Square::S45, Square::S55));
+    }
+
+    #[test]
+    fn black_attacks_sq_pawn() {
+        // Black pawn at 5六 attacks 5五 (one step forward for black)
+        assert!(black_attacks_sq(Kind::Pawn, Square::S56, Square::S55));
+        // Black pawn at 5四 moves away from 5五, does NOT attack it
+        assert!(!black_attacks_sq(Kind::Pawn, Square::S54, Square::S55));
+        // Black pawn at 6六 is on a different column
+        assert!(!black_attacks_sq(Kind::Pawn, Square::S66, Square::S55));
+    }
+
+    #[test]
+    fn black_attacks_sq_knight() {
+        // Black knight at 4七 attacks 5五 (±1 col, -2 rows: (3,6)→(4,4)=5五)
+        assert!(black_attacks_sq(Kind::Knight, Square::S47, Square::S55));
+        // Black knight at 6七 attacks 5五 (col 5+1=6, row 4+2=6: (5,6)→(4,4))
+        assert!(black_attacks_sq(Kind::Knight, Square::S67, Square::S55));
+        // Black knight at 5七 does NOT attack 5五
+        assert!(!black_attacks_sq(Kind::Knight, Square::S57, Square::S55));
+    }
+
+    // --- Pruning correctness: compare optimized vs naive for miyako ---
+
+    /// Naive (no pruning) reference implementation of enumerate_miyako_4piece.
+    fn enumerate_miyako_4piece_naive(
+        white_king: Square,
+        constraints: SearchConstraints,
+    ) -> FxHashSet<String> {
+        let mut results = FxHashSet::default();
+        let mut movements = Vec::new();
+        if !square_in_bounds(white_king, constraints) {
+            return results;
+        }
+        let pieces = miyako_piece_list(constraints);
+        let n = pieces.len();
+        for i in 0..n {
+            let (c1, k1) = pieces[i];
+            for &sq1 in &piece_squares(c1, k1) {
+                if sq1 == white_king || !square_in_bounds(sq1, constraints) {
+                    continue;
+                }
+                for j in (i + 1)..n {
+                    let (c2, k2) = pieces[j];
+                    for &sq2 in &piece_squares(c2, k2) {
+                        if sq2 == white_king || sq2 == sq1 || !square_in_bounds(sq2, constraints) {
+                            continue;
+                        }
+                        if pieces[i] == pieces[j] && sq2 <= sq1 {
+                            continue;
+                        }
+                        if c1 == c2
+                            && (k1 == Kind::Pawn || k1 == Kind::ProPawn)
+                            && (k2 == Kind::Pawn || k2 == Kind::ProPawn)
+                            && sq1.col() == sq2.col()
+                        {
+                            continue;
+                        }
+                        for k in (j + 1)..n {
+                            let (c3, k3) = pieces[k];
+                            for &sq3 in &piece_squares(c3, k3) {
+                                if sq3 == white_king
+                                    || sq3 == sq1
+                                    || sq3 == sq2
+                                    || !square_in_bounds(sq3, constraints)
+                                {
+                                    continue;
+                                }
+                                if pieces[j] == pieces[k] && sq3 <= sq2 {
+                                    continue;
+                                }
+                                if pieces[i] == pieces[k] && sq3 <= sq1 {
+                                    continue;
+                                }
+                                if has_nifu(c1, k1, sq1, c3, k3, sq3)
+                                    || has_nifu(c2, k2, sq2, c3, k3, sq3)
+                                {
+                                    continue;
+                                }
+                                try_register_mate(
+                                    white_king,
+                                    &[(c1, k1, sq1), (c2, k2, sq2), (c3, k3, sq3)],
+                                    constraints,
+                                    &mut movements,
+                                    &mut results,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    /// Naive reference for enumerate_miyako_4piece_double_king.
+    fn enumerate_miyako_4piece_double_king_naive(
+        white_king: Square,
+        constraints: SearchConstraints,
+    ) -> FxHashSet<String> {
+        let mut results = FxHashSet::default();
+        let mut movements = Vec::new();
+        if !square_in_bounds(white_king, constraints) {
+            return results;
+        }
+        let pieces = miyako_piece_list(constraints);
+        let n = pieces.len();
+        for black_king in Square::iter() {
+            if black_king == white_king || !square_in_bounds(black_king, constraints) {
+                continue;
+            }
+            for i in 0..n {
+                let (c1, k1) = pieces[i];
+                for &sq1 in &piece_squares(c1, k1) {
+                    if sq1 == white_king || sq1 == black_king || !square_in_bounds(sq1, constraints)
+                    {
+                        continue;
+                    }
+                    for j in (i + 1)..n {
+                        let (c2, k2) = pieces[j];
+                        for &sq2 in &piece_squares(c2, k2) {
+                            if sq2 == white_king
+                                || sq2 == black_king
+                                || sq2 == sq1
+                                || !square_in_bounds(sq2, constraints)
+                            {
+                                continue;
+                            }
+                            if pieces[i] == pieces[j] && sq2 <= sq1 {
+                                continue;
+                            }
+                            if has_nifu(c1, k1, sq1, c2, k2, sq2) {
+                                continue;
+                            }
+                            try_register_mate(
+                                white_king,
+                                &[
+                                    (Color::BLACK, Kind::King, black_king),
+                                    (c1, k1, sq1),
+                                    (c2, k2, sq2),
+                                ],
+                                constraints,
+                                &mut movements,
+                                &mut results,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        results
+    }
+
+    fn small_constraints() -> SearchConstraints {
+        // Restrict to Silver+Rook only to keep iteration count small (~ms).
+        let mask =
+            parse_allowed_kinds(&["silver".to_string(), "rook".to_string()]).unwrap();
+        SearchConstraints {
+            allowed_kinds_mask: Some(mask),
+            miyako: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn miyako_pruning_matches_naive() {
+        let constraints = small_constraints();
+        let optimized = enumerate_miyako_4piece(Square::S55, constraints);
+        let naive = enumerate_miyako_4piece_naive(Square::S55, constraints);
+        assert_eq!(
+            optimized, naive,
+            "pruned enumerate_miyako_4piece must produce identical results to naive"
+        );
+    }
+
+    #[test]
+    fn miyako_double_king_pruning_matches_naive() {
+        let constraints = SearchConstraints {
+            miyako: true,
+            double_king: true,
+            ..small_constraints()
+        };
+        let optimized = enumerate_miyako_4piece_double_king(Square::S55, constraints);
+        let naive = enumerate_miyako_4piece_double_king_naive(Square::S55, constraints);
+        assert_eq!(
+            optimized, naive,
+            "pruned enumerate_miyako_4piece_double_king must produce identical results to naive"
         );
     }
 }
