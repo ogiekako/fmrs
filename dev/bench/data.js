@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778483802728,
+  "lastUpdate": 1778484126542,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -39034,6 +39034,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/04cf69c8abf5b22abec085f2d4c049fc495461d4"
         },
         "date": 1778483797777,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50873,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124573,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121838,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 436439430,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "04cf69c8abf5b22abec085f2d4c049fc495461d4",
+          "message": "perf(memo): NUMA インターリーブで ShardedFlatMemo のクロスソケットレイテンシを削減\n\nalloc_zeroed_slice の madvise(MADV_HUGEPAGE) 直後に mbind(MPOL_INTERLEAVE) を追加。\n実行環境 (fmrs-spot-2: n2d-highmem-128, NUMA距離 10:20) で確認済み：\n- node 0 (cpus 0-31, 64-95) / node 1 (cpus 32-63, 96-127)\n- クロスノードアクセスはローカルの 2 倍遅い\n\nmbind が libc crate に未実装のため libc::syscall(SYS_mbind, ...) 経由で呼び出す。\nMPOL_INTERLEAVE でページをノード間ラウンドロビン配置し、数 GB 規模のハッシュ\nテーブルへのランダムアクセスにおけるクロスソケット penalty を平均半減させる。\nx86_64 Linux 以外ではコンパイル対象外; エラーはすべて無視 (degraded gracefully)。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T07:05:14Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/04cf69c8abf5b22abec085f2d4c049fc495461d4"
+        },
+        "date": 1778484123912,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
