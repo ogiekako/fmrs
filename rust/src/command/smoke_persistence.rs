@@ -6,7 +6,7 @@ use fmrs_core::{
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use super::smoke_constraints::SearchConstraints;
@@ -127,7 +127,7 @@ pub(super) fn write_seed_checkpoint(
         checkpoint.seed_index, key
     ));
     let result = (|| -> anyhow::Result<()> {
-        serde_json::to_writer(fs::File::create(&tmp_path)?, checkpoint)?;
+        serde_json::to_writer(BufWriter::new(fs::File::create(&tmp_path)?), checkpoint)?;
         fs::rename(&tmp_path, &path)?;
         Ok(())
     })();
@@ -149,7 +149,7 @@ pub(super) fn load_seed_checkpoint(
     let new_path =
         checkpoint_path(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
     if let Ok(file) = fs::File::open(&new_path) {
-        if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(file) {
+        if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(BufReader::new(file)) {
             if cp.seed_index == seed_index
                 && cp.seed_sfen == seed_sfen
                 && cp.max_frontier.is_none()
@@ -170,7 +170,7 @@ pub(super) fn load_seed_checkpoint(
     // new path so future loads stay fast.
     let legacy_path = checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}.json"));
     let file = fs::File::open(&legacy_path).ok()?;
-    let checkpoint: SeedCheckpoint = serde_json::from_reader(file).ok()?;
+    let checkpoint: SeedCheckpoint = serde_json::from_reader(BufReader::new(file)).ok()?;
     if checkpoint.seed_index == seed_index
         && checkpoint.seed_sfen == seed_sfen
         && checkpoint.max_step == max_step
@@ -264,9 +264,10 @@ pub(super) fn append_seed_result_record(
     file: &mut fs::File,
     record: SeedResultRecord,
 ) -> anyhow::Result<()> {
-    serde_json::to_writer(&mut *file, &record)?;
-    writeln!(file)?;
-    file.flush()?;
+    let mut buf = BufWriter::new(&mut *file);
+    serde_json::to_writer(&mut buf, &record)?;
+    writeln!(buf)?;
+    buf.flush()?;
     Ok(())
 }
 

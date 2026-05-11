@@ -4,6 +4,7 @@
 
 use anyhow::{bail, Context as _};
 use serde::Deserialize;
+use std::io::BufReader;
 use std::path::Path;
 
 /// One observed step in a seed's backward search trajectory.
@@ -33,7 +34,7 @@ impl OracleModel {
     pub(super) fn load(path: &Path) -> anyhow::Result<Self> {
         let file = std::fs::File::open(path)
             .with_context(|| format!("opening oracle model at {}", path.display()))?;
-        let model: OracleModel = serde_json::from_reader(file)
+        let model: OracleModel = serde_json::from_reader(BufReader::new(file))
             .with_context(|| format!("parsing oracle model at {}", path.display()))?;
         if model.model_type != "standardized_ridge_v1" {
             bail!(

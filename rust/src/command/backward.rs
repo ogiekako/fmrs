@@ -1,5 +1,6 @@
 use std::{
     fs,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -132,7 +133,7 @@ fn run_from_checkpoint(
     let file = fs::File::open(checkpoint_path)
         .with_context(|| format!("Failed to open checkpoint {}", checkpoint_path.display()))?;
     let checkpoint: BackwardCheckpointFile =
-        serde_json::from_reader(file).context("Failed to parse checkpoint")?;
+        serde_json::from_reader(BufReader::new(file)).context("Failed to parse checkpoint")?;
 
     if checkpoint.version != 1 {
         bail!("Unsupported checkpoint version {}", checkpoint.version);
