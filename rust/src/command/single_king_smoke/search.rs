@@ -88,7 +88,17 @@ pub(super) fn search_single_seed(
 
     let mut search = if canonicalize_attacker_goldish {
         let resumed = checkpoint.as_ref().and_then(|cp| {
-            BackwardSearch::from_resume_state_canonical_group(&cp.resume_state, seeds, 1).ok()
+            if !cp.frontier_bytes.is_empty() {
+                BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
+                    &cp.resume_state,
+                    &cp.frontier_bytes,
+                    seeds,
+                    1,
+                )
+                .ok()
+            } else {
+                BackwardSearch::from_resume_state_canonical_group(&cp.resume_state, seeds, 1).ok()
+            }
         });
         let result = match resumed {
             Some(s) => Ok(s),
@@ -110,11 +120,19 @@ pub(super) fn search_single_seed(
             }
         }
     } else {
-        match checkpoint
-            .as_ref()
-            .and_then(|cp| BackwardSearch::from_resume_state(&cp.resume_state, 1).ok())
-            .or_else(|| BackwardSearch::new_with_parallel(representative, false, 1, false).ok())
-        {
+        let resumed = checkpoint.as_ref().and_then(|cp| {
+            if !cp.frontier_bytes.is_empty() {
+                BackwardSearch::from_resume_state_with_frontier_bytes(
+                    &cp.resume_state,
+                    &cp.frontier_bytes,
+                    1,
+                )
+                .ok()
+            } else {
+                BackwardSearch::from_resume_state(&cp.resume_state, 1).ok()
+            }
+        });
+        match resumed.or_else(|| BackwardSearch::new_with_parallel(representative, false, 1, false).ok()) {
             Some(s) => s,
             None => {
                 return Ok(SingleSeedResult {
@@ -145,11 +163,17 @@ pub(super) fn search_single_seed(
     let mut best_positions: Vec<PositionAux> = vec![];
     if let Some(ref cp) = checkpoint {
         best_piece_count = cp.best_piece_count;
-        best_positions = cp
-            .best_sfens
-            .iter()
-            .filter_map(|sfen| PositionAux::from_sfen(sfen).ok())
-            .collect();
+        best_positions = if !cp.best_position_bytes.is_empty() {
+            cp.best_position_bytes
+                .chunks_exact(105)
+                .map(|chunk| PositionAux::from_bytes(chunk.try_into().unwrap()))
+                .collect()
+        } else {
+            cp.best_sfens
+                .iter()
+                .filter_map(|sfen| PositionAux::from_sfen(sfen).ok())
+                .collect()
+        };
     }
     let search_limit = max_step.map(|limit| {
         if limit % 2 == 0 {
@@ -386,10 +410,15 @@ pub(super) fn search_single_seed(
                         max_step,
                         max_frontier: None,
                         constraints,
-                        resume_state: search.resume_state(),
+                        resume_state: search.resume_state_header(),
                         best_piece_count,
-                        best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
+                        best_sfens: vec![],
                         canonicalize_attacker_goldish,
+                        frontier_bytes: search.frontier_to_binary(),
+                        best_position_bytes: best_positions
+                            .iter()
+                            .flat_map(|p| p.to_bytes())
+                            .collect(),
                     },
                 );
                 last_checkpoint_time = Some(Instant::now());

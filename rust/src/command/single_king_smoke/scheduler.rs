@@ -338,10 +338,16 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                 max_step: ctx.max_step,
                 max_frontier: None,
                 constraints: ctx.constraints,
-                resume_state: search.resume_state(),
+                resume_state: search.resume_state_header(),
                 best_piece_count: task.best_piece_count,
-                best_sfens: task.best_positions.iter().map(PositionAux::sfen).collect(),
+                best_sfens: vec![],
                 canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
+                frontier_bytes: search.frontier_to_binary(),
+                best_position_bytes: task
+                    .best_positions
+                    .iter()
+                    .flat_map(|p| p.to_bytes())
+                    .collect(),
             },
         );
         task.last_checkpoint_time = Some(Instant::now());

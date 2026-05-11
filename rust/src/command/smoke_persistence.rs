@@ -256,10 +256,7 @@ pub(super) fn load_seed_checkpoint(
     if let Ok(file) = fs::File::open(&json_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(BufReader::new(file)) {
             if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
-                // Migrate to binary and remove JSON.
-                if write_seed_checkpoint_bin(&bin_path, &cp).is_ok() {
-                    let _ = fs::remove_file(&json_path);
-                }
+                let _ = write_seed_checkpoint_bin(&bin_path, &cp);
                 return Some(cp);
             }
         }
@@ -280,10 +277,7 @@ pub(super) fn load_seed_checkpoint(
         && cp.constraints == constraints
         && !cp.canonicalize_attacker_goldish
     {
-        // Migrate to binary and remove JSON.
-        if write_seed_checkpoint_bin(&bin_path, &cp).is_ok() {
-            let _ = fs::remove_file(&legacy_path);
-        }
+        let _ = write_seed_checkpoint_bin(&bin_path, &cp);
         Some(cp)
     } else {
         None
@@ -508,6 +502,8 @@ mod tests {
             best_piece_count: marker,
             best_sfens: vec![],
             canonicalize_attacker_goldish,
+            frontier_bytes: vec![],
+            best_position_bytes: vec![],
         }
     }
 
@@ -576,9 +572,9 @@ mod tests {
         assert_eq!(loaded.unwrap().best_piece_count, 99);
 
         let key = condition_key(None, constraints);
-        let new_path = cp_dir.join(format!("seed_7_{key}.json"));
-        assert!(new_path.exists(), "new-format file should exist after migrate");
-        assert!(!legacy_path.exists(), "legacy file should be renamed");
+        let ckpt_path = cp_dir.join(format!("seed_7_{key}.ckpt"));
+        assert!(ckpt_path.exists(), "binary .ckpt file should exist after migrate");
+        assert!(legacy_path.exists(), "legacy JSON file should be kept after migrate");
 
         let _ = fs::remove_dir_all(&dir);
     }
@@ -607,7 +603,7 @@ mod tests {
         // Subsequent load with matching conditions still picks it up.
         let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false);
         assert!(loaded.is_some());
-        assert!(!legacy_path.exists(), "legacy file should now be migrated");
+        assert!(legacy_path.exists(), "legacy JSON file should remain after migration");
 
         let _ = fs::remove_dir_all(&dir);
     }
