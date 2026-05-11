@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778400832098,
+  "lastUpdate": 1778482287291,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -38676,6 +38676,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 436095962,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "853b7c40dfcea4d71dfe477aa7a52adeab565e07",
+          "message": "perf(smoke): チェックポイント書き込みを時間ベースで間引き、軌跡ログをバッファ化\n\n- --checkpoint-interval-secs (default 60) を追加。96 並列で毎ステップ書いて\n  いた I/O を ~60× 削減し、大フロンティア時のディスク枯渇を防ぐ。\n- write_seed_checkpoint の tmp ファイルをディスク満杯時に確実に削除。\n  書き込み途中で失敗した .json.tmp が残留しディスクを圧迫するバグを修正。\n- 軌跡ログの書き込みを seed 完了時に 1 回のロック取得でまとめて flush し、\n  毎ステップの Mutex 競合を排除。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T06:30:33Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/853b7c40dfcea4d71dfe477aa7a52adeab565e07"
+        },
+        "date": 1778482284801,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50873,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124561,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121838,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 436267690,
             "unit": "Instructions"
           }
         ]
