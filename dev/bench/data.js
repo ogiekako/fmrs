@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778508083024,
+  "lastUpdate": 1778510271680,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -40586,6 +40586,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/97d2171c5edef540b43705f30230565452766eb8"
         },
         "date": 1778508078603,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124115,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434589116,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3f9efe526bd3d45a1e9a746a7a6805771603d35a",
+          "message": "feat(smoke): --goldish-priority フラグを追加\n\n黒の自陣（rank 7-9）に ProLance/ProKnight/ProSilver を配置できる条件を\n優先順位で制限するフラグ。より低コストの goldish 代替（ProPawn→ProLance→\nProKnight の順）が存在し得る場合（白持駒に対応する unpromoted 駒がある）は\n高コスト代替を禁止し、等価な探索空間を削減する。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T14:08:19Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3f9efe526bd3d45a1e9a746a7a6805771603d35a"
+        },
+        "date": 1778510269124,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
