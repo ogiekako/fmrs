@@ -107,6 +107,12 @@ pub enum SingleKingSmokeCommand {
         /// one black piece; miyako 双玉: + two pieces).
         #[arg(long, default_value_t = false)]
         double_king: bool,
+        /// 黒の自陣 (rank 7-9) の goldish 駒優先順位制約:
+        /// ProLance は白持駒に Pawn がない場合のみ、
+        /// ProKnight は Pawn も Lance もない場合のみ、
+        /// ProSilver は Pawn も Lance も Knight もない場合のみ配置可。
+        #[arg(long, default_value_t = false)]
+        goldish_priority: bool,
         /// Append per-step frontier samples (with extracted features) to
         /// this JSONL file. Used to build training data for the beam model.
         #[arg(long)]
@@ -211,6 +217,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             mate_square,
             miyako,
             double_king,
+            goldish_priority,
             feature_log,
             feature_sample_per_step,
             beam_width,
@@ -257,6 +264,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     mate_squares,
                     miyako,
                     double_king,
+                    goldish_priority,
                 },
                 mem_trace,
                 FeatureLogConfig {

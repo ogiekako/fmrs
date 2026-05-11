@@ -44,6 +44,12 @@ pub(super) struct SearchConstraints {
     /// + one black piece; miyako variant: + two pieces).
     #[serde(default)]
     pub(super) double_king: bool,
+    /// 黒の自陣（rank 7-9）における goldish 駒の優先順位制約。
+    /// フラグが有効のとき、ProLance/ProKnight/ProSilver を黒の自陣に置けるのは、
+    /// より低コストの goldish 代替（ProPawn → ProLance → ProKnight の順）が
+    /// 存在し得ない場合（白持駒に対応する unpromoted 駒がない）のみ。
+    #[serde(default)]
+    pub(super) goldish_priority: bool,
 }
 
 impl SearchConstraints {
@@ -312,6 +318,45 @@ pub(super) fn satisfies_search_constraints(
         if position.get(square).is_some() && !square_in_bounds(square, constraints) {
             return false;
         }
+    }
+    if constraints.goldish_priority && !satisfies_goldish_priority(position) {
+        return false;
+    }
+    true
+}
+
+/// 黒の自陣（rank 7-9 = row >= 6）における goldish 駒の優先順位を検査する。
+/// ProLance/ProKnight/ProSilver を黒の自陣に置けるのは、より低コストの goldish
+/// 代替が不可能な場合（白の持ち駒に対応する unpromoted 駒が存在しない）のみ。
+fn satisfies_goldish_priority(position: &PositionAux) -> bool {
+    let wh = position.hands();
+    let white_pawn = wh.count(Color::WHITE, Kind::Pawn) > 0;
+    let white_lance = wh.count(Color::WHITE, Kind::Lance) > 0;
+    let white_knight = wh.count(Color::WHITE, Kind::Knight) > 0;
+
+    // ProLance in home: only allowed if no white Pawn in hand
+    if white_pawn
+        && position
+            .bitboard(Color::BLACK, Kind::ProLance)
+            .any(|sq| sq.row() >= 6)
+    {
+        return false;
+    }
+    // ProKnight in home: only allowed if no white Pawn or Lance in hand
+    if (white_pawn || white_lance)
+        && position
+            .bitboard(Color::BLACK, Kind::ProKnight)
+            .any(|sq| sq.row() >= 6)
+    {
+        return false;
+    }
+    // ProSilver in home: only allowed if no white Pawn, Lance, or Knight in hand
+    if (white_pawn || white_lance || white_knight)
+        && position
+            .bitboard(Color::BLACK, Kind::ProSilver)
+            .any(|sq| sq.row() >= 6)
+    {
+        return false;
     }
     true
 }
@@ -908,5 +953,104 @@ mod tests {
         assert_eq!(value["no_pawn"], false);
         assert_eq!(value["allow_white_pieces"], false);
         assert!(value.get("max_file").is_none());
+    }
+
+    // --- goldish_priority tests ---
+
+    fn gp_constraints() -> SearchConstraints {
+        SearchConstraints {
+            goldish_priority: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn goldish_priority_pro_lance_rejected_when_white_has_pawn() {
+        // Black ProLance at 1七 (row 6, rank 7) = black's home territory.
+        // White has Pawn in hand → ProLance should be rejected.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProLance);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Pawn, 1);
+
+        assert!(!satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_pro_lance_allowed_when_white_has_no_pawn() {
+        // Black ProLance at 1七 (home) but white has no Pawn → allowed.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProLance);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        // No Pawn in white's hand.
+
+        assert!(satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_pro_lance_outside_home_not_restricted() {
+        // Black ProLance at 1三 (row 2, rank 3) = NOT in home territory.
+        // White has Pawn → no restriction for pieces outside home.
+        let mut position = PositionAux::default();
+        position.set(Square::S13, Color::BLACK, Kind::ProLance);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Pawn, 1);
+
+        assert!(satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_pro_knight_rejected_when_white_has_lance_only() {
+        // White has Lance but no Pawn → ProKnight in home still rejected.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProKnight);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Lance, 1);
+
+        assert!(!satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_pro_knight_allowed_when_white_has_neither_pawn_nor_lance() {
+        // White has only Knight in hand → ProKnight in home is allowed.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProKnight);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Knight, 1);
+
+        assert!(satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_pro_silver_rejected_when_white_has_knight() {
+        // White has only Knight → ProSilver in home rejected.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProSilver);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Knight, 1);
+
+        assert!(!satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_pro_silver_allowed_when_white_has_only_silver() {
+        // White has Silver (not Pawn/Lance/Knight) → ProSilver in home allowed.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProSilver);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Silver, 1);
+
+        assert!(satisfies_search_constraints(&position, gp_constraints()));
+    }
+
+    #[test]
+    fn goldish_priority_disabled_by_default() {
+        // Without the flag, the constraint is not applied.
+        let mut position = PositionAux::default();
+        position.set(Square::S17, Color::BLACK, Kind::ProLance);
+        position.set(Square::S19, Color::WHITE, Kind::King);
+        position.hands_mut().add_n(Color::WHITE, Kind::Pawn, 18);
+
+        assert!(satisfies_search_constraints(&position, SearchConstraints::default()));
     }
 }
