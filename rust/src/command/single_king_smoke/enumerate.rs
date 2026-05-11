@@ -707,12 +707,18 @@ mod tests {
     }
 
     fn small_constraints() -> SearchConstraints {
-        // Restrict to Silver+Rook only to keep iteration count small (~ms).
+        // Restrict piece kinds and board to keep iteration count small.
+        // max_file=5 (cols 0-4) + max_rank=5 (rows 4-8) confines pieces to the
+        // 5×5 bottom-left quadrant that contains S55, dramatically reducing
+        // the search space while still covering both attacker and non-attacker
+        // square combinations that exercise the pruning logic.
         let mask =
             parse_allowed_kinds(&["silver".to_string(), "rook".to_string()]).unwrap();
         SearchConstraints {
             allowed_kinds_mask: Some(mask),
             miyako: true,
+            max_file: Some(5),
+            max_rank: Some(5),
             ..Default::default()
         }
     }
