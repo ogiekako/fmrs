@@ -724,6 +724,22 @@ mod tests {
     }
 
     #[test]
+    fn miyako_piece_list_white_pieces_gated_by_allow_white_pieces() {
+        let without = miyako_piece_list(SearchConstraints {
+            miyako: true,
+            ..Default::default()
+        });
+        let with_white = miyako_piece_list(SearchConstraints {
+            miyako: true,
+            allow_white_pieces: true,
+            ..Default::default()
+        });
+        assert!(without.iter().all(|&(c, _)| c == Color::BLACK));
+        assert!(with_white.iter().any(|&(c, _)| c == Color::WHITE));
+        assert!(with_white.len() > without.len());
+    }
+
+    #[test]
     fn miyako_pruning_matches_naive() {
         let constraints = small_constraints();
         let optimized = enumerate_miyako_4piece(Square::S55, constraints);
