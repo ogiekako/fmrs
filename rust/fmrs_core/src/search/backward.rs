@@ -1,6 +1,7 @@
 use std::{
     cell::UnsafeCell,
     ops::Range,
+    ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
@@ -119,10 +120,46 @@ struct FlatShard {
 /// the legacy 16-byte AoS layout. The split also doubles probe-step
 /// cache-line density (8 keys per 64B line vs. 4 in the AoS layout).
 struct FlatShardInner {
-    keys: Box<[u64]>,
-    values: Box<[u32]>,
+    keys: MmapSlice<u64>,
+    values: MmapSlice<u32>,
     mask: usize,
     capacity_threshold: usize,
+}
+
+/// Slice backed by an anonymous `mmap` allocation.
+///
+/// Guarantees 2 MiB virtual-address alignment so the kernel can satisfy
+/// `MADV_HUGEPAGE` at fault time (one 2 MiB huge page per block, never split
+/// across NUMA nodes), while `mbind(MPOL_INTERLEAVE)` distributes those huge
+/// pages across NUMA nodes for balanced bandwidth on multi-socket machines.
+struct MmapSlice<T> {
+    ptr: NonNull<T>,
+    len: usize,
+    mmap_size: usize, // rounded-up byte length passed to mmap / munmap
+}
+
+unsafe impl<T: Send> Send for MmapSlice<T> {}
+unsafe impl<T: Sync> Sync for MmapSlice<T> {}
+
+impl<T> Drop for MmapSlice<T> {
+    fn drop(&mut self) {
+        unsafe {
+            libc::munmap(self.ptr.as_ptr().cast(), self.mmap_size);
+        }
+    }
+}
+
+impl<T> std::ops::Deref for MmapSlice<T> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self.ptr.as_ptr(), self.len) }
+    }
+}
+
+impl<T> std::ops::DerefMut for MmapSlice<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self.ptr.as_ptr(), self.len) }
+    }
 }
 
 unsafe impl Sync for ShardedFlatMemo {}
@@ -135,43 +172,68 @@ fn shard_index(key: u64) -> usize {
     (key >> SHARD_SHIFT) as usize
 }
 
-fn alloc_slot_arrays(size: usize) -> (Box<[u64]>, Box<[u32]>) {
+fn alloc_slot_arrays(size: usize) -> (MmapSlice<u64>, MmapSlice<u32>) {
     (alloc_zeroed_slice::<u64>(size), alloc_zeroed_slice::<u32>(size))
 }
 
-fn alloc_zeroed_slice<T: Copy>(size: usize) -> Box<[T]> {
-    use std::alloc::{alloc_zeroed, Layout};
-    debug_assert!(size > 0);
-    debug_assert!(size.is_power_of_two());
-    let layout = Layout::array::<T>(size).expect("FlatMemo layout");
-    // SAFETY: T (u64 or u32) is plain old data; zeroed bytes form valid values
-    // (key=0 = empty sentinel; value bytes unused while corresponding key is empty).
+fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
+    debug_assert!(len > 0);
+    debug_assert!(len.is_power_of_two());
+
+    const PAGE_2MB: usize = 2 * 1024 * 1024;
+    let size_bytes = len * std::mem::size_of::<T>();
+    // Round up to 2 MiB so the entire allocation fits in whole huge pages.
+    let mmap_size = (size_bytes + PAGE_2MB - 1) & !(PAGE_2MB - 1);
+
     unsafe {
-        let ptr = alloc_zeroed(layout) as *mut T;
-        if ptr.is_null() {
-            std::alloc::handle_alloc_error(layout);
+        // Over-allocate by one 2 MiB page so we can align the start address
+        // to a 2 MiB boundary regardless of what the kernel returns.
+        let raw = libc::mmap(
+            std::ptr::null_mut(),
+            mmap_size + PAGE_2MB,
+            libc::PROT_READ | libc::PROT_WRITE,
+            libc::MAP_ANONYMOUS | libc::MAP_PRIVATE,
+            -1,
+            0,
+        );
+        if raw == libc::MAP_FAILED {
+            std::alloc::handle_alloc_error(
+                std::alloc::Layout::array::<T>(len).unwrap(),
+            );
         }
-        // Hint transparent huge pages — beneficial for multi-GB tables.
-        // Also request NUMA interleave so pages are spread across all NUMA nodes
-        // instead of landing on whichever node first-touches them. On a 2-socket
-        // machine (NUMA distance 10:20) cross-socket reads are ~2× slower; interleave
-        // halves the average penalty for random hash-table access patterns.
-        // nodemask = all-bits-set covers up to 64 nodes; mbind errors are ignored
-        // (single-node machines silently succeed; unusual kernels degrade gracefully).
+
+        // Trim to a 2 MiB-aligned region of exactly mmap_size bytes.
+        let raw_addr = raw as usize;
+        let aligned_addr = (raw_addr + PAGE_2MB - 1) & !(PAGE_2MB - 1);
+        let lead = aligned_addr - raw_addr;
+        if lead > 0 {
+            libc::munmap(raw, lead);
+        }
+        let trail = PAGE_2MB - lead;
+        if trail > 0 {
+            libc::munmap((aligned_addr + mmap_size) as *mut libc::c_void, trail);
+        }
+
+        let ptr = aligned_addr as *mut T;
+
+        // mmap(MAP_ANONYMOUS) already gives zero-initialised pages.
+
         #[cfg(target_os = "linux")]
         {
-            let bytes = layout.size();
-            // ignore errors (kernel may not support, alignment may not match)
-            let _ = libc::madvise(ptr.cast(), bytes, libc::MADV_HUGEPAGE);
-            // libc crate does not expose mbind(); call via raw syscall.
-            // SYS_mbind = 237 on x86_64; other arches use the same number.
+            // Enable fault-time THP: the 2 MiB-aligned VMA lets the kernel
+            // allocate one huge page per 2 MiB block on the first access.
+            let _ = libc::madvise(ptr.cast(), mmap_size, libc::MADV_HUGEPAGE);
+
+            // Distribute huge pages across NUMA nodes in round-robin order.
+            // With 2 MiB alignment each mbind unit is one huge page, so
+            // interleaving does not split huge pages across nodes.
             #[cfg(target_arch = "x86_64")]
             {
                 let nodemask: libc::c_ulong = !0;
                 let _ = libc::syscall(
                     libc::SYS_mbind,
                     ptr as *mut libc::c_void,
-                    bytes,
+                    mmap_size,
                     libc::MPOL_INTERLEAVE as libc::c_long,
                     &nodemask as *const libc::c_ulong,
                     65usize, // maxnode: covers up to 64 NUMA nodes
@@ -179,7 +241,8 @@ fn alloc_zeroed_slice<T: Copy>(size: usize) -> Box<[T]> {
                 );
             }
         }
-        Box::from_raw(std::slice::from_raw_parts_mut(ptr, size))
+
+        MmapSlice { ptr: NonNull::new_unchecked(ptr), len, mmap_size }
     }
 }
 
