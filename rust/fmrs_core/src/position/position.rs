@@ -25,8 +25,8 @@ impl fmt::Debug for Position {
 
 use super::advance::attack_prevent::attacker;
 use super::bitboard::kind_bitboard::{
-    build_kind_cache, encode_kind, kind_from_cache, must_kind_from_cache, write_kind_idx,
-    KindCache, EMPTY_KIND_CACHE,
+    apply_movement_to_cache, build_kind_cache, encode_kind, kind_from_cache, must_kind_from_cache,
+    write_kind_idx, KindCache, EMPTY_KIND_CACHE,
 };
 use super::bitboard::reachable_sub;
 use super::bitboard::BitBoard;
@@ -770,6 +770,76 @@ impl PositionAux {
     }
 
     // TODO: remember attackers
+}
+
+/// Compact frontier-storage form of a position: `Position` plus the per-square
+/// `KindCache` that `PositionAux` would otherwise rebuild on every conversion.
+///
+/// Algorithms that store many positions in `Vec` use this instead of bare
+/// `Position` so loading back into `PositionAux` is O(1) (via `from_parts`)
+/// rather than O(occupied) (via `PositionAux::new`'s `build_kind_cache`).
+/// The cache is propagated to descendants incrementally via `apply_movement`,
+/// avoiding any full rebuild across the search tree.
+///
+/// Memory: `Position` (96 B) + `KindCache` (41 B, ~48 B aligned) ≈ 144 B/entry.
+#[derive(Clone)]
+pub struct CachedPosition {
+    core: Position,
+    kind_at: KindCache,
+}
+
+impl CachedPosition {
+    /// Snapshot the core+cache of `aux`. The cache is consumed by reference
+    /// (it's `[u8; 41]`, cheap to copy).
+    #[inline]
+    pub fn from_aux(aux: &PositionAux) -> Self {
+        Self {
+            core: aux.core.clone(),
+            kind_at: aux.kind_at,
+        }
+    }
+
+    /// Build from a `Position` without an existing cache — rebuilds the cache
+    /// from bitboards (O(occupied)). Use only for entry points (initial seed
+    /// loading, checkpoint resume) where no cache is available.
+    pub fn from_position(core: Position) -> Self {
+        let kind_at = build_kind_cache(core.kind_bb());
+        Self { core, kind_at }
+    }
+
+    /// Reconstruct a `PositionAux` without rescanning bitboards for the cache.
+    #[inline]
+    pub fn to_aux(&self, stone: Option<BitBoard>) -> PositionAux {
+        PositionAux::from_parts(self.core.clone(), self.kind_at, stone)
+    }
+
+    #[inline]
+    pub fn core(&self) -> &Position {
+        &self.core
+    }
+
+    /// Apply `m` to both the core position and the kind cache. The cache
+    /// update is O(1) per movement (touches at most 2 squares), so this is
+    /// only marginally more expensive than `Position::do_move` alone.
+    #[inline]
+    pub fn apply_movement(&mut self, m: &Movement) {
+        apply_movement_to_cache(&mut self.kind_at, m);
+        self.core.do_move(m);
+    }
+
+    /// Functional variant: clone, apply movement, return.
+    #[inline]
+    pub fn after_movement(&self, m: &Movement) -> Self {
+        // Avoid `self.clone()` (which would copy then we mutate) by building
+        // the descendant's fields directly. Saves one redundant memcpy on the
+        // hot push path (`CachedPosition::from_aux(&aux).after_movement(m)`
+        // becomes equivalent to building the descendant from `aux` in one shot).
+        let mut kind_at = self.kind_at;
+        apply_movement_to_cache(&mut kind_at, m);
+        let mut core = self.core.clone();
+        core.do_move(m);
+        Self { core, kind_at }
+    }
 }
 
 #[cfg(test)]

@@ -5,8 +5,8 @@ use rayon::prelude::*;
 use crate::memo::DashMemo;
 use crate::nohash::NoHashSet64;
 use crate::position::advance::advance::advance_aux;
-use crate::position::position::PositionAux;
-use crate::position::{BitBoard, Position, PositionExt as _};
+use crate::position::position::{CachedPosition, PositionAux};
+use crate::position::BitBoard;
 
 use super::reconstruct::Reconstructor;
 use super::SolverStatus;
@@ -15,7 +15,7 @@ pub struct ParallelSolver {
     initial_position_digests: NoHashSet64,
     solutions_upto: usize,
     step: u16,
-    positions: Vec<Position>,
+    positions: Vec<CachedPosition>,
     mate_positions: Mutex<Vec<PositionAux>>,
     memo_white_turn: DashMemo,
     stone: Option<BitBoard>,
@@ -30,7 +30,7 @@ impl ParallelSolver {
         let mate_positions: Mutex<Vec<PositionAux>> = Mutex::new(vec![]);
 
         let stone = *position.stone();
-        let mut positions = vec![position.core().clone()];
+        let mut positions: Vec<CachedPosition> = vec![CachedPosition::from_aux(&position)];
 
         let mut step = 0;
 
@@ -90,30 +90,28 @@ impl ParallelSolver {
 fn next_positions(
     mate_positions: &Mutex<Vec<PositionAux>>,
     memo_next: &DashMemo,
-    positions: &mut Vec<Position>,
+    positions: &mut Vec<CachedPosition>,
     step: u16,
     stone: &Option<BitBoard>,
 ) {
     *positions = positions
-        .into_par_iter()
-        .flat_map_iter(|core| {
+        .par_iter()
+        .flat_map_iter(|cp| {
             let mut movements = vec![];
-            let mut position = PositionAux::new(core.clone(), *stone);
+            let mut position = cp.to_aux(*stone);
             let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
             if is_mate {
                 mate_positions.lock().unwrap().push(position.clone());
             }
 
+            let cp = cp.clone();
             movements.into_iter().filter_map(move |m| {
                 let digest = position.moved_digest(&m);
                 if memo_next.par_contains_or_insert(digest, step + 1) {
                     return None;
                 }
-
-                let mut np = core.clone();
-                np.do_move(&m);
-                np.into()
+                Some(cp.after_movement(&m))
             })
         })
         .collect()
@@ -122,14 +120,14 @@ fn next_positions(
 fn next_next_positions(
     mate_positions: &Mutex<Vec<PositionAux>>,
     memo_white_turn: &DashMemo,
-    positions: &mut Vec<Position>,
+    positions: &mut Vec<CachedPosition>,
     step: u16,
     stone: &Option<BitBoard>,
 ) {
     *positions = positions
-        .into_par_iter()
-        .flat_map_iter(|core| {
-            let mut position = PositionAux::new(core.clone(), *stone);
+        .par_iter()
+        .flat_map_iter(|cp| {
+            let mut position = cp.to_aux(*stone);
             let mut movements = vec![];
             let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
@@ -139,25 +137,19 @@ fn next_next_positions(
                 movements.clear();
             }
 
+            let cp = cp.clone();
             movements.into_iter().flat_map(move |m| {
-                let mut np = core.clone();
-                np.do_move(&m);
-
+                let outer_next = cp.after_movement(&m);
                 let mut movements = vec![];
-                let mut nnp = PositionAux::new(np.clone(), *stone);
+                let mut nnp = outer_next.to_aux(*stone);
                 advance_aux(&mut nnp, &Default::default(), &mut movements).unwrap();
 
                 movements.into_iter().filter_map(move |m| {
                     let digest = nnp.moved_digest(&m);
-                    if memo_white_turn
-                        .par_contains_or_insert(digest, step + 2)
-                    {
+                    if memo_white_turn.par_contains_or_insert(digest, step + 2) {
                         return None;
                     }
-
-                    let mut np = np.clone();
-                    np.do_move(&m);
-                    np.into()
+                    Some(outer_next.after_movement(&m))
                 })
             })
         })
