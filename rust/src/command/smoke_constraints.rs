@@ -40,6 +40,10 @@ pub(super) struct SearchConstraints {
     /// 都詰: allow 4-piece mate on the center square (5五).
     #[serde(default)]
     pub(super) miyako: bool,
+    /// 双玉: the final mate position contains both kings (white king + black king
+    /// + one black piece; miyako variant: + two pieces).
+    #[serde(default)]
+    pub(super) double_king: bool,
 }
 
 impl SearchConstraints {
@@ -164,7 +168,7 @@ pub(super) fn satisfies_ideal_smoke_undo_candidate(
 /// `max_step` / `slack` / `max_promoted_pct` / `min_pawn_pct` / `mate_squares`
 /// は piece 利用可能性に直接影響しないため、ここでは無視する。
 pub(super) fn theoretical_max_piece_count(constraints: SearchConstraints) -> u32 {
-    let mut total = 1u32; // white king
+    let mut total = if constraints.double_king { 2u32 } else { 1u32 }; // king(s)
     for &kind in &KINDS[..NUM_HAND_KIND] {
         if constraints.only_pawn && kind != Kind::Pawn {
             continue;

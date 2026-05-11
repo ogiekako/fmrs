@@ -19,7 +19,11 @@ pub(super) fn enumerate_final_2_sfens(
     parallel: usize,
     constraints: SearchConstraints,
 ) -> anyhow::Result<Vec<String>> {
-    let kind_pairs = black_piece_kind_pairs();
+    let kind_pairs = if constraints.double_king {
+        vec![]
+    } else {
+        black_piece_kind_pairs()
+    };
     let positions = rayon::ThreadPoolBuilder::new()
         .num_threads(parallel)
         .build()
@@ -29,10 +33,18 @@ pub(super) fn enumerate_final_2_sfens(
                 .collect::<Vec<_>>()
                 .into_par_iter()
                 .map(|white_king| {
-                    let mut results =
-                        enumerate_for_white_king(white_king, &kind_pairs, constraints);
+                    let mut results = if constraints.double_king {
+                        enumerate_for_white_king_double_king(white_king, constraints)
+                    } else {
+                        enumerate_for_white_king(white_king, &kind_pairs, constraints)
+                    };
                     if constraints.miyako && white_king == Square::S55 {
-                        results.extend(enumerate_miyako_4piece(white_king, constraints));
+                        if constraints.double_king {
+                            results
+                                .extend(enumerate_miyako_4piece_double_king(white_king, constraints));
+                        } else {
+                            results.extend(enumerate_miyako_4piece(white_king, constraints));
+                        }
                     }
                     results
                 })
@@ -154,6 +166,117 @@ fn enumerate_for_white_king(
                     &mut movements,
                     &mut results,
                 );
+            }
+        }
+    }
+    results
+}
+
+/// Enumerate 3-piece mate positions for 双玉 mode: white king + black king +
+/// one black non-king piece.
+fn enumerate_for_white_king_double_king(
+    white_king: Square,
+    constraints: SearchConstraints,
+) -> FxHashSet<String> {
+    let mut results = FxHashSet::default();
+    let mut movements = Vec::new();
+
+    if !square_in_bounds(white_king, constraints) {
+        return results;
+    }
+    if constraints.mate_squares != 0 && (constraints.mate_squares >> white_king.index()) & 1 == 0 {
+        return results;
+    }
+    for black_king in Square::iter() {
+        if black_king == white_king || !square_in_bounds(black_king, constraints) {
+            continue;
+        }
+        let black_piece_kinds = KINDS
+            .iter()
+            .copied()
+            .filter(|&k| k != Kind::King)
+            .collect::<Vec<_>>();
+        for kind in black_piece_kinds {
+            if !kind_allowed_by_mask(kind, constraints.allowed_kinds_mask) {
+                continue;
+            }
+            for sq in legal_black_piece_squares(kind) {
+                if sq == white_king || sq == black_king || !square_in_bounds(sq, constraints) {
+                    continue;
+                }
+                try_register_mate(
+                    white_king,
+                    &[
+                        (Color::BLACK, Kind::King, black_king),
+                        (Color::BLACK, kind, sq),
+                    ],
+                    constraints,
+                    &mut movements,
+                    &mut results,
+                );
+            }
+        }
+    }
+    results
+}
+
+/// Enumerate 4-piece mate positions for miyako 双玉: white king on center +
+/// black king + 2 additional pieces (any mix of black/white, excluding kings).
+fn enumerate_miyako_4piece_double_king(
+    white_king: Square,
+    constraints: SearchConstraints,
+) -> FxHashSet<String> {
+    let mut results = FxHashSet::default();
+    let mut movements = Vec::new();
+
+    if !square_in_bounds(white_king, constraints) {
+        return results;
+    }
+
+    let pieces = miyako_piece_list(constraints);
+    let n = pieces.len();
+
+    for black_king in Square::iter() {
+        if black_king == white_king || !square_in_bounds(black_king, constraints) {
+            continue;
+        }
+        for i in 0..n {
+            let (c1, k1) = pieces[i];
+            let sqs1 = piece_squares(c1, k1);
+            for &sq1 in &sqs1 {
+                if sq1 == white_king || sq1 == black_king || !square_in_bounds(sq1, constraints) {
+                    continue;
+                }
+                for j in (i + 1)..n {
+                    let (c2, k2) = pieces[j];
+                    let sqs2 = piece_squares(c2, k2);
+                    for &sq2 in &sqs2 {
+                        if sq2 == white_king
+                            || sq2 == black_king
+                            || sq2 == sq1
+                            || !square_in_bounds(sq2, constraints)
+                        {
+                            continue;
+                        }
+                        if pieces[i] == pieces[j] && sq2 <= sq1 {
+                            continue;
+                        }
+                        if has_nifu(c1, k1, sq1, c2, k2, sq2) {
+                            continue;
+                        }
+                        try_register_mate(
+                            white_king,
+                            &[
+                                (Color::BLACK, Kind::King, black_king),
+                                (c1, k1, sq1),
+                                (c2, k2, sq2),
+                            ],
+                            constraints,
+                            &mut movements,
+                            &mut results,
+                        );
+                    }
+                }
             }
         }
     }

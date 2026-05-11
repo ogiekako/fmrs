@@ -103,6 +103,10 @@ pub enum SingleKingSmokeCommand {
         /// 都詰: allow 4-piece mate on the center square (5五).
         #[arg(long, default_value_t = false)]
         miyako: bool,
+        /// 双玉: final mate position has both kings (white king + black king +
+        /// one black piece; miyako 双玉: + two pieces).
+        #[arg(long, default_value_t = false)]
+        double_king: bool,
         /// Append per-step frontier samples (with extracted features) to
         /// this JSONL file. Used to build training data for the beam model.
         #[arg(long)]
@@ -206,6 +210,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             slack,
             mate_square,
             miyako,
+            double_king,
             feature_log,
             feature_sample_per_step,
             beam_width,
@@ -251,6 +256,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     min_pawn_pct_after_step,
                     mate_squares,
                     miyako,
+                    double_king,
                 },
                 mem_trace,
                 FeatureLogConfig {
