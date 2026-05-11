@@ -11,7 +11,7 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    nohash::NoHashMap64,
+    nohash::{NoHashMap64, NoHashSet64},
     piece::{Color, Kind},
     position::{
         advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
@@ -40,7 +40,7 @@ type Memo = ShardedFlatMemo;
 //    Actually we use 0 as the empty sentinel so zeroed pages = empty.
 //    Inserts of key==0 are silently skipped (probability ≈ 2^-64).
 
-const SHARD_BITS: u32 = 3;
+const SHARD_BITS: u32 = 6;
 const NUM_SHARDS: usize = 1 << SHARD_BITS;
 const SHARD_SHIFT: u32 = 64 - SHARD_BITS;
 const FLAT_EMPTY_KEY: u64 = 0;
@@ -1285,6 +1285,117 @@ impl BackwardSearch {
         }
     }
 
+    /// Like `resume_state()` but omits `frontier_sfens` (empty vec).
+    /// Use together with `frontier_to_binary()` when writing binary checkpoints.
+    pub fn resume_state_header(&self) -> BackwardSearchResumeState {
+        BackwardSearchResumeState {
+            initial_position_sfen: self.initial_position.sfen(),
+            remaining_solution_moves: self
+                .solution
+                .iter()
+                .map(crate::sfen::encode_move)
+                .collect(),
+            frontier_sfens: vec![],
+            step: self.step,
+            one_way: self.one_way,
+            no_black_goldish: self.no_black_goldish,
+        }
+    }
+
+    /// Encode the current frontier as a flat byte buffer (88 bytes per `Position`).
+    /// Pair with `resume_state_header()` for binary checkpoints.
+    pub fn frontier_to_binary(&self) -> Vec<u8> {
+        let mut buf = vec![0u8; self.positions.len() * 88];
+        for (i, pos) in self.positions.iter().enumerate() {
+            buf[i * 88..(i + 1) * 88].copy_from_slice(&pos.to_bytes());
+        }
+        buf
+    }
+
+    /// Resume from a header `state` (frontier_sfens may be empty) plus a
+    /// binary frontier buffer produced by `frontier_to_binary()`.
+    pub fn from_resume_state_with_frontier_bytes(
+        state: &BackwardSearchResumeState,
+        frontier_bytes: &[u8],
+        parallel: usize,
+    ) -> anyhow::Result<Self> {
+        let initial_position = PositionAux::from_sfen(&state.initial_position_sfen)?;
+        let n = frontier_bytes.len() / 88;
+        let positions: Vec<Position> = (0..n)
+            .into_par_iter()
+            .map(|i| {
+                let chunk: &[u8; 88] = frontier_bytes[i * 88..(i + 1) * 88].try_into().unwrap();
+                Position::from_bytes(chunk)
+            })
+            .collect();
+        let solution = state
+            .remaining_solution_moves
+            .iter()
+            .map(|mv| crate::sfen::decode_move(mv))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let parallel = parallel.max(1);
+        let pool = if parallel > 1 {
+            Some(
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(parallel)
+                    .build()?,
+            )
+        } else {
+            None
+        };
+        Ok(BackwardSearch {
+            initial_position: initial_position.clone(),
+            solution,
+            seen_positions: 0,
+            positions,
+            prev_positions: vec![],
+            memo: Memo::new(),
+            prev_memo: Memo::new(),
+            stone: *initial_position.stone(),
+            step: state.step,
+            one_way: state.one_way,
+            no_black_goldish: state.no_black_goldish,
+            parallel,
+            pool,
+            memo_entry_limit: None,
+            delta_trace: false,
+            canonicalize_attacker_goldish: false,
+        })
+    }
+
+    /// Canonical-group variant of `from_resume_state_with_frontier_bytes`.
+    pub fn from_resume_state_canonical_group_with_frontier_bytes(
+        state: &BackwardSearchResumeState,
+        frontier_bytes: &[u8],
+        seeds: &[PositionAux],
+        parallel: usize,
+    ) -> anyhow::Result<Self> {
+        if seeds.is_empty() {
+            bail!("from_resume_state_canonical_group_with_frontier_bytes: empty seed list");
+        }
+        let representative_sfen = seeds[0].sfen();
+        if representative_sfen != state.initial_position_sfen {
+            bail!(
+                "Resume state initial_position mismatch: state={} seeds[0]={}",
+                state.initial_position_sfen,
+                representative_sfen
+            );
+        }
+        let mut search = Self::new_canonical_group(seeds, parallel)?;
+        let n = frontier_bytes.len() / 88;
+        let positions: Vec<Position> = (0..n)
+            .into_par_iter()
+            .map(|i| {
+                let chunk: &[u8; 88] = frontier_bytes[i * 88..(i + 1) * 88].try_into().unwrap();
+                Position::from_bytes(chunk)
+            })
+            .collect();
+        search.positions = positions;
+        search.step = state.step;
+        search.seen_positions = 0;
+        Ok(search)
+    }
+
     pub fn advance(&mut self) -> anyhow::Result<bool> {
         if !self.one_way && self.parallel > 1 && self.seen_positions == 0 {
             return self.advance_parallel_filtered(&|_, _| true, &|_, _| true);
@@ -1372,6 +1483,9 @@ impl BackwardSearch {
         let mut solution_scratch = vec![];
         let mut killers = Killers::new();
         let mut history = HistoryTable::new();
+        // Inline dedup set: prevents prev_positions from growing to O(N_total)
+        // before the end-of-step retain. Keeps peak memory at O(N_unique).
+        let mut prev_added: NoHashSet64 = Default::default();
         for core in self.positions[range].iter() {
             let mut position = PositionAux::new(core.clone(), self.stone);
             undo_moves.clear();
@@ -1409,9 +1523,11 @@ impl BackwardSearch {
                     .is_ok()
                     {
                         if !branches.is_empty() {
-                            self.prev_positions.push(pp.core().clone());
-                            self.prev_memo
-                                .insert(pp.digest(), StepRange::exact(self.step + 1));
+                            let d = pp.digest();
+                            if prev_added.insert(d) {
+                                self.prev_positions.push(pp.core().clone());
+                            }
+                            self.prev_memo.insert(d, StepRange::exact(self.step + 1));
                         }
                     }
                     continue;
@@ -1483,7 +1599,9 @@ impl BackwardSearch {
                         }
                     }
 
-                    self.prev_positions.push(pp.core().clone());
+                    if prev_added.insert(pp_digest) {
+                        self.prev_positions.push(pp.core().clone());
+                    }
                 }
             }
         }
@@ -1521,6 +1639,7 @@ impl BackwardSearch {
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
 
         // Phase 1: generate candidates in parallel (with filters)
+        // Each chunk deduplicates locally; cross-chunk dedup follows after merge.
         let positions = &self.positions;
         let candidate_chunks = self.install_or_run(|| {
             positions
@@ -1528,6 +1647,7 @@ impl BackwardSearch {
                 .map(|chunk| {
                     let mut undo_moves = vec![];
                     let mut candidates = vec![];
+                    let mut chunk_seen: NoHashSet64 = Default::default();
 
                     for core in chunk.iter() {
                         let mut position = PositionAux::new(core.clone(), stone);
@@ -1549,7 +1669,9 @@ impl BackwardSearch {
                             if !filter(pp.core(), stone) {
                                 continue;
                             }
-                            candidates.push(pp.core().clone());
+                            if chunk_seen.insert(pp.core().digest()) {
+                                candidates.push(pp.core().clone());
+                            }
                         }
                     }
 
@@ -1566,6 +1688,12 @@ impl BackwardSearch {
         if candidates.is_empty() {
             return Ok(false);
         }
+
+        // Deduplicate candidates: same predecessor can be generated from multiple
+        // frontier positions. Without dedup, duplicate positions accumulate across
+        // parallel chunks and waves, causing exponential frontier growth.
+        let mut seen_digests = NoHashSet64::default();
+        candidates.retain(|core| seen_digests.insert(core.digest()));
 
         // Phase 2: verify uniqueness in parallel
         let parallel = self.parallel.min(candidates.len());
@@ -1803,32 +1931,33 @@ impl BackwardSearch {
             self.step
         };
 
-        let positions = self
-            .positions
-            .iter()
-            .filter(|p| !p.pawn_drop())
-            .map(|p| PositionAux::new(p.clone(), self.stone))
-            .collect::<Vec<_>>();
-
         let mut output_positions = vec![];
         let no_black_goldish = self.no_black_goldish;
+        let stone = self.stone;
+        // Work directly on self.positions to avoid cloning the entire frontier into
+        // an intermediate Vec<PositionAux> before filtering (potential OOM at large frontiers).
+        let raw_positions: &[Position] = &self.positions;
         if !black_position || self.step % 2 == 1 || self.step == 0 {
-            if self.parallel > 1 && positions.len() > 1 {
-                let parallel = self.parallel.min(positions.len());
-                let chunk_size = positions.len().div_ceil(parallel * 8).max(1);
+            if self.parallel > 1 && raw_positions.len() > 1 {
+                let parallel = self.parallel.min(raw_positions.len());
+                let chunk_size = raw_positions.len().div_ceil(parallel * 8).max(1);
                 let chunks = self.install_or_run(|| {
-                    positions
+                    raw_positions
                         .par_chunks(chunk_size)
                         .map(|chunk| {
                             let mut out = Vec::new();
                             for p in chunk.iter() {
-                                if !satisfies_backward_constraints(p, no_black_goldish) {
+                                if p.pawn_drop() {
                                     continue;
                                 }
-                                if !satisfies_output_constraints(p, bare_white_king) {
+                                let pa = PositionAux::new(p.clone(), stone);
+                                if !satisfies_backward_constraints(&pa, no_black_goldish) {
                                     continue;
                                 }
-                                out.push(p.clone());
+                                if !satisfies_output_constraints(&pa, bare_white_king) {
+                                    continue;
+                                }
+                                out.push(pa);
                             }
                             out
                         })
@@ -1838,30 +1967,37 @@ impl BackwardSearch {
                     output_positions.extend(chunk);
                 }
             } else {
-                for p in positions.iter() {
-                    if !satisfies_backward_constraints(p, self.no_black_goldish) {
+                for p in raw_positions.iter() {
+                    if p.pawn_drop() {
                         continue;
                     }
-                    if !satisfies_output_constraints(p, bare_white_king) {
+                    let pa = PositionAux::new(p.clone(), stone);
+                    if !satisfies_backward_constraints(&pa, no_black_goldish) {
                         continue;
                     }
-                    output_positions.push(p.clone());
+                    if !satisfies_output_constraints(&pa, bare_white_king) {
+                        continue;
+                    }
+                    output_positions.push(pa);
                 }
             }
         } else {
             let desired_step = self.step - 1;
-            if self.parallel > 1 && positions.len() > 1 {
-                let parallel = self.parallel.min(positions.len());
-                let chunk_size = positions.len().div_ceil(parallel * 8).max(1);
+            if self.parallel > 1 && raw_positions.len() > 1 {
+                let parallel = self.parallel.min(raw_positions.len());
+                let chunk_size = raw_positions.len().div_ceil(parallel * 8).max(1);
                 let prev_memo = &self.prev_memo;
                 let chunks = self.install_or_run(|| {
-                    positions
+                    raw_positions
                         .par_chunks(chunk_size)
                         .map(|chunk| -> anyhow::Result<Vec<PositionAux>> {
                             let mut out = Vec::new();
                             for p in chunk.iter() {
+                                if p.pawn_drop() {
+                                    continue;
+                                }
                                 debug_assert_eq!(p.turn(), Color::WHITE);
-                                let mut position = p.clone();
+                                let mut position = PositionAux::new(p.clone(), stone);
                                 let mut movements = vec![];
                                 advance_aux(&mut position, &Default::default(), &mut movements)?;
                                 for m in movements.iter() {
@@ -1896,9 +2032,12 @@ impl BackwardSearch {
                     output_positions.extend(chunk?);
                 }
             } else {
-                for p in positions.iter() {
+                for p in raw_positions.iter() {
+                    if p.pawn_drop() {
+                        continue;
+                    }
                     debug_assert_eq!(p.turn(), Color::WHITE);
-                    let mut position = p.clone();
+                    let mut position = PositionAux::new(p.clone(), stone);
                     let mut movements = vec![];
                     advance_aux(&mut position, &Default::default(), &mut movements)?;
                     for m in movements.iter() {
@@ -1916,7 +2055,7 @@ impl BackwardSearch {
                         }
                         let mut np = position.clone();
                         np.do_move(m);
-                        if !satisfies_backward_constraints(&np, self.no_black_goldish) {
+                        if !satisfies_backward_constraints(&np, no_black_goldish) {
                             continue;
                         }
                         if !satisfies_output_constraints(&np, bare_white_king) {
