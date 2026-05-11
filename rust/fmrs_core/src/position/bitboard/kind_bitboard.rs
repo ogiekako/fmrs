@@ -2,30 +2,12 @@ use crate::piece::Kind;
 
 use super::{BitBoard, Square};
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default)]
 pub struct KindBitBoard {
     promote: BitBoard,
     kind0: BitBoard,
     kind1: BitBoard,
     kind2: BitBoard,
-    /// Per-square 4-bit kind cache packed 2 squares per byte.
-    /// 81 squares × 4 bits = 324 bits → 41 bytes (rounded to 48 with alignment).
-    /// Encoding: 0 = empty, 1..=15 = same as KINDS array index.
-    /// Replaces 4 sequential BitBoard::contains() calls in must_get/get with
-    /// one byte load + shift + mask. Maintained on set/unset.
-    square_kinds_packed: [u8; 41],
-}
-
-impl Default for KindBitBoard {
-    fn default() -> Self {
-        Self {
-            promote: BitBoard::default(),
-            kind0: BitBoard::default(),
-            kind1: BitBoard::default(),
-            kind2: BitBoard::default(),
-            square_kinds_packed: [0u8; 41],
-        }
-    }
 }
 
 impl KindBitBoard {
@@ -39,38 +21,114 @@ impl KindBitBoard {
         kind1: BitBoard,
         kind2: BitBoard,
     ) -> Self {
-        let mut result = Self {
+        Self {
             promote,
             kind0,
             kind1,
             kind2,
-            square_kinds_packed: [0u8; 41],
-        };
-        for (kind_idx, &kind) in KINDS.iter().enumerate() {
-            if kind_idx == 0 || kind_idx == 8 {
-                continue;
-            }
-            for pos in result.bitboard(kind) {
-                result.write_kind_idx(pos.index(), kind_idx as u8);
-            }
         }
-        result
     }
 
+    /// Direct bit-extraction from the 4 layer bitboards. Used by `must_get`/`get`
+    /// on bare `Position`. Hot lookups should go through `PositionAux` which
+    /// caches results in `KindCache`.
     #[inline(always)]
     fn read_kind_idx(&self, pos_idx: usize) -> usize {
-        // Layout: byte[i] holds squares (2i, 2i+1) in (low, high) nibble.
-        let byte = unsafe { *self.square_kinds_packed.get_unchecked(pos_idx >> 1) };
-        ((byte >> ((pos_idx & 1) * 4)) & 0xF) as usize
+        let p = ((self.promote.u128() >> pos_idx) & 1) as usize;
+        let k0 = ((self.kind0.u128() >> pos_idx) & 1) as usize;
+        let k1 = ((self.kind1.u128() >> pos_idx) & 1) as usize;
+        let k2 = ((self.kind2.u128() >> pos_idx) & 1) as usize;
+        p << 3 | k2 << 2 | k1 << 1 | k0
     }
+}
 
-    #[inline(always)]
-    fn write_kind_idx(&mut self, pos_idx: usize, idx: u8) {
-        debug_assert!(idx <= 0xF);
-        let byte_ref = unsafe { self.square_kinds_packed.get_unchecked_mut(pos_idx >> 1) };
-        let shift = (pos_idx & 1) * 4;
-        *byte_ref = (*byte_ref & !(0xF << shift)) | (idx << shift);
+/// Per-square 4-bit kind cache packed 2 squares per byte. 81 sq × 4 bits = 41 B.
+/// Encoding: 0 = empty, 1..=15 = same as KINDS array index (bit 3 = promote).
+/// Lives on `PositionAux` (not `Position`) so the stored `Position` stays slim.
+pub type KindCache = [u8; 41];
+
+pub const EMPTY_KIND_CACHE: KindCache = [0u8; 41];
+
+#[inline(always)]
+pub fn read_kind_idx(cache: &KindCache, pos_idx: usize) -> usize {
+    let byte = unsafe { *cache.get_unchecked(pos_idx >> 1) };
+    ((byte >> ((pos_idx & 1) * 4)) & 0xF) as usize
+}
+
+#[inline(always)]
+pub fn write_kind_idx(cache: &mut KindCache, pos_idx: usize, idx: u8) {
+    debug_assert!(idx <= 0xF);
+    let byte_ref = unsafe { cache.get_unchecked_mut(pos_idx >> 1) };
+    let shift = (pos_idx & 1) * 4;
+    *byte_ref = (*byte_ref & !(0xF << shift)) | (idx << shift);
+}
+
+#[inline(always)]
+pub fn kind_from_cache(cache: &KindCache, pos: Square) -> Option<Kind> {
+    let i = read_kind_idx(cache, pos.index());
+    if i == 0 {
+        None
+    } else {
+        Some(KINDS[i])
     }
+}
+
+#[inline(always)]
+pub fn must_kind_from_cache(cache: &KindCache, pos: Square) -> Kind {
+    let i = read_kind_idx(cache, pos.index());
+    debug_assert_ne!(i, 0);
+    KINDS[i]
+}
+
+#[inline(always)]
+pub fn encode_kind(kind: Kind) -> u8 {
+    let (promote, i) = KindBitBoard::ids(kind);
+    (i | if promote { 8 } else { 0 }) as u8
+}
+
+/// Incrementally update `cache` to reflect applying `m`. Caller must provide
+/// the same cache that was valid for the pre-state. Used to inherit a parent
+/// position's cache into a child without rebuilding from scratch.
+#[inline(always)]
+pub fn apply_movement_to_cache(cache: &mut KindCache, m: &crate::position::Movement) {
+    use crate::position::Movement;
+    match *m {
+        Movement::Move {
+            source,
+            dest,
+            promote,
+            source_kind_hint,
+            ..
+        } => {
+            let kind = match source_kind_hint {
+                Some(k) => k,
+                None => must_kind_from_cache(cache, source),
+            };
+            write_kind_idx(cache, source.index(), 0);
+            let dst_kind = if promote {
+                kind.promote().unwrap_or(kind)
+            } else {
+                kind
+            };
+            write_kind_idx(cache, dest.index(), encode_kind(dst_kind));
+        }
+        Movement::Drop(pos, kind) => {
+            write_kind_idx(cache, pos.index(), encode_kind(kind));
+        }
+    }
+}
+
+pub fn build_kind_cache(kind_bb: &KindBitBoard) -> KindCache {
+    let mut cache = EMPTY_KIND_CACHE;
+    for (kind_idx, &kind) in KINDS.iter().enumerate() {
+        if kind_idx == 0 || kind_idx == 8 {
+            continue;
+        }
+        for pos in kind_bb.bitboard(kind) {
+            write_kind_idx(&mut cache, pos.index(), kind_idx as u8);
+        }
+    }
+    cache
 }
 
 // promote = 0:
@@ -112,9 +170,8 @@ const KINDS: [Kind; 16] = [
 
 #[test]
 fn test_kind_bitboard_size() {
-    // 4× BitBoard (4×16=64) + [u8; 41] packed cache padded to 16-byte alignment.
-    // 64+41=105 → padded to 112.
-    assert_eq!(112, std::mem::size_of::<KindBitBoard>());
+    // 4× BitBoard (4×16=64) only — per-square cache lives on PositionAux.
+    assert_eq!(64, std::mem::size_of::<KindBitBoard>());
 }
 
 impl KindBitBoard {
@@ -150,7 +207,7 @@ impl KindBitBoard {
         (self.kind1 & self.kind2).and_not(self.kind0)
     }
 
-    fn ids(kind: Kind) -> (bool, usize) {
+    pub(crate) fn ids(kind: Kind) -> (bool, usize) {
         if kind.index() < 7 {
             return (false, kind.index() + 1);
         }
@@ -213,8 +270,6 @@ impl KindBitBoard {
         if (i & 4) != 0 {
             self.kind2.set(pos);
         }
-        let encoded = (i | if promote { 8 } else { 0 }) as u8;
-        self.write_kind_idx(pos.index(), encoded);
     }
     // #[inline(never)]
     #[inline(always)]
@@ -233,13 +288,11 @@ impl KindBitBoard {
         if (i & 4) != 0 {
             self.kind2.unset(pos);
         }
-        self.write_kind_idx(pos.index(), 0);
     }
 
     /// Replace `old` kind at `pos` with `new` kind. Optimized to touch only the
     /// layer bitboards whose bit actually flips between the two encodings — for
-    /// e.g. ProSilver→ProPawn this is a single bitboard update plus the packed
-    /// write, vs. the 6 layer ops of unset + set.
+    /// e.g. ProSilver→ProPawn this is a single bitboard update.
     #[inline(always)]
     pub fn change_kind(&mut self, pos: Square, old: Kind, new: Kind) {
         let (old_p, old_i) = Self::ids(old);
@@ -273,8 +326,6 @@ impl KindBitBoard {
                 self.promote.unset(pos);
             }
         }
-        let encoded = (new_i | if new_p { 8 } else { 0 }) as u8;
-        self.write_kind_idx(pos.index(), encoded);
     }
 
     /// Move a piece from `src` to `dst` without changing kind. Faster than
@@ -297,9 +348,6 @@ impl KindBitBoard {
         if (i & 4) != 0 {
             self.kind2.toggle_mask(mask);
         }
-        let encoded = (i | if promote { 8 } else { 0 }) as u8;
-        self.write_kind_idx(src.index(), 0);
-        self.write_kind_idx(dst.index(), encoded);
     }
 
     pub(crate) fn shift(&mut self, dir: crate::direction::Direction) {
@@ -307,18 +355,6 @@ impl KindBitBoard {
         self.kind0.shift(dir);
         self.kind1.shift(dir);
         self.kind2.shift(dir);
-        // Rebuild square_kinds_packed after shifting bitboards; per-square direct
-        // shift would require translating each square's index, which is more
-        // expensive than the rare shift call.
-        self.square_kinds_packed = [0u8; 41];
-        for (kind_idx, &kind) in KINDS.iter().enumerate() {
-            if kind_idx == 0 || kind_idx == 8 {
-                continue; // dummies
-            }
-            for pos in self.bitboard(kind) {
-                self.write_kind_idx(pos.index(), kind_idx as u8);
-            }
-        }
     }
 
     // #[inline(never)]

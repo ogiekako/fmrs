@@ -1,5 +1,5 @@
 mod bitboard;
-mod kind_bitboard;
+pub mod kind_bitboard;
 pub mod rule;
 mod square;
 

@@ -7,9 +7,16 @@ use crate::memo::{Memo, MemoTrait};
 use crate::nohash::NoHashSet64;
 use crate::piece::Color;
 use crate::position::advance::advance::advance_aux;
+use crate::position::bitboard::kind_bitboard::{
+    apply_movement_to_cache, KindCache,
+};
 use crate::position::bitboard::{bishop_power, power, rook_power};
 use crate::position::position::PositionAux;
 use crate::position::{AdvanceOptions, BitBoard, Movement, Position, PositionExt, Square};
+
+/// `(Position, KindCache)` pair. Carries the per-square kind cache alongside
+/// the Position so we can rebuild `PositionAux` without scanning bitboards.
+type CachedCore = (Position, KindCache);
 
 use super::reconstruct::Reconstructor;
 use super::standard_solve::SolverStatus;
@@ -81,7 +88,6 @@ fn black_options(black_safe: bool) -> AdvanceOptions {
     }
 }
 
-
 pub fn low_mem_standard_solve(
     position: PositionAux,
     solutions_upto: usize,
@@ -110,8 +116,8 @@ pub struct LowMemStandardSolver {
     initial_position_digests: NoHashSet64,
     solutions_upto: usize,
     step: u16,
-    positions: Vec<Position>,
-    tmp_positions: Vec<Position>,
+    positions: Vec<CachedCore>,
+    tmp_positions: Vec<CachedCore>,
     movements: Vec<Movement>,
     tmp_movements: Vec<Movement>,
     mate_positions: Vec<PositionAux>,
@@ -161,7 +167,10 @@ impl LowMemStandardSolver {
         let stone = stones.iter().next().and_then(|s| **s);
 
         let mut mate_positions = vec![];
-        let mut positions = positions.iter().map(|p| p.core().clone()).collect();
+        let mut positions: Vec<CachedCore> = positions
+            .iter()
+            .map(|p| (p.core().clone(), *p.kind_at()))
+            .collect();
         let mut step = 0;
 
         if turn.is_black() {
@@ -232,8 +241,10 @@ impl LowMemStandardSolver {
         self.tmp_positions.clear();
         std::mem::swap(&mut self.tmp_positions, &mut self.positions);
 
-        for core in self.tmp_positions.iter() {
-            let mut outer = PositionAux::new(core.clone(), self.stone);
+        for (core, kind_at) in self.tmp_positions.iter() {
+            // Avoid PositionAux::new's O(occupied) cache rebuild — inherit the
+            // cache maintained when this entry was pushed.
+            let mut outer = PositionAux::from_parts(core.clone(), *kind_at, self.stone);
 
             self.movements.clear();
             let is_mate =
@@ -268,8 +279,12 @@ impl LowMemStandardSolver {
                     .unwrap_or(true);
 
                 self.movements.clear();
-                advance_aux(&mut position, &black_options(black_safe), &mut self.movements)
-                    .unwrap();
+                advance_aux(
+                    &mut position,
+                    &black_options(black_safe),
+                    &mut self.movements,
+                )
+                .unwrap();
 
                 for m in self.movements.iter() {
                     let digest = position.moved_digest(m);
@@ -280,9 +295,13 @@ impl LowMemStandardSolver {
                         continue;
                     }
 
+                    // Inherit position's cache then incrementally apply `m` to
+                    // avoid a full rebuild when this entry is loaded next step.
+                    let mut np_cache = *position.kind_at();
+                    apply_movement_to_cache(&mut np_cache, m);
                     let mut np = position.core().clone();
                     np.do_move(m);
-                    self.positions.push(np);
+                    self.positions.push((np, np_cache));
                 }
             }
         }
@@ -292,13 +311,13 @@ impl LowMemStandardSolver {
 fn next_positions(
     mate_positions: &mut Vec<PositionAux>,
     memo_next: &mut Memo,
-    positions: &mut Vec<Position>,
+    positions: &mut Vec<CachedCore>,
     step: u16,
     stone: &Option<BitBoard>,
 ) {
     let mut movements = vec![];
-    for core in std::mem::take(positions) {
-        let mut position = PositionAux::new(core.clone(), *stone);
+    for (core, kind_at) in std::mem::take(positions) {
+        let mut position = PositionAux::from_parts(core.clone(), kind_at, *stone);
         movements.clear();
         let is_mate = advance_aux(&mut position, &Default::default(), &mut movements).unwrap();
 
@@ -311,9 +330,11 @@ fn next_positions(
             if memo_next.contains_or_insert(digest, step + 1) {
                 continue;
             }
+            let mut np_cache = kind_at;
+            apply_movement_to_cache(&mut np_cache, m);
             let mut np = core.clone();
             np.do_move(m);
-            positions.push(np);
+            positions.push((np, np_cache));
         }
     }
 }

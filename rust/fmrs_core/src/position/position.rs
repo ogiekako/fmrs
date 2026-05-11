@@ -6,7 +6,7 @@ use crate::piece::*;
 #[derive(Clone, PartialEq, Eq, Ord, PartialOrd, Default)]
 pub struct Position {
     black_bb: BitBoard,     // 16 bytes
-    kind_bb: KindBitBoard,  // 64 bytes
+    kind_bb: KindBitBoard,  // 64 bytes (no per-square cache; lives on PositionAux)
     hands: Hands,           // 8 bytes
     pub(super) digest: u64, // 8 bytes
 }
@@ -24,6 +24,10 @@ impl fmt::Debug for Position {
 }
 
 use super::advance::attack_prevent::attacker;
+use super::bitboard::kind_bitboard::{
+    build_kind_cache, encode_kind, kind_from_cache, must_kind_from_cache, write_kind_idx,
+    KindCache, EMPTY_KIND_CACHE,
+};
 use super::bitboard::reachable_sub;
 use super::bitboard::BitBoard;
 use super::bitboard::KindBitBoard;
@@ -161,7 +165,7 @@ impl Position {
     }
 
     /// Serialize to 88 bytes (little-endian): black_bb, promote, kind0..2, hands.x.
-    /// `digest` and `square_kinds_packed` are derived on deserialization.
+    /// `digest` is derived on deserialization.
     pub fn to_bytes(&self) -> [u8; 88] {
         let mut buf = [0u8; 88];
         buf[0..16].copy_from_slice(&self.black_bb.u128().to_le_bytes());
@@ -174,8 +178,8 @@ impl Position {
         buf
     }
 
-    /// Deserialize from 88 bytes produced by `to_bytes`. Recomputes `digest`
-    /// and `square_kinds_packed`; no allocation.
+    /// Deserialize from 88 bytes produced by `to_bytes`. Recomputes `digest`;
+    /// no allocation.
     pub fn from_bytes(bytes: &[u8; 88]) -> Self {
         let black_bb = BitBoard::from_u128(u128::from_le_bytes(bytes[0..16].try_into().unwrap()));
         let promote = BitBoard::from_u128(u128::from_le_bytes(bytes[16..32].try_into().unwrap()));
@@ -241,7 +245,7 @@ impl Position {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct PositionAux {
     core: Position,
     occupied: BitBoard,
@@ -250,6 +254,25 @@ pub struct PositionAux {
     black_king_pos: Option<Option<Square>>,
     stone: Option<BitBoard>,
     stone_digest: u64,
+    /// Per-square 4-bit kind cache. Lives here (not on `Position`) so stored
+    /// `Position` instances stay slim. Built lazily in `PositionAux::new`,
+    /// maintained incrementally on `set`/`unset`/`change_kind`/`move_piece`.
+    kind_at: KindCache,
+}
+
+impl Default for PositionAux {
+    fn default() -> Self {
+        Self {
+            core: Position::default(),
+            occupied: BitBoard::default(),
+            white_bb: BitBoard::default(),
+            white_king_pos: None,
+            black_king_pos: None,
+            stone: None,
+            stone_digest: 0,
+            kind_at: EMPTY_KIND_CACHE,
+        }
+    }
 }
 
 impl PartialEq for PositionAux {
@@ -268,10 +291,17 @@ impl Debug for PositionAux {
 
 impl PositionAux {
     pub fn new(core: Position, stone: Option<BitBoard>) -> Self {
+        let kind_at = build_kind_cache(core.kind_bb());
+        Self::from_parts(core, kind_at, stone)
+    }
+
+    /// Build a `PositionAux` from a pre-computed kind cache. Skips the
+    /// O(occupied) cache rebuild in `new` — caller is responsible for keeping
+    /// `kind_at` in sync with `core.kind_bb()`. Used by low-memory solvers that
+    /// maintain the cache alongside `Position` to avoid per-conversion rebuilds.
+    pub fn from_parts(core: Position, kind_at: KindCache, stone: Option<BitBoard>) -> Self {
         let occupied = core.kind_bb().occupied();
         let white_bb = occupied.and_not(core.black());
-        // Avoid `..Default::default()` since that triggers `Position::default()`
-        // (zeroing 144 bytes for KindBitBoard) for the field we immediately overwrite.
         let mut res = Self {
             core,
             white_bb,
@@ -280,11 +310,20 @@ impl PositionAux {
             black_king_pos: None,
             stone: None,
             stone_digest: 0,
+            kind_at,
         };
         if let Some(stone) = stone {
             res.set_stone(stone);
         }
         res
+    }
+
+    /// Read-only access to the per-square kind cache. Callers maintaining
+    /// `(Position, KindCache)` storage use this to snapshot the cache for
+    /// inheritance into descendants.
+    #[inline(always)]
+    pub fn kind_at(&self) -> &KindCache {
+        &self.kind_at
     }
 
     #[inline]
@@ -349,13 +388,12 @@ impl PositionAux {
 
     #[inline(always)]
     pub(crate) fn must_get_kind(&self, pos: Square) -> Kind {
-        // TODO: consider having pos -> kind mapping
-        self.core.kind_bb().must_get(pos)
+        must_kind_from_cache(&self.kind_at, pos)
     }
 
     #[inline(always)]
     pub(crate) fn get_kind(&self, dest: Square) -> Option<Kind> {
-        self.core.kind_bb().get(dest)
+        kind_from_cache(&self.kind_at, dest)
     }
 
     #[inline(always)]
@@ -478,6 +516,7 @@ impl PositionAux {
         }
 
         self.core.unset(pos, color, kind);
+        write_kind_idx(&mut self.kind_at, pos.index(), 0);
     }
 
     #[inline(always)]
@@ -497,6 +536,7 @@ impl PositionAux {
         }
 
         self.core.set(pos, color, kind);
+        write_kind_idx(&mut self.kind_at, pos.index(), encode_kind(kind));
     }
 
     /// Replace the kind at `pos` (same color, neither old nor new is King).
@@ -506,6 +546,7 @@ impl PositionAux {
         debug_assert_ne!(old, Kind::King);
         debug_assert_ne!(new, Kind::King);
         self.core.change_kind(pos, color, old, new);
+        write_kind_idx(&mut self.kind_at, pos.index(), encode_kind(new));
     }
 
     /// Move a piece from `src` to `dst` (same color, same kind). Faster than
@@ -527,6 +568,9 @@ impl PositionAux {
             }
         }
         self.core.move_piece(src, dst, color, kind);
+        let encoded = encode_kind(kind);
+        write_kind_idx(&mut self.kind_at, src.index(), 0);
+        write_kind_idx(&mut self.kind_at, dst.index(), encoded);
     }
 
     pub fn hands_mut(&mut self) -> &mut Hands {
@@ -551,6 +595,8 @@ impl PositionAux {
             .map(|pos| pos.as_mut().map(|pos| pos.shift(dir)));
 
         self.core.shift(dir);
+        // Per-square cache cannot be shifted directly; rebuild from bitboards.
+        self.kind_at = build_kind_cache(self.core.kind_bb());
     }
 
     pub fn must_king_pos(&mut self, king_color: Color) -> Square {
@@ -786,7 +832,8 @@ mod tests {
 
     #[test]
     fn position_size() {
-        assert_eq!(std::mem::size_of::<Position>(), 144);
+        // 16 (black_bb) + 64 (kind_bb) + 8 (hands) + 8 (digest) = 96.
+        assert_eq!(std::mem::size_of::<Position>(), 96);
     }
 
     #[test]
