@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778510271680,
+  "lastUpdate": 1778510273828,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -39183,6 +39183,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 25218,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3f9efe526bd3d45a1e9a746a7a6805771603d35a",
+          "message": "feat(smoke): --goldish-priority フラグを追加\n\n黒の自陣（rank 7-9）に ProLance/ProKnight/ProSilver を配置できる条件を\n優先順位で制限するフラグ。より低コストの goldish 代替（ProPawn→ProLance→\nProKnight の順）が存在し得る場合（白持駒に対応する unpromoted 駒がある）は\n高コスト代替を禁止し、等価な探索空間を削減する。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T14:08:19Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3f9efe526bd3d45a1e9a746a7a6805771603d35a"
+        },
+        "date": 1778510273375,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 305,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2385,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 142,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 312,
+            "range": "± 427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22205,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1389,
+            "range": "± 90",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3800,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1223533,
+            "range": "± 576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 9387,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 146,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 40,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 31,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 16523862,
+            "range": "± 632873",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 25701,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3131,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16394,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 22727,
+            "range": "± 4",
             "unit": "ns/iter"
           }
         ]
