@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778492298369,
+  "lastUpdate": 1778496728296,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -39840,6 +39840,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434589104,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "bfe76d0514df95caf4aa142af0ce856d61430f25",
+          "message": "perf(backward): advance_parallel_filtered Phase 1 を sharded shared dedup 化\n\n候補を digest shard ごとの shared bucket (Mutex<(NoHashSet64, Vec<Position>)>)\nに振り分けて生成中に global dedup する。旧 \"Vec<Vec<Position>> + extend +\nglobal retain\" パターンが dedup 前に全候補 (~75% が後で捨てられる) を\nmaterialize していた deep step 時の ~10-20 GB transient RSS を削減。\n\n並列効率は維持: 候補生成は per-thread accumulator で完全 lock-free、shard\nmerge は chunk 終端で batch 化して staggered な順に取得。\n\nregression テスト追加:\n- sequential (parallel=1) と parallel (parallel=4) の frontier が各 step で完全一致\n- frontier に digest 重複が無い\n- parallel=1/2/4/8 で最終 frontier が不変\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T10:34:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/bfe76d0514df95caf4aa142af0ce856d61430f25"
+        },
+        "date": 1778496725898,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124115,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434589116,
             "unit": "Instructions"
           }
         ]
