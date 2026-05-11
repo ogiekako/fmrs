@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778505123138,
+  "lastUpdate": 1778508081150,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -40392,6 +40392,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/b0b0934fa66f65e8a4e77cc830fb3f9de9721160"
         },
         "date": 1778505117388,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124115,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434589116,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "97d2171c5edef540b43705f30230565452766eb8",
+          "message": "test(smoke): miyako pruning テストを高速化 (2s→0.1s)\n\nmax_file=5, max_rank=5 で盤面を 5×5 のコーナーに制限し、\nS55 を含む有効なテストケースを維持しつつ反復回数を大幅削減。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T13:38:09Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/97d2171c5edef540b43705f30230565452766eb8"
+        },
+        "date": 1778508078603,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
