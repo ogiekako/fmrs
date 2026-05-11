@@ -126,9 +126,15 @@ pub(super) fn write_seed_checkpoint(
         ".seed_{}_{}{suffix}.json.tmp",
         checkpoint.seed_index, key
     ));
-    serde_json::to_writer(fs::File::create(&tmp_path)?, checkpoint)?;
-    fs::rename(&tmp_path, &path)?;
-    Ok(())
+    let result = (|| -> anyhow::Result<()> {
+        serde_json::to_writer(fs::File::create(&tmp_path)?, checkpoint)?;
+        fs::rename(&tmp_path, &path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
+    }
+    result
 }
 
 pub(super) fn load_seed_checkpoint(

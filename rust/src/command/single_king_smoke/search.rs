@@ -56,6 +56,7 @@ pub(super) fn search_single_seed(
     trajectory_log: &Mutex<fs::File>,
     cond_hash: &str,
     canonicalize_attacker_goldish: bool,
+    checkpoint_interval_secs: u64,
 ) -> anyhow::Result<SingleSeedResult> {
     if seeds.is_empty() {
         return Ok(SingleSeedResult {
@@ -164,6 +165,13 @@ pub(super) fn search_single_seed(
     // 全 break 経路で上書き済み; loop が他経路で抜けないことの fallback として Unknown。
     #[allow(unused_assignments)]
     let mut termination_reason = TerminationReason::Unknown;
+    // Checkpoint throttle: track when we last wrote so we don't checkpoint
+    // every step on large-frontier searches (which generates huge I/O at scale).
+    let checkpoint_interval = std::time::Duration::from_secs(checkpoint_interval_secs);
+    let mut last_checkpoint_time: Option<Instant> = None;
+    // Trajectory buffer: accumulate rows per-seed, flush once at the end to
+    // avoid a mutex acquisition on every step across all parallel seeds.
+    let mut trajectory_buf = String::new();
     let track_peaks =
         |peak_frontier_size: &mut usize, peak_memo_len: &mut usize, search: &BackwardSearch| {
             let s = search.stats();
@@ -355,8 +363,8 @@ pub(super) fn search_single_seed(
             break;
         }
         track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
-        emit_trajectory_row(
-            trajectory_log,
+        push_trajectory_row(
+            &mut trajectory_buf,
             cond_hash,
             seed_index,
             &search,
@@ -365,21 +373,33 @@ pub(super) fn search_single_seed(
         );
 
         if beam.width.is_none() {
-            let _ = write_seed_checkpoint(
-                seed_result_log_path,
-                &SeedCheckpoint {
-                    seed_index,
-                    seed_sfen: representative.sfen(),
-                    max_step,
-                    max_frontier: None,
-                    constraints,
-                    resume_state: search.resume_state(),
-                    best_piece_count,
-                    best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
-                    canonicalize_attacker_goldish,
-                },
-            );
+            let should_checkpoint = match last_checkpoint_time {
+                None => true,
+                Some(t) => t.elapsed() >= checkpoint_interval,
+            };
+            if should_checkpoint {
+                let _ = write_seed_checkpoint(
+                    seed_result_log_path,
+                    &SeedCheckpoint {
+                        seed_index,
+                        seed_sfen: representative.sfen(),
+                        max_step,
+                        max_frontier: None,
+                        constraints,
+                        resume_state: search.resume_state(),
+                        best_piece_count,
+                        best_sfens: best_positions.iter().map(PositionAux::sfen).collect(),
+                        canonicalize_attacker_goldish,
+                    },
+                );
+                last_checkpoint_time = Some(Instant::now());
+            }
         }
+    }
+    // Flush buffered trajectory rows to the shared log in a single lock.
+    if !trajectory_buf.is_empty() {
+        let mut file = trajectory_log.lock().unwrap();
+        let _ = file.write_all(trajectory_buf.as_bytes());
     }
 
     track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
@@ -476,10 +496,11 @@ pub(super) fn log_global_best_if_improved(
     }
 }
 
-/// Emit one trajectory row (post-advance state) to the trajectory log.
-/// 1 行 / seed / step、構造特徴のみ。shogi 特徴量とは別ストリーム。
-fn emit_trajectory_row(
-    log: &Mutex<fs::File>,
+/// Append one trajectory row to a per-seed buffer. The caller flushes the
+/// buffer to the shared log file in a single lock acquisition at seed end,
+/// avoiding a mutex contention on every step across all parallel seeds.
+fn push_trajectory_row(
+    buf: &mut String,
     cond_hash: &str,
     seed_index: usize,
     search: &BackwardSearch,
@@ -487,9 +508,9 @@ fn emit_trajectory_row(
     elapsed_ms: u128,
 ) {
     let stats = search.stats();
-    let mut file = log.lock().unwrap();
+    use std::fmt::Write as _;
     let _ = writeln!(
-        file,
+        buf,
         r#"{{"cond":"{cond}","seed":{seed},"step":{step},"frontier":{frontier},"memo":{memo},"inner":{inner},"ms":{ms}}}"#,
         cond = cond_hash,
         seed = seed_index,

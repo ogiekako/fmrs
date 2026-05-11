@@ -55,6 +55,7 @@ struct Task {
     peak_frontier_size: usize,
     peak_memo_len: usize,
     score: f64,
+    last_checkpoint_time: Option<Instant>,
 }
 
 impl Task {
@@ -70,6 +71,7 @@ impl Task {
             peak_frontier_size: 0,
             peak_memo_len: 0,
             score,
+            last_checkpoint_time: None,
         }
     }
 }
@@ -161,6 +163,7 @@ pub(super) struct WorkerCtx<'a> {
     pub(super) best: &'a Mutex<(u32, FxHashSet<String>, usize)>,
     pub(super) stop_signal: &'a AtomicBool,
     pub(super) canonicalize_attacker_goldish: bool,
+    pub(super) checkpoint_interval_secs: u64,
 }
 
 enum StepOutcome {
@@ -318,21 +321,31 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
     task.history.push(record);
     emit_trajectory_row(ctx.trajectory_log, ctx.cond_hash, task.seed_index, &record);
 
-    // Persist checkpoint so a future run can resume even after an oracle run.
-    let _ = write_seed_checkpoint(
-        ctx.seed_result_log_path,
-        &SeedCheckpoint {
-            seed_index: task.seed_index,
-            seed_sfen: task.seed_sfen.clone(),
-            max_step: ctx.max_step,
-            max_frontier: None,
-            constraints: ctx.constraints,
-            resume_state: search.resume_state(),
-            best_piece_count: task.best_piece_count,
-            best_sfens: task.best_positions.iter().map(PositionAux::sfen).collect(),
-            canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
-        },
-    );
+    // Persist checkpoint throttled by interval so large-frontier searches
+    // don't saturate disk I/O on big instances.
+    let checkpoint_interval =
+        std::time::Duration::from_secs(ctx.checkpoint_interval_secs);
+    let should_checkpoint = match task.last_checkpoint_time {
+        None => true,
+        Some(t) => t.elapsed() >= checkpoint_interval,
+    };
+    if should_checkpoint {
+        let _ = write_seed_checkpoint(
+            ctx.seed_result_log_path,
+            &SeedCheckpoint {
+                seed_index: task.seed_index,
+                seed_sfen: task.seed_sfen.clone(),
+                max_step: ctx.max_step,
+                max_frontier: None,
+                constraints: ctx.constraints,
+                resume_state: search.resume_state(),
+                best_piece_count: task.best_piece_count,
+                best_sfens: task.best_positions.iter().map(PositionAux::sfen).collect(),
+                canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
+            },
+        );
+        task.last_checkpoint_time = Some(Instant::now());
+    }
 
     Ok(StepOutcome::Continue)
 }
@@ -484,6 +497,7 @@ pub(super) fn run_with_oracle(
     stop_signal: Arc<AtomicBool>,
     initial_best: (u32, FxHashSet<String>, usize),
     canonicalize_attacker_goldish: bool,
+    checkpoint_interval_secs: u64,
 ) -> anyhow::Result<(u32, FxHashSet<String>, usize)> {
     let cond_hash = condition_key(max_step, constraints);
     let scheduler = Arc::new(Scheduler::new(stop_signal.clone()));
@@ -531,6 +545,7 @@ pub(super) fn run_with_oracle(
                     best,
                     stop_signal: &stop_signal,
                     canonicalize_attacker_goldish,
+                    checkpoint_interval_secs,
                 };
                 while let Some(mut task) = scheduler.pop() {
                     let outcome = advance_one(&mut task, &ctx);

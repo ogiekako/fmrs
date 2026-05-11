@@ -40,6 +40,7 @@ pub(super) fn ideal_backward(
     mem_trace: bool,
     feature_log: FeatureLogConfig,
     beam: BeamConfig,
+    checkpoint_interval_secs: u64,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
@@ -223,6 +224,7 @@ pub(super) fn ideal_backward(
             stop_signal,
             initial_best,
             canonicalize_attacker_goldish,
+            checkpoint_interval_secs,
         )?;
         return finalize_output(final_best);
     }
@@ -268,6 +270,7 @@ pub(super) fn ideal_backward(
                     &trajectory_log,
                     &cond_hash,
                     canonicalize_attacker_goldish,
+                    checkpoint_interval_secs,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;

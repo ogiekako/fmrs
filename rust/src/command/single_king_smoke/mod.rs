@@ -135,6 +135,13 @@ pub enum SingleKingSmokeCommand {
         /// best_positions は最後に standard_solve で再検証される。
         #[arg(long, default_value_t = false)]
         canonicalize_attacker_goldish: bool,
+        /// Minimum seconds between checkpoint writes per seed.
+        /// Checkpointing every step generates large I/O at scale (many parallel
+        /// seeds × large frontiers). Setting this to e.g. 60 reduces checkpoint
+        /// writes ~60× with at most 60 seconds of lost progress on crash.
+        /// Set to 0 to restore the old every-step behaviour.
+        #[arg(long, default_value_t = 60)]
+        checkpoint_interval_secs: u64,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -204,6 +211,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             fleet_size,
             oracle_model,
             canonicalize_attacker_goldish,
+            checkpoint_interval_secs,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
@@ -247,6 +255,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     samples_per_step: feature_sample_per_step,
                 },
                 beam,
+                checkpoint_interval_secs,
             )
         }
         SingleKingSmokeCommand::ExportFeatures {
