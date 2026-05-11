@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778505120315,
+  "lastUpdate": 1778505123138,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -38899,6 +38899,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 30544,
             "range": "± 190",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "b0b0934fa66f65e8a4e77cc830fb3f9de9721160",
+          "message": "perf(backward): cross-step memo retention 閾値を 15→10 に下げる\n\nadvance_parallel_filtered の cross-step memo carry-forward の閾値を\nstep >= 15 から step >= 10 に変更。smoke benchmark (max-step 13) で\n1:18.9 → 1:05.7（約 17% 高速化）。\n\nmemo 再利用の価値は当初チューニングしたよりも数 step 早く現れる。\nshrink_memo() でメモリは memo_entry_limit で抑えているので、早めに\ncarry-forward しても OOM リスクは増えない。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T12:52:54Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/b0b0934fa66f65e8a4e77cc830fb3f9de9721160"
+        },
+        "date": 1778505122348,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 399,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2718,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 192,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 405,
+            "range": "± 579",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25821,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1691,
+            "range": "± 62",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4622,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1307775,
+            "range": "± 151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11724,
+            "range": "± 217",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 187,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 108,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 51,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 148,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19069645,
+            "range": "± 44056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26797,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3246,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17050,
+            "range": "± 474",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 25000,
+            "range": "± 5",
             "unit": "ns/iter"
           }
         ]
