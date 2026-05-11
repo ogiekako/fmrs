@@ -29,6 +29,34 @@ impl Default for KindBitBoard {
 }
 
 impl KindBitBoard {
+    pub(crate) fn raw_parts(&self) -> (BitBoard, BitBoard, BitBoard, BitBoard) {
+        (self.promote, self.kind0, self.kind1, self.kind2)
+    }
+
+    pub(crate) fn from_raw_parts(
+        promote: BitBoard,
+        kind0: BitBoard,
+        kind1: BitBoard,
+        kind2: BitBoard,
+    ) -> Self {
+        let mut result = Self {
+            promote,
+            kind0,
+            kind1,
+            kind2,
+            square_kinds_packed: [0u8; 41],
+        };
+        for (kind_idx, &kind) in KINDS.iter().enumerate() {
+            if kind_idx == 0 || kind_idx == 8 {
+                continue;
+            }
+            for pos in result.bitboard(kind) {
+                result.write_kind_idx(pos.index(), kind_idx as u8);
+            }
+        }
+        result
+    }
+
     #[inline(always)]
     fn read_kind_idx(&self, pos_idx: usize) -> usize {
         // Layout: byte[i] holds squares (2i, 2i+1) in (low, high) nibble.

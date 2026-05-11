@@ -160,6 +160,42 @@ impl Position {
         self.digest ^ self.hands.x
     }
 
+    /// Serialize to 88 bytes (little-endian): black_bb, promote, kind0..2, hands.x.
+    /// `digest` and `square_kinds_packed` are derived on deserialization.
+    pub fn to_bytes(&self) -> [u8; 88] {
+        let mut buf = [0u8; 88];
+        buf[0..16].copy_from_slice(&self.black_bb.u128().to_le_bytes());
+        let (promote, kind0, kind1, kind2) = self.kind_bb.raw_parts();
+        buf[16..32].copy_from_slice(&promote.u128().to_le_bytes());
+        buf[32..48].copy_from_slice(&kind0.u128().to_le_bytes());
+        buf[48..64].copy_from_slice(&kind1.u128().to_le_bytes());
+        buf[64..80].copy_from_slice(&kind2.u128().to_le_bytes());
+        buf[80..88].copy_from_slice(&self.hands.x.to_le_bytes());
+        buf
+    }
+
+    /// Deserialize from 88 bytes produced by `to_bytes`. Recomputes `digest`
+    /// and `square_kinds_packed`; no allocation.
+    pub fn from_bytes(bytes: &[u8; 88]) -> Self {
+        let black_bb = BitBoard::from_u128(u128::from_le_bytes(bytes[0..16].try_into().unwrap()));
+        let promote = BitBoard::from_u128(u128::from_le_bytes(bytes[16..32].try_into().unwrap()));
+        let kind0 = BitBoard::from_u128(u128::from_le_bytes(bytes[32..48].try_into().unwrap()));
+        let kind1 = BitBoard::from_u128(u128::from_le_bytes(bytes[48..64].try_into().unwrap()));
+        let kind2 = BitBoard::from_u128(u128::from_le_bytes(bytes[64..80].try_into().unwrap()));
+        let hands_x = u64::from_le_bytes(bytes[80..88].try_into().unwrap());
+        let kind_bb = KindBitBoard::from_raw_parts(promote, kind0, kind1, kind2);
+        let mut result = Self {
+            black_bb,
+            kind_bb,
+            hands: Hands { x: hands_x },
+            digest: 0,
+        };
+        for pos in result.kind_bb.occupied() {
+            result.digest ^= result.hash_at(pos);
+        }
+        result
+    }
+
     pub fn sfen(&self) -> String {
         PositionAux::new(self.clone(), None).sfen()
     }
@@ -560,6 +596,31 @@ impl PositionAux {
 
     pub fn stone(&self) -> &Option<BitBoard> {
         &self.stone
+    }
+
+    /// Serialize to 105 bytes: `core.to_bytes()` (88) + stone_flag (1) + stone u128 LE (16).
+    /// stone_flag=0 → no stone; stone_flag=1 → stone present in the following 16 bytes.
+    pub fn to_bytes(&self) -> [u8; 105] {
+        let mut buf = [0u8; 105];
+        buf[0..88].copy_from_slice(&self.core.to_bytes());
+        if let Some(s) = self.stone {
+            buf[88] = 1;
+            buf[89..105].copy_from_slice(&s.u128().to_le_bytes());
+        }
+        buf
+    }
+
+    /// Deserialize from 105 bytes produced by `to_bytes`.
+    pub fn from_bytes(bytes: &[u8; 105]) -> Self {
+        let core = Position::from_bytes(bytes[0..88].try_into().unwrap());
+        let stone = if bytes[88] == 0 {
+            None
+        } else {
+            Some(BitBoard::from_u128(u128::from_le_bytes(
+                bytes[89..105].try_into().unwrap(),
+            )))
+        };
+        Self::new(core, stone)
     }
 
     fn has_stone(&self, pos: Square) -> bool {

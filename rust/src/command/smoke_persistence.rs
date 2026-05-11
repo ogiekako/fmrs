@@ -6,7 +6,7 @@ use fmrs_core::{
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::io::{BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 
 use super::smoke_constraints::SearchConstraints;
@@ -71,6 +71,14 @@ pub(super) struct SeedCheckpoint {
     pub(super) best_sfens: Vec<String>,
     #[serde(default)]
     pub(super) canonicalize_attacker_goldish: bool,
+    /// Binary-encoded frontier: 88 bytes per `Position`. Not serialized to JSON;
+    /// populated when loading a `.ckpt` file and consumed when writing one.
+    #[serde(skip)]
+    pub(super) frontier_bytes: Vec<u8>,
+    /// Binary-encoded best positions: 105 bytes per `PositionAux`. Not serialized
+    /// to JSON; populated when loading a `.ckpt` file.
+    #[serde(skip)]
+    pub(super) best_position_bytes: Vec<u8>,
 }
 
 pub(super) fn condition_key(max_step: Option<u16>, constraints: SearchConstraints) -> String {
@@ -108,6 +116,93 @@ fn canonical_path_suffix(canonicalize_attacker_goldish: bool) -> &'static str {
     }
 }
 
+fn checkpoint_path_bin(
+    seed_result_log: &Path,
+    seed_index: usize,
+    key: &str,
+    canonicalize_attacker_goldish: bool,
+) -> PathBuf {
+    let suffix = canonical_path_suffix(canonicalize_attacker_goldish);
+    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}.ckpt"))
+}
+
+const CKPT_MAGIC: &[u8; 8] = b"FMRSCKPT";
+const CKPT_VERSION: u32 = 1;
+
+/// Write checkpoint as a binary `.ckpt` file.
+///
+/// Layout: magic(8) | version u32 LE | meta_json_len u32 LE | meta_json |
+///         frontier_count u64 LE | frontier_bytes (88 B each) |
+///         best_count u32 LE | best_bytes (105 B each)
+///
+/// `meta_json` is `SeedCheckpoint` serialised with empty `frontier_sfens` /
+/// `best_sfens`; the actual positions are in the binary sections that follow.
+fn write_seed_checkpoint_bin(path: &Path, checkpoint: &SeedCheckpoint) -> anyhow::Result<()> {
+    let dir = path.parent().unwrap_or(Path::new("."));
+    let tmp_path = dir.join(format!(
+        ".{}.tmp",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    ));
+
+    let meta_json = serde_json::to_vec(checkpoint)?;
+    let frontier_count = checkpoint.frontier_bytes.len() / 88;
+    let best_count = checkpoint.best_position_bytes.len() / 105;
+
+    let result = (|| -> anyhow::Result<()> {
+        let mut f = BufWriter::new(fs::File::create(&tmp_path)?);
+        f.write_all(CKPT_MAGIC)?;
+        f.write_all(&(CKPT_VERSION).to_le_bytes())?;
+        f.write_all(&(meta_json.len() as u32).to_le_bytes())?;
+        f.write_all(&meta_json)?;
+        f.write_all(&(frontier_count as u64).to_le_bytes())?;
+        f.write_all(&checkpoint.frontier_bytes)?;
+        f.write_all(&(best_count as u32).to_le_bytes())?;
+        f.write_all(&checkpoint.best_position_bytes)?;
+        Ok(())
+    })();
+
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
+        return result;
+    }
+    fs::rename(&tmp_path, path)?;
+    Ok(())
+}
+
+fn load_seed_checkpoint_bin(path: &Path) -> anyhow::Result<SeedCheckpoint> {
+    let mut f = BufReader::new(fs::File::open(path)?);
+
+    let mut magic = [0u8; 8];
+    f.read_exact(&mut magic)?;
+    anyhow::ensure!(&magic == CKPT_MAGIC, "bad magic in {}", path.display());
+
+    let mut u32_buf = [0u8; 4];
+    f.read_exact(&mut u32_buf)?;
+    let version = u32::from_le_bytes(u32_buf);
+    anyhow::ensure!(version == CKPT_VERSION, "unsupported .ckpt version {version}");
+
+    f.read_exact(&mut u32_buf)?;
+    let meta_len = u32::from_le_bytes(u32_buf) as usize;
+    let mut meta_json = vec![0u8; meta_len];
+    f.read_exact(&mut meta_json)?;
+    let mut cp: SeedCheckpoint = serde_json::from_slice(&meta_json)?;
+
+    let mut u64_buf = [0u8; 8];
+    f.read_exact(&mut u64_buf)?;
+    let frontier_count = u64::from_le_bytes(u64_buf) as usize;
+    let mut frontier_bytes = vec![0u8; frontier_count * 88];
+    f.read_exact(&mut frontier_bytes)?;
+    cp.frontier_bytes = frontier_bytes;
+
+    f.read_exact(&mut u32_buf)?;
+    let best_count = u32::from_le_bytes(u32_buf) as usize;
+    let mut best_bytes = vec![0u8; best_count * 105];
+    f.read_exact(&mut best_bytes)?;
+    cp.best_position_bytes = best_bytes;
+
+    Ok(cp)
+}
+
 pub(super) fn write_seed_checkpoint(
     seed_result_log: &Path,
     checkpoint: &SeedCheckpoint,
@@ -115,26 +210,25 @@ pub(super) fn write_seed_checkpoint(
     let dir = checkpoint_dir(seed_result_log);
     fs::create_dir_all(&dir)?;
     let key = condition_key(checkpoint.max_step, checkpoint.constraints);
-    let path = checkpoint_path(
+    let path = checkpoint_path_bin(
         seed_result_log,
         checkpoint.seed_index,
         &key,
         checkpoint.canonicalize_attacker_goldish,
     );
-    let suffix = canonical_path_suffix(checkpoint.canonicalize_attacker_goldish);
-    let tmp_path = dir.join(format!(
-        ".seed_{}_{}{suffix}.json.tmp",
-        checkpoint.seed_index, key
-    ));
-    let result = (|| -> anyhow::Result<()> {
-        serde_json::to_writer(BufWriter::new(fs::File::create(&tmp_path)?), checkpoint)?;
-        fs::rename(&tmp_path, &path)?;
-        Ok(())
-    })();
-    if result.is_err() {
-        let _ = fs::remove_file(&tmp_path);
-    }
-    result
+    write_seed_checkpoint_bin(&path, checkpoint)
+}
+
+fn validate_checkpoint(
+    cp: &SeedCheckpoint,
+    seed_index: usize,
+    seed_sfen: &str,
+    canonicalize_attacker_goldish: bool,
+) -> bool {
+    cp.seed_index == seed_index
+        && cp.seed_sfen == seed_sfen
+        && cp.max_frontier.is_none()
+        && cp.canonicalize_attacker_goldish == canonicalize_attacker_goldish
 }
 
 pub(super) fn load_seed_checkpoint(
@@ -146,40 +240,51 @@ pub(super) fn load_seed_checkpoint(
     canonicalize_attacker_goldish: bool,
 ) -> Option<SeedCheckpoint> {
     let key = condition_key(max_step, constraints);
-    let new_path =
+
+    // 1. Try binary .ckpt (current format).
+    let bin_path =
+        checkpoint_path_bin(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
+    if let Ok(cp) = load_seed_checkpoint_bin(&bin_path) {
+        if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
+            return Some(cp);
+        }
+    }
+
+    // 2. Try legacy JSON (keyed format: seed_N_KEY.json).
+    let json_path =
         checkpoint_path(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
-    if let Ok(file) = fs::File::open(&new_path) {
+    if let Ok(file) = fs::File::open(&json_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(BufReader::new(file)) {
-            if cp.seed_index == seed_index
-                && cp.seed_sfen == seed_sfen
-                && cp.max_frontier.is_none()
-                && cp.canonicalize_attacker_goldish == canonicalize_attacker_goldish
-            {
+            if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
+                // Migrate to binary and remove JSON.
+                if write_seed_checkpoint_bin(&bin_path, &cp).is_ok() {
+                    let _ = fs::remove_file(&json_path);
+                }
                 return Some(cp);
             }
         }
     }
 
     if canonicalize_attacker_goldish {
-        // Canonical mode never had a legacy un-suffixed path.
         return None;
     }
 
-    // Legacy fallback: older runs used seed_{i}.json without the condition
-    // key. Open it, verify conditions match, and migrate by renaming to the
-    // new path so future loads stay fast.
+    // 3. Oldest legacy: seed_{i}.json without condition key.
     let legacy_path = checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}.json"));
     let file = fs::File::open(&legacy_path).ok()?;
-    let checkpoint: SeedCheckpoint = serde_json::from_reader(BufReader::new(file)).ok()?;
-    if checkpoint.seed_index == seed_index
-        && checkpoint.seed_sfen == seed_sfen
-        && checkpoint.max_step == max_step
-        && checkpoint.max_frontier.is_none()
-        && checkpoint.constraints == constraints
-        && !checkpoint.canonicalize_attacker_goldish
+    let cp: SeedCheckpoint = serde_json::from_reader(BufReader::new(file)).ok()?;
+    if cp.seed_index == seed_index
+        && cp.seed_sfen == seed_sfen
+        && cp.max_step == max_step
+        && cp.max_frontier.is_none()
+        && cp.constraints == constraints
+        && !cp.canonicalize_attacker_goldish
     {
-        let _ = fs::rename(&legacy_path, &new_path);
-        Some(checkpoint)
+        // Migrate to binary and remove JSON.
+        if write_seed_checkpoint_bin(&bin_path, &cp).is_ok() {
+            let _ = fs::remove_file(&legacy_path);
+        }
+        Some(cp)
     } else {
         None
     }
@@ -193,6 +298,13 @@ pub(super) fn remove_seed_checkpoint(
     canonicalize_attacker_goldish: bool,
 ) {
     let key = condition_key(max_step, constraints);
+    let _ = fs::remove_file(checkpoint_path_bin(
+        seed_result_log,
+        seed_index,
+        &key,
+        canonicalize_attacker_goldish,
+    ));
+    // Also remove any legacy JSON checkpoint that might still exist.
     let _ = fs::remove_file(checkpoint_path(
         seed_result_log,
         seed_index,

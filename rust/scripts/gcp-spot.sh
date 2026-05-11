@@ -124,6 +124,19 @@ wait_for_ssh() {
     sleep 5
   done
   echo "SSH ready."
+  apply_kernel_settings
+}
+
+apply_kernel_settings() {
+  echo "Applying kernel settings on $INSTANCE_NAME..."
+  # NUMA auto-balancing を無効化する。
+  # fmrs の探索テーブルは複数スレッドからランダムにアクセスされるため、
+  # どの NUMA ノードが "正しい" 所有者かが収束しない。有効のままにすると
+  # カーネルが意図的にページをアンマップして hint fault を発生させ続け、
+  # 2M+ fault/sec・sys CPU 50% 超という深刻な regression を招く。
+  # alloc_zeroed_slice では mbind(MPOL_INTERLEAVE) で明示的に NUMA
+  # ポリシーを設定しているため、auto-balancing は不要。
+  ssh_cmd 'sudo sysctl -w kernel.numa_balancing=0' || true
 }
 
 instance_status() {
@@ -568,6 +581,13 @@ cmd_fleet_up() {
     ) &
   done
   wait
+  echo "Applying kernel settings on all fleet instances..."
+  for i in $(seq 0 $((count - 1))); do
+    local name
+    name=$(fleet_instance_name "$i")
+    fleet_ssh "$name" --command='sudo sysctl -w kernel.numa_balancing=0' 2>/dev/null || true &
+  done
+  wait
   echo "Fleet ready: $count instances."
 }
 
@@ -703,6 +723,7 @@ fleet_supervise() {
         sleep 5
       done
       echo "  [$name] Recovered. Re-running command..." >&2
+      fleet_ssh "$name" --command='sudo sysctl -w kernel.numa_balancing=0' 2>/dev/null || true
       fleet_start_job "$name" "$instance_cmd"
     fi
   done
