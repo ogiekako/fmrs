@@ -2555,7 +2555,7 @@ fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Opti
 /// the chunk (thousands of candidates) but reset per chunk to avoid stale moves
 /// leaking across thread boundaries.
 const KILLER_DEPTH: usize = 64;
-const KILLER_COUNT: usize = 2;
+const KILLER_COUNT: usize = 5;
 
 struct Killers {
     by_mate_in: [[Option<Movement>; KILLER_COUNT]; KILLER_DEPTH],
