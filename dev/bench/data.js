@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778484128509,
+  "lastUpdate": 1778489117825,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -39258,6 +39258,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 436439430,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "888c402150d69a52645adee6a7f89e14f6e019c6",
+          "message": "feat(smoke): checkpoint を JSON から binary .ckpt 形式に移行\n\n- SeedCheckpoint に frontier_bytes / best_position_bytes フィールドを追加\n  (#[serde(skip)] により JSON 互換を維持)\n- write_seed_checkpoint が binary .ckpt を書き込むように変更\n  - magic(8B) + version(u32) + meta_json + frontier(88B/局面) + best(105B/局面)\n- load_seed_checkpoint のロード優先順: .ckpt → seed_N_KEY.json → seed_N.json\n  - JSON 読み込み成功時は .ckpt に migrate (JSON は保持)\n- remove_seed_checkpoint が .ckpt と .json 両方を削除\n- search.rs / scheduler.rs: resume_state_header() + frontier_to_binary() を使用し\n  SFEN 文字列化を回避; 復元時も binary frontier パスを優先使用\n- frontier 1000万局面時の checkpoint サイズ: JSON ~1GB → binary ~880MB、\n  かつ書き込み・読み込みとも文字列変換が不要になり大幅高速化\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T08:25:23Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/888c402150d69a52645adee6a7f89e14f6e019c6"
+        },
+        "date": 1778489114693,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124525,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121838,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2189,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 436267702,
             "unit": "Instructions"
           }
         ]
