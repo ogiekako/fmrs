@@ -1816,14 +1816,15 @@ impl BackwardSearch {
         // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
         let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
         // Cross-step memo retention policy:
-        //  - step < 15: discard. Fresh demand-zero mmap pages beat carrying stale
+        //  - step < 10: discard. Fresh demand-zero mmap pages beat carrying stale
         //    entries that bloat the table for little benefit in short searches.
         //    (bench_backward_search_seed_sfen at max-step 11 regressed 18% with
         //    unconditional retention.)
-        //  - step >= 15: carry forward via std::mem::take. At deep steps the DFS
+        //  - step >= 10: carry forward via std::mem::take. At deep steps the DFS
         //    per candidate is expensive enough that cross-step cache hits pay off;
         //    bench_backward_search_seed_sfen_allowed_kinds at max-step 19 improved
-        //    3.3% with retention.
+        //    3.3% with retention.  Threshold lowered from 15 to 10 since memo
+        //    reuse becomes valuable a few steps earlier than originally tuned.
         //    StepRange::needs_investigation() guards against stale entries;
         //    shrink_memo() below keeps memory bounded by memo_entry_limit.
         //
@@ -1834,7 +1835,7 @@ impl BackwardSearch {
         //    alloc on every step, since most steps don't need full-limit cap.
         let mut memo;
         let mut prev_memo;
-        if step >= 15 {
+        if step >= 10 {
             memo = std::mem::take(&mut self.memo);
             prev_memo = std::mem::take(&mut self.prev_memo);
         } else {
