@@ -1286,6 +1286,8 @@ impl BackwardSearch {
         self.seen_positions = range.end;
         let mut undo_moves = vec![];
         let mut solution_scratch = vec![];
+        let mut killers = Killers::new();
+        let mut history = HistoryTable::new();
         for core in self.positions[range].iter() {
             let mut position = PositionAux::new(core.clone(), self.stone);
             undo_moves.clear();
@@ -1359,6 +1361,8 @@ impl BackwardSearch {
                         mate_in,
                         &mut solution_scratch,
                         self.memo_entry_limit,
+                        &mut killers,
+                        &mut history,
                     )
                 } else {
                     solutions(
@@ -1368,6 +1372,8 @@ impl BackwardSearch {
                         mate_in,
                         &mut solution_scratch,
                         self.memo_entry_limit,
+                        &mut killers,
+                        &mut history,
                     )
                 };
                 if ans.is_uniquely(mate_in) {
@@ -1927,6 +1933,52 @@ fn is_bare_white_king(position: &PositionAux) -> bool {
 const INF_START: u16 = u16::MAX - 2;
 const INF_END: u16 = u16::MAX - 1;
 
+/// Apply killer-move and history-heuristic ordering in-place.
+/// Swaps up to KILLER_COUNT remembered cutoff moves to the front, then brings
+/// the top-3 non-killer moves by history score forward. Used by both the
+/// sequential (`solutions_inner`) and parallel (`solutions_overlay_inner`) paths.
+#[inline]
+fn apply_move_ordering(
+    movements: &mut Vec<Movement>,
+    killers: &Killers,
+    history: &HistoryTable,
+    mate_in: u16,
+) {
+    let killer_slots = killers.slots(mate_in);
+    let mut next_swap = 0;
+    for k in killer_slots.iter().flatten() {
+        if let Some(rel_idx) = movements[next_swap..].iter().position(|m| m == k) {
+            let idx = next_swap + rel_idx;
+            if idx != next_swap {
+                movements.swap(next_swap, idx);
+            }
+            next_swap += 1;
+            if next_swap >= movements.len() {
+                break;
+            }
+        }
+    }
+    let hist_start = next_swap;
+    for slot in 0..3usize {
+        let from = hist_start + slot;
+        if from >= movements.len() {
+            break;
+        }
+        let mut best_score = history.score(mate_in, &movements[from]);
+        let mut best_idx = from;
+        for j in (from + 1)..movements.len() {
+            let s = history.score(mate_in, &movements[j]);
+            if s > best_score {
+                best_score = s;
+                best_idx = j;
+            }
+        }
+        if best_score > 0 && best_idx != from {
+            movements.swap(from, best_idx);
+        }
+    }
+}
+
 fn solutions(
     position: &mut PositionAux,
     memo: &Memo,
@@ -1934,6 +1986,8 @@ fn solutions(
     mate_in: u16,
     scratch: &mut Vec<Vec<Movement>>,
     memo_entry_limit: Option<usize>,
+    killers: &mut Killers,
+    history: &mut HistoryTable,
 ) -> StepRange {
     if scratch.len() <= mate_in as usize {
         scratch.resize_with(mate_in as usize + 1, Vec::new);
@@ -1945,6 +1999,8 @@ fn solutions(
         mate_in,
         scratch,
         memo_entry_limit,
+        killers,
+        history,
     )
 }
 
@@ -1955,6 +2011,8 @@ fn solutions_inner(
     mate_in: u16,
     scratch: &mut [Vec<Movement>],
     memo_entry_limit: Option<usize>,
+    killers: &mut Killers,
+    history: &mut HistoryTable,
 ) -> StepRange {
     let mut ans = StepRange::unknown();
     if let Some(a) = memo.get(position.digest()) {
@@ -2012,11 +2070,24 @@ fn solutions_inner(
 
     let mut res = StepRange::unsolvable();
 
+    apply_move_ordering(&mut movements, killers, history, mate_in);
+
+    // Pre-compute child digests and issue software prefetches so the memo
+    // cache lines are warm before the pass-1 lookup loop (same technique as
+    // solutions_overlay_inner; hides DRAM latency behind moved_digest work).
+    let nchildren = movements.len().min(128);
+    let mut child_digests = [0u64; 128];
+    for i in 0..nchildren {
+        let d = position.moved_digest(&movements[i]);
+        child_digests[i] = d;
+        next_memo.prefetch_key(d);
+    }
+
     // Two-pass move ordering: memoized children first; skip recursion if those
     // alone prove non-uniqueness or a shorter mate. hit_mask records pass-1 hits.
     let mut hit_mask = [0u64; 2];
     for (i, m) in movements.iter().enumerate() {
-        let child_digest = position.moved_digest(m);
+        let child_digest = if i < nchildren { child_digests[i] } else { position.moved_digest(m) };
         if let Some(child) = next_memo
             .get(child_digest)
             .filter(|a| !a.needs_investigation(mate_in - 1))
@@ -2025,6 +2096,8 @@ fn solutions_inner(
             let a = child.inc();
             res.update_with_child(&a);
             if res.definitely_shorter_or_non_unique(mate_in) {
+                killers.record(mate_in, *m);
+                history.record(mate_in, m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
@@ -2046,6 +2119,8 @@ fn solutions_inner(
                 mate_in - 1,
                 scratch,
                 memo_entry_limit,
+                killers,
+                history,
             )
             .inc();
             debug_assert!(!a.needs_investigation(mate_in));
@@ -2053,6 +2128,8 @@ fn solutions_inner(
             res.update_with_child(&a);
 
             if res.definitely_shorter_or_non_unique(mate_in) {
+                killers.record(mate_in, *m);
+                history.record(mate_in, m);
                 res.shortest_start = 1;
                 res.next_start = 1;
                 break;
@@ -2347,43 +2424,7 @@ fn solutions_overlay_inner(
     // which one's lookup result is consumed first by the cutoff check.
     // History heuristic: after killers, swap the non-killer move with the
     // highest history score (cutoff frequency by dest square) to the next slot.
-    let hist_start;
-    {
-        let killer_slots = killers.slots(mate_in);
-        let mut next_swap = 0;
-        for k in killer_slots.iter().flatten() {
-            if let Some(rel_idx) = movements[next_swap..].iter().position(|m| m == k) {
-                let idx = next_swap + rel_idx;
-                if idx != next_swap {
-                    movements.swap(next_swap, idx);
-                }
-                next_swap += 1;
-                if next_swap >= movements.len() {
-                    break;
-                }
-            }
-        }
-        hist_start = next_swap;
-        // Top-3 selection: bring the top-3 history moves to hist_start..hist_start+3.
-        for slot in 0..3usize {
-            let from = hist_start + slot;
-            if from >= movements.len() {
-                break;
-            }
-            let mut best_score = history.score(mate_in, &movements[from]);
-            let mut best_idx = from;
-            for j in (from + 1)..movements.len() {
-                let s = history.score(mate_in, &movements[j]);
-                if s > best_score {
-                    best_score = s;
-                    best_idx = j;
-                }
-            }
-            if best_score > 0 && best_idx != from {
-                movements.swap(from, best_idx);
-            }
-        }
-    }
+    apply_move_ordering(&mut movements, killers, history, mate_in);
 
     let nchildren = movements.len().min(128);
     let mut child_digests = [0u64; 128];
