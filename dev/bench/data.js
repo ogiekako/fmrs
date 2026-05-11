@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778483800742,
+  "lastUpdate": 1778483802728,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -37905,6 +37905,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 32257,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "04cf69c8abf5b22abec085f2d4c049fc495461d4",
+          "message": "perf(memo): NUMA インターリーブで ShardedFlatMemo のクロスソケットレイテンシを削減\n\nalloc_zeroed_slice の madvise(MADV_HUGEPAGE) 直後に mbind(MPOL_INTERLEAVE) を追加。\n実行環境 (fmrs-spot-2: n2d-highmem-128, NUMA距離 10:20) で確認済み：\n- node 0 (cpus 0-31, 64-95) / node 1 (cpus 32-63, 96-127)\n- クロスノードアクセスはローカルの 2 倍遅い\n\nmbind が libc crate に未実装のため libc::syscall(SYS_mbind, ...) 経由で呼び出す。\nMPOL_INTERLEAVE でページをノード間ラウンドロビン配置し、数 GB 規模のハッシュ\nテーブルへのランダムアクセスにおけるクロスソケット penalty を平均半減させる。\nx86_64 Linux 以外ではコンパイル対象外; エラーはすべて無視 (degraded gracefully)。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-11T07:05:14Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/04cf69c8abf5b22abec085f2d4c049fc495461d4"
+        },
+        "date": 1778483802289,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 408,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3245,
+            "range": "± 130",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 411,
+            "range": "± 648",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29745,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1787,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4844,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1446448,
+            "range": "± 274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12115,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 185,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 111,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 147,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20944280,
+            "range": "± 401924",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28951,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3546,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 19004,
+            "range": "± 207",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 31580,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
