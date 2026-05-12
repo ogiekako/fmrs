@@ -350,7 +350,7 @@ pub(super) fn search_single_seed(
         let remaining = total_pending
             .saturating_sub(completed_in_run.load(Ordering::Relaxed))
             .max(1);
-        let dynamic_inner = (parallel / remaining).max(1);
+        let dynamic_inner = ((parallel + remaining - 1) / remaining).max(1);
         let frontier = search.stats().positions_len;
         let use_inner_parallel = dynamic_inner > 1 && frontier >= FRONTIER_PARALLEL_THRESHOLD;
         search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
