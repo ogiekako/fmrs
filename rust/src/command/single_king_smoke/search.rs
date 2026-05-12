@@ -14,9 +14,14 @@ use std::time::Instant;
 /// par_chunks dispatch overhead exceeds the work for small frontiers; this
 /// threshold gates the path switch between single-threaded
 /// `advance_upto_with_candidate_filter` and parallel
-/// `advance_parallel_filtered`. Tuned conservatively — the cost of running
-/// single-thread on a slightly-over-threshold frontier is small, while the
-/// cost of running parallel on a tiny frontier is dominated by dispatch.
+/// `advance_parallel_filtered`.
+///
+/// Inner parallel uses the outer rayon pool (pool=None → par_chunks inherits
+/// the caller's pool context), so cross-seed work-stealing is possible even
+/// when all `parallel` threads are busy: a thread at its own join point can
+/// steal chunks from a concurrent seed's phase-1/phase-2. This benefit kicks
+/// in whenever frontier is large enough to justify the dispatch overhead,
+/// regardless of how many seeds are still in flight.
 const FRONTIER_PARALLEL_THRESHOLD: usize = 1024;
 
 use super::super::smoke_constraints::{
@@ -352,7 +357,7 @@ pub(super) fn search_single_seed(
             .max(1);
         let dynamic_inner = ((parallel + remaining - 1) / remaining).max(1);
         let frontier = search.stats().positions_len;
-        let use_inner_parallel = dynamic_inner > 1 && frontier >= FRONTIER_PARALLEL_THRESHOLD;
+        let use_inner_parallel = frontier >= FRONTIER_PARALLEL_THRESHOLD;
         search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
         // Dynamic memo budget: as `remaining` drops, the surviving seed gets
         // a larger share of the total memo budget. Only grow (never shrink)
