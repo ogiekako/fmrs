@@ -19,17 +19,10 @@ use std::time::Instant;
 /// Inner parallel uses the outer rayon pool (pool=None → par_chunks inherits
 /// the caller's pool context), so cross-seed work-stealing is possible even
 /// when all `parallel` threads are busy: a thread at its own join point can
-/// steal chunks from a concurrent seed's phase-1/phase-2.
-///
-/// Memory consideration: `advance_parallel_filtered` allocates per-chunk
-/// `wave_results` (Vec<Position> + 2 NoHashMap64) that stay live until the
-/// wave's collect() returns. With `parallel` concurrent seeds all in parallel
-/// path, peak transient memory is roughly `parallel × 8 × per_chunk_memory`.
-/// Bench (parallel=4, frontier ~1.5M) showed 14GB → 57GB peak when threshold
-/// was 1024. Raised to 65536 to limit parallel path to truly large frontiers
-/// where the speedup clearly outweighs memory amplification; medium frontiers
-/// (1K–64K) stay sequential and memory-bounded.
-const FRONTIER_PARALLEL_THRESHOLD: usize = 65536;
+/// steal chunks from a concurrent seed's phase-1/phase-2. This benefit kicks
+/// in whenever frontier is large enough to justify the dispatch overhead,
+/// regardless of how many seeds are still in flight.
+const FRONTIER_PARALLEL_THRESHOLD: usize = 1024;
 
 use super::super::smoke_constraints::{
     board_piece_count, satisfies_ideal_smoke_constraints,
