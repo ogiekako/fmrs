@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778915356796,
+  "lastUpdate": 1778915358690,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -39893,6 +39893,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 25640,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f87f8ef4b4978745e86974ce563e8d1fa45be33d",
+          "message": "perf(smoke): グローバルアロケータを mimalloc 化し glibc malloc 競合を解消\n\n128 スレッドの per-node clone()/Vec churn で素の glibc malloc が\nアリーナ競合し、perf 上 libc 単一アドレスが 33%・kernel に\nclear_page_erms 嵐となって巨大 step を律速していた。mimalloc は\n多スレッド churn に強く、圧力時はページを OS へ返す (decay) ため\nOOM 安全制約も満たす。clone() には触れないため make/unmake 系の\n既知 regression とも非抵触。\n\nwasm 版は fmrs crate に依存せず global_allocator も bin 専用のため\n影響なし (cargo check -p wasm --target wasm32-unknown-unknown 確認済)。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T06:51:57Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f87f8ef4b4978745e86974ce563e8d1fa45be33d"
+        },
+        "date": 1778915358224,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 394,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2732,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 180,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 403,
+            "range": "± 589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26515,
+            "range": "± 145",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1558,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4637,
+            "range": "± 21",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1310704,
+            "range": "± 72",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11227,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 193,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 51,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 156,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19087662,
+            "range": "± 558126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26788,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3183,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17051,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 24496,
+            "range": "± 4",
             "unit": "ns/iter"
           }
         ]
