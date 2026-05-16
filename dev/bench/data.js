@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778915358690,
+  "lastUpdate": 1778922007578,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41755,6 +41755,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_black_advance",
             "value": 50869,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "6c35e4619f3210f2184895cfade9884485ed4648",
+          "message": "perf(smoke): 2-ply 境界で memo を reset せず swap し V 償却を維持\n\nadvance_collect_predecessors が memo を Memo::new() で破棄していた\nため、深 step で観測された「巨大 memo による V 激安」効果が\n2-ply 反復ごとに途切れていた。\n\nreset を std::mem::swap に置換。1 反復 = collect の swap +\nverified ply 末尾の swap = 2 swap で、pure 1-ply の 2 step と\nmemo/prev_memo parity が完全一致。memo は digest+StepRange キーで\nneeds_investigation ガード付きの健全キャッシュなので持ち越しは\n正当。跨反復の検証償却が復活。\n\n全テスト green 維持、ideal-backward golden 統合テストも出力 SFEN・\n件数まで厳密一致で PASS（parity 保持を実証）。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T08:40:42Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/6c35e4619f3210f2184895cfade9884485ed4648"
+        },
+        "date": 1778922004930,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
             "unit": "Instructions"
           },
           {
