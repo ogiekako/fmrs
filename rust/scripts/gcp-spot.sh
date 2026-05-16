@@ -324,12 +324,21 @@ cmd_run_bg() {
   ssh_cmd "tmux kill-session -t $TMUX_SESSION 2>/dev/null || true; tmux new-session -d -s $TMUX_SESSION 'bash -c \"($remote_cmd) 2>&1 | tee $BG_LOG; echo; echo === DONE exit=\\\$? ===\"'"
   echo "Job started in tmux session '$TMUX_SESSION'."
   echo "  $0 tail    # watch output"
+  echo "  $0 status  # check if the job is still alive"
+  echo "  $0 stop    # stop the job (keeps the instance)"
   echo "  $0 ssh     # then: tmux attach -t $TMUX_SESSION"
 }
 
 cmd_tail() {
   echo "Tailing $INSTANCE_NAME:$BG_LOG (Ctrl-C to detach)..."
   ssh_cmd "tail -f $BG_LOG"
+}
+
+cmd_stop() {
+  # Kill the background job without deleting the instance. Killing the tmux
+  # session SIGHUPs the `(cmd) | tee` pipeline, so the job exits immediately
+  # (the `=== DONE ===` marker is not written for an explicit stop).
+  ssh_cmd "if tmux has-session -t $TMUX_SESSION 2>/dev/null; then tmux kill-session -t $TMUX_SESSION && echo 'Job stopped (tmux session $TMUX_SESSION killed).'; else echo 'No background job (tmux session $TMUX_SESSION not found).'; fi"
 }
 
 cmd_ssh() {
@@ -345,6 +354,8 @@ cmd_down() {
 cmd_status() {
   gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" \
     --format="table(name,status,machineType.basename(),scheduling.provisioningModel,networkInterfaces[0].accessConfigs[0].natIP)" 2>/dev/null || echo "Instance $INSTANCE_NAME not found."
+  echo "--- background job ---"
+  ssh_cmd "if tmux has-session -t $TMUX_SESSION 2>/dev/null; then echo 'job: RUNNING (tmux session $TMUX_SESSION alive)'; else echo 'job: not running (no tmux session $TMUX_SESSION)'; fi; if [ -f $BG_LOG ]; then echo \"log: $BG_LOG  (last modified \$(stat -c %y $BG_LOG))\"; tail -n 3 $BG_LOG | grep -q 'DONE exit=' && echo '(job finished — DONE marker present)'; echo '--- last log lines ---'; tail -n 3 $BG_LOG; else echo 'log: $BG_LOG not present yet'; fi" 2>/dev/null || echo "(could not reach $INSTANCE_NAME for job status)"
 }
 
 cmd_cost() {
@@ -939,6 +950,7 @@ case "$SUBCOMMAND" in
   run)      cmd_run "$@" ;;
   run-bg)   cmd_run_bg "$@" ;;
   tail)     cmd_tail ;;
+  stop)     cmd_stop ;;
   ssh)      cmd_ssh ;;
   down)     cmd_down ;;
   cost)     cmd_cost ;;
@@ -953,7 +965,7 @@ case "$SUBCOMMAND" in
   fleet-status) cmd_fleet_status ;;
   fleet-cost)   cmd_fleet_cost ;;
   help|*)
-    echo "Usage: $0 {up|push|run|run-bg|tail|pull|ssh|down|status|cost} [ID]"
+    echo "Usage: $0 {up|push|run|run-bg|tail|stop|pull|ssh|down|status|cost} [ID]"
     echo "       $0 {fleet-up|fleet-push|fleet-run|fleet-tail|fleet-stop|fleet-pull|fleet-down|fleet-status|fleet-cost}"
     echo ""
     echo "Single-instance commands (optional integer ID selects a named variant):"
@@ -962,6 +974,7 @@ case "$SUBCOMMAND" in
     echo "  run [ID] CMD     Run a command on the instance (foreground, auto-restart on preempt)"
     echo "  run-bg [ID] CMD  Run a command in background (tmux)"
     echo "  tail [ID]        Tail the background job log"
+    echo "  stop [ID]        Stop the background job (keeps the instance)"
     echo "  pull [ID]        Sync instance results back to local"
     echo "  ssh [ID]         Interactive SSH session"
     echo "  down [ID]        Delete the instance"
