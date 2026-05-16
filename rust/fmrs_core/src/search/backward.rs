@@ -1151,6 +1151,13 @@ pub struct BackwardSearch {
     memo_entry_limit: Option<usize>,
     delta_trace: bool,
     canonicalize_attacker_goldish: bool,
+    /// Measurement of the most recent `advance_parallel_filtered`: pre-advance
+    /// frontier size, how many of those frontier positions produced zero
+    /// filter-passing predecessors (a true backward dead-end — the key metric
+    /// for the 2-ply-fusion prize), and the unique candidate count.
+    last_frontier_in: usize,
+    last_dead_end: usize,
+    last_candidates: usize,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1161,6 +1168,11 @@ pub struct BackwardSearchStats {
     pub prev_positions_len: usize,
     pub memo_len: usize,
     pub prev_memo_len: usize,
+    /// Last `advance_parallel_filtered` measurement (0 if not measured this
+    /// step, e.g. the serial small-frontier path).
+    pub frontier_in: usize,
+    pub dead_end_count: usize,
+    pub candidate_count: usize,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -1251,6 +1263,9 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            last_frontier_in: 0,
+            last_dead_end: 0,
+            last_candidates: 0,
             canonicalize_attacker_goldish: false,
         })
     }
@@ -1373,6 +1388,9 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            last_frontier_in: 0,
+            last_dead_end: 0,
+            last_candidates: 0,
             canonicalize_attacker_goldish: true,
         })
     }
@@ -1455,6 +1473,9 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            last_frontier_in: 0,
+            last_dead_end: 0,
+            last_candidates: 0,
             canonicalize_attacker_goldish: false,
         })
     }
@@ -1544,6 +1565,9 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             delta_trace: false,
+            last_frontier_in: 0,
+            last_dead_end: 0,
+            last_candidates: 0,
             canonicalize_attacker_goldish: false,
         })
     }
@@ -1662,6 +1686,11 @@ impl BackwardSearch {
         mut candidate_filter: impl FnMut(&PositionAux, &UndoMove) -> bool,
         mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
     ) -> anyhow::Result<bool> {
+        // Serial small-frontier path: dead-end measurement is parallel-only,
+        // so publish "not measured" (0) instead of stale parallel values.
+        self.last_frontier_in = self.positions.len();
+        self.last_dead_end = 0;
+        self.last_candidates = 0;
         let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
         self.seen_positions = range.end;
         let mut undo_moves = vec![];
@@ -1814,6 +1843,9 @@ impl BackwardSearch {
         filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
+            self.last_frontier_in = 0;
+            self.last_dead_end = 0;
+            self.last_candidates = 0;
             set_progress_phase(0);
             return Ok(false);
         }
@@ -1839,7 +1871,11 @@ impl BackwardSearch {
         // unique candidates), not by total raw candidates.
         set_progress_phase(1); // P: candidate generation
         let positions = &self.positions;
+        let frontier_in = positions.len();
         let dedup_count = AtomicUsize::new(0);
+        // Frontier positions with zero filter-passing predecessors: true
+        // backward dead-ends (the 2-ply-fusion prize metric).
+        let dead_end_count = AtomicUsize::new(0);
         let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
             .map(|_| Mutex::new((NoHashSet64::default(), Vec::new())))
             .collect();
@@ -1855,12 +1891,14 @@ impl BackwardSearch {
                     let mut local_outs: [Vec<Position>; NUM_SHARDS] =
                         std::array::from_fn(|_| Vec::new());
                     let mut chunk_dedup = 0usize;
+                    let mut chunk_dead = 0usize;
 
                     for core in chunk.iter() {
                         let mut position = PositionAux::new(core.clone(), stone);
                         undo_moves.clear();
                         previous(&mut position, step > 0, &mut undo_moves);
 
+                        let mut any_survived = false;
                         for m in undo_moves.iter() {
                             if !candidate_filter(&position, m) {
                                 continue;
@@ -1876,6 +1914,9 @@ impl BackwardSearch {
                             if !filter(pp.core(), stone) {
                                 continue;
                             }
+                            // A constraint-satisfying backward move exists for
+                            // this frontier position: not a dead-end.
+                            any_survived = true;
                             let digest = pp.core().digest();
                             let shard_idx = shard_index(digest);
                             if local_seens[shard_idx].insert(digest) {
@@ -1883,8 +1924,12 @@ impl BackwardSearch {
                                 chunk_dedup += 1;
                             }
                         }
+                        if !any_survived {
+                            chunk_dead += 1;
+                        }
                     }
                     dedup_count.fetch_add(chunk_dedup, Ordering::Relaxed);
+                    dead_end_count.fetch_add(chunk_dead, Ordering::Relaxed);
 
                     // Release per-thread chunk-local seen sets before taking
                     // shared shard locks.
@@ -1912,6 +1957,7 @@ impl BackwardSearch {
 
         set_progress_phase(2); // C: collect/extend unique candidates
         let candidate_len = dedup_count.into_inner();
+        let dead_end = dead_end_count.into_inner();
 
         let total_unique: usize = shard_buckets
             .iter()
@@ -1924,6 +1970,9 @@ impl BackwardSearch {
         }
 
         if candidates.is_empty() {
+            self.last_frontier_in = frontier_in;
+            self.last_dead_end = dead_end;
+            self.last_candidates = 0;
             set_progress_phase(0);
             return Ok(false);
         }
@@ -2116,6 +2165,9 @@ impl BackwardSearch {
         self.prev_memo = prev_memo;
 
         if all_positions.is_empty() {
+            self.last_frontier_in = frontier_in;
+            self.last_dead_end = dead_end;
+            self.last_candidates = total_unique;
             set_progress_phase(0);
             return Ok(false);
         }
@@ -2126,6 +2178,9 @@ impl BackwardSearch {
         self.seen_positions = 0;
         self.step += 1;
 
+        self.last_frontier_in = frontier_in;
+        self.last_dead_end = dead_end;
+        self.last_candidates = total_unique;
         set_progress_phase(0);
         Ok(true)
     }
@@ -2154,6 +2209,9 @@ impl BackwardSearch {
             prev_positions_len: self.prev_positions.len(),
             memo_len: self.memo.len(),
             prev_memo_len: self.prev_memo.len(),
+            frontier_in: self.last_frontier_in,
+            dead_end_count: self.last_dead_end,
+            candidate_count: self.last_candidates,
         }
     }
 

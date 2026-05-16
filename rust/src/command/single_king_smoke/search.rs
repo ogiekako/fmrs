@@ -570,7 +570,7 @@ fn push_trajectory_row(
     use std::fmt::Write as _;
     let _ = writeln!(
         buf,
-        r#"{{"cond":"{cond}","seed":{seed},"step":{step},"frontier":{frontier},"memo":{memo},"inner":{inner},"ms":{ms}}}"#,
+        r#"{{"cond":"{cond}","seed":{seed},"step":{step},"frontier":{frontier},"memo":{memo},"inner":{inner},"ms":{ms},"fin":{fin},"dead":{dead},"cand":{cand}}}"#,
         cond = cond_hash,
         seed = seed_index,
         step = stats.step,
@@ -578,6 +578,9 @@ fn push_trajectory_row(
         memo = stats.memo_len,
         inner = inner,
         ms = elapsed_ms,
+        fin = stats.frontier_in,
+        dead = stats.dead_end_count,
+        cand = stats.candidate_count,
     );
 }
 
