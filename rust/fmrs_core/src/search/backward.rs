@@ -1850,8 +1850,14 @@ impl BackwardSearch {
     /// backward constraint (`satisfies_backward_constraints`) are applied,
     /// since those are required for the predecessor set to be well-defined.
     ///
-    /// Memos are reset: this ply runs no verification, so any carried memo
-    /// would be unkeyed to it; the next verified ply rebuilds its own.
+    /// Memo handling mirrors a 1-ply step's end-of-step `swap` (but adds no
+    /// new entries, since no verification runs). This keeps the memo/prev_memo
+    /// parity bookkeeping identical to the pure 1-ply scheme — one fused
+    /// iteration performs exactly two swaps (here + the verified ply's end),
+    /// matching two 1-ply steps — so the carried memo from earlier output
+    /// plies stays valid and the cross-step verification amortisation (huge at
+    /// deep steps) survives the 2-ply boundary. Entries are a digest+StepRange
+    /// cache guarded by `needs_investigation`, so carrying them is sound.
     pub fn advance_collect_predecessors(&mut self) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             set_progress_phase(0);
@@ -1936,10 +1942,10 @@ impl BackwardSearch {
         self.last_dead_end = 0;
         self.last_candidates = total_unique;
 
-        // No verification ran: drop any memo so the next verified ply starts
-        // from a clean, correctly-keyed cache.
-        self.memo = Memo::new();
-        self.prev_memo = Memo::new();
+        // Mirror a 1-ply step's end-of-step swap (no new entries added). This
+        // preserves memo/prev_memo parity vs the pure 1-ply scheme and keeps
+        // the carried verification cache alive across the 2-ply boundary.
+        std::mem::swap(&mut self.memo, &mut self.prev_memo);
         self.seen_positions = 0;
         self.step += 1;
         set_progress_phase(0);
