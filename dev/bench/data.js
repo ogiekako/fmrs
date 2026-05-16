@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778897940093,
+  "lastUpdate": 1778902746611,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41392,6 +41392,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434589116,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "b0ba1de658eeda4487455fa98d3c6bbc02eeaa2c",
+          "message": "fix(smoke): goldish-priority が filter の使用不可駒を honor / 判定を歩のみに簡素化\n\nsatisfies_goldish_priority は白持駒の Pawn/Lance/Knight で段階的に上位\ngoldish を弾いていたが、(1) no_pawn / --allowed-kinds で歩が使えない\n場合は ProPawn 代替自体が成立しないのに弾いており過剰枝刈りになっていた。\n(2) Lance/Knight/Silver 間に明確な優劣はない。\n\nProPawn 代替が filter 下で可能なときのみ、白持駒に Pawn があれば\nProLance/ProKnight/ProSilver を一律棄却するロジックに簡素化。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T03:21:59Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/b0ba1de658eeda4487455fa98d3c6bbc02eeaa2c"
+        },
+        "date": 1778902743953,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124163,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434073932,
             "unit": "Instructions"
           }
         ]
