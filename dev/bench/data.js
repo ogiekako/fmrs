@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778511404435,
+  "lastUpdate": 1778896754532,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -40974,6 +40974,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/bcc869fa02c8370d62e680b9f7c669744876749c"
         },
         "date": 1778511398043,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124115,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434589116,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "89acb45ea5beae2ae0d1e80c86bba8ece6d9435e",
+          "message": "Revert \"perf(smoke): FRONTIER_PARALLEL_THRESHOLD を 1024 → 65536 に引き上げ\"\n\nThis reverts commit 93a8c29ea5c3618399f1f45214fb0acc9b54bc9b.",
+          "timestamp": "2026-05-12T12:35:42Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/89acb45ea5beae2ae0d1e80c86bba8ece6d9435e"
+        },
+        "date": 1778896751468,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
