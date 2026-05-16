@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778922009325,
+  "lastUpdate": 1778923272610,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41949,6 +41949,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_black_advance",
             "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f26c908ac3389d8ce660d61b810fcd19b73f56ab",
+          "message": "perf(smoke): 2-ply を中間 Vec なしのインライン融合に（メモリ削減）\n\ncollect+filtered の 2 メソッド方式は中間(白/偶)層を Vec に\nmaterialize + sharded dedup していた。multi-seed 並列だと各 seed\nが transient な巨大中間 Vec を抱え、規模拡大でメモリ圧になる。\n\nadvance_collect_predecessors を撤去し advance_2ply_fused を新設:\nfrontier の各 q0 から previous→mid フィルタ通過 q1 を生成し、\nその場で即 previous→out フィルタ通過 q2 を生成(dedup/保持は q2\nのみ)。中間 q1 は transient local で Vec 化せず、dedup・保持・\ncheckpoint も不要に。両 ply に per-step filter は適用(有界化)、\n中間 ply の uniqueness 検証(V)は引き続きスキップ(賞金維持)。\n\nmemo/parity: 融合内の swap 1 + Phase2 末尾 swap 1 = 2 swap で\n1-ply 2 step と完全一致。Phase 2 は advance_parallel_filtered の\n検証を意図的に verbatim 複製し、tuned な 1-ply メソッドは不変\n(等価テスト維持)。parallel/serial 問わず適用(small frontier は\nset_parallel(1) で par_chunks が実質直列)。\n\nsearch.rs: two_ply は frontier サイズに依らず必ず advance_2ply_\nfused を通す形に整理(偶/step0 ブートストラップのみ 1-ply)。\n\n全テスト green、ideal-backward golden 統合テストが出力 SFEN・\n件数まで厳密一致 PASS(memo/parity 保持を実証)。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T09:16:39Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f26c908ac3389d8ce660d61b810fcd19b73f56ab"
+        },
+        "date": 1778923269992,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50869,
             "unit": "Instructions"
           },
           {
