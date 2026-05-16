@@ -1837,6 +1837,122 @@ impl BackwardSearch {
         Ok(true)
     }
 
+    /// One backward ply that materialises *all* legal predecessors of the
+    /// current frontier WITHOUT smoke filtering and WITHOUT uniqueness
+    /// verification (no `solutions_overlay`).
+    ///
+    /// This is the intermediate (white/even) half of the fused 2-ply step:
+    /// per the smoke spec only the output positions we keep must satisfy the
+    /// per-step constraints, so intermediate positions are allowed to violate
+    /// them and need not be uniqueness-checked here — the following filtered+
+    /// verified ply (`advance_parallel_filtered`) is the source of truth.
+    /// Only move-legality (`is_backward_candidate_legal`) and the structural
+    /// backward constraint (`satisfies_backward_constraints`) are applied,
+    /// since those are required for the predecessor set to be well-defined.
+    ///
+    /// Memos are reset: this ply runs no verification, so any carried memo
+    /// would be unkeyed to it; the next verified ply rebuilds its own.
+    pub fn advance_collect_predecessors(&mut self) -> anyhow::Result<bool> {
+        if self.positions.is_empty() {
+            set_progress_phase(0);
+            return Ok(false);
+        }
+        let step = self.step;
+        let stone = self.stone;
+        let no_black_goldish = self.no_black_goldish;
+        let position_parallel = self.parallel.min(self.positions.len());
+        let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
+
+        set_progress_phase(1); // P: predecessor generation (intermediate)
+        let positions = &self.positions;
+        let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
+            .map(|_| Mutex::new((NoHashSet64::default(), Vec::new())))
+            .collect();
+
+        self.install_or_run(|| {
+            positions
+                .par_chunks(position_chunk_size)
+                .enumerate()
+                .for_each(|(chunk_idx, chunk)| {
+                    let mut undo_moves = vec![];
+                    let mut local_seens: [NoHashSet64; NUM_SHARDS] =
+                        std::array::from_fn(|_| NoHashSet64::default());
+                    let mut local_outs: [Vec<Position>; NUM_SHARDS] =
+                        std::array::from_fn(|_| Vec::new());
+
+                    for core in chunk.iter() {
+                        let mut position = PositionAux::new(core.clone(), stone);
+                        undo_moves.clear();
+                        previous(&mut position, step > 0, &mut undo_moves);
+
+                        for m in undo_moves.iter() {
+                            let mut pp = position.clone();
+                            pp.undo_move(m);
+                            if !is_backward_candidate_legal(&mut pp) {
+                                continue;
+                            }
+                            if !satisfies_backward_constraints(&pp, no_black_goldish) {
+                                continue;
+                            }
+                            let digest = pp.core().digest();
+                            let shard_idx = shard_index(digest);
+                            if local_seens[shard_idx].insert(digest) {
+                                local_outs[shard_idx].push(pp.core().clone());
+                            }
+                        }
+                    }
+
+                    drop(local_seens);
+                    let stagger = chunk_idx % NUM_SHARDS;
+                    for i in 0..NUM_SHARDS {
+                        let shard_idx = (i + stagger) % NUM_SHARDS;
+                        let local = std::mem::take(&mut local_outs[shard_idx]);
+                        if local.is_empty() {
+                            continue;
+                        }
+                        let mut guard = shard_buckets[shard_idx].lock().unwrap();
+                        let (seen, out) = &mut *guard;
+                        out.reserve(local.len());
+                        for pos in local {
+                            if seen.insert(pos.digest()) {
+                                out.push(pos);
+                            }
+                        }
+                    }
+                });
+        });
+
+        let total_unique: usize = shard_buckets
+            .iter()
+            .map(|m| m.lock().unwrap().1.len())
+            .sum();
+        let mut candidates = Vec::with_capacity(total_unique);
+        for bucket in shard_buckets {
+            let (_, out) = bucket.into_inner().unwrap();
+            candidates.extend(out);
+        }
+
+        self.last_frontier_in = positions.len();
+        self.last_dead_end = 0;
+        self.last_candidates = total_unique;
+
+        // No verification ran: drop any memo so the next verified ply starts
+        // from a clean, correctly-keyed cache.
+        self.memo = Memo::new();
+        self.prev_memo = Memo::new();
+        self.seen_positions = 0;
+        self.step += 1;
+        set_progress_phase(0);
+
+        if candidates.is_empty() {
+            self.positions = Vec::new();
+            return Ok(false);
+        }
+        self.positions = candidates;
+        self.prev_positions = Vec::new();
+        Ok(true)
+    }
+
     pub fn advance_parallel_filtered(
         &mut self,
         candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),

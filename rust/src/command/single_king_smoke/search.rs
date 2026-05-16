@@ -343,7 +343,22 @@ pub(super) fn search_single_seed(
             termination_reason = TerminationReason::MaxStep;
             break;
         }
-        let next_step = search.step() + 1;
+        // Fused 2-ply. Smoke outputs live on odd steps; the even
+        // (white/intermediate) layer never produces output and — per spec —
+        // may violate the per-step constraints, so it needs neither smoke
+        // filtering nor uniqueness verification. From an odd step we
+        // therefore materialise all legal predecessors unverified
+        // (`advance_collect_predecessors`, odd→even) and then run the
+        // filtered+verified ply (even→odd) which is the source of truth.
+        // From an even step (incl. the step-0 bootstrap) we just do the
+        // single filtered ply to reach odd parity.
+        let step_now = search.step();
+        let two_ply = step_now % 2 == 1;
+        let next_step = if two_ply {
+            step_now + 2
+        } else {
+            step_now + 1
+        };
         if search_limit.is_some_and(|limit| next_step > limit) {
             termination_reason = TerminationReason::MaxStep;
             break;
@@ -354,13 +369,6 @@ pub(super) fn search_single_seed(
         }
 
         let advance_start = Instant::now();
-        let candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
-            satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
-        };
-        let generation_filter = |core: &Position, stone: Option<BitBoard>| {
-            let position = PositionAux::new(core.clone(), stone);
-            satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
-        };
         // Dynamic inner-parallel: divide the pool budget across seeds still
         // in flight (this seed itself is included in `remaining`). When the
         // tail shrinks, surviving seeds inherit the freed cores.
@@ -368,6 +376,25 @@ pub(super) fn search_single_seed(
             .saturating_sub(completed_in_run.load(Ordering::Relaxed))
             .max(1);
         let dynamic_inner = ((parallel + remaining - 1) / remaining).max(1);
+
+        if two_ply {
+            search.set_parallel(dynamic_inner);
+            if !search.advance_collect_predecessors()? {
+                termination_reason = TerminationReason::Completed;
+                break;
+            }
+            if let Some(width) = beam.width {
+                apply_beam(&mut search, beam, width);
+            }
+        }
+
+        let candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
+            satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
+        };
+        let generation_filter = |core: &Position, stone: Option<BitBoard>| {
+            let position = PositionAux::new(core.clone(), stone);
+            satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
+        };
         let frontier = search.stats().positions_len;
         let use_inner_parallel = frontier >= FRONTIER_PARALLEL_THRESHOLD;
         search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
