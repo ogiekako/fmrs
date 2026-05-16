@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778902748465,
+  "lastUpdate": 1778915356796,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41586,6 +41586,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434073932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f87f8ef4b4978745e86974ce563e8d1fa45be33d",
+          "message": "perf(smoke): グローバルアロケータを mimalloc 化し glibc malloc 競合を解消\n\n128 スレッドの per-node clone()/Vec churn で素の glibc malloc が\nアリーナ競合し、perf 上 libc 単一アドレスが 33%・kernel に\nclear_page_erms 嵐となって巨大 step を律速していた。mimalloc は\n多スレッド churn に強く、圧力時はページを OS へ返す (decay) ため\nOOM 安全制約も満たす。clone() には触れないため make/unmake 系の\n既知 regression とも非抵触。\n\nwasm 版は fmrs crate に依存せず global_allocator も bin 専用のため\n影響なし (cargo check -p wasm --target wasm32-unknown-unknown 確認済)。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T06:51:57Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f87f8ef4b4978745e86974ce563e8d1fa45be33d"
+        },
+        "date": 1778915354071,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50869,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
             "unit": "Instructions"
           }
         ]
