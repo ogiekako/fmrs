@@ -378,8 +378,21 @@ pub(super) fn search_single_seed(
         let dynamic_inner = ((parallel + remaining - 1) / remaining).max(1);
 
         if two_ply {
+            // Intermediate (white/even) ply: filter at step_now+1 to keep the
+            // predecessor set bounded (unfiltered it explodes and the verified
+            // ply's V becomes intractable), but skip uniqueness verification.
+            let mid_step = step_now + 1;
+            let mid_candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
+                satisfies_ideal_smoke_undo_candidate(position, undo_move, mid_step, constraints)
+            };
+            let mid_generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, mid_step, constraints)
+            };
             search.set_parallel(dynamic_inner);
-            if !search.advance_collect_predecessors()? {
+            if !search
+                .advance_collect_predecessors(&mid_candidate_filter, &mid_generation_filter)?
+            {
                 termination_reason = TerminationReason::Completed;
                 break;
             }

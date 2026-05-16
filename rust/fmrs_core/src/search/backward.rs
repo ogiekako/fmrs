@@ -1841,14 +1841,14 @@ impl BackwardSearch {
     /// current frontier WITHOUT smoke filtering and WITHOUT uniqueness
     /// verification (no `solutions_overlay`).
     ///
-    /// This is the intermediate (white/even) half of the fused 2-ply step:
-    /// per the smoke spec only the output positions we keep must satisfy the
-    /// per-step constraints, so intermediate positions are allowed to violate
-    /// them and need not be uniqueness-checked here — the following filtered+
-    /// verified ply (`advance_parallel_filtered`) is the source of truth.
-    /// Only move-legality (`is_backward_candidate_legal`) and the structural
-    /// backward constraint (`satisfies_backward_constraints`) are applied,
-    /// since those are required for the predecessor set to be well-defined.
+    /// This is the intermediate (white/even) half of the fused 2-ply step.
+    /// The same per-step smoke filters are applied here (they bound the
+    /// predecessor set — without them the intermediate explodes and the
+    /// following verified ply's V becomes intractable), but uniqueness is
+    /// NOT checked: per spec only the kept output positions must be unique,
+    /// so the following filtered+verified ply (`advance_parallel_filtered`)
+    /// is the source of truth and the expensive intermediate-parity V is
+    /// skipped (the 2-ply prize).
     ///
     /// Memo handling mirrors a 1-ply step's end-of-step `swap` (but adds no
     /// new entries, since no verification runs). This keeps the memo/prev_memo
@@ -1858,7 +1858,11 @@ impl BackwardSearch {
     /// plies stays valid and the cross-step verification amortisation (huge at
     /// deep steps) survives the 2-ply boundary. Entries are a digest+StepRange
     /// cache guarded by `needs_investigation`, so carrying them is sound.
-    pub fn advance_collect_predecessors(&mut self) -> anyhow::Result<bool> {
+    pub fn advance_collect_predecessors(
+        &mut self,
+        candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
+        filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+    ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             set_progress_phase(0);
             return Ok(false);
@@ -1892,12 +1896,18 @@ impl BackwardSearch {
                         previous(&mut position, step > 0, &mut undo_moves);
 
                         for m in undo_moves.iter() {
+                            if !candidate_filter(&position, m) {
+                                continue;
+                            }
                             let mut pp = position.clone();
                             pp.undo_move(m);
                             if !is_backward_candidate_legal(&mut pp) {
                                 continue;
                             }
                             if !satisfies_backward_constraints(&pp, no_black_goldish) {
+                                continue;
+                            }
+                            if !filter(pp.core(), stone) {
                                 continue;
                             }
                             let digest = pp.core().digest();
