@@ -91,7 +91,7 @@ fn backward_search_seed_max_step_5() {
 
     let (header, sfens) = extract_best_result(&stdout, &stderr);
     assert_eq!(
-        header, "best_pieces=5: positions=36 succeeded_seeds=1",
+        header, "best_pieces=5 best_steps=5: positions=36 succeeded_seeds=1",
         "unexpected header in stderr:\n{}",
         stderr
     );
@@ -135,7 +135,7 @@ fn backward_search_seed_default_kinds_max_step_5() {
 
     let (header, sfens) = extract_best_result(&stdout, &stderr);
     assert_eq!(
-        header, "best_pieces=5: positions=584 succeeded_seeds=1",
+        header, "best_pieces=5 best_steps=5: positions=584 succeeded_seeds=1",
         "unexpected header in stderr:\n{}",
         stderr
     );

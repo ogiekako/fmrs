@@ -152,6 +152,12 @@ pub enum SingleKingSmokeCommand {
         /// Set to 0 to restore the old every-step behaviour.
         #[arg(long, default_value_t = 60)]
         checkpoint_interval_secs: u64,
+        /// Stop the whole run as soon as any seed reaches the theoretical max
+        /// piece count. Off by default: with the (#pieces, steps) goal,
+        /// reaching max pieces is not the end (a longer-step solution may
+        /// still appear), so the search keeps running unless this is set.
+        #[arg(long, default_value_t = false)]
+        early_exit: bool,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -227,6 +233,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             oracle_model,
             canonicalize_attacker_goldish,
             checkpoint_interval_secs,
+            early_exit,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
@@ -273,6 +280,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 },
                 beam,
                 checkpoint_interval_secs,
+                early_exit,
             )
         }
         SingleKingSmokeCommand::ExportFeatures {

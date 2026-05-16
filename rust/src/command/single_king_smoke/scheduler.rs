@@ -15,7 +15,6 @@ use fmrs_core::{
     position::{position::PositionAux, BitBoard, Position, UndoMove},
     search::backward::BackwardSearch,
 };
-use rustc_hash::FxHashSet;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::fs::File;
@@ -31,8 +30,9 @@ use super::super::smoke_constraints::{
     SearchConstraints,
 };
 use super::super::smoke_persistence::{
-    append_seed_result_record, build_seed_result_record, condition_key, remove_seed_checkpoint,
-    write_seed_checkpoint, SeedCheckpoint, SeedRunStats, TerminationReason,
+    append_seed_result_record, build_seed_result_record, condition_key, merge_best_candidate,
+    remove_seed_checkpoint, write_seed_checkpoint, CrossSeedBest, SeedCheckpoint, SeedRunStats,
+    TerminationReason,
 };
 use super::oracle::{OracleModel, StepRecord};
 use super::search::log_global_best_if_improved;
@@ -50,6 +50,9 @@ struct Task {
     state: TaskState,
     history: Vec<StepRecord>,
     best_piece_count: u32,
+    /// Output step at which `best_positions` were found. `best` is the
+    /// lexicographic max of `(best_piece_count, best_step)`.
+    best_step: u16,
     best_positions: Vec<PositionAux>,
     peak_frontier_size: usize,
     peak_memo_len: usize,
@@ -66,6 +69,7 @@ impl Task {
             state: TaskState::Cold { seeds },
             history: Vec::new(),
             best_piece_count: 0,
+            best_step: 0,
             best_positions: Vec::new(),
             peak_frontier_size: 0,
             peak_memo_len: 0,
@@ -154,12 +158,13 @@ pub(super) struct WorkerCtx<'a> {
     pub(super) max_step: Option<u16>,
     pub(super) max_memo_entries: Option<usize>,
     pub(super) target_max: u32,
+    pub(super) early_exit: bool,
     pub(super) seed_result_log: &'a Mutex<File>,
     pub(super) seed_result_log_path: &'a Path,
     pub(super) trajectory_log: &'a Mutex<File>,
     pub(super) cond_hash: &'a str,
     pub(super) global_best_piece_count: &'a AtomicU64,
-    pub(super) best: &'a Mutex<(u32, FxHashSet<String>, usize)>,
+    pub(super) best: &'a Mutex<CrossSeedBest>,
     pub(super) stop_signal: &'a AtomicBool,
     pub(super) canonicalize_attacker_goldish: bool,
     pub(super) checkpoint_interval_secs: u64,
@@ -227,12 +232,14 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                     continue;
                 }
                 let pc = board_piece_count(&position);
-                if pc > task.best_piece_count {
+                // best = (#pieces, steps) の辞書順最大。
+                if (pc, step) > (task.best_piece_count, task.best_step) {
                     task.best_piece_count = pc;
+                    task.best_step = step;
                     task.best_positions.clear();
                     improved = true;
                 }
-                if pc == task.best_piece_count {
+                if (pc, step) == (task.best_piece_count, task.best_step) {
                     task.best_positions.push(position);
                 }
             }
@@ -244,13 +251,15 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                         ctx.global_best_piece_count,
                         task.seed_index,
                         task.best_piece_count,
+                        task.best_step,
                         task.best_positions.len(),
                         &url,
                         search.stats(),
                     );
                 }
             }
-            if task.best_piece_count >= ctx.target_max
+            if ctx.early_exit
+                && task.best_piece_count >= ctx.target_max
                 && !ctx.stop_signal.swap(true, AtomicOrd::Relaxed)
             {
                 eprintln!(
@@ -332,6 +341,7 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                 constraints: ctx.constraints,
                 resume_state: search.resume_state_header(),
                 best_piece_count: task.best_piece_count,
+                best_step: task.best_step,
                 best_sfens: vec![],
                 canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
                 frontier_bytes: search.frontier_to_binary(),
@@ -422,33 +432,26 @@ fn finalize_task(
         if verified.is_empty() {
             None
         } else {
-            Some((task.best_piece_count, verified))
+            Some((task.best_piece_count, task.best_step, verified))
         }
     } else {
         Some((
             task.best_piece_count,
+            task.best_step,
             std::mem::take(&mut task.best_positions),
         ))
     };
 
     // Update global best.
-    if let Some((pc, ref positions)) = best {
+    if let Some((pc, step, ref positions)) = best {
         let mut guard = ctx.best.lock().unwrap();
-        guard.2 += 1;
-        if pc > guard.0 {
-            guard.0 = pc;
-            guard.1.clear();
-        }
-        if pc == guard.0 {
-            for p in positions {
-                guard.1.insert(p.sfen());
-            }
-        }
+        merge_best_candidate(&mut guard, pc, step, positions.iter().map(PositionAux::sfen));
     }
 
     // EarlyExit + partial best → keep checkpoint, skip record (see ideal_backward.rs).
-    let early_exited_partial = reason == TerminationReason::EarlyExit
-        && best.as_ref().is_none_or(|(pc, _)| *pc < ctx.target_max);
+    let early_exited_partial = ctx.early_exit
+        && reason == TerminationReason::EarlyExit
+        && best.as_ref().is_none_or(|(pc, _, _)| *pc < ctx.target_max);
 
     if !early_exited_partial {
         // Construct a fresh PositionAux from the seed sfen for record building.
@@ -495,10 +498,11 @@ pub(super) fn run_with_oracle(
     oracle: OracleModel,
     target_max: u32,
     stop_signal: Arc<AtomicBool>,
-    initial_best: (u32, FxHashSet<String>, usize),
+    initial_best: CrossSeedBest,
     canonicalize_attacker_goldish: bool,
     checkpoint_interval_secs: u64,
-) -> anyhow::Result<(u32, FxHashSet<String>, usize)> {
+    early_exit: bool,
+) -> anyhow::Result<CrossSeedBest> {
     let cond_hash = condition_key(max_step, constraints);
     let scheduler = Arc::new(Scheduler::new(stop_signal.clone()));
     let global_best_piece_count = AtomicU64::new(0);
@@ -537,6 +541,7 @@ pub(super) fn run_with_oracle(
                     max_step,
                     max_memo_entries,
                     target_max,
+                    early_exit,
                     seed_result_log,
                     seed_result_log_path: seed_result_log_path.as_path(),
                     trajectory_log,

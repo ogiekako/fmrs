@@ -36,7 +36,7 @@ use super::beam::{apply_beam, sample_features_to_log, BeamConfig};
 use super::system::{ProcStatus, SearchStatsDisplay};
 
 pub(super) struct SingleSeedResult {
-    pub(super) best: Option<(u32, Vec<PositionAux>)>, // (piece_count, positions)
+    pub(super) best: Option<(u32, u16, Vec<PositionAux>)>, // (piece_count, step, positions)
     pub(super) stats: SeedRunStats,
 }
 
@@ -57,6 +57,7 @@ pub(super) fn search_single_seed(
     feature_samples_per_step: usize,
     beam: &BeamConfig,
     target_max: u32,
+    early_exit: bool,
     stop_signal: &AtomicBool,
     trajectory_log: &Mutex<fs::File>,
     cond_hash: &str,
@@ -172,9 +173,13 @@ pub(super) fn search_single_seed(
         format_args!("start resumed={}", checkpoint.is_some()),
     );
     let mut best_piece_count = 0u32;
+    // Output step at which `best_positions` were found. `best` is the
+    // lexicographic max of `(best_piece_count, best_step)`.
+    let mut best_step: u16 = 0;
     let mut best_positions: Vec<PositionAux> = vec![];
     if let Some(ref cp) = checkpoint {
         best_piece_count = cp.best_piece_count;
+        best_step = cp.best_step;
         best_positions = if !cp.best_position_bytes.is_empty() {
             cp.best_position_bytes
                 .chunks_exact(105)
@@ -243,12 +248,15 @@ pub(super) fn search_single_seed(
                 let mut improved = false;
                 for position in filtered {
                     let pc = board_piece_count(&position);
-                    if pc > best_piece_count {
+                    // best = (#pieces, steps) の辞書順最大。より大きい (pc, step)
+                    // を見つけたら現在の best をすべて捨てる。
+                    if (pc, step) > (best_piece_count, best_step) {
                         best_piece_count = pc;
+                        best_step = step;
                         best_positions.clear();
                         improved = true;
                     }
-                    if pc == best_piece_count {
+                    if (pc, step) == (best_piece_count, best_step) {
                         best_positions.push(position);
                     }
                 }
@@ -273,12 +281,16 @@ pub(super) fn search_single_seed(
                         global_best_piece_count,
                         seed_index,
                         best_piece_count,
+                        best_step,
                         best_positions.len(),
                         &url,
                         stats,
                     );
                 }
-                if best_piece_count >= target_max && !stop_signal.swap(true, Ordering::Relaxed) {
+                if early_exit
+                    && best_piece_count >= target_max
+                    && !stop_signal.swap(true, Ordering::Relaxed)
+                {
                     eprintln!(
                         "early_exit: target_max={} reached by seed={} (pieces={})",
                         target_max, seed_index, best_piece_count
@@ -426,6 +438,7 @@ pub(super) fn search_single_seed(
                         constraints,
                         resume_state: search.resume_state_header(),
                         best_piece_count,
+                        best_step,
                         best_sfens: vec![],
                         canonicalize_attacker_goldish,
                         frontier_bytes: search.frontier_to_binary(),
@@ -492,12 +505,12 @@ pub(super) fn search_single_seed(
         if verified.is_empty() {
             None
         } else {
-            Some((best_piece_count, verified))
+            Some((best_piece_count, best_step, verified))
         }
     } else {
         // 全 best positions を返す。output 集計側で SFEN HashSet で uniq 化されるので
         // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
-        Some((best_piece_count, best_positions))
+        Some((best_piece_count, best_step, best_positions))
     };
     Ok(SingleSeedResult { best, stats })
 }
@@ -506,14 +519,16 @@ pub(super) fn log_global_best_if_improved(
     global_best: &AtomicU64,
     seed_index: usize,
     piece_count: u32,
+    step: u16,
     positions_len: usize,
     url: &str,
     stats: BackwardSearchStats,
 ) {
-    // Pack (piece_count, positions_len) into a u64: pieces in high 32 bits,
-    // positions in low 32 bits. A larger packed value is strictly better:
-    // more pieces wins outright; equal pieces with more positions also wins.
-    let new_packed = (piece_count as u64) << 32 | (positions_len as u64).min(u32::MAX as u64);
+    // Pack (piece_count, step) into a u64: pieces in high 32 bits, step in low
+    // 32 bits. A larger packed value is the (#pieces, steps) lexicographic max:
+    // more pieces wins outright; equal pieces with more steps also wins. The
+    // logged position is therefore always the current global lexicographic max.
+    let new_packed = (piece_count as u64) << 32 | (step as u64);
     let mut current = global_best.load(Ordering::Relaxed);
     while new_packed > current {
         match global_best.compare_exchange(
@@ -524,8 +539,9 @@ pub(super) fn log_global_best_if_improved(
         ) {
             Ok(_) => {
                 eprintln!(
-                    "global_best_pieces={} seed={} positions={} {} {} {}",
+                    "global_best_pieces={} steps={} seed={} positions={} {} {} {}",
                     piece_count,
+                    step,
                     seed_index,
                     positions_len,
                     url,

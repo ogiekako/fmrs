@@ -65,6 +65,11 @@ pub(super) struct SeedCheckpoint {
     pub(super) constraints: SearchConstraints,
     pub(super) resume_state: BackwardSearchResumeState,
     pub(super) best_piece_count: u32,
+    /// Output step at which the current best positions were found. Persisted so
+    /// that a resumed search keeps the `(best_piece_count, best_step)`
+    /// lexicographic ordering instead of resetting `best_step` to 0.
+    #[serde(default)]
+    pub(super) best_step: u16,
     pub(super) best_sfens: Vec<String>,
     #[serde(default)]
     pub(super) canonicalize_attacker_goldish: bool,
@@ -399,17 +404,17 @@ pub(super) fn build_seed_result_record(
     seed: &PositionAux,
     max_step: Option<u16>,
     constraints: SearchConstraints,
-    best: &Option<(u32, Vec<PositionAux>)>,
+    best: &Option<(u32, u16, Vec<PositionAux>)>,
     stats: SeedRunStats,
     canonicalize_attacker_goldish: bool,
 ) -> SeedResultRecord {
-    let (best_piece_count, positions, representative_sfen) =
-        if let Some((piece_count, positions)) = best.as_ref() {
+    let (best_piece_count, best_step, positions, representative_sfen) =
+        if let Some((piece_count, step, positions)) = best.as_ref() {
             let mut sfens = positions.iter().map(PositionAux::sfen).collect::<Vec<_>>();
             sfens.sort();
-            (*piece_count, sfens.len(), sfens.into_iter().next())
+            (*piece_count, *step, sfens.len(), sfens.into_iter().next())
         } else {
-            (0, 0, None)
+            (0, 0, 0, None)
         };
     SeedResultRecord {
         version: IDEAL_BACKWARD_SEED_LOG_VERSION,
@@ -418,7 +423,7 @@ pub(super) fn build_seed_result_record(
         constraints,
         seed_index,
         seed_sfen: seed.sfen(),
-        best_step: 0, // deprecated, kept for compat
+        best_step,
         best_piece_count,
         positions,
         representative_sfen,
@@ -432,27 +437,44 @@ pub(super) fn build_seed_result_record(
     }
 }
 
-pub(super) fn merge_seed_result_record(
-    best: &mut (u32, rustc_hash::FxHashSet<String>, usize),
-    record: &SeedResultRecord,
+/// Cross-seed best: `(best_piece_count, best_step, sfens, succeeded_seeds)`.
+/// Ranked by the `(piece_count, step)` lexicographic order so the reported
+/// best is the lexicographic maximum across every seed.
+pub(super) type CrossSeedBest = (u32, u16, rustc_hash::FxHashSet<String>, usize);
+
+/// Merge a single seed's `(piece_count, step)` candidate plus its SFENs into
+/// the running cross-seed best. A strictly larger `(piece_count, step)` tuple
+/// resets the accumulated SFEN set; a tie unions into it.
+pub(super) fn merge_best_candidate(
+    best: &mut CrossSeedBest,
+    piece_count: u32,
+    step: u16,
+    sfens: impl IntoIterator<Item = String>,
 ) {
+    best.3 += 1;
+    if (piece_count, step) > (best.0, best.1) {
+        best.0 = piece_count;
+        best.1 = step;
+        best.2.clear();
+    }
+    if (piece_count, step) == (best.0, best.1) {
+        best.2.extend(sfens);
+    }
+}
+
+pub(super) fn merge_seed_result_record(best: &mut CrossSeedBest, record: &SeedResultRecord) {
     let Some(sfen) = record.representative_sfen.as_ref() else {
         return;
     };
-    // Fallback for old records that only have best_step
-    let piece_count = if record.best_piece_count > 0 {
-        record.best_piece_count
+    // Fallback for old records that only have best_step. Legacy records stored
+    // the piece count implicitly via best_step; their step ordering is not
+    // meaningful, so treat the step component as 0.
+    let (piece_count, step) = if record.best_piece_count > 0 {
+        (record.best_piece_count, record.best_step)
     } else {
-        record.best_step as u32 / 2 + 3
+        (record.best_step as u32 / 2 + 3, 0)
     };
-    best.2 += 1;
-    if piece_count > best.0 {
-        best.0 = piece_count;
-        best.1.clear();
-    }
-    if piece_count == best.0 {
-        best.1.insert(sfen.clone());
-    }
+    merge_best_candidate(best, piece_count, step, std::iter::once(sfen.clone()));
 }
 
 #[cfg(test)]
@@ -508,6 +530,7 @@ mod tests {
                 no_black_goldish: false,
             },
             best_piece_count: marker,
+            best_step: 0,
             best_sfens: vec![],
             canonicalize_attacker_goldish,
             frontier_bytes: vec![],

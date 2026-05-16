@@ -13,7 +13,8 @@ use super::super::smoke_constraints::{
 };
 use super::super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, condition_key, load_seed_result_log,
-    merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint, trajectory_log_path,
+    merge_best_candidate, merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint,
+    trajectory_log_path, CrossSeedBest,
     TerminationReason,
 };
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
@@ -41,6 +42,7 @@ pub(super) fn ideal_backward(
     feature_log: FeatureLogConfig,
     beam: BeamConfig,
     checkpoint_interval_secs: u64,
+    early_exit: bool,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
@@ -141,7 +143,7 @@ pub(super) fn ideal_backward(
     }
     let mut grouped_seeds = grouped_seeds;
     let mut pending_seeds: Vec<(usize, Vec<PositionAux>)> = Vec::with_capacity(grouped_seeds.len());
-    let mut initial_best = (0u32, FxHashSet::default(), 0usize);
+    let mut initial_best: CrossSeedBest = (0u32, 0u16, FxHashSet::default(), 0usize);
     let mut loaded_records = 0usize;
     if beam.width.is_some() {
         // beam モードは record 形式が部分結果のため互換性なし。常に再実行。
@@ -181,7 +183,7 @@ pub(super) fn ideal_backward(
         target_max,
         seed_result_log.display()
     );
-    let stop_signal = AtomicBool::new(initial_best.0 >= target_max);
+    let stop_signal = AtomicBool::new(early_exit && initial_best.0 >= target_max);
     if stop_signal.load(Ordering::Relaxed) {
         eprintln!(
             "early_exit: target_max={} already reached by loaded records (best={})",
@@ -228,6 +230,7 @@ pub(super) fn ideal_backward(
             initial_best,
             canonicalize_attacker_goldish,
             checkpoint_interval_secs,
+            early_exit,
         )?;
         return finalize_output(final_best);
     }
@@ -269,6 +272,7 @@ pub(super) fn ideal_backward(
                     feature_samples_per_step,
                     &beam,
                     target_max,
+                    early_exit,
                     &stop_signal,
                     &trajectory_log,
                     &cond_hash,
@@ -303,9 +307,9 @@ pub(super) fn ideal_backward(
                 // EarlyExit で best が target_max 未満なら部分結果。再実行時に
                 // 続きが取れるよう record も checkpoint も触らない。
                 // 自身が target_max に到達した seed は EarlyExit でも保存する。
-                let early_exited_partial = result.stats.termination_reason
-                    == TerminationReason::EarlyExit
-                    && result.best.as_ref().is_none_or(|(pc, _)| *pc < target_max);
+                let early_exited_partial = early_exit
+                    && result.stats.termination_reason == TerminationReason::EarlyExit
+                    && result.best.as_ref().is_none_or(|(pc, _, _)| *pc < target_max);
                 if beam.width.is_none() && !early_exited_partial {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),
@@ -327,18 +331,14 @@ pub(super) fn ideal_backward(
                         canonicalize_attacker_goldish,
                     );
                 }
-                if let Some((piece_count, positions)) = result.best {
+                if let Some((piece_count, step, positions)) = result.best {
                     let mut best = best.lock().unwrap();
-                    best.2 += 1;
-                    if piece_count > best.0 {
-                        best.0 = piece_count;
-                        best.1.clear();
-                    }
-                    if piece_count == best.0 {
-                        for position in positions {
-                            best.1.insert(position.sfen());
-                        }
-                    }
+                    merge_best_candidate(
+                        &mut best,
+                        piece_count,
+                        step,
+                        positions.iter().map(PositionAux::sfen),
+                    );
                 }
                 Ok(())
             })
@@ -348,16 +348,17 @@ pub(super) fn ideal_backward(
     finalize_output(final_best)
 }
 
-fn finalize_output(best: (u32, FxHashSet<String>, usize)) -> anyhow::Result<()> {
-    let (best_piece_count, best_positions, succeeded) = best;
+fn finalize_output(best: CrossSeedBest) -> anyhow::Result<()> {
+    let (best_piece_count, best_step, best_positions, succeeded) = best;
     if best_positions.is_empty() {
         bail!("No single-king smoke backward result");
     }
     let mut positions = best_positions.into_iter().collect::<Vec<_>>();
     positions.sort();
     eprintln!(
-        "best_pieces={}: positions={} succeeded_seeds={}",
+        "best_pieces={} best_steps={}: positions={} succeeded_seeds={}",
         best_piece_count,
+        best_step,
         positions.len(),
         succeeded
     );
