@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778902746611,
+  "lastUpdate": 1778902748465,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -39750,6 +39750,148 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_backward_search",
             "value": 28169,
+            "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "b0ba1de658eeda4487455fa98d3c6bbc02eeaa2c",
+          "message": "fix(smoke): goldish-priority が filter の使用不可駒を honor / 判定を歩のみに簡素化\n\nsatisfies_goldish_priority は白持駒の Pawn/Lance/Knight で段階的に上位\ngoldish を弾いていたが、(1) no_pawn / --allowed-kinds で歩が使えない\n場合は ProPawn 代替自体が成立しないのに弾いており過剰枝刈りになっていた。\n(2) Lance/Knight/Silver 間に明確な優劣はない。\n\nProPawn 代替が filter 下で可能なときのみ、白持駒に Pawn があれば\nProLance/ProKnight/ProSilver を一律棄却するロジックに簡素化。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T03:21:59Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/b0ba1de658eeda4487455fa98d3c6bbc02eeaa2c"
+        },
+        "date": 1778902748036,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 394,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2731,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 180,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 404,
+            "range": "± 595",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26078,
+            "range": "± 99",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1646,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4624,
+            "range": "± 89",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1313739,
+            "range": "± 1240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11334,
+            "range": "± 119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 186,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 51,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 160,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18892551,
+            "range": "± 40551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26456,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3185,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16129,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 25640,
             "range": "± 2",
             "unit": "ns/iter"
           }
