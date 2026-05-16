@@ -158,6 +158,13 @@ pub enum SingleKingSmokeCommand {
         /// still appear), so the search keeps running unless this is set.
         #[arg(long, default_value_t = false)]
         early_exit: bool,
+        /// Disable the progress heartbeat. By default a thread prints the
+        /// current advance sub-phase char (P/C/V/F, `.`=idle) every 20s with
+        /// no newline so a single slow step in the deep tail does not look
+        /// frozen. The cost is one mostly-sleeping thread + a few relaxed
+        /// atomic stores per step, so it is on by default.
+        #[arg(long, default_value_t = false)]
+        no_progress_ticker: bool,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -234,6 +241,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             canonicalize_attacker_goldish,
             checkpoint_interval_secs,
             early_exit,
+            no_progress_ticker,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
@@ -281,6 +289,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 beam,
                 checkpoint_interval_secs,
                 early_exit,
+                !no_progress_ticker,
             )
         }
         SingleKingSmokeCommand::ExportFeatures {

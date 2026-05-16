@@ -3,12 +3,39 @@ use std::{
     ops::Range,
     ptr::NonNull,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU8, AtomicUsize, Ordering},
         Mutex,
     },
 };
 #[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
 use std::{collections::HashMap, sync::OnceLock};
+
+/// Coarse sub-phase of `advance_parallel_filtered`, published for an optional
+/// out-of-band progress heartbeat (see the command-side ticker thread). A
+/// single global slot: with many seeds in flight the last writer wins, which
+/// is exactly what we want in the deep tail where one huge seed dominates and
+/// a single slow step otherwise looks frozen. Writing it is one relaxed store
+/// at each phase boundary (a handful per step), so it is always on; nothing
+/// reads it unless the ticker thread is spawned.
+static PROGRESS_PHASE: AtomicU8 = AtomicU8::new(0);
+
+/// 0=idle, 1=P (candidate generation), 2=C (candidate collect/extend),
+/// 3=V (uniqueness verification waves), 4=F (memo shrink/finalize).
+#[inline]
+fn set_progress_phase(p: u8) {
+    PROGRESS_PHASE.store(p, Ordering::Relaxed);
+}
+
+/// Current phase as a single display char (`.` = idle/between steps).
+pub fn progress_phase_char() -> char {
+    match PROGRESS_PHASE.load(Ordering::Relaxed) {
+        1 => 'P',
+        2 => 'C',
+        3 => 'V',
+        4 => 'F',
+        _ => '.',
+    }
+}
 
 use anyhow::bail;
 use log::{debug, info};
@@ -1787,6 +1814,7 @@ impl BackwardSearch {
         filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
+            set_progress_phase(0);
             return Ok(false);
         }
 
@@ -1809,6 +1837,7 @@ impl BackwardSearch {
         //
         // Peak memory is now bounded by (per-thread chunk output) + (final
         // unique candidates), not by total raw candidates.
+        set_progress_phase(1); // P: candidate generation
         let positions = &self.positions;
         let dedup_count = AtomicUsize::new(0);
         let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
@@ -1881,6 +1910,7 @@ impl BackwardSearch {
                 });
         });
 
+        set_progress_phase(2); // C: collect/extend unique candidates
         let candidate_len = dedup_count.into_inner();
 
         let total_unique: usize = shard_buckets
@@ -1894,6 +1924,7 @@ impl BackwardSearch {
         }
 
         if candidates.is_empty() {
+            set_progress_phase(0);
             return Ok(false);
         }
 
@@ -1949,6 +1980,7 @@ impl BackwardSearch {
         let wave_chunk_count = parallel * 8;
         let wave_size = chunk_size * wave_chunk_count;
         let canonicalize = self.canonicalize_attacker_goldish;
+        set_progress_phase(3); // V: uniqueness verification waves
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
             let prev_memo_ref: &Memo = &prev_memo;
@@ -2050,6 +2082,7 @@ impl BackwardSearch {
             merge_ms += merge_wave_start.elapsed().as_millis();
         }
 
+        set_progress_phase(4); // F: memo shrink / finalize
         let shrink_start = std::time::Instant::now();
         if let Some(limit) = self.memo_entry_limit {
             if memo.len() >= limit {
@@ -2083,6 +2116,7 @@ impl BackwardSearch {
         self.prev_memo = prev_memo;
 
         if all_positions.is_empty() {
+            set_progress_phase(0);
             return Ok(false);
         }
 
@@ -2092,6 +2126,7 @@ impl BackwardSearch {
         self.seen_positions = 0;
         self.step += 1;
 
+        set_progress_phase(0);
         Ok(true)
     }
 

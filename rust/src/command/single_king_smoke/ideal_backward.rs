@@ -43,6 +43,7 @@ pub(super) fn ideal_backward(
     beam: BeamConfig,
     checkpoint_interval_secs: u64,
     early_exit: bool,
+    progress_ticker: bool,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
@@ -250,7 +251,17 @@ pub(super) fn ideal_backward(
     let global_best_piece_count = AtomicU64::new(0);
     let heartbeat_marks = [1usize, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
     let best = Mutex::new(initial_best);
-    pool.install(|| -> anyhow::Result<()> {
+
+    // Out-of-band progress heartbeat (on by default; `--no-progress-ticker`
+    // disables). One thread that, every 20s, prints the current
+    // advance_parallel_filtered sub-phase char (P/C/V/F, `.`=idle) with no
+    // newline, so a single slow step in the deep tail no longer looks frozen.
+    // A newline + timestamp every ~60s wraps the line and forces the tee/pipe
+    // buffer to flush.
+    let ticker_stop = Arc::new(AtomicBool::new(false));
+    let ticker_handle = spawn_progress_ticker(progress_ticker, ticker_stop.clone());
+
+    let install_result = pool.install(|| -> anyhow::Result<()> {
         pending_seeds
             .par_iter()
             .try_for_each(|seed_entry| -> anyhow::Result<()> {
@@ -342,10 +353,63 @@ pub(super) fn ideal_backward(
                 }
                 Ok(())
             })
-    })?;
+    });
+
+    ticker_stop.store(true, Ordering::Relaxed);
+    if let Some(h) = ticker_handle {
+        let _ = h.join();
+    }
+    install_result?;
 
     let final_best = best.into_inner().unwrap();
     finalize_output(final_best)
+}
+
+/// Spawn the progress heartbeat thread when `enabled`. Returns `None` (no
+/// thread) otherwise. The thread checks the stop flag every second so it exits
+/// promptly when the run finishes.
+fn spawn_progress_ticker(
+    enabled: bool,
+    stop: Arc<AtomicBool>,
+) -> Option<std::thread::JoinHandle<()>> {
+    if !enabled {
+        return None;
+    }
+    Some(std::thread::spawn(move || {
+        use std::io::Write as _;
+        const TICK_SECS: u64 = 20;
+        // `tee` to a file only flushes on newline, so wrap (newline + flush)
+        // every 3 ticks ≈ 60s: the stream stays visible within ~1 min via
+        // `gcp-spot.sh tail` while the log stays compact (~3 chars per line).
+        const WRAP_TICKS: u64 = 3;
+        let mut ticks: u64 = 0;
+        loop {
+            // Sleep TICK_SECS in 1s steps so a finished run stops the ticker
+            // within ~1s instead of waiting a full interval.
+            for _ in 0..TICK_SECS {
+                if stop.load(Ordering::Relaxed) {
+                    let mut e = std::io::stderr().lock();
+                    let _ = writeln!(e, " [progress] done");
+                    let _ = e.flush();
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_secs(1));
+            }
+            let ch = fmrs_core::search::backward::progress_phase_char();
+            let mut e = std::io::stderr().lock();
+            ticks += 1;
+            if ticks % WRAP_TICKS == 0 {
+                let secs = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let _ = write!(e, "{ch}\n[progress t={secs}] ");
+            } else {
+                let _ = write!(e, "{ch}");
+            }
+            let _ = e.flush();
+        }
+    }))
 }
 
 fn finalize_output(best: CrossSeedBest) -> anyhow::Result<()> {
