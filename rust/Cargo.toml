@@ -23,6 +23,12 @@ members = ["wasm", "fmrs_core"]
 [dependencies]
 fmrs_core = { path = "./fmrs_core" }
 
+# glibc malloc は 128 スレッドの clone()/Vec churn でアリーナ競合＋
+# trim 由来の clear_page_erms 嵐になり smoke の巨大 step を律速する。
+# mimalloc は多スレッド churn に強く、圧力時はページを OS へ返す
+# (decay) ため OOM 安全制約も満たす。
+mimalloc = "0.1"
+
 serde = { version = "*", features = ["derive"] }
 
 rand = { version = "0.8.5", features = ["small_rng"] }
