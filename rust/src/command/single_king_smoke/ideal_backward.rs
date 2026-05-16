@@ -382,6 +382,15 @@ fn spawn_progress_ticker(
         // every 12 ticks ≈ 60s: the stream stays visible within ~1 min via
         // `gcp-spot.sh tail` while the log stays compact (~12 chars per line).
         const WRAP_TICKS: u64 = 12;
+        {
+            let mut e = std::io::stderr().lock();
+            let _ = writeln!(
+                e,
+                "[progress] heartbeat every {TICK_SECS}s (advance_parallel_filtered sub-phase): \
+                 P=candidate-gen C=collect-candidates V=verify-uniqueness F=finalize .=idle"
+            );
+            let _ = e.flush();
+        }
         let mut ticks: u64 = 0;
         loop {
             // Sleep TICK_SECS in 1s steps so a finished run stops the ticker
