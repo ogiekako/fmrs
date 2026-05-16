@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778896756882,
+  "lastUpdate": 1778897937627,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41168,6 +41168,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/89acb45ea5beae2ae0d1e80c86bba8ece6d9435e"
         },
         "date": 1778896751468,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124115,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434589116,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3042d0199d36eb7d77e60af7917e0f7b350f025f",
+          "message": "feat(smoke): best を (#pieces, steps) の辞書順最大に / early-exit を opt-in 化\n\n- best 選択を (pc, step) タプル比較に変更。同駒数なら手数の長い\n  局面を優先し、最大 (pieces, step) に一致する局面のみ保持。\n- best_step を SeedCheckpoint に永続化（resume 時に順序維持）。\n- seed 横断集約も (pieces, step) 辞書順: CrossSeedBest /\n  merge_best_candidate に統一。\n- 走行中ログ log_global_best_if_improved の atomic を\n  (piece_count<<32 | step) パックに変更し、報告局面が常に\n  (#pieces, steps) 辞書順最大になるよう修正。ログ行に steps= 追加。\n- --early-exit フラグ新設（デフォルト OFF）。target_max 到達での\n  全体停止は opt-in。最大駒数到達後も手数の長い解を探索継続。\n- 出力ヘッダ: best_pieces=N best_steps=S: ...\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-16T02:01:04Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3042d0199d36eb7d77e60af7917e0f7b350f025f"
+        },
+        "date": 1778897934157,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
