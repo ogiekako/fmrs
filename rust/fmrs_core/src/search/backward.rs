@@ -7,6 +7,8 @@ use std::{
         Mutex,
     },
 };
+#[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
+use std::{collections::HashMap, sync::OnceLock};
 
 use anyhow::bail;
 use log::{debug, info};
@@ -148,9 +150,77 @@ struct MmapSlice<T> {
 unsafe impl<T: Send> Send for MmapSlice<T> {}
 unsafe impl<T: Sync> Sync for MmapSlice<T> {}
 
+// ===== mmap region pool (Linux) =====
+//
+// 各 seed の memo は `FlatShard::grow` の倍々再確保や seed 完了時の drop で
+// 巨大 mmap 領域を頻繁に解放する。`munmap` は同一アドレス空間を共有する全
+// CPU へ同期 TLB shootdown IPI をブロードキャストするため、128 スレッド環境
+// では大量の shootdown 嵐となり実効並列度が 1/3 まで落ちる。
+//
+// 対策: drop 時に `munmap` せず `madvise(MADV_FREE)` してサイズ別プールへ
+// 返却し、同サイズの確保要求で再利用する。
+//  * `MADV_FREE` 済みページはメモリ圧力時にカーネルが回収できる (swap 不要
+//    の lazy reclaim) ため、OOM 挙動は `munmap` と実質同じ = OOM 安全。
+//  * `MADV_FREE` の TLB flush は遅延・バッチ化され、`munmap` のような同期
+//    全 CPU IPI を発生させない。
+//  * 再利用前に圧力がなければ物理ページは常駐したまま → 再ゼロのみで復帰し
+//    mmap/munmap/shootdown ゼロ。
+//  * VMA 属性 (MADV_HUGEPAGE / mbind) は MADV_FREE を跨いで保持されるため
+//    再利用時の再設定は不要。
+//
+// プールはサイズクラスごとに上限を設け、超過分のみ実 `munmap`(まれ)。
+#[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
+mod mmap_pool {
+    use super::{HashMap, Mutex, OnceLock};
+
+    /// 同一サイズクラスで保持する最大領域数。これを超えた解放は実 munmap。
+    const PER_CLASS_CAP: usize = 64;
+
+    static POOL: OnceLock<Mutex<HashMap<usize, Vec<usize>>>> = OnceLock::new();
+
+    fn pool() -> &'static Mutex<HashMap<usize, Vec<usize>>> {
+        POOL.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+
+    /// `mmap_size` バイトの再利用可能領域があれば先頭アドレスを返す。
+    pub(super) fn take(mmap_size: usize) -> Option<usize> {
+        let mut guard = pool().lock().unwrap();
+        guard.get_mut(&mmap_size).and_then(|v| v.pop())
+    }
+
+    /// 領域をプールへ返却する。プールが満杯なら呼び出し側へ false を返し、
+    /// 呼び出し側が munmap する。
+    pub(super) fn put(addr: usize, mmap_size: usize) -> bool {
+        let mut guard = pool().lock().unwrap();
+        let v = guard.entry(mmap_size).or_default();
+        if v.len() >= PER_CLASS_CAP {
+            return false;
+        }
+        v.push(addr);
+        true
+    }
+}
+
 #[cfg(target_family = "unix")]
 impl<T> Drop for MmapSlice<T> {
     fn drop(&mut self) {
+        let addr = self.ptr.as_ptr() as usize;
+        #[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
+        unsafe {
+            // MADV_FREE: 物理ページは圧力時に回収可能なまま手放す (OOM 安全)。
+            // 同期 TLB shootdown を伴わないのが munmap との決定的な差。
+            libc::madvise(
+                self.ptr.as_ptr().cast(),
+                self.mmap_size,
+                libc::MADV_FREE,
+            );
+            if mmap_pool::put(addr, self.mmap_size) {
+                return;
+            }
+            // プール満杯時のみ実 munmap (まれ)。
+            libc::munmap(self.ptr.as_ptr().cast(), self.mmap_size);
+        }
+        #[cfg(not(all(not(target_arch = "wasm32"), target_os = "linux")))]
         unsafe {
             libc::munmap(self.ptr.as_ptr().cast(), self.mmap_size);
         }
@@ -207,6 +277,25 @@ fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
     let size_bytes = len * std::mem::size_of::<T>();
     // Round up to 2 MiB so the entire allocation fits in whole huge pages.
     let mmap_size = (size_bytes + PAGE_2MB - 1) & !(PAGE_2MB - 1);
+
+    // Reuse a pooled region of the same size if available: skips mmap, the
+    // alignment-trim munmaps, MADV_HUGEPAGE and mbind (all persist on the VMA),
+    // and — most importantly — avoids the munmap TLB-shootdown storm.
+    #[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
+    if let Some(addr) = mmap_pool::take(mmap_size) {
+        unsafe {
+            let ptr = addr as *mut T;
+            // MADV_FREE'd pages may retain stale data if not yet reclaimed;
+            // keys must be zero (FLAT_EMPTY_KEY == 0). The write also clears
+            // the MADV_FREE marking and faults back any reclaimed pages.
+            std::ptr::write_bytes(ptr as *mut u8, 0, mmap_size);
+            return MmapSlice {
+                ptr: NonNull::new_unchecked(ptr),
+                len,
+                mmap_size,
+            };
+        }
+    }
 
     unsafe {
         // Over-allocate by one 2 MiB page so we can align the start address
