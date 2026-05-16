@@ -253,7 +253,7 @@ pub(super) fn ideal_backward(
     let best = Mutex::new(initial_best);
 
     // Out-of-band progress heartbeat (on by default; `--no-progress-ticker`
-    // disables). One thread that, every 20s, prints the current
+    // disables). One thread that, every 5s, prints the current
     // advance_parallel_filtered sub-phase char (P/C/V/F, `.`=idle) with no
     // newline, so a single slow step in the deep tail no longer looks frozen.
     // A newline + timestamp every ~60s wraps the line and forces the tee/pipe
@@ -377,11 +377,11 @@ fn spawn_progress_ticker(
     }
     Some(std::thread::spawn(move || {
         use std::io::Write as _;
-        const TICK_SECS: u64 = 20;
+        const TICK_SECS: u64 = 5;
         // `tee` to a file only flushes on newline, so wrap (newline + flush)
-        // every 3 ticks ≈ 60s: the stream stays visible within ~1 min via
-        // `gcp-spot.sh tail` while the log stays compact (~3 chars per line).
-        const WRAP_TICKS: u64 = 3;
+        // every 12 ticks ≈ 60s: the stream stays visible within ~1 min via
+        // `gcp-spot.sh tail` while the log stays compact (~12 chars per line).
+        const WRAP_TICKS: u64 = 12;
         let mut ticks: u64 = 0;
         loop {
             // Sleep TICK_SECS in 1s steps so a finished run stops the ticker

@@ -159,7 +159,7 @@ pub enum SingleKingSmokeCommand {
         #[arg(long, default_value_t = false)]
         early_exit: bool,
         /// Disable the progress heartbeat. By default a thread prints the
-        /// current advance sub-phase char (P/C/V/F, `.`=idle) every 20s with
+        /// current advance sub-phase char (P/C/V/F, `.`=idle) every 5s with
         /// no newline so a single slow step in the deep tail does not look
         /// frozen. The cost is one mostly-sleeping thread + a few relaxed
         /// atomic stores per step, so it is on by default.
