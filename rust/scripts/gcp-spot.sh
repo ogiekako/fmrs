@@ -227,11 +227,33 @@ cmd_push() {
   local wrapper
   wrapper=$(rsync_ssh_wrapper)
   trap "rm -f '$wrapper'" RETURN
-  rsync -avz --progress \
+  # `--out-format=%n` makes rsync print one line per *transferred* path.
+  # rsync -a preserves the (older) local source mtimes, while the remote
+  # target/ binary is excluded and keeps its newer build mtime — so cargo's
+  # mtime fingerprint would judge the binary up-to-date and SKIP the rebuild,
+  # silently running stale code after every push. We capture exactly the
+  # files rsync updated and touch only those on the remote: enough to defeat
+  # the fingerprint while keeping the rebuild incremental (not a full one).
+  local transferred
+  transferred=$(rsync -az --out-format='%n' \
     --exclude='target/' \
     --exclude='.git/' \
     -e "$wrapper" \
-    "$LOCAL_DIR/" "$INSTANCE_NAME":"$REMOTE_DIR/"
+    "$LOCAL_DIR/" "$INSTANCE_NAME":"$REMOTE_DIR/")
+  local build_inputs
+  build_inputs=$(printf '%s\n' "$transferred" \
+    | grep -E '\.rs$|(^|/)Cargo\.(toml|lock)$|(^|/)build\.rs$' || true)
+  if [ -n "$build_inputs" ]; then
+    local n
+    n=$(printf '%s\n' "$build_inputs" | grep -c .)
+    echo "Touching $n transferred build input(s) on remote to force rebuild..."
+    # Paths have no spaces in this repo (Rust sources); newline-join is safe.
+    local remote_paths
+    remote_paths=$(printf '%s\n' "$build_inputs" | sed "s|^|$REMOTE_DIR/|" | tr '\n' ' ')
+    ssh_cmd "touch $remote_paths"
+  else
+    echo "No build inputs changed; skipping rebuild touch."
+  fi
   echo "Push complete."
 }
 
