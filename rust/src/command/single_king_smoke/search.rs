@@ -343,15 +343,13 @@ pub(super) fn search_single_seed(
             termination_reason = TerminationReason::MaxStep;
             break;
         }
-        // Fused 2-ply. Smoke outputs live on odd steps; the even
-        // (white/intermediate) layer never produces output and — per spec —
-        // may violate the per-step constraints, so it needs neither smoke
-        // filtering nor uniqueness verification. From an odd step we
-        // therefore materialise all legal predecessors unverified
-        // (`advance_collect_predecessors`, odd→even) and then run the
-        // filtered+verified ply (even→odd) which is the source of truth.
-        // From an even step (incl. the step-0 bootstrap) we just do the
-        // single filtered ply to reach odd parity.
+        // Smoke outputs live on odd steps. From an odd step we do one fused
+        // 2-ply advance (`advance_2ply_fused`, N→N+2): the intermediate
+        // (white/even) ply is smoke-filtered (to stay bounded) but NOT
+        // uniqueness-verified and never materialised as a Vec; the output ply
+        // is filtered + verified (source of truth). From an even step (incl.
+        // the step-0 bootstrap) we do a single 1-ply advance to reach odd
+        // parity.
         let step_now = search.step();
         let two_ply = step_now % 2 == 1;
         let next_step = if two_ply {
@@ -377,37 +375,6 @@ pub(super) fn search_single_seed(
             .max(1);
         let dynamic_inner = ((parallel + remaining - 1) / remaining).max(1);
 
-        if two_ply {
-            // Intermediate (white/even) ply: filter at step_now+1 to keep the
-            // predecessor set bounded (unfiltered it explodes and the verified
-            // ply's V becomes intractable), but skip uniqueness verification.
-            let mid_step = step_now + 1;
-            let mid_candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
-                satisfies_ideal_smoke_undo_candidate(position, undo_move, mid_step, constraints)
-            };
-            let mid_generation_filter = |core: &Position, stone: Option<BitBoard>| {
-                let position = PositionAux::new(core.clone(), stone);
-                satisfies_ideal_smoke_generation_constraints(&position, mid_step, constraints)
-            };
-            search.set_parallel(dynamic_inner);
-            if !search
-                .advance_collect_predecessors(&mid_candidate_filter, &mid_generation_filter)?
-            {
-                termination_reason = TerminationReason::Completed;
-                break;
-            }
-            if let Some(width) = beam.width {
-                apply_beam(&mut search, beam, width);
-            }
-        }
-
-        let candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
-            satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
-        };
-        let generation_filter = |core: &Position, stone: Option<BitBoard>| {
-            let position = PositionAux::new(core.clone(), stone);
-            satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
-        };
         let frontier = search.stats().positions_len;
         let use_inner_parallel = frontier >= FRONTIER_PARALLEL_THRESHOLD;
         search.set_parallel(if use_inner_parallel { dynamic_inner } else { 1 });
@@ -422,14 +389,50 @@ pub(super) fn search_single_seed(
                 applied_memo_limit = Some(dynamic_limit);
             }
         }
-        let advanced = if use_inner_parallel {
-            search.advance_parallel_filtered(&candidate_filter, &generation_filter)?
-        } else {
-            search.advance_upto_with_candidate_filter(
-                usize::MAX / 2,
-                candidate_filter,
-                generation_filter,
+        let advanced = if two_ply {
+            // Fused 2-ply (frontier N -> N+2). Mid ply filtered at step_now+1
+            // (bounds the set) but NOT uniqueness-verified; out ply at
+            // next_step is filtered + verified (source of truth). Same method
+            // whether parallel or not — set_parallel(1) above for small
+            // frontiers makes the inner par_chunks effectively serial.
+            let mid_step = step_now + 1;
+            let mid_candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
+                satisfies_ideal_smoke_undo_candidate(position, undo_move, mid_step, constraints)
+            };
+            let mid_generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, mid_step, constraints)
+            };
+            let out_candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
+                satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
+            };
+            let out_generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
+            };
+            search.advance_2ply_fused(
+                &mid_candidate_filter,
+                &mid_generation_filter,
+                &out_candidate_filter,
+                &out_generation_filter,
             )?
+        } else {
+            let candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
+                satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
+            };
+            let generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
+            };
+            if use_inner_parallel {
+                search.advance_parallel_filtered(&candidate_filter, &generation_filter)?
+            } else {
+                search.advance_upto_with_candidate_filter(
+                    usize::MAX / 2,
+                    candidate_filter,
+                    generation_filter,
+                )?
+            }
         };
         let advance_elapsed_ms = advance_start.elapsed().as_millis();
         let inner_used = if use_inner_parallel { dynamic_inner } else { 1 };

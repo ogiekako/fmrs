@@ -1837,44 +1837,63 @@ impl BackwardSearch {
         Ok(true)
     }
 
-    /// One backward ply that materialises *all* legal predecessors of the
-    /// current frontier WITHOUT smoke filtering and WITHOUT uniqueness
-    /// verification (no `solutions_overlay`).
+    /// Fused 2-ply backward step (frontier N → N+2), used as the smoke
+    /// search's odd→odd advance.
     ///
-    /// This is the intermediate (white/even) half of the fused 2-ply step.
-    /// The same per-step smoke filters are applied here (they bound the
-    /// predecessor set — without them the intermediate explodes and the
-    /// following verified ply's V becomes intractable), but uniqueness is
-    /// NOT checked: per spec only the kept output positions must be unique,
-    /// so the following filtered+verified ply (`advance_parallel_filtered`)
-    /// is the source of truth and the expensive intermediate-parity V is
-    /// skipped (the 2-ply prize).
+    /// Phase 1 generates predecessors inline two plies deep WITHOUT ever
+    /// materialising the intermediate (white/even) layer as a Vec: for each
+    /// frontier position q0 we generate the mid-filtered predecessor q1 and
+    /// immediately, in the same pass, generate q1's out-filtered predecessors
+    /// q2 (only q2 is dedup'd/stored). Both plies apply the per-step smoke
+    /// filters (they bound the predecessor set — unfiltered, the intermediate
+    /// explodes and the verified ply's V becomes intractable). The
+    /// intermediate ply runs no `solutions_overlay`: per spec only the kept
+    /// output positions must be unique, so Phase 2's verification at depth
+    /// `step+2` is the source of truth and the expensive intermediate-parity
+    /// V is skipped (the 2-ply prize). Not materialising q1 also drops the
+    /// intermediate's storage, its dedup pass, and its checkpoint.
     ///
-    /// Memo handling mirrors a 1-ply step's end-of-step `swap` (but adds no
-    /// new entries, since no verification runs). This keeps the memo/prev_memo
-    /// parity bookkeeping identical to the pure 1-ply scheme — one fused
-    /// iteration performs exactly two swaps (here + the verified ply's end),
-    /// matching two 1-ply steps — so the carried memo from earlier output
-    /// plies stays valid and the cross-step verification amortisation (huge at
-    /// deep steps) survives the 2-ply boundary. Entries are a digest+StepRange
-    /// cache guarded by `needs_investigation`, so carrying them is sound.
-    pub fn advance_collect_predecessors(
+    /// Memo/parity: one `swap` here (mirroring a 1-ply step that added no
+    /// entries) plus Phase 2's end `swap` = two swaps per fused iteration,
+    /// matching two 1-ply steps, so memo parity and the cross-step
+    /// verification amortisation are preserved across the 2-ply boundary.
+    ///
+    /// Phase 2 below is byte-identical to `advance_parallel_filtered`'s
+    /// verification (kept as a deliberate copy so the heavily-tuned 1-ply
+    /// method stays untouched and its equivalence test stays valid).
+    ///
+    /// Applies whether the pool is parallel or not (`install_or_run` /
+    /// `set_parallel(1)` degrade `par_chunks` to effectively serial).
+    #[allow(clippy::too_many_arguments)]
+    pub fn advance_2ply_fused(
         &mut self,
-        candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+        mid_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
+        mid_filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+        out_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
+        out_filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
+            self.last_frontier_in = 0;
+            self.last_dead_end = 0;
+            self.last_candidates = 0;
             set_progress_phase(0);
             return Ok(false);
         }
+
         let step = self.step;
         let stone = self.stone;
         let no_black_goldish = self.no_black_goldish;
         let position_parallel = self.parallel.min(self.positions.len());
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
 
-        set_progress_phase(1); // P: predecessor generation (intermediate)
+        // Phase 1: inline double-previous (no intermediate Vec).
+        set_progress_phase(1);
         let positions = &self.positions;
+        let frontier_in = positions.len();
+        let dedup_count = AtomicUsize::new(0);
+        // Frontier positions that produced zero output candidate over the two
+        // plies: true 2-ply backward dead-ends.
+        let dead_end_count = AtomicUsize::new(0);
         let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
             .map(|_| Mutex::new((NoHashSet64::default(), Vec::new())))
             .collect();
@@ -1884,39 +1903,70 @@ impl BackwardSearch {
                 .par_chunks(position_chunk_size)
                 .enumerate()
                 .for_each(|(chunk_idx, chunk)| {
-                    let mut undo_moves = vec![];
+                    let mut undo1 = vec![];
+                    let mut undo2 = vec![];
                     let mut local_seens: [NoHashSet64; NUM_SHARDS] =
                         std::array::from_fn(|_| NoHashSet64::default());
                     let mut local_outs: [Vec<Position>; NUM_SHARDS] =
                         std::array::from_fn(|_| Vec::new());
+                    let mut chunk_dedup = 0usize;
+                    let mut chunk_dead = 0usize;
 
                     for core in chunk.iter() {
-                        let mut position = PositionAux::new(core.clone(), stone);
-                        undo_moves.clear();
-                        previous(&mut position, step > 0, &mut undo_moves);
+                        let mut q0 = PositionAux::new(core.clone(), stone);
+                        undo1.clear();
+                        previous(&mut q0, step > 0, &mut undo1);
 
-                        for m in undo_moves.iter() {
-                            if !candidate_filter(&position, m) {
+                        let mut any_survived = false;
+                        for m1 in undo1.iter() {
+                            if !mid_candidate_filter(&q0, m1) {
                                 continue;
                             }
-                            let mut pp = position.clone();
-                            pp.undo_move(m);
-                            if !is_backward_candidate_legal(&mut pp) {
+                            let mut q1 = q0.clone();
+                            q1.undo_move(m1);
+                            if !is_backward_candidate_legal(&mut q1) {
                                 continue;
                             }
-                            if !satisfies_backward_constraints(&pp, no_black_goldish) {
+                            if !satisfies_backward_constraints(&q1, no_black_goldish) {
                                 continue;
                             }
-                            if !filter(pp.core(), stone) {
+                            if !mid_filter(q1.core(), stone) {
                                 continue;
                             }
-                            let digest = pp.core().digest();
-                            let shard_idx = shard_index(digest);
-                            if local_seens[shard_idx].insert(digest) {
-                                local_outs[shard_idx].push(pp.core().clone());
+                            // q1 is a valid (filtered, unverified) intermediate.
+                            // Expand it one more ply without storing it.
+                            undo2.clear();
+                            previous(&mut q1, step + 1 > 0, &mut undo2);
+                            for m2 in undo2.iter() {
+                                if !out_candidate_filter(&q1, m2) {
+                                    continue;
+                                }
+                                let mut q2 = q1.clone();
+                                q2.undo_move(m2);
+                                if !is_backward_candidate_legal(&mut q2) {
+                                    continue;
+                                }
+                                if !satisfies_backward_constraints(&q2, no_black_goldish) {
+                                    continue;
+                                }
+                                if !out_filter(q2.core(), stone) {
+                                    continue;
+                                }
+                                any_survived = true;
+                                let digest = q2.core().digest();
+                                let shard_idx = shard_index(digest);
+                                if local_seens[shard_idx].insert(digest) {
+                                    local_outs[shard_idx].push(q2.core().clone());
+                                    chunk_dedup += 1;
+                                }
                             }
                         }
+                        if !any_survived {
+                            chunk_dead += 1;
+                        }
                     }
+                    dedup_count.fetch_add(chunk_dedup, Ordering::Relaxed);
+                    dead_end_count.fetch_add(chunk_dead, Ordering::Relaxed);
 
                     drop(local_seens);
                     let stagger = chunk_idx % NUM_SHARDS;
@@ -1938,6 +1988,8 @@ impl BackwardSearch {
                 });
         });
 
+        let candidate_len = dedup_count.into_inner();
+        let dead_end = dead_end_count.into_inner();
         let total_unique: usize = shard_buckets
             .iter()
             .map(|m| m.lock().unwrap().1.len())
@@ -1948,24 +2000,196 @@ impl BackwardSearch {
             candidates.extend(out);
         }
 
-        self.last_frontier_in = positions.len();
-        self.last_dead_end = 0;
-        self.last_candidates = total_unique;
-
-        // Mirror a 1-ply step's end-of-step swap (no new entries added). This
-        // preserves memo/prev_memo parity vs the pure 1-ply scheme and keeps
-        // the carried verification cache alive across the 2-ply boundary.
+        // Mirror the intermediate ply's end-of-step swap (no entries added),
+        // then advance the step so Phase 2 below verifies at depth `step+1`
+        // (= original step + 2) exactly as the 1-ply scheme would after the
+        // intermediate ply. Two swaps total per fused iteration.
         std::mem::swap(&mut self.memo, &mut self.prev_memo);
         self.seen_positions = 0;
         self.step += 1;
-        set_progress_phase(0);
 
+        // ---- Phase 2 (verbatim copy of advance_parallel_filtered's) ----
+        let step = self.step;
         if candidates.is_empty() {
-            self.positions = Vec::new();
+            self.last_frontier_in = frontier_in;
+            self.last_dead_end = dead_end;
+            self.last_candidates = 0;
+            set_progress_phase(0);
             return Ok(false);
         }
-        self.positions = candidates;
+
+        let parallel = self.parallel.min(candidates.len());
+        let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
+        let mut memo;
+        let mut prev_memo;
+        if step >= 10 {
+            memo = std::mem::take(&mut self.memo);
+            prev_memo = std::mem::take(&mut self.prev_memo);
+        } else {
+            self.memo = Memo::new();
+            self.prev_memo = Memo::new();
+            memo = Memo::new();
+            prev_memo = Memo::new();
+        }
+
+        let phase2_start = std::time::Instant::now();
+
+        let mut all_positions = vec![];
+        let mut delta_total_count = 0usize;
+        let mut phase2_only_ms = 0u128;
+        let mut merge_ms = 0u128;
+
+        let wave_chunk_count = parallel * 8;
+        let wave_size = chunk_size * wave_chunk_count;
+        let canonicalize = self.canonicalize_attacker_goldish;
+        set_progress_phase(3);
+        for wave in candidates.chunks(wave_size) {
+            let memo_ref: &Memo = &memo;
+            let prev_memo_ref: &Memo = &prev_memo;
+
+            let wave_start = std::time::Instant::now();
+            let wave_results: Vec<(
+                Vec<Position>,
+                NoHashMap64<StepRange>,
+                NoHashMap64<StepRange>,
+            )> = self.install_or_run(|| {
+                wave.par_chunks(chunk_size)
+                    .map(|chunk| {
+                        let mut memo_delta =
+                            NoHashMap64::with_capacity_and_hasher(4096, Default::default());
+                        let mut prev_memo_delta =
+                            NoHashMap64::with_capacity_and_hasher(4096, Default::default());
+                        let mut prev_positions = vec![];
+                        let mut solution_scratch = vec![];
+                        let mut killers = Killers::new();
+                        let mut history = HistoryTable::new();
+
+                        for core in chunk.iter() {
+                            let mut pp = PositionAux::new(core.clone(), stone);
+                            let pp_digest = if canonicalize {
+                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
+                            } else {
+                                pp.digest()
+                            };
+                            if let Some(ans) =
+                                get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
+                                    .filter(|ans| !ans.needs_investigation(step + 1))
+                            {
+                                if ans.is_uniquely(step + 1) {
+                                    prev_positions.push(core.clone());
+                                }
+                                continue;
+                            }
+
+                            let ans = if canonicalize {
+                                let mut pp_canonical = pp.clone();
+                                crate::search::canonicalize::canonicalize_attacker_goldish(
+                                    &mut pp_canonical,
+                                );
+                                debug_assert_eq!(pp_canonical.digest(), pp_digest);
+                                solutions_overlay(
+                                    &mut pp_canonical,
+                                    prev_memo_ref,
+                                    &mut prev_memo_delta,
+                                    memo_ref,
+                                    &mut memo_delta,
+                                    step + 1,
+                                    &mut solution_scratch,
+                                    &mut killers,
+                                    &mut history,
+                                )
+                            } else {
+                                solutions_overlay(
+                                    &mut pp,
+                                    prev_memo_ref,
+                                    &mut prev_memo_delta,
+                                    memo_ref,
+                                    &mut memo_delta,
+                                    step + 1,
+                                    &mut solution_scratch,
+                                    &mut killers,
+                                    &mut history,
+                                )
+                            };
+                            if ans.is_uniquely(step + 1) {
+                                prev_positions.push(core.clone());
+                            }
+                        }
+
+                        (prev_positions, memo_delta, prev_memo_delta)
+                    })
+                    .collect()
+            });
+            phase2_only_ms += wave_start.elapsed().as_millis();
+
+            let mut wave_memo_deltas = Vec::with_capacity(wave_chunk_count);
+            let mut wave_prev_deltas = Vec::with_capacity(wave_chunk_count);
+            for (positions, memo_delta, prev_memo_delta) in wave_results {
+                all_positions.extend(positions);
+                delta_total_count += memo_delta.len() + prev_memo_delta.len();
+                wave_memo_deltas.push(memo_delta);
+                wave_prev_deltas.push(prev_memo_delta);
+            }
+
+            let merge_wave_start = std::time::Instant::now();
+            self.install_or_run(|| {
+                merge_deltas_sharded(&memo, wave_memo_deltas);
+                merge_deltas_sharded(&prev_memo, wave_prev_deltas);
+            });
+            merge_ms += merge_wave_start.elapsed().as_millis();
+        }
+
+        set_progress_phase(4);
+        let shrink_start = std::time::Instant::now();
+        if let Some(limit) = self.memo_entry_limit {
+            if memo.len() >= limit {
+                shrink_memo(&mut memo, limit / 2);
+            }
+            if prev_memo.len() >= limit {
+                shrink_memo(&mut prev_memo, limit / 2);
+            }
+        }
+        let shrink_ms = shrink_start.elapsed().as_millis();
+
+        let all_positions = all_positions;
+
+        if self.delta_trace {
+            eprintln!(
+                "delta_trace step={} candidates={} phase2_elapsed_ms={} phase2_only_ms={} merge_ms={} shrink_ms={} delta_total={} \
+                 memo_size={} prev_memo_size={}",
+                step,
+                candidate_len,
+                phase2_start.elapsed().as_millis(),
+                phase2_only_ms,
+                merge_ms,
+                shrink_ms,
+                delta_total_count,
+                memo.len(),
+                prev_memo.len(),
+            );
+        }
+
+        self.memo = memo;
+        self.prev_memo = prev_memo;
+
+        if all_positions.is_empty() {
+            self.last_frontier_in = frontier_in;
+            self.last_dead_end = dead_end;
+            self.last_candidates = total_unique;
+            set_progress_phase(0);
+            return Ok(false);
+        }
+
+        self.positions = all_positions;
         self.prev_positions = Vec::new();
+        std::mem::swap(&mut self.memo, &mut self.prev_memo);
+        self.seen_positions = 0;
+        self.step += 1;
+
+        self.last_frontier_in = frontier_in;
+        self.last_dead_end = dead_end;
+        self.last_candidates = total_unique;
+        set_progress_phase(0);
         Ok(true)
     }
 
