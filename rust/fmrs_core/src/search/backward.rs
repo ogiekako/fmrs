@@ -2046,6 +2046,30 @@ impl BackwardSearch {
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
             let prev_memo_ref: &Memo = &prev_memo;
+            // Wave-scoped shared cache: canonical digest -> V answer. Goldish-
+            // equivalent candidates split across parallel chunks reuse one
+            // solutions_overlay result instead of each recomputing it (the
+            // chunk-local prev_memo_delta does not cross chunk boundaries
+            // within a wave). The frontier still keeps every distinct position
+            // -- we only skip the redundant V, then push `core` per candidate
+            // exactly as before, so the search space is unchanged. Dropped at
+            // wave end => memory returned (OOM-safe). No-op when
+            // canonicalization is off (shard locks never taken).
+            let shared_v: Option<Vec<Mutex<NoHashMap64<StepRange>>>> = if canonicalize {
+                Some(
+                    (0..NUM_SHARDS)
+                        .map(|_| {
+                            Mutex::new(NoHashMap64::with_capacity_and_hasher(
+                                256,
+                                Default::default(),
+                            ))
+                        })
+                        .collect(),
+                )
+            } else {
+                None
+            };
+            let shared_v_ref = shared_v.as_deref();
 
             let wave_start = std::time::Instant::now();
             let wave_results: Vec<(
@@ -2081,6 +2105,59 @@ impl BackwardSearch {
                                 continue;
                             }
 
+                            // Cross-chunk reuse: a sibling chunk in this wave
+                            // may have already computed V for this canonical
+                            // class. Same trust model as get_overlay above
+                            // (skip only when the cached answer is final at
+                            // this depth), just sourced from another chunk.
+                            if let Some(shards) = shared_v_ref {
+                                let cached = shards[shard_index(pp_digest)]
+                                    .lock()
+                                    .unwrap()
+                                    .get(&pp_digest)
+                                    .copied();
+                                if let Some(ans) = cached
+                                    .filter(|ans| !ans.needs_investigation(step + 1))
+                                {
+                                    // Self-check: the cached verdict must equal
+                                    // a fresh recomputation. This turns the
+                                    // "memoization soundness + canonical
+                                    // determinism" argument into a runtime
+                                    // invariant exercised by every debug/test
+                                    // run. Zero release cost.
+                                    #[cfg(debug_assertions)]
+                                    {
+                                        let mut pp_chk = pp.clone();
+                                        crate::search::canonicalize::canonicalize_attacker_goldish(
+                                            &mut pp_chk,
+                                        );
+                                        let fresh = solutions_overlay(
+                                            &mut pp_chk,
+                                            prev_memo_ref,
+                                            &mut prev_memo_delta,
+                                            memo_ref,
+                                            &mut memo_delta,
+                                            step + 1,
+                                            &mut solution_scratch,
+                                            &mut killers,
+                                            &mut history,
+                                        );
+                                        debug_assert_eq!(
+                                            ans.is_uniquely(step + 1),
+                                            fresh.is_uniquely(step + 1),
+                                            "shared-V cache verdict mismatch: \
+                                             digest={:#x} depth={}",
+                                            pp_digest,
+                                            step + 1
+                                        );
+                                    }
+                                    if ans.is_uniquely(step + 1) {
+                                        prev_positions.push(core.clone());
+                                    }
+                                    continue;
+                                }
+                            }
+
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -2111,6 +2188,17 @@ impl BackwardSearch {
                                     &mut history,
                                 )
                             };
+                            // Publish for sibling chunks in this wave. Only
+                            // cache answers that are final at this depth, so
+                            // the reuse path's filter is exactly get_overlay's.
+                            if let Some(shards) = shared_v_ref {
+                                if !ans.needs_investigation(step + 1) {
+                                    shards[shard_index(pp_digest)]
+                                        .lock()
+                                        .unwrap()
+                                        .insert(pp_digest, ans);
+                                }
+                            }
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
                             }
@@ -2389,6 +2477,30 @@ impl BackwardSearch {
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
             let prev_memo_ref: &Memo = &prev_memo;
+            // Wave-scoped shared cache: canonical digest -> V answer. Goldish-
+            // equivalent candidates split across parallel chunks reuse one
+            // solutions_overlay result instead of each recomputing it (the
+            // chunk-local prev_memo_delta does not cross chunk boundaries
+            // within a wave). The frontier still keeps every distinct position
+            // -- we only skip the redundant V, then push `core` per candidate
+            // exactly as before, so the search space is unchanged. Dropped at
+            // wave end => memory returned (OOM-safe). No-op when
+            // canonicalization is off (shard locks never taken).
+            let shared_v: Option<Vec<Mutex<NoHashMap64<StepRange>>>> = if canonicalize {
+                Some(
+                    (0..NUM_SHARDS)
+                        .map(|_| {
+                            Mutex::new(NoHashMap64::with_capacity_and_hasher(
+                                256,
+                                Default::default(),
+                            ))
+                        })
+                        .collect(),
+                )
+            } else {
+                None
+            };
+            let shared_v_ref = shared_v.as_deref();
 
             let wave_start = std::time::Instant::now();
             let wave_results: Vec<(
@@ -2429,6 +2541,59 @@ impl BackwardSearch {
                                 continue;
                             }
 
+                            // Cross-chunk reuse: a sibling chunk in this wave
+                            // may have already computed V for this canonical
+                            // class. Same trust model as get_overlay above
+                            // (skip only when the cached answer is final at
+                            // this depth), just sourced from another chunk.
+                            if let Some(shards) = shared_v_ref {
+                                let cached = shards[shard_index(pp_digest)]
+                                    .lock()
+                                    .unwrap()
+                                    .get(&pp_digest)
+                                    .copied();
+                                if let Some(ans) = cached
+                                    .filter(|ans| !ans.needs_investigation(step + 1))
+                                {
+                                    // Self-check: the cached verdict must equal
+                                    // a fresh recomputation. This turns the
+                                    // "memoization soundness + canonical
+                                    // determinism" argument into a runtime
+                                    // invariant exercised by every debug/test
+                                    // run. Zero release cost.
+                                    #[cfg(debug_assertions)]
+                                    {
+                                        let mut pp_chk = pp.clone();
+                                        crate::search::canonicalize::canonicalize_attacker_goldish(
+                                            &mut pp_chk,
+                                        );
+                                        let fresh = solutions_overlay(
+                                            &mut pp_chk,
+                                            prev_memo_ref,
+                                            &mut prev_memo_delta,
+                                            memo_ref,
+                                            &mut memo_delta,
+                                            step + 1,
+                                            &mut solution_scratch,
+                                            &mut killers,
+                                            &mut history,
+                                        );
+                                        debug_assert_eq!(
+                                            ans.is_uniquely(step + 1),
+                                            fresh.is_uniquely(step + 1),
+                                            "shared-V cache verdict mismatch: \
+                                             digest={:#x} depth={}",
+                                            pp_digest,
+                                            step + 1
+                                        );
+                                    }
+                                    if ans.is_uniquely(step + 1) {
+                                        prev_positions.push(core.clone());
+                                    }
+                                    continue;
+                                }
+                            }
+
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -2459,6 +2624,17 @@ impl BackwardSearch {
                                     &mut history,
                                 )
                             };
+                            // Publish for sibling chunks in this wave. Only
+                            // cache answers that are final at this depth, so
+                            // the reuse path's filter is exactly get_overlay's.
+                            if let Some(shards) = shared_v_ref {
+                                if !ans.needs_investigation(step + 1) {
+                                    shards[shard_index(pp_digest)]
+                                        .lock()
+                                        .unwrap()
+                                        .insert(pp_digest, ans);
+                                }
+                            }
                             if ans.is_uniquely(step + 1) {
                                 prev_positions.push(core.clone());
                             }
