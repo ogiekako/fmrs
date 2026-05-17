@@ -592,6 +592,44 @@ fn bench_backward_search_seed_sfen_allowed_kinds(c: &mut Criterion) {
     });
 }
 
+// Same shape as `_allowed_kinds` plus the production-relevant
+// `--canonicalize-attacker-goldish --goldish-priority`. This is the only
+// backward-search bench that exercises the canonical V path (and thus the
+// wave-scoped shared-V cache); the others run the canonicalize-off no-op path.
+fn bench_backward_search_seed_sfen_canonicalize(c: &mut Criterion) {
+    let elapsed = run_backward_search_bench(&[
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "19",
+        "--parallel",
+        "8",
+        "--no-pawn",
+        "--max-promoted-pct",
+        "20",
+        "--max-promoted-pct-after-step",
+        "5",
+        "--seed-result-log",
+        "/dev/null",
+        "--seed-sfen",
+        "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+        "--allowed-kinds",
+        "pawn,lance,knight,silver,gold",
+        "--canonicalize-attacker-goldish",
+        "--goldish-priority",
+    ]);
+
+    let mut i = 0;
+    let times = [elapsed];
+    c.bench_function("bench_backward_search_seed_sfen_canonicalize", |b| {
+        b.iter(|| {
+            let start = std::time::Instant::now();
+            while start.elapsed() < times[i] / 1_000_000 {}
+            i = (i + 1) % times.len();
+        })
+    });
+}
+
 criterion_group!(
     name = benches;
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
@@ -624,7 +662,7 @@ fn bench_heavy() {
 criterion_group!(
     name = bench_heavy_inner;
     config = Criterion::default().measurement_time(Duration::from_secs(1)).warm_up_time(Duration::from_millis(500)).nresamples(10).sample_size(10);
-    targets = bench_bataco, bench_backward_search_seed_sfen, bench_backward_search_seed_sfen_allowed_kinds,
+    targets = bench_bataco, bench_backward_search_seed_sfen, bench_backward_search_seed_sfen_allowed_kinds, bench_backward_search_seed_sfen_canonicalize,
 );
 
 criterion_main!(benches, bench_extra, bench_heavy);
