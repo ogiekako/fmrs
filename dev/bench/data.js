@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779018822002,
+  "lastUpdate": 1779018823683,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -40603,6 +40603,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 40816,
             "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "377a52f4a66f614586f83c5f765a1e1fc8a80ba8",
+          "message": "bench(smoke): canonicalize 経路を測る heavy bench を追加\n\n既存の backward heavy bench は --canonicalize-attacker-goldish を渡さず\nshared-V キャッシュの no-op 経路しか測っていなかった。本番相当の\n--allowed-kinds + --canonicalize-attacker-goldish + --goldish-priority\n構成の bench_backward_search_seed_sfen_canonicalize を bench_heavy_inner\nに追加 (max-step 19, parallel 8)。初期スコア ~19.2s。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-17T05:11:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/377a52f4a66f614586f83c5f765a1e1fc8a80ba8"
+        },
+        "date": 1779018823371,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 386,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2704,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 182,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 396,
+            "range": "± 586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25872,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1687,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4646,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1314807,
+            "range": "± 118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11663,
+            "range": "± 47",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 180,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 152,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19079542,
+            "range": "± 65109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27777,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3395,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16949,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 39685,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
