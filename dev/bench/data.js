@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778924169426,
+  "lastUpdate": 1778989097323,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42337,6 +42337,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_black_advance",
             "value": 50869,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "330a6e053ba4862b3ed7dbbc896e1b8cc463e1b9",
+          "message": "perf(backward): canonicalize 時の V 重複を wave 共有キャッシュで削減\n\nchunk-local prev_memo_delta は wave 内で chunk をまたがないため、\ngoldish 同値局面が別 chunk で solutions_overlay を冗長再計算していた。\nPhase-2 に wave スコープの sharded canonical-digest→StepRange キャッシュ\nを追加し再利用。frontier は raw-digest dedup のまま (出力 byte 一致)。\ncanonicalize OFF 時 no-op、wave 終端 drop で OOM-safe。\n\n正しさは memoization soundness + canonical determinism に帰着し新前提なし。\nmerge は無条件 last-writer-wins (FlatShard::insert_unsynchronized) のため、\n(canonical 局面, depth) の final StepRange 一意性は baseline が元々依存\nしている不変条件。debug ビルドに self-check (cache hit 毎に再計算し\nis_uniquely 一致を debug_assert) を常設、100k+ hit で mismatch 0 を実測。\n\nA/B(--allowed-kinds+--canonicalize): 出力一致, 約9-20%速, 約12-16%メモリ減\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-17T03:18:41Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/330a6e053ba4862b3ed7dbbc896e1b8cc463e1b9"
+        },
+        "date": 1778989094620,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
             "unit": "Instructions"
           },
           {
