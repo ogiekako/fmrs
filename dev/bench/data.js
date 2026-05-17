@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778989098996,
+  "lastUpdate": 1779018822002,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42526,6 +42526,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/330a6e053ba4862b3ed7dbbc896e1b8cc463e1b9"
         },
         "date": 1778989094620,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "377a52f4a66f614586f83c5f765a1e1fc8a80ba8",
+          "message": "bench(smoke): canonicalize 経路を測る heavy bench を追加\n\n既存の backward heavy bench は --canonicalize-attacker-goldish を渡さず\nshared-V キャッシュの no-op 経路しか測っていなかった。本番相当の\n--allowed-kinds + --canonicalize-attacker-goldish + --goldish-priority\n構成の bench_backward_search_seed_sfen_canonicalize を bench_heavy_inner\nに追加 (max-step 19, parallel 8)。初期スコア ~19.2s。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-17T05:11:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/377a52f4a66f614586f83c5f765a1e1fc8a80ba8"
+        },
+        "date": 1779018819814,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
