@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1778989097323,
+  "lastUpdate": 1778989098996,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -40461,6 +40461,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 39641,
             "range": "± 5",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "330a6e053ba4862b3ed7dbbc896e1b8cc463e1b9",
+          "message": "perf(backward): canonicalize 時の V 重複を wave 共有キャッシュで削減\n\nchunk-local prev_memo_delta は wave 内で chunk をまたがないため、\ngoldish 同値局面が別 chunk で solutions_overlay を冗長再計算していた。\nPhase-2 に wave スコープの sharded canonical-digest→StepRange キャッシュ\nを追加し再利用。frontier は raw-digest dedup のまま (出力 byte 一致)。\ncanonicalize OFF 時 no-op、wave 終端 drop で OOM-safe。\n\n正しさは memoization soundness + canonical determinism に帰着し新前提なし。\nmerge は無条件 last-writer-wins (FlatShard::insert_unsynchronized) のため、\n(canonical 局面, depth) の final StepRange 一意性は baseline が元々依存\nしている不変条件。debug ビルドに self-check (cache hit 毎に再計算し\nis_uniquely 一致を debug_assert) を常設、100k+ hit で mismatch 0 を実測。\n\nA/B(--allowed-kinds+--canonicalize): 出力一致, 約9-20%速, 約12-16%メモリ減\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-17T03:18:41Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/330a6e053ba4862b3ed7dbbc896e1b8cc463e1b9"
+        },
+        "date": 1778989098671,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 387,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2622,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 180,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 397,
+            "range": "± 590",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 24951,
+            "range": "± 74",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1715,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4687,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1294357,
+            "range": "± 1294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11669,
+            "range": "± 29",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 182,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 110,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 153,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 38,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 17,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18741905,
+            "range": "± 93486",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 25640,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3110,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 15873,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 40816,
+            "range": "± 4",
             "unit": "ns/iter"
           }
         ]
