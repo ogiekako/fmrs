@@ -13,7 +13,7 @@ https://ogiekako.github.io/fmrs にアクセスします。
 - 左クリックで駒移動、右クリックで成、向きの変更
 - キーボードによる操作も可能。[FM]と同じキー割当を採用しています。
 - Solveボタンを押すと解図がはじまります。
-- 簡易的な作問補助として、「＋」ボタンを押すことで、現在の局面に名前をつけることができます。リロードすると消滅するので注意してください。
+- 簡易的な作問補助として、「＋」ボタンで現在の局面に名前をつけて保存できます（最大20件、リロード後も保持）。「↺」ボタンでデフォルトに戻せます。
 - URL自体が盤面を表しているため、問題の共有が容易です。
 
 [FM]: http://www.dokidoki.ne.jp/home2/takuji/FM.html
@@ -30,7 +30,7 @@ https://ogiekako.github.io/fmrs にアクセスします。
 ## 注意
 
 - 公開サイトの既定構成では、計算はブラウザ上の wasm で行われます。（つまりあなたの計算資源を消費します）
-- 必要なら、重い解図だけ Cloud Run 上の API に逃がす構成も取れます。詳細は [CLOUD_RUN.md](/home/ogiekako/fmrs/CLOUD_RUN.md:1) を参照してください。
+- 必要なら、重い解図だけ Cloud Run 上の API に逃がす構成も取れます。詳細は [CLOUD_RUN.md](CLOUD_RUN.md) を参照してください。
 - 変化紛れが非常に多く、メモリ使用量が4Gを超えるような問題は解くことができません(例: [加藤徹4197手])。コマンドラインによる使用であれば、解ける可能性があります。
 - 二歩があるなど、違法な初形を与えた場合の動作は未定義です。
 
@@ -75,4 +75,4 @@ Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) and run
 
 ### Cloud Run
 
-GitHub Pages から重い解図だけ Cloud Run に逃がす構成をサポートしています。構成と手順は [CLOUD_RUN.md](/home/ogiekako/fmrs/CLOUD_RUN.md:1) を参照してください。
+GitHub Pages から重い解図だけ Cloud Run に逃がす構成をサポートしています。構成と手順は [CLOUD_RUN.md](CLOUD_RUN.md) を参照してください。
