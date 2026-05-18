@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779066428732,
+  "lastUpdate": 1779067436329,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42914,6 +42914,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/c5f495b5d5da0ff9966d78014ca7d251cd1e2a06"
         },
         "date": 1779066423153,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "c5f495b5d5da0ff9966d78014ca7d251cd1e2a06",
+          "message": "docs: README の saved positions 説明更新、CLOUD_RUN.md リンク修正\n\nリロード後も保持・最大20件・↺ リセットを反映。\n絶対パスだった CLOUD_RUN.md へのリンクを相対パスに修正。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-18T00:58:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/c5f495b5d5da0ff9966d78014ca7d251cd1e2a06"
+        },
+        "date": 1779067433859,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
