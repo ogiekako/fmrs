@@ -1,4 +1,5 @@
-import { Button, CloseButton, Dropdown } from "react-bootstrap";
+import { useRef, useState } from "react";
+import { Button, CloseButton, Dropdown, Form } from "react-bootstrap";
 import DropdownItem from "react-bootstrap/esm/DropdownItem";
 import DropdownMenu from "react-bootstrap/esm/DropdownMenu";
 import * as model from "../../model";
@@ -11,28 +12,38 @@ export default function Problems(props: {
   dispatch: types.Dispatcher;
   disabled: boolean;
 }) {
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function startAdding() {
+    setName(model.encodeSfen(props.position));
+    setAdding(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }
+
+  function confirmAdd() {
+    const trimmed = name.trim() || model.encodeSfen(props.position);
+    props.dispatch({
+      ty: "set-problems",
+      problems: [...props.problems, [props.position, trimmed]],
+    });
+    setAdding(false);
+  }
+
+  function cancelAdd() {
+    setAdding(false);
+  }
+
   return (
     <DropdownMenu show>
       <Dropdown.Header>
         Saved positions{" "}
-        <Button
-          variant="secondary"
-          onClick={() => {
-            const inputName = window.prompt("Name the position");
-            if (inputName === null) {
-              return;
-            }
-            const name = inputName || model.encodeSfen(props.position);
-            const mutableProblems = props.problems.slice();
-            mutableProblems.push([props.position, name]);
-            props.dispatch({
-              ty: "set-problems",
-              problems: mutableProblems,
-            });
-          }}
-        >
-          +
-        </Button>{" "}
+        {!adding && (
+          <Button variant="secondary" onClick={startAdding}>
+            +
+          </Button>
+        )}{" "}
         <Button
           variant="outline-secondary"
           size="sm"
@@ -51,6 +62,26 @@ export default function Problems(props: {
           ↺
         </Button>
       </Dropdown.Header>
+      {adding && (
+        <div className="px-3 py-1 d-flex gap-1">
+          <Form.Control
+            ref={inputRef}
+            size="sm"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") confirmAdd();
+              if (e.key === "Escape") cancelAdd();
+            }}
+          />
+          <Button size="sm" variant="primary" onClick={confirmAdd}>
+            Save
+          </Button>
+          <Button size="sm" variant="outline-secondary" onClick={cancelAdd}>
+            ✕
+          </Button>
+        </div>
+      )}
       {props.problems.map(([position, name], i) => (
         <DropdownItem
           key={i}
