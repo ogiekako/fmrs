@@ -6,6 +6,29 @@ import { KINDS } from "../../model";
 import { PRESET_PROBLEMS } from "../../problem";
 import { positionPieceBox } from "../../model/position";
 
+const SAVED_POSITIONS_KEY = "fmrs_saved_positions";
+const MAX_SAVED_POSITIONS = 20;
+
+function loadSavedProblems(): Array<types.Problem> {
+  try {
+    const raw = localStorage.getItem(SAVED_POSITIONS_KEY);
+    if (raw) {
+      const parsed: Array<[string, string]> = JSON.parse(raw);
+      return parsed.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
+    }
+  } catch {}
+  return PRESET_PROBLEMS.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
+}
+
+function saveProblems(problems: Array<types.Problem>) {
+  try {
+    const data = problems
+      .slice(0, MAX_SAVED_POSITIONS)
+      .map(([pos, name]) => [model.encodeSfen(pos), name]);
+    localStorage.setItem(SAVED_POSITIONS_KEY, JSON.stringify(data));
+  } catch {}
+}
+
 export function newState(): types.State {
   const sfen = model.sfenFromUrl();
 
@@ -19,10 +42,7 @@ export function newState(): types.State {
       typed: false,
     },
     solving: undefined,
-    problems: PRESET_PROBLEMS.map(([sfen, name]) => [
-      model.decodeSfen(sfen),
-      name,
-    ]),
+    problems: loadSavedProblems(),
     solveResponse: undefined,
     solutionLimit: 5,
     oneWayMateMode: false,
@@ -64,7 +84,8 @@ export function reduce(orig: types.State, event: types.Event): types.State {
       return state;
     case "set-problems":
       state = cloneState(orig);
-      state.problems = event.problems;
+      state.problems = event.problems.slice(0, MAX_SAVED_POSITIONS);
+      saveProblems(state.problems);
       return state;
     case "set-solve-response":
       state = cloneState(orig);

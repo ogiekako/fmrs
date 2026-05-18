@@ -3,6 +3,7 @@ import DropdownItem from "react-bootstrap/esm/DropdownItem";
 import DropdownMenu from "react-bootstrap/esm/DropdownMenu";
 import * as model from "../../model";
 import * as types from "../types";
+import { PRESET_PROBLEMS } from "../../problem";
 
 export default function Problems(props: {
   position: model.Position;
@@ -31,6 +32,23 @@ export default function Problems(props: {
           }}
         >
           +
+        </Button>{" "}
+        <Button
+          variant="outline-secondary"
+          size="sm"
+          title="Reset to defaults"
+          onClick={() => {
+            if (!window.confirm("Reset saved positions to defaults?")) return;
+            props.dispatch({
+              ty: "set-problems",
+              problems: PRESET_PROBLEMS.map(([sfen, name]) => [
+                model.decodeSfen(sfen),
+                name,
+              ]),
+            });
+          }}
+        >
+          ↺
         </Button>
       </Dropdown.Header>
       {props.problems.map(([position, name], i) => (
