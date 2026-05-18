@@ -4,7 +4,7 @@ import DropdownItem from "react-bootstrap/esm/DropdownItem";
 import DropdownMenu from "react-bootstrap/esm/DropdownMenu";
 import * as model from "../../model";
 import * as types from "../types";
-import { PRESET_PROBLEMS } from "../../problem";
+import { presetProblems } from "../state/state";
 
 export default function Problems(props: {
   position: model.Position;
@@ -14,6 +14,7 @@ export default function Problems(props: {
 }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [confirmingReset, setConfirmingReset] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function startAdding() {
@@ -35,6 +36,11 @@ export default function Problems(props: {
     setAdding(false);
   }
 
+  function confirmReset() {
+    props.dispatch({ ty: "set-problems", problems: presetProblems() });
+    setConfirmingReset(false);
+  }
+
   return (
     <DropdownMenu show>
       <Dropdown.Header>
@@ -44,23 +50,30 @@ export default function Problems(props: {
             +
           </Button>
         )}{" "}
-        <Button
-          variant="outline-secondary"
-          size="sm"
-          title="Reset to defaults"
-          onClick={() => {
-            if (!window.confirm("Reset saved positions to defaults?")) return;
-            props.dispatch({
-              ty: "set-problems",
-              problems: PRESET_PROBLEMS.map(([sfen, name]) => [
-                model.decodeSfen(sfen),
-                name,
-              ]),
-            });
-          }}
-        >
-          ↺
-        </Button>
+        {!confirmingReset ? (
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            title="Reset to defaults"
+            onClick={() => setConfirmingReset(true)}
+          >
+            ↺
+          </Button>
+        ) : (
+          <span className="d-inline-flex align-items-center gap-1">
+            <small>Reset?</small>
+            <Button size="sm" variant="danger" onClick={confirmReset}>
+              Yes
+            </Button>
+            <Button
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => setConfirmingReset(false)}
+            >
+              No
+            </Button>
+          </span>
+        )}
       </Dropdown.Header>
       {adding && (
         <div className="px-3 py-1 d-flex gap-1">

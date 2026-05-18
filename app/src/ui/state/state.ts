@@ -9,6 +9,10 @@ import { positionPieceBox } from "../../model/position";
 const SAVED_POSITIONS_KEY = "fmrs_saved_positions";
 const MAX_SAVED_POSITIONS = 20;
 
+export function presetProblems(): Array<types.Problem> {
+  return PRESET_PROBLEMS.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
+}
+
 function loadSavedProblems(): Array<types.Problem> {
   try {
     const raw = localStorage.getItem(SAVED_POSITIONS_KEY);
@@ -17,7 +21,7 @@ function loadSavedProblems(): Array<types.Problem> {
       return parsed.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
     }
   } catch {}
-  return PRESET_PROBLEMS.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
+  return presetProblems();
 }
 
 function saveProblems(problems: Array<types.Problem>) {
