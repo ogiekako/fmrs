@@ -188,37 +188,31 @@ cmd_up() {
   existing=$(gcloud compute instances describe "$INSTANCE_NAME" --zone="$ZONE" --format="value(status)" 2>/dev/null || true)
   if [ "$existing" = "RUNNING" ]; then
     echo "Instance $INSTANCE_NAME is already running."
-    return
   elif [ "$existing" = "TERMINATED" ] || [ "$existing" = "STOPPED" ]; then
     echo "Starting existing instance $INSTANCE_NAME..."
     gcloud compute instances start "$INSTANCE_NAME" --zone="$ZONE"
     wait_for_ssh
-    return
   elif [ -n "$existing" ]; then
     echo "Instance is in state: $existing. Waiting..."
     wait_for_ssh
-    return
+  else
+    echo "Creating spot instance $INSTANCE_NAME ($MACHINE_TYPE in $ZONE)..."
+    gcloud compute instances create "$INSTANCE_NAME" \
+      --zone="$ZONE" \
+      --machine-type="$MACHINE_TYPE" \
+      --provisioning-model=SPOT \
+      --instance-termination-action=STOP \
+      --image-family="$IMAGE_FAMILY" \
+      --image-project="$IMAGE_PROJECT" \
+      --boot-disk-size="$DISK_SIZE" \
+      --boot-disk-type="$DISK_TYPE" \
+      --scopes=default
+
+    wait_for_ssh
+    provision_rust
   fi
 
-  echo "Creating spot instance $INSTANCE_NAME ($MACHINE_TYPE in $ZONE)..."
-  gcloud compute instances create "$INSTANCE_NAME" \
-    --zone="$ZONE" \
-    --machine-type="$MACHINE_TYPE" \
-    --provisioning-model=SPOT \
-    --instance-termination-action=STOP \
-    --image-family="$IMAGE_FAMILY" \
-    --image-project="$IMAGE_PROJECT" \
-    --boot-disk-size="$DISK_SIZE" \
-    --boot-disk-type="$DISK_TYPE" \
-    --scopes=default
-
-  wait_for_ssh
-  provision_rust
-
-  echo ""
-  echo "Instance ready. Next steps:"
-  echo "  $0 push       # sync source code"
-  echo "  $0 run 'cmd'  # run a command"
+  cmd_push
 }
 
 cmd_push() {
