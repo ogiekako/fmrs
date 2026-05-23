@@ -82,6 +82,13 @@ ssh_cmd() {
   gcloud compute ssh "$INSTANCE_NAME" --zone="$ZONE" --command="$1"
 }
 
+fetch_jpy_rate() {
+  local rate
+  rate=$(curl -sf 'https://api.frankfurter.app/latest?from=USD&to=JPY' 2>/dev/null \
+    | python3 -c "import sys,json; print(json.load(sys.stdin)['rates']['JPY'])" 2>/dev/null) || true
+  echo "${rate:-145}"
+}
+
 # Wrapper script for rsync -e: gcloud compute ssh expects --command,
 # but rsync invokes the transport as `ssh host command...`.
 # We write a tiny helper that translates that calling convention.
@@ -411,6 +418,9 @@ cmd_cost() {
   cpus=$(echo "$mt_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['guestCpus'])")
   mem_mb=$(echo "$mt_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['memoryMb'])")
 
+  local jpy_rate
+  jpy_rate=$(fetch_jpy_rate)
+
   python3 -c "
 import sys, json
 from datetime import datetime, timezone
@@ -446,12 +456,14 @@ vcpu_rate = spot_vcpu_rates.get(parts[0], spot_vcpu_rates.get(parts[0][:-1], 0.0
 ram_rate = spot_ram_rates.get(parts[0], spot_ram_rates.get(parts[0][:-1], 0.0008))
 
 hourly_usd = cpus * vcpu_rate + mem_gb * ram_rate
-jpy_rate = 145  # approximate USD/JPY
+jpy_rate = float('$jpy_rate')
+
+hourly_jpy = hourly_usd * jpy_rate
 
 print(f'Instance:     {machine_type} ({cpus} vCPU, {mem_gb:.0f} GB RAM)')
 print(f'Status:       {status}')
-print(f'Spot rate:    \${hourly_usd:.3f}/hr  (~{hourly_usd * jpy_rate:.0f} JPY/hr)')
-print(f'              \${hourly_usd * 24:.2f}/day  (~{hourly_usd * 24 * jpy_rate:.0f} JPY/day)')
+print(f'Spot rate:    {hourly_jpy:.0f} 円/hr')
+print(f'              {hourly_jpy * 24:.0f} 円/day')
 print()
 
 if last_start and status == 'RUNNING':
@@ -460,8 +472,7 @@ if last_start and status == 'RUNNING':
     now = datetime.now(timezone.utc)
     elapsed = now - start
     hours = elapsed.total_seconds() / 3600
-    cost_usd = hours * hourly_usd
-    cost_jpy = cost_usd * jpy_rate
+    cost_jpy = hours * hourly_jpy
 
     days = int(hours // 24)
     remaining_hours = hours % 24
@@ -471,20 +482,20 @@ if last_start and status == 'RUNNING':
         elapsed_str = f'{hours:.1f}h'
 
     print(f'Uptime:       {elapsed_str} (since {start.strftime(\"%Y-%m-%d %H:%M %Z\")})')
-    print(f'Est. cost:    \${cost_usd:.2f}  (~{cost_jpy:.0f} JPY)')
+    print(f'Est. cost:    {cost_jpy:.0f} 円')
     print()
-    print(f'If stopped now:  \${cost_usd:.2f}')
-    print(f'+1h:             \${cost_usd + hourly_usd:.2f}')
-    print(f'+6h:             \${cost_usd + hourly_usd*6:.2f}')
-    print(f'+24h:            \${cost_usd + hourly_usd*24:.2f}')
+    print(f'If stopped now:  {cost_jpy:.0f} 円')
+    print(f'+1h:             {cost_jpy + hourly_jpy:.0f} 円')
+    print(f'+6h:             {cost_jpy + hourly_jpy*6:.0f} 円')
+    print(f'+24h:            {cost_jpy + hourly_jpy*24:.0f} 円')
 elif status in ('TERMINATED', 'STOPPED'):
     print('Instance is stopped. No compute charges accruing.')
-    print('(Disk storage charges still apply: ~\$0.17/GB/month for pd-ssd)')
+    print('(Disk storage charges still apply: ~23 円/GB/month for pd-ssd)')
 else:
     print(f'Last start: {last_start or \"unknown\"}')
 
 print()
-print('Note: spot prices are approximate (asia-northeast1, 2025 rates).')
+print(f'Note: spot prices are approximate (asia-northeast1, 2025 rates). USD/JPY={jpy_rate:.1f}')
 print('      Actual billing: https://console.cloud.google.com/billing')
 "
 }
@@ -935,13 +946,16 @@ cmd_fleet_cost() {
     echo "Per-instance cost:"
     cmd_cost 2>/dev/null | head -3
     echo ""
-    # Extract hourly rate and multiply
-    local hourly
-    hourly=$(cmd_cost 2>/dev/null | grep "Spot rate" | grep -oP '\$[\d.]+/hr' | tr -d '$/hr')
-    if [ -n "$hourly" ]; then
+    # Extract hourly JPY rate and multiply by fleet size
+    local hourly_jpy
+    hourly_jpy=$(cmd_cost 2>/dev/null | grep "Spot rate" | grep -oP '[\d.]+ 円/hr' | grep -oP '[\d.]+')
+    if [ -n "$hourly_jpy" ]; then
+      local fleet_hr fleet_day
+      fleet_hr=$(echo "scale=0; $hourly_jpy * $running_count / 1" | bc)
+      fleet_day=$(echo "scale=0; $hourly_jpy * $running_count * 24 / 1" | bc)
       echo "Fleet total (${running_count} running):"
-      echo "  \$$(echo "$hourly * $running_count" | bc)/hr"
-      echo "  \$$(echo "$hourly * $running_count * 24" | bc)/day"
+      echo "  ${fleet_hr} 円/hr"
+      echo "  ${fleet_day} 円/day"
     fi
   fi
   INSTANCE_NAME="$INSTANCE_NAME_BAK"
