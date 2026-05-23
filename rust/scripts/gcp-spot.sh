@@ -65,7 +65,7 @@ set -euo pipefail
 # --- Configuration (override via environment) ---
 INSTANCE_NAME="${GCP_SPOT_INSTANCE:-fmrs-spot}"
 ZONE="${GCP_SPOT_ZONE:-asia-northeast1-a}"
-MACHINE_TYPE="${GCP_SPOT_MACHINE:-n2d-highmem-96}"
+MACHINE_TYPE="${GCP_SPOT_MACHINE:-m3-ultramem-64}"
 IMAGE_FAMILY="${GCP_SPOT_IMAGE_FAMILY:-ubuntu-2404-lts-amd64}"
 IMAGE_PROJECT="${GCP_SPOT_IMAGE_PROJECT:-ubuntu-os-cloud}"
 DISK_SIZE="${GCP_SPOT_DISK_SIZE:-200GB}"
@@ -432,11 +432,13 @@ spot_vcpu_rates = {
     'n2': 0.009670, 'n2d': 0.011740,
     'c3': 0.004150, 'c3d': 0.006850,
     'c4': 0.022250, 'c4d': 0.013900,
+    'm1': 0.006300, 'm3': 0.004200,
 }
 spot_ram_rates = {
     'n2': 0.001290, 'n2d': 0.001565,
     'c3': 0.000562, 'c3d': 0.000919,
     'c4': 0.002527, 'c4d': 0.001592,
+    'm1': 0.000900, 'm3': 0.000600,
 }
 
 # Try 'n2d' first, then 'n2'
