@@ -917,8 +917,3 @@ mod tests {
         assert_eq!(position.sfen(), "8O/9/9/9/9/9/9/9/9 b - 1");
     }
 }
-
-#[test]
-fn check_position_aux_size() {
-    eprintln!("PositionAux size: {}", std::mem::size_of::<PositionAux>());
-}
