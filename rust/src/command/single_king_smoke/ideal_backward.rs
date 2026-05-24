@@ -14,9 +14,10 @@ use super::super::smoke_constraints::{
 use super::super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, condition_key, load_seed_result_log,
     merge_best_candidate, merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint,
-    trajectory_log_path, CrossSeedBest,
+    trajectory_log_path, CrossSeedBest, SeedResultRecord,
     TerminationReason,
 };
+use rustc_hash::FxHashMap;
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
 use super::enumerate::enumerate_final_2_positions;
 use super::oracle::OracleModel;
@@ -142,38 +143,20 @@ pub(super) fn ideal_backward(
                 .unwrap_or(0)
         );
     }
-    let mut grouped_seeds = grouped_seeds;
-    let mut pending_seeds: Vec<(usize, Vec<PositionAux>)> = Vec::with_capacity(grouped_seeds.len());
-    let mut initial_best: CrossSeedBest = (0u32, 0u16, FxHashSet::default(), 0usize);
-    let mut loaded_records = 0usize;
-    if beam.width.is_some() {
-        // beam モードは record 形式が部分結果のため互換性なし。常に再実行。
-        pending_seeds.append(&mut grouped_seeds);
-    } else {
-        // canonicalize ON/OFF はファイル / レコード上で隔離されている (path suffix
-        // と record の `canonicalize_attacker_goldish` フィールド)。同 flag の run
-        // 同士は中断後に再開できる。
-        let seed_records = load_seed_result_log(
-            &seed_result_log,
-            max_step,
-            constraints,
-            canonicalize_attacker_goldish,
-        )?;
-        for (seed_index, group) in grouped_seeds {
-            // canon OFF: group size = 1。canon ON: group[0] は raw_enumerated 順での
-            // 最初の seed (確定的)。書き込み時と読み込み時で同じ representative。
-            let representative = &group[0];
-            if let Some(record) = seed_records
-                .get(&seed_index)
-                .filter(|record| record.seed_sfen == representative.sfen())
-            {
-                loaded_records += 1;
-                merge_seed_result_record(&mut initial_best, record);
-            } else {
-                pending_seeds.push((seed_index, group));
-            }
-        }
-    }
+    // 書き込みは beam.width.is_none() でガードしているので、log にあるレコードは
+    // 必ず非 beam の厳密結果 = beam 結果より弱くなることはない。よって beam モード
+    // でも同じ log を読み込んで既存 seed をスキップしてよい。
+    // canonicalize ON/OFF はファイル / レコード上で隔離されている (path suffix と
+    // record の `canonicalize_attacker_goldish` フィールド)。同 flag の run 同士は
+    // 中断後に再開できる。
+    let seed_records = load_seed_result_log(
+        &seed_result_log,
+        max_step,
+        constraints,
+        canonicalize_attacker_goldish,
+    )?;
+    let (pending_seeds, initial_best, loaded_records) =
+        partition_against_existing_records(grouped_seeds, &seed_records);
     let total_seeds = loaded_records + pending_seeds.len();
     let target_max = theoretical_max_piece_count(constraints);
     eprintln!(
@@ -439,4 +422,119 @@ fn finalize_output(best: CrossSeedBest) -> anyhow::Result<()> {
         println!("{sfen}");
     }
     Ok(())
+}
+
+/// Split enumerated seeds against existing exact records: seeds whose index +
+/// representative sfen match an entry in `seed_records` are dropped from the
+/// pending list and merged into `initial_best` instead. Returns
+/// `(pending, initial_best, loaded_count)`.
+///
+/// Records in `seed_records` are assumed to come from non-beam (exact) runs —
+/// `append_seed_result_record` is gated on `beam.width.is_none()` in the
+/// caller, so beam runs never write to the log and reusing what's there is
+/// always at least as good as re-running with beam.
+fn partition_against_existing_records(
+    grouped_seeds: Vec<(usize, Vec<PositionAux>)>,
+    seed_records: &FxHashMap<usize, SeedResultRecord>,
+) -> (Vec<(usize, Vec<PositionAux>)>, CrossSeedBest, usize) {
+    let mut pending: Vec<(usize, Vec<PositionAux>)> = Vec::with_capacity(grouped_seeds.len());
+    let mut initial_best: CrossSeedBest = (0u32, 0u16, FxHashSet::default(), 0usize);
+    let mut loaded = 0usize;
+    for (seed_index, group) in grouped_seeds {
+        // canon OFF: group size = 1。canon ON: group[0] は raw_enumerated 順での
+        // 最初の seed (確定的)。書き込み時と読み込み時で同じ representative。
+        let representative = &group[0];
+        if let Some(record) = seed_records
+            .get(&seed_index)
+            .filter(|record| record.seed_sfen == representative.sfen())
+        {
+            loaded += 1;
+            merge_seed_result_record(&mut initial_best, record);
+        } else {
+            pending.push((seed_index, group));
+        }
+    }
+    (pending, initial_best, loaded)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::command::smoke_persistence::IDEAL_BACKWARD_SEED_LOG_VERSION;
+
+    fn seed(sfen: &str) -> PositionAux {
+        PositionAux::from_sfen(sfen).unwrap()
+    }
+
+    fn record(seed_index: usize, seed_sfen: &str, best_piece_count: u32, best_step: u16) -> SeedResultRecord {
+        SeedResultRecord {
+            version: IDEAL_BACKWARD_SEED_LOG_VERSION,
+            max_step: None,
+            max_frontier: None,
+            constraints: SearchConstraints::default(),
+            seed_index,
+            seed_sfen: seed_sfen.to_string(),
+            best_step,
+            best_piece_count,
+            positions: 1,
+            representative_sfen: Some(seed_sfen.to_string()),
+            skipped: false,
+            peak_frontier_size: 0,
+            peak_memo_len: 0,
+            total_seen_positions: 0,
+            terminal_step: best_step,
+            termination_reason: TerminationReason::Completed,
+            canonicalize_attacker_goldish: false,
+        }
+    }
+
+    #[test]
+    fn empty_records_leaves_all_seeds_pending() {
+        let sfen_a = "9/9/9/9/9/9/9/9/G6k1 b - 1";
+        let sfen_b = "9/9/9/9/9/9/9/9/+P6k1 b - 1";
+        let grouped = vec![(0, vec![seed(sfen_a)]), (1, vec![seed(sfen_b)])];
+        let records = FxHashMap::default();
+
+        let (pending, best, loaded) = partition_against_existing_records(grouped, &records);
+
+        assert_eq!(loaded, 0);
+        assert_eq!(pending.len(), 2);
+        assert_eq!(best.0, 0);
+        assert_eq!(best.3, 0);
+    }
+
+    #[test]
+    fn matching_record_skips_seed_and_merges_into_best() {
+        let sfen_a = "9/9/9/9/9/9/9/9/G6k1 b - 1";
+        let sfen_b = "9/9/9/9/9/9/9/9/+P6k1 b - 1";
+        let grouped = vec![(0, vec![seed(sfen_a)]), (1, vec![seed(sfen_b)])];
+        let mut records = FxHashMap::default();
+        records.insert(0, record(0, &seed(sfen_a).sfen(), 17, 9));
+
+        let (pending, best, loaded) = partition_against_existing_records(grouped, &records);
+
+        assert_eq!(loaded, 1);
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].0, 1, "seed 0 should have been filtered out");
+        assert_eq!(best.0, 17, "best piece count should pick up the record's bpc");
+        assert_eq!(best.1, 9, "best step should pick up the record's step");
+        assert_eq!(best.3, 1, "one succeeded seed merged into best");
+    }
+
+    #[test]
+    fn sfen_mismatch_keeps_seed_pending() {
+        // 同じ seed_index でも sfen が違えば古いレコード扱いで skip しない
+        // (seed の再列挙順が変わった等のケース)。
+        let sfen_actual = "9/9/9/9/9/9/9/9/G6k1 b - 1";
+        let sfen_recorded = "9/9/9/9/9/9/9/9/+P6k1 b - 1";
+        let grouped = vec![(0, vec![seed(sfen_actual)])];
+        let mut records = FxHashMap::default();
+        records.insert(0, record(0, &seed(sfen_recorded).sfen(), 17, 9));
+
+        let (pending, best, loaded) = partition_against_existing_records(grouped, &records);
+
+        assert_eq!(loaded, 0);
+        assert_eq!(pending.len(), 1);
+        assert_eq!(best.0, 0);
+    }
 }
