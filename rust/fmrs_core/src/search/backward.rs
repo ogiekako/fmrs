@@ -1150,6 +1150,10 @@ pub struct BackwardSearch {
     memo_entry_limit: Option<usize>,
     delta_trace: bool,
     canonicalize_attacker_goldish: bool,
+    /// Precomputed stone contribution to digest (XOR of zobrist_stone for each
+    /// stone square, 0 when stone=None). Lets Phase 2 compute pp_digest from
+    /// core.digest() directly — no PositionAux construction needed on cache hits.
+    stone_digest: u64,
     /// Measurement of the most recent `advance_parallel_filtered`: pre-advance
     /// frontier size, how many of those frontier positions produced zero
     /// filter-passing predecessors (a true backward dead-end — the key metric
@@ -1266,6 +1270,7 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
+            stone_digest: initial_position.digest() ^ initial_position.core().digest(),
         })
     }
 
@@ -1391,6 +1396,7 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: true,
+            stone_digest: seeds[0].digest() ^ seeds[0].core().digest(),
         })
     }
 
@@ -1476,6 +1482,7 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
+            stone_digest: initial_position.digest() ^ initial_position.core().digest(),
         })
     }
 
@@ -1568,6 +1575,7 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
+            stone_digest: initial_position.digest() ^ initial_position.core().digest(),
         })
     }
 
@@ -2041,6 +2049,7 @@ impl BackwardSearch {
         let wave_chunk_count = parallel * 8;
         let wave_size = chunk_size * wave_chunk_count;
         let canonicalize = self.canonicalize_attacker_goldish;
+        let stone_digest = self.stone_digest;
         set_progress_phase(3);
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
@@ -2088,11 +2097,15 @@ impl BackwardSearch {
                         let mut history = HistoryTable::new();
 
                         for core in chunk.iter() {
-                            let mut pp = PositionAux::new(core.clone(), stone);
-                            let pp_digest = if canonicalize {
-                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
+                            // canonicalize=false なら core.digest() ^ stone_digest で
+                            // PositionAux 構築を回避。memo hit 時は kind_cache を作らない
+                            // ぶん丸ごと節約。miss 時のみ DFS 直前で構築する。
+                            let (pp_digest, pp_early): (u64, Option<PositionAux>) = if canonicalize {
+                                let pp = PositionAux::new(core.clone(), stone);
+                                let d = crate::search::canonicalize::canonical_digest_for_smoke(&pp);
+                                (d, Some(pp))
                             } else {
-                                pp.digest()
+                                (core.digest() ^ stone_digest, None)
                             };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
@@ -2126,6 +2139,9 @@ impl BackwardSearch {
                                     // run. Zero release cost.
                                     #[cfg(debug_assertions)]
                                     {
+                                        // shared_v_ref が Some なのは canonicalize=true。
+                                        // よって pp_early も必ず Some。
+                                        let pp = pp_early.as_ref().unwrap();
                                         let mut pp_chk = pp.clone();
                                         crate::search::canonicalize::canonicalize_attacker_goldish(
                                             &mut pp_chk,
@@ -2157,6 +2173,9 @@ impl BackwardSearch {
                                 }
                             }
 
+                            // DFS が必要なので PositionAux を (まだなら) ここで構築。
+                            let mut pp = pp_early
+                                .unwrap_or_else(|| PositionAux::new(core.clone(), stone));
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -2472,6 +2491,7 @@ impl BackwardSearch {
         let wave_chunk_count = parallel * 8;
         let wave_size = chunk_size * wave_chunk_count;
         let canonicalize = self.canonicalize_attacker_goldish;
+        let stone_digest = self.stone_digest;
         set_progress_phase(3); // V: uniqueness verification waves
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
@@ -2522,13 +2542,15 @@ impl BackwardSearch {
                         let mut history = HistoryTable::new();
 
                         for core in chunk.iter() {
-                            let mut pp = PositionAux::new(core.clone(), stone);
-                            // smoke 用 canonicalize: hit を期待して digest 先取得、
-                            // miss 時のみ実 mutation して solutions に渡す。
-                            let pp_digest = if canonicalize {
-                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
+                            // canonicalize=false なら core.digest() ^ stone_digest で
+                            // PositionAux 構築を回避。memo hit 時は kind_cache を作らない
+                            // ぶん丸ごと節約。miss 時のみ DFS 直前で構築する。
+                            let (pp_digest, pp_early): (u64, Option<PositionAux>) = if canonicalize {
+                                let pp = PositionAux::new(core.clone(), stone);
+                                let d = crate::search::canonicalize::canonical_digest_for_smoke(&pp);
+                                (d, Some(pp))
                             } else {
-                                pp.digest()
+                                (core.digest() ^ stone_digest, None)
                             };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
@@ -2562,6 +2584,9 @@ impl BackwardSearch {
                                     // run. Zero release cost.
                                     #[cfg(debug_assertions)]
                                     {
+                                        // shared_v_ref が Some なのは canonicalize=true。
+                                        // よって pp_early も必ず Some。
+                                        let pp = pp_early.as_ref().unwrap();
                                         let mut pp_chk = pp.clone();
                                         crate::search::canonicalize::canonicalize_attacker_goldish(
                                             &mut pp_chk,
@@ -2593,6 +2618,9 @@ impl BackwardSearch {
                                 }
                             }
 
+                            // DFS が必要なので PositionAux を (まだなら) ここで構築。
+                            let mut pp = pp_early
+                                .unwrap_or_else(|| PositionAux::new(core.clone(), stone));
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -4057,6 +4085,42 @@ mod tests {
         assert_eq!(variants.len(), 2);
         assert!(variants.iter().any(|p| !p.pawn_drop()));
         assert!(variants.iter().any(|p| p.pawn_drop()));
+    }
+
+    /// stone_digest cache の前提 — PositionAux::digest() は
+    /// `core.digest() ^ stone_dependent` という構造で、stone-dependent 部分は
+    /// stone (BitBoard) のみに依存し core (盤面/手駒) には依存しない。
+    ///
+    /// Phase 2 の最適化はこの不変量に依拠して、cache hit 時の PositionAux 構築を
+    /// 省く: 任意の seed から `seed.digest() ^ seed.core().digest()` で
+    /// stone_digest を一度だけ取り出しておけば、別 core でも
+    /// `core.digest() ^ stone_digest` が `PositionAux::new(core, stone).digest()`
+    /// と等しい。この test はその invariant を pin する。
+    #[test]
+    fn stone_digest_independent_of_core() {
+        use crate::position::position::PositionAux;
+        let seed = PositionAux::from_sfen("9/9/9/9/9/9/9/9/4k4 b - 1").unwrap();
+        let stone_digest = seed.digest() ^ seed.core().digest();
+        // 別の局面を同じ stone で構築。
+        let other_sfens = [
+            "9/9/9/9/9/9/9/9/G6k1 b - 1",
+            "9/9/9/9/9/9/9/9/+P6k1 b - 1",
+            "4k4/9/9/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1",
+        ];
+        for sfen in other_sfens {
+            let other = PositionAux::from_sfen(sfen).unwrap();
+            assert_eq!(
+                *other.stone(),
+                *seed.stone(),
+                "test setup: stones must match for {sfen}"
+            );
+            let direct = other.digest();
+            let via_cache = other.core().digest() ^ stone_digest;
+            assert_eq!(
+                direct, via_cache,
+                "stone_digest invariant violated for {sfen}"
+            );
+        }
     }
 
     /// Regression test for the MADV_DONTNEED + write_bytes-removal optimization
