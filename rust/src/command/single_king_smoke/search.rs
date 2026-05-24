@@ -1,5 +1,5 @@
 use fmrs_core::{
-    position::{position::PositionAux, UndoMove},
+    position::{position::PositionAux, BitBoard, Position, UndoMove},
     search::backward::{BackwardSearch, BackwardSearchStats},
 };
 use std::fmt;
@@ -399,14 +399,16 @@ pub(super) fn search_single_seed(
             let mid_candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
                 satisfies_ideal_smoke_undo_candidate(position, undo_move, mid_step, constraints)
             };
-            let mid_generation_filter = |position: &PositionAux| {
-                satisfies_ideal_smoke_generation_constraints(position, mid_step, constraints)
+            let mid_generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, mid_step, constraints)
             };
             let out_candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
                 satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
             };
-            let out_generation_filter = |position: &PositionAux| {
-                satisfies_ideal_smoke_generation_constraints(position, next_step, constraints)
+            let out_generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
             };
             search.advance_2ply_fused(
                 &mid_candidate_filter,
@@ -418,8 +420,9 @@ pub(super) fn search_single_seed(
             let candidate_filter = |position: &PositionAux, undo_move: &UndoMove| {
                 satisfies_ideal_smoke_undo_candidate(position, undo_move, next_step, constraints)
             };
-            let generation_filter = |position: &PositionAux| {
-                satisfies_ideal_smoke_generation_constraints(position, next_step, constraints)
+            let generation_filter = |core: &Position, stone: Option<BitBoard>| {
+                let position = PositionAux::new(core.clone(), stone);
+                satisfies_ideal_smoke_generation_constraints(&position, next_step, constraints)
             };
             if use_inner_parallel {
                 search.advance_parallel_filtered(&candidate_filter, &generation_filter)?

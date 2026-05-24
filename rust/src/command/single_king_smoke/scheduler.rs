@@ -12,7 +12,7 @@
 //! scheduler shuts down when both PQ is empty and active count is zero.
 
 use fmrs_core::{
-    position::{position::PositionAux, UndoMove},
+    position::{position::PositionAux, BitBoard, Position, UndoMove},
     search::backward::BackwardSearch,
 };
 use std::cmp::Ordering;
@@ -290,8 +290,9 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
     let candidate_filter = move |p: &PositionAux, u: &UndoMove| {
         satisfies_ideal_smoke_undo_candidate(p, u, next_step, constraints)
     };
-    let generation_filter = move |p: &PositionAux| {
-        satisfies_ideal_smoke_generation_constraints(p, next_step, constraints)
+    let generation_filter = move |c: &Position, s: Option<BitBoard>| {
+        let p = PositionAux::new(c.clone(), s);
+        satisfies_ideal_smoke_generation_constraints(&p, next_step, constraints)
     };
     search.set_parallel(1);
     let advanced = search.advance_upto_with_candidate_filter(

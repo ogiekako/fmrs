@@ -234,15 +234,12 @@ impl<T> Drop for MmapSlice<T> {
         let addr = self.ptr.as_ptr() as usize;
         #[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
         unsafe {
-            // MADV_DONTNEED: 匿名マップはゼロフィルオンデマンドで返す (カーネル保証)。
-            // プールから再利用する際に write_bytes が不要になり、キー配列の
-            // memset コスト (実測 ~6%) を削除できる。
-            // MADV_FREE と同様に TLB shootdown を避けつつ OOM 圧力時に物理ページを
-            // 即時解放できるため OOM 安全性は変わらない。
+            // MADV_FREE: 物理ページは圧力時に回収可能なまま手放す (OOM 安全)。
+            // 同期 TLB shootdown を伴わないのが munmap との決定的な差。
             libc::madvise(
                 self.ptr.as_ptr().cast(),
                 self.mmap_size,
-                libc::MADV_DONTNEED,
+                libc::MADV_FREE,
             );
             if mmap_pool::put(addr, self.mmap_size) {
                 return;
@@ -291,8 +288,10 @@ fn shard_index(key: u64) -> usize {
 }
 
 fn alloc_slot_arrays(size: usize) -> (MmapSlice<u64>, MmapSlice<u32>) {
-    // MADV_DONTNEED on pool return zeroes pages automatically; no write_bytes needed.
-    (alloc_zeroed_slice::<u64>(size), alloc_zeroed_slice::<u32>(size))
+    (
+        alloc_zeroed_slice::<u64>(size),
+        alloc_zeroed_slice::<u32>(size),
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -309,12 +308,14 @@ fn alloc_zeroed_slice<T: Copy>(len: usize) -> MmapSlice<T> {
     // Reuse a pooled region of the same size if available: skips mmap, the
     // alignment-trim munmaps, MADV_HUGEPAGE and mbind (all persist on the VMA),
     // and — most importantly — avoids the munmap TLB-shootdown storm.
-    // MADV_DONTNEED on pool return guarantees zero-fill-on-demand for anonymous
-    // mappings (Linux kernel promise), so no explicit write_bytes is needed here.
     #[cfg(all(not(target_arch = "wasm32"), target_os = "linux"))]
     if let Some(addr) = mmap_pool::take(mmap_size) {
         unsafe {
             let ptr = addr as *mut T;
+            // MADV_FREE'd pages may retain stale data if not yet reclaimed;
+            // keys must be zero (FLAT_EMPTY_KEY == 0). The write also clears
+            // the MADV_FREE marking and faults back any reclaimed pages.
+            std::ptr::write_bytes(ptr as *mut u8, 0, mmap_size);
             return MmapSlice {
                 ptr: NonNull::new_unchecked(ptr),
                 len,
@@ -1150,10 +1151,6 @@ pub struct BackwardSearch {
     memo_entry_limit: Option<usize>,
     delta_trace: bool,
     canonicalize_attacker_goldish: bool,
-    /// Precomputed stone contribution to digest (XOR of zobrist_stone for each
-    /// stone square, 0 when stone=None). Lets Phase 2 compute pp_digest from
-    /// core.digest() directly — no PositionAux construction needed on cache hits.
-    stone_digest: u64,
     /// Measurement of the most recent `advance_parallel_filtered`: pre-advance
     /// frontier size, how many of those frontier positions produced zero
     /// filter-passing predecessors (a true backward dead-end — the key metric
@@ -1270,7 +1267,6 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
-            stone_digest: initial_position.digest() ^ initial_position.core().digest(),
         })
     }
 
@@ -1396,7 +1392,6 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: true,
-            stone_digest: seeds[0].digest() ^ seeds[0].core().digest(),
         })
     }
 
@@ -1482,7 +1477,6 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
-            stone_digest: initial_position.digest() ^ initial_position.core().digest(),
         })
     }
 
@@ -1575,7 +1569,6 @@ impl BackwardSearch {
             last_dead_end: 0,
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
-            stone_digest: initial_position.digest() ^ initial_position.core().digest(),
         })
     }
 
@@ -1614,7 +1607,7 @@ impl BackwardSearch {
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
         if !self.one_way && self.parallel > 1 && self.seen_positions == 0 {
-            return self.advance_parallel_filtered(&|_, _| true, &|_| true);
+            return self.advance_parallel_filtered(&|_, _| true, &|_, _| true);
         }
         self.advance_upto(usize::MAX / 2)
     }
@@ -1672,14 +1665,26 @@ impl BackwardSearch {
     }
 
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
-        self.advance_upto_with_candidate_filter(upto, |_, _| true, |_| true)
+        self.advance_upto_with_filter(upto, |_, _| true)
+    }
+
+    pub fn advance_upto_with_filter(
+        &mut self,
+        upto: usize,
+        mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
+    ) -> anyhow::Result<bool> {
+        self.advance_upto_with_candidate_filter(
+            upto,
+            |_, _| true,
+            |position, stone| filter(position, stone),
+        )
     }
 
     pub fn advance_upto_with_candidate_filter(
         &mut self,
         upto: usize,
         mut candidate_filter: impl FnMut(&PositionAux, &UndoMove) -> bool,
-        mut filter: impl FnMut(&PositionAux) -> bool,
+        mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
     ) -> anyhow::Result<bool> {
         // Serial small-frontier path: dead-end measurement is parallel-only,
         // so publish "not measured" (0) instead of stale parallel values.
@@ -1714,7 +1719,7 @@ impl BackwardSearch {
                     continue;
                 }
 
-                if !filter(&pp) {
+                if !filter(pp.core(), self.stone) {
                     continue;
                 }
 
@@ -1863,9 +1868,9 @@ impl BackwardSearch {
     pub fn advance_2ply_fused(
         &mut self,
         mid_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        mid_filter: &(impl Fn(&PositionAux) -> bool + Sync),
+        mid_filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
         out_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        out_filter: &(impl Fn(&PositionAux) -> bool + Sync),
+        out_filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             self.last_frontier_in = 0;
@@ -1925,7 +1930,7 @@ impl BackwardSearch {
                             if !satisfies_backward_constraints(&q1, no_black_goldish) {
                                 continue;
                             }
-                            if !mid_filter(&q1) {
+                            if !mid_filter(q1.core(), stone) {
                                 continue;
                             }
                             // q1 is a valid (filtered, unverified) intermediate.
@@ -1944,7 +1949,7 @@ impl BackwardSearch {
                                 if !satisfies_backward_constraints(&q2, no_black_goldish) {
                                     continue;
                                 }
-                                if !out_filter(&q2) {
+                                if !out_filter(q2.core(), stone) {
                                     continue;
                                 }
                                 any_survived = true;
@@ -2037,7 +2042,6 @@ impl BackwardSearch {
         let wave_chunk_count = parallel * 8;
         let wave_size = chunk_size * wave_chunk_count;
         let canonicalize = self.canonicalize_attacker_goldish;
-        let stone_digest = self.stone_digest;
         set_progress_phase(3);
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
@@ -2085,15 +2089,11 @@ impl BackwardSearch {
                         let mut history = HistoryTable::new();
 
                         for core in chunk.iter() {
-                            // For canonicalize=false, compute digest from
-                            // core.digest() directly — no PositionAux needed
-                            // until DFS is required.
-                            let (pp_digest, pp_early): (u64, Option<PositionAux>) = if canonicalize {
-                                let pp = PositionAux::new(core.clone(), stone);
-                                let d = crate::search::canonicalize::canonical_digest_for_smoke(&pp);
-                                (d, Some(pp))
+                            let mut pp = PositionAux::new(core.clone(), stone);
+                            let pp_digest = if canonicalize {
+                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
                             } else {
-                                (core.digest() ^ stone_digest, None)
+                                pp.digest()
                             };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
@@ -2127,7 +2127,6 @@ impl BackwardSearch {
                                     // run. Zero release cost.
                                     #[cfg(debug_assertions)]
                                     {
-                                        let pp = pp_early.as_ref().unwrap();
                                         let mut pp_chk = pp.clone();
                                         crate::search::canonicalize::canonicalize_attacker_goldish(
                                             &mut pp_chk,
@@ -2159,8 +2158,6 @@ impl BackwardSearch {
                                 }
                             }
 
-                            // DFS needed: build PositionAux if not yet built.
-                            let mut pp = pp_early.unwrap_or_else(|| PositionAux::new(core.clone(), stone));
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -2287,7 +2284,7 @@ impl BackwardSearch {
     pub fn advance_parallel_filtered(
         &mut self,
         candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        filter: &(impl Fn(&PositionAux) -> bool + Sync),
+        filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             self.last_frontier_in = 0;
@@ -2358,7 +2355,7 @@ impl BackwardSearch {
                             if !satisfies_backward_constraints(&pp, no_black_goldish) {
                                 continue;
                             }
-                            if !filter(&pp) {
+                            if !filter(pp.core(), stone) {
                                 continue;
                             }
                             // A constraint-satisfying backward move exists for
@@ -2476,7 +2473,6 @@ impl BackwardSearch {
         let wave_chunk_count = parallel * 8;
         let wave_size = chunk_size * wave_chunk_count;
         let canonicalize = self.canonicalize_attacker_goldish;
-        let stone_digest = self.stone_digest;
         set_progress_phase(3); // V: uniqueness verification waves
         for wave in candidates.chunks(wave_size) {
             let memo_ref: &Memo = &memo;
@@ -2526,29 +2522,14 @@ impl BackwardSearch {
                         let mut killers = Killers::new();
                         let mut history = HistoryTable::new();
 
-                        // Prefetch prev_memo slots for the first PREFETCH_AHEAD candidates
-                        // before the main loop starts, hiding latency on the hot path.
-                        const PREFETCH_AHEAD: usize = 8;
-                        for j in 0..PREFETCH_AHEAD.min(chunk.len()) {
-                            prev_memo_ref.prefetch_key(chunk[j].digest() ^ stone_digest);
-                        }
-
-                        for (i, core) in chunk.iter().enumerate() {
-                            // Prefetch memo slot for a future candidate while processing current.
-                            if i + PREFETCH_AHEAD < chunk.len() {
-                                prev_memo_ref.prefetch_key(
-                                    chunk[i + PREFETCH_AHEAD].digest() ^ stone_digest,
-                                );
-                            }
-                            // For canonicalize=false, compute digest from
-                            // core.digest() directly — no PositionAux needed
-                            // until DFS is required.
-                            let (pp_digest, pp_early): (u64, Option<PositionAux>) = if canonicalize {
-                                let pp = PositionAux::new(core.clone(), stone);
-                                let d = crate::search::canonicalize::canonical_digest_for_smoke(&pp);
-                                (d, Some(pp))
+                        for core in chunk.iter() {
+                            let mut pp = PositionAux::new(core.clone(), stone);
+                            // smoke 用 canonicalize: hit を期待して digest 先取得、
+                            // miss 時のみ実 mutation して solutions に渡す。
+                            let pp_digest = if canonicalize {
+                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
                             } else {
-                                (core.digest() ^ stone_digest, None)
+                                pp.digest()
                             };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
@@ -2582,7 +2563,6 @@ impl BackwardSearch {
                                     // run. Zero release cost.
                                     #[cfg(debug_assertions)]
                                     {
-                                        let pp = pp_early.as_ref().unwrap();
                                         let mut pp_chk = pp.clone();
                                         crate::search::canonicalize::canonicalize_attacker_goldish(
                                             &mut pp_chk,
@@ -2614,8 +2594,6 @@ impl BackwardSearch {
                                 }
                             }
 
-                            // DFS needed: build PositionAux if not yet built.
-                            let mut pp = pp_early.unwrap_or_else(|| PositionAux::new(core.clone(), stone));
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
