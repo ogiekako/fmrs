@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779597622660,
+  "lastUpdate": 1779604583931,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43496,6 +43496,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/55860c94d0811360ec31a045e6d5b91df33237ff"
         },
         "date": 1779597618624,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124067,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388944,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "af1732b4d6d737f3597e0bdd447d77b72d2ffa3e",
+          "message": "feat(smoke): beam モードでも既存の厳密 seed_result_log を活用\n\n書き込みは既に beam.width.is_none() でガード済みなので、log に存在する\nレコードは必ず非 beam の厳密結果という invariant が成り立つ。これを利用\nし、beam モードでもログをロードして既存 seed をスキップするよう統一。\nfilter ロジックを partition_against_existing_records に切り出し、\nideal_backward::tests に unit test を 3 ケース追加。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-24T06:18:29Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/af1732b4d6d737f3597e0bdd447d77b72d2ffa3e"
+        },
+        "date": 1779604581220,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
