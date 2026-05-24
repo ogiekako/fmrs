@@ -10,16 +10,39 @@ use fmrs_core::{
 };
 use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use std::hash::{Hash, Hasher};
 
 use super::super::smoke_constraints::{
     canonical_sfen, kind_allowed_by_mask, satisfies_ideal_smoke_undo_candidate,
     satisfies_search_constraints, square_in_bounds, with_white_complement, SearchConstraints,
 };
 
+/// Return a path like `<exe_dir>/enum_<hash>.sfens` for caching enumerated SFENs.
+/// Returns None if the exe path can't be determined.
+fn enum_cache_path(constraints: SearchConstraints) -> Option<std::path::PathBuf> {
+    let json = serde_json::to_string(&constraints).ok()?;
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    json.hash(&mut hasher);
+    let hash = hasher.finish();
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    Some(dir.join(format!("enum_{hash:016x}.sfens")))
+}
+
 pub(super) fn enumerate_final_2_sfens(
     parallel: usize,
     constraints: SearchConstraints,
 ) -> anyhow::Result<Vec<String>> {
+    // Try reading from disk cache before enumerating.
+    if let Some(cache_path) = enum_cache_path(constraints) {
+        if let Ok(content) = std::fs::read_to_string(&cache_path) {
+            let sfens: Vec<String> = content.lines().map(str::to_owned).collect();
+            if !sfens.is_empty() {
+                return Ok(sfens);
+            }
+        }
+    }
+
     let kind_pairs = if constraints.double_king {
         vec![]
     } else {
@@ -57,6 +80,12 @@ pub(super) fn enumerate_final_2_sfens(
     let mut sfens = positions.into_iter().collect::<Vec<_>>();
     sfens.sort();
     sfens.dedup();
+
+    // Write to cache for future runs.
+    if let Some(cache_path) = enum_cache_path(constraints) {
+        let _ = std::fs::write(&cache_path, sfens.join("\n"));
+    }
+
     Ok(sfens)
 }
 

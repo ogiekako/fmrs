@@ -55,8 +55,8 @@ impl BackwardSearch {
 fn advance_inner(inner: &mut BackwardSearchImpl, one_way_mate_mode: bool) -> bool {
     if one_way_mate_mode {
         inner
-            .advance_upto_with_filter(10, |core, stone| {
-                let mut p = PositionAux::new(core.clone(), stone);
+            .advance_upto_with_candidate_filter(10, |_, _| true, |position| {
+                let mut p = position.clone();
                 if p.checked_slow(Color::WHITE) {
                     p.set_turn(Color::WHITE);
                 }
