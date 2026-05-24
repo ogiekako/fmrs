@@ -682,4 +682,36 @@ mod tests {
 
         let _ = fs::remove_dir_all(&dir);
     }
+
+    /// Pin: `load_seed_checkpoint` の validation は beam を見ない、つまり
+    /// 非 beam モードで書いた .ckpt を beam モードからも load できる。
+    /// (search.rs 側で beam.width.is_some() のときに load をスキップしていた
+    /// ガードを撤廃したのと対になる invariant。書き込み側は
+    /// beam.width.is_none() で gate しているので、.ckpt にあるのは必ず非 beam の
+    /// 厳密計算途中の状態 = beam での結果より弱くなることはない。)
+    /// 将来 validate_checkpoint に beam 関連のフィールドを足したくなった場合、
+    /// この test がそれを catch する。
+    #[test]
+    fn checkpoint_validation_is_beam_agnostic() {
+        let dir = unique_test_dir("beam-agnostic");
+        let log = dir.join("log.jsonl");
+        let constraints = SearchConstraints::default();
+
+        // 非 beam モード相当 (= 通常 run) で書いた checkpoint を simulate。
+        let cp = dummy_checkpoint(7, "sfen-x", Some(10), constraints, 42);
+        write_seed_checkpoint(&log, &cp).unwrap();
+
+        // 同 (seed_index, seed_sfen, max_step, constraints, canonical) を渡せば
+        // beam モードからの呼び出しでも同じく load できる: load_seed_checkpoint /
+        // validate_checkpoint は beam を一切引数に取らないので caller のモードに
+        // よらず一意に決まる。
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(10), constraints, false);
+        assert!(
+            loaded.is_some(),
+            "non-beam checkpoint must be loadable from any caller mode"
+        );
+        assert_eq!(loaded.unwrap().best_piece_count, 42);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
 }

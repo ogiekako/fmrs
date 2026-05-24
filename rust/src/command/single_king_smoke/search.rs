@@ -79,18 +79,18 @@ pub(super) fn search_single_seed(
     let representative = &seeds[0];
     // canonicalize ON/OFF は path suffix + record フィールドで隔離されており、
     // 同 flag 同士の resume が可能。
-    let checkpoint = if beam.width.is_some() {
-        None
-    } else {
-        load_seed_checkpoint(
-            seed_result_log_path,
-            seed_index,
-            &representative.sfen(),
-            max_step,
-            constraints,
-            canonicalize_attacker_goldish,
-        )
-    };
+    // 書き込みは beam.width.is_none() でガードしているので、.ckpt にあるのは必ず
+    // 非 beam の厳密計算途中の frontier+memo。beam モードでもそれを load して
+    // step N まで exact, それ以降だけ beam で進めるほうが、step 0 から beam で
+    // 走るより必ず良い (memo hit 率も上がる)。
+    let checkpoint = load_seed_checkpoint(
+        seed_result_log_path,
+        seed_index,
+        &representative.sfen(),
+        max_step,
+        constraints,
+        canonicalize_attacker_goldish,
+    );
 
     let mut search = if canonicalize_attacker_goldish {
         let resumed = checkpoint.as_ref().and_then(|cp| {
