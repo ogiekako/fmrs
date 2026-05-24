@@ -1614,7 +1614,7 @@ impl BackwardSearch {
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
         if !self.one_way && self.parallel > 1 && self.seen_positions == 0 {
-            return self.advance_parallel_filtered(&|_, _| true, &|_, _| true);
+            return self.advance_parallel_filtered(&|_, _| true, &|_| true);
         }
         self.advance_upto(usize::MAX / 2)
     }
@@ -1672,26 +1672,14 @@ impl BackwardSearch {
     }
 
     pub fn advance_upto(&mut self, upto: usize) -> anyhow::Result<bool> {
-        self.advance_upto_with_filter(upto, |_, _| true)
-    }
-
-    pub fn advance_upto_with_filter(
-        &mut self,
-        upto: usize,
-        mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
-    ) -> anyhow::Result<bool> {
-        self.advance_upto_with_candidate_filter(
-            upto,
-            |_, _| true,
-            |position, stone| filter(position, stone),
-        )
+        self.advance_upto_with_candidate_filter(upto, |_, _| true, |_| true)
     }
 
     pub fn advance_upto_with_candidate_filter(
         &mut self,
         upto: usize,
         mut candidate_filter: impl FnMut(&PositionAux, &UndoMove) -> bool,
-        mut filter: impl FnMut(&Position, Option<BitBoard>) -> bool,
+        mut filter: impl FnMut(&PositionAux) -> bool,
     ) -> anyhow::Result<bool> {
         // Serial small-frontier path: dead-end measurement is parallel-only,
         // so publish "not measured" (0) instead of stale parallel values.
@@ -1726,7 +1714,7 @@ impl BackwardSearch {
                     continue;
                 }
 
-                if !filter(pp.core(), self.stone) {
+                if !filter(&pp) {
                     continue;
                 }
 
@@ -1875,9 +1863,9 @@ impl BackwardSearch {
     pub fn advance_2ply_fused(
         &mut self,
         mid_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        mid_filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+        mid_filter: &(impl Fn(&PositionAux) -> bool + Sync),
         out_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        out_filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+        out_filter: &(impl Fn(&PositionAux) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             self.last_frontier_in = 0;
@@ -1937,7 +1925,7 @@ impl BackwardSearch {
                             if !satisfies_backward_constraints(&q1, no_black_goldish) {
                                 continue;
                             }
-                            if !mid_filter(q1.core(), stone) {
+                            if !mid_filter(&q1) {
                                 continue;
                             }
                             // q1 is a valid (filtered, unverified) intermediate.
@@ -1956,7 +1944,7 @@ impl BackwardSearch {
                                 if !satisfies_backward_constraints(&q2, no_black_goldish) {
                                     continue;
                                 }
-                                if !out_filter(q2.core(), stone) {
+                                if !out_filter(&q2) {
                                     continue;
                                 }
                                 any_survived = true;
@@ -2302,7 +2290,7 @@ impl BackwardSearch {
     pub fn advance_parallel_filtered(
         &mut self,
         candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
-        filter: &(impl Fn(&Position, Option<BitBoard>) -> bool + Sync),
+        filter: &(impl Fn(&PositionAux) -> bool + Sync),
     ) -> anyhow::Result<bool> {
         if self.positions.is_empty() {
             self.last_frontier_in = 0;
@@ -2373,7 +2361,7 @@ impl BackwardSearch {
                             if !satisfies_backward_constraints(&pp, no_black_goldish) {
                                 continue;
                             }
-                            if !filter(pp.core(), stone) {
+                            if !filter(&pp) {
                                 continue;
                             }
                             // A constraint-satisfying backward move exists for
