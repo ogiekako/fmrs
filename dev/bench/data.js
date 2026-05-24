@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779611451484,
+  "lastUpdate": 1779611453960,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41455,6 +41455,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 39999,
             "range": "± 1",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "6fb9f973210066c729ea7d0e9d9130c6596ad28f",
+          "message": "feat(smoke): beam モードでも既存の厳密 checkpoint を活用\n\n書き込み側 (search.rs:465) は既に beam.width.is_none() でガードして\nbeam モードでは .ckpt を書かないので、log に存在する checkpoint は必ず\n非 beam の厳密計算途中の frontier+memo であるという invariant が成立する。\nこれを利用し、search_single_seed の checkpoint ロード分岐から\nbeam.width.is_some() のスキップを撤廃し常に load を試みるよう統一。\n\nstep N まで exact で進んだ非 beam frontier をロードすれば、step N 以降だけ\nbeam で進める形になり、step 0 から beam だけで走るより必ず良い (memo hit\n率も上がる)。最初の advance で apply_beam が走り frontier は width K に\n絞られるので、定常状態の挙動は通常 beam と同じ。\n\n直前の .jsonl での同種パッチ (af1732b) と対称。validate_checkpoint が\nbeam 非依存である invariant を pin する test を smoke_persistence::tests に追加。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-24T08:19:36Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/6fb9f973210066c729ea7d0e9d9130c6596ad28f"
+        },
+        "date": 1779611453251,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 391,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2839,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 179,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 403,
+            "range": "± 604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26531,
+            "range": "± 76",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1577,
+            "range": "± 83",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4604,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1330288,
+            "range": "± 285",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11277,
+            "range": "± 49",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 181,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 50,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 151,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19178840,
+            "range": "± 51096",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26731,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3238,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16828,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 38838,
+            "range": "± 5",
             "unit": "ns/iter"
           }
         ]
