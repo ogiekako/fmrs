@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779604585605,
+  "lastUpdate": 1779611451484,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43690,6 +43690,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/af1732b4d6d737f3597e0bdd447d77b72d2ffa3e"
         },
         "date": 1779604581220,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124067,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388944,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "6fb9f973210066c729ea7d0e9d9130c6596ad28f",
+          "message": "feat(smoke): beam モードでも既存の厳密 checkpoint を活用\n\n書き込み側 (search.rs:465) は既に beam.width.is_none() でガードして\nbeam モードでは .ckpt を書かないので、log に存在する checkpoint は必ず\n非 beam の厳密計算途中の frontier+memo であるという invariant が成立する。\nこれを利用し、search_single_seed の checkpoint ロード分岐から\nbeam.width.is_some() のスキップを撤廃し常に load を試みるよう統一。\n\nstep N まで exact で進んだ非 beam frontier をロードすれば、step N 以降だけ\nbeam で進める形になり、step 0 から beam だけで走るより必ず良い (memo hit\n率も上がる)。最初の advance で apply_beam が走り frontier は width K に\n絞られるので、定常状態の挙動は通常 beam と同じ。\n\n直前の .jsonl での同種パッチ (af1732b) と対称。validate_checkpoint が\nbeam 非依存である invariant を pin する test を smoke_persistence::tests に追加。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-24T08:19:36Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/6fb9f973210066c729ea7d0e9d9130c6596ad28f"
+        },
+        "date": 1779611448345,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
