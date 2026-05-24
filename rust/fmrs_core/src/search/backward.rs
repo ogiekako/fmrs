@@ -2541,7 +2541,21 @@ impl BackwardSearch {
                         let mut killers = Killers::new();
                         let mut history = HistoryTable::new();
 
-                        for core in chunk.iter() {
+                        // Software prefetch for prev_memo slot lookups.
+                        // canonicalize=true 時は実 key (canonical_digest_for_smoke) と
+                        // 異なる line を warm するので perf 上は無駄になるが、prefetch
+                        // 自体に副作用は無く correctness には影響しない。
+                        const PREFETCH_AHEAD: usize = 8;
+                        for j in 0..PREFETCH_AHEAD.min(chunk.len()) {
+                            prev_memo_ref.prefetch_key(chunk[j].digest() ^ stone_digest);
+                        }
+
+                        for (i, core) in chunk.iter().enumerate() {
+                            if i + PREFETCH_AHEAD < chunk.len() {
+                                prev_memo_ref.prefetch_key(
+                                    chunk[i + PREFETCH_AHEAD].digest() ^ stone_digest,
+                                );
+                            }
                             // canonicalize=false なら core.digest() ^ stone_digest で
                             // PositionAux 構築を回避。memo hit 時は kind_cache を作らない
                             // ぶん丸ごと節約。miss 時のみ DFS 直前で構築する。
