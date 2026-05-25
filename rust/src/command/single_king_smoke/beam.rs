@@ -50,10 +50,12 @@ pub(super) fn open_feature_log(path: &Path) -> anyhow::Result<fs::File> {
         .with_context(|| format!("open feature log {}", path.display()))
 }
 
-pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: usize) {
+/// Returns `true` if filtering actually reduced the frontier, `false` if the
+/// frontier was already within `width` (no pruning occurred).
+pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: usize) -> bool {
     let (_, positions) = search.positions();
     if positions.len() <= width || width == 0 {
-        return;
+        return false;
     }
     match &beam.scorer {
         BeamScorer::Random => {
@@ -89,6 +91,7 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
             search.replace_positions(truncated);
         }
     }
+    true
 }
 
 fn handcraft_beam_score(features: &[f32]) -> f32 {

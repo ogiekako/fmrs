@@ -304,7 +304,7 @@ pub(super) fn ideal_backward(
                 let early_exited_partial = early_exit
                     && result.stats.termination_reason == TerminationReason::EarlyExit
                     && result.best.as_ref().is_none_or(|(pc, _, _)| *pc < target_max);
-                if beam.width.is_none() && !early_exited_partial {
+                if (beam.width.is_none() || !result.beam_filtered) && !early_exited_partial {
                     append_seed_result_record(
                         &mut seed_result_log.lock().unwrap(),
                         build_seed_result_record(

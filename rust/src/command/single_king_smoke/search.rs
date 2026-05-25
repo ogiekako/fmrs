@@ -38,6 +38,9 @@ use super::system::{ProcStatus, SearchStatsDisplay};
 pub(super) struct SingleSeedResult {
     pub(super) best: Option<(u32, u16, Vec<PositionAux>)>, // (piece_count, step, positions)
     pub(super) stats: SeedRunStats,
+    /// `true` if beam pruning reduced the frontier at least once during this run.
+    /// When `false`, the result is exact even if `--beam-width` was specified.
+    pub(super) beam_filtered: bool,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -74,6 +77,7 @@ pub(super) fn search_single_seed(
                 terminal_step: 0,
                 termination_reason: TerminationReason::Unknown,
             },
+            beam_filtered: false,
         });
     }
     let representative = &seeds[0];
@@ -122,6 +126,7 @@ pub(super) fn search_single_seed(
                         terminal_step: 0,
                         termination_reason: TerminationReason::Unknown,
                     },
+                    beam_filtered: false,
                 });
             }
         }
@@ -152,6 +157,7 @@ pub(super) fn search_single_seed(
                         terminal_step: 0,
                         termination_reason: TerminationReason::Unknown,
                     },
+                    beam_filtered: false,
                 })
             }
         }
@@ -213,6 +219,9 @@ pub(super) fn search_single_seed(
     // Trajectory buffer: accumulate rows per-seed, flush once at the end to
     // avoid a mutex acquisition on every step across all parallel seeds.
     let mut trajectory_buf = String::new();
+    // True once beam pruning actually reduced the frontier. While false, the
+    // search is exact even when --beam-width is set.
+    let mut did_beam_filter = false;
     let track_peaks =
         |peak_frontier_size: &mut usize, peak_memo_len: &mut usize, search: &BackwardSearch| {
             let s = search.stats();
@@ -363,7 +372,7 @@ pub(super) fn search_single_seed(
         }
 
         if let Some(width) = beam.width {
-            apply_beam(&mut search, beam, width);
+            did_beam_filter |= apply_beam(&mut search, beam, width);
         }
 
         let advance_start = Instant::now();
@@ -462,7 +471,7 @@ pub(super) fn search_single_seed(
             advance_elapsed_ms,
         );
 
-        if beam.width.is_none() {
+        if beam.width.is_none() || !did_beam_filter {
             let should_checkpoint = match last_checkpoint_time {
                 None => true,
                 Some(t) => t.elapsed() >= checkpoint_interval,
@@ -552,7 +561,11 @@ pub(super) fn search_single_seed(
         // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
         Some((best_piece_count, best_step, best_positions))
     };
-    Ok(SingleSeedResult { best, stats })
+    Ok(SingleSeedResult {
+        best,
+        stats,
+        beam_filtered: did_beam_filter,
+    })
 }
 
 pub(super) fn log_global_best_if_improved(
