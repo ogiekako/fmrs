@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779611846761,
+  "lastUpdate": 1779701610118,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44108,6 +44108,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434388944,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "09c5c552374db4ddb09356710ded2c369fddc671",
+          "message": "feat(smoke): beam filtering が実際に起きなければ厳密結果として checkpoint/record を書き出す\n\n--beam-width 指定時でも apply_beam が frontier を削減しなかった (did_beam_filter=false)\nなら結果は厳密解と同等なので、checkpoint 書き出しと seed result record への追記を許可する。\napply_beam は実際に pruning したかを bool で返すよう変更し、ループで累積 OR して追跡する。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-25T09:07:42Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/09c5c552374db4ddb09356710ded2c369fddc671"
+        },
+        "date": 1779701606553,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50869,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
             "unit": "Instructions"
           }
         ]
