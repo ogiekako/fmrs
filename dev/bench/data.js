@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779701610118,
+  "lastUpdate": 1779701612588,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41739,6 +41739,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 39999,
             "range": "± 5",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "09c5c552374db4ddb09356710ded2c369fddc671",
+          "message": "feat(smoke): beam filtering が実際に起きなければ厳密結果として checkpoint/record を書き出す\n\n--beam-width 指定時でも apply_beam が frontier を削減しなかった (did_beam_filter=false)\nなら結果は厳密解と同等なので、checkpoint 書き出しと seed result record への追記を許可する。\napply_beam は実際に pruning したかを bool で返すよう変更し、ループで累積 OR して追跡する。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-05-25T09:07:42Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/09c5c552374db4ddb09356710ded2c369fddc671"
+        },
+        "date": 1779701611852,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 392,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3088,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 397,
+            "range": "± 626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28780,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1760,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4807,
+            "range": "± 58",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1444419,
+            "range": "± 125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12126,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20832170,
+            "range": "± 108056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30304,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3693,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 19360,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 43949,
+            "range": "± 14",
             "unit": "ns/iter"
           }
         ]
