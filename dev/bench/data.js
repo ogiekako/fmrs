@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779877424577,
+  "lastUpdate": 1779877426636,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -41881,6 +41881,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 43949,
             "range": "± 14",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "fe716e7be415c90caa955c52e77b70cc39f1441a",
+          "message": "perf(backward): build_candidates の sort を par_sort_unstable に変更\n\nBottom-K Sampling の Phase C で 全 shard heap を merge した後の\nsort_unstable_by_key (O(K log K)) がシリアルで Amdahl bottleneck だった。\n\npar_sort_unstable_by_key に変更することで、SAFETY_FACTOR × W\nが大きい場合 (例: W=10^8 なら K=4×10^8) でも cores 数だけ加速する。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-27T10:07:55Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/fe716e7be415c90caa955c52e77b70cc39f1441a"
+        },
+        "date": 1779877426168,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 305,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2376,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 142,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 311,
+            "range": "± 411",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22174,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1390,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3771,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1120765,
+            "range": "± 69",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 9361,
+            "range": "± 37",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 145,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 40,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 112,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 15912167,
+            "range": "± 86525",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 22727,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2779,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14663,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 33666,
+            "range": "± 15",
             "unit": "ns/iter"
           }
         ]
