@@ -948,7 +948,15 @@ impl ShardBucket {
 /// candidates" = uniform-random W candidates over all unique mid candidates.
 /// The hash-sorted order also lets Phase V process candidates lowest-digest
 /// first and early-stop once enough survive (lazy-filter trick).
-fn build_candidates(shard_data: Vec<ShardBucket>, candidates_limit: Option<usize>) -> Vec<Position> {
+/// Returns `(candidates, sampled)`. `sampled = true` means the returned set is
+/// strictly smaller than the true unique candidate set — either because
+/// Bottom-K evicted items in a shard, or because the cross-shard merge had to
+/// truncate. Callers must propagate this through `last_sampled` so checkpoint
+/// writers can refuse to persist a sampled frontier as "exact".
+fn build_candidates(
+    shard_data: Vec<ShardBucket>,
+    candidates_limit: Option<usize>,
+) -> (Vec<Position>, bool) {
     match candidates_limit {
         None => {
             let total: usize = shard_data.iter().map(|b| b.vec.len()).sum();
@@ -956,9 +964,15 @@ fn build_candidates(shard_data: Vec<ShardBucket>, candidates_limit: Option<usize
             for bucket in shard_data {
                 c.extend(bucket.vec);
             }
-            c
+            (c, false)
         }
         Some(limit) => {
+            // In Bottom-K mode `count` is the # of *accepted* inserts (≤ heap
+            // size at any moment). If count > current heap.len(), at least one
+            // eviction happened — strict-subset signal. (Same digest re-trying
+            // after eviction inflates count, so this is "≥ true evicted" — a
+            // safe over-estimate for the "sampled" flag.)
+            let any_eviction = shard_data.iter().any(|b| b.count > b.heap.len());
             let total: usize = shard_data.iter().map(|b| b.heap.len()).sum();
             let mut all: Vec<(u64, Position)> = Vec::with_capacity(total);
             for bucket in shard_data {
@@ -968,10 +982,14 @@ fn build_candidates(shard_data: Vec<ShardBucket>, candidates_limit: Option<usize
             // par_sort_unstable is the dominant serial cost when SAFETY_FACTOR
             // × W is large; parallel sort eliminates it as an Amdahl bottleneck.
             all.par_sort_unstable_by_key(|&(h, _)| h);
-            if all.len() > limit {
+            let truncated = all.len() > limit;
+            if truncated {
                 all.truncate(limit);
             }
-            all.into_iter().map(|(_, p)| p).collect()
+            (
+                all.into_iter().map(|(_, p)| p).collect(),
+                any_eviction || truncated,
+            )
         }
     }
 }
@@ -1268,8 +1286,14 @@ pub struct BackwardSearch {
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
     /// When set, Phase 1 keeps at most this many dedup'd candidates using
-    /// reservoir sampling (Algorithm R, equal probability). None = unlimited.
+    /// Bottom-K Sampling (uniform-equivalent via Zobrist hash). None = unlimited.
     candidates_limit: Option<usize>,
+    /// Set to `true` by the most recent advance when sampling or early-stop
+    /// truncation actually changed the result vs an exact computation. Cleared
+    /// at the start of each advance. Callers MUST read this to decide whether
+    /// the current frontier is exact (safe to checkpoint as ground truth) or
+    /// sampled (must be marked as such).
+    last_sampled: bool,
     delta_trace: bool,
     canonicalize_attacker_goldish: bool,
     /// Precomputed stone contribution to digest (XOR of zobrist_stone for each
@@ -1388,6 +1412,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1515,6 +1540,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1602,6 +1628,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1696,6 +1723,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1767,11 +1795,21 @@ impl BackwardSearch {
     }
 
     /// Limit the number of dedup'd candidates kept after Phase 1 using
-    /// reservoir sampling (Algorithm R, equal probability). Set to `None` to
-    /// disable (default). When set, Phase 1 keeps at most `limit` candidates
-    /// in O(limit) memory regardless of the true candidate count.
+    /// Bottom-K Sampling (uniform-equivalent, via Zobrist hash). Set to `None`
+    /// to disable (default). When set, Phase 1 keeps at most `limit` candidates
+    /// in O(limit) memory regardless of the true candidate count, and Phase V
+    /// early-stops once `limit` survivors accumulate.
     pub fn set_candidates_limit(&mut self, limit: Option<usize>) {
         self.candidates_limit = limit;
+    }
+
+    /// Whether the most recent `advance_*` call's result is a sampled subset
+    /// (Bottom-K eviction in Phase 1, build_candidates truncation, or Phase V
+    /// early-stop) rather than the exact predecessor closure. Callers must
+    /// treat a sampled frontier as approximate — in particular, must NOT
+    /// persist it as an exact checkpoint.
+    pub fn last_sampled(&self) -> bool {
+        self.last_sampled
     }
 
     pub fn set_delta_trace(&mut self, enabled: bool) {
@@ -2001,6 +2039,7 @@ impl BackwardSearch {
         out_candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
         out_filter: &(impl Fn(&PositionAux) -> bool + Sync),
     ) -> anyhow::Result<bool> {
+        self.last_sampled = false;
         if self.positions.is_empty() {
             self.last_frontier_in = 0;
             self.last_dead_end = 0;
@@ -2130,7 +2169,8 @@ impl BackwardSearch {
             .map(|m| m.into_inner().unwrap())
             .collect();
         let total_unique: usize = shard_data.iter().map(|b| b.count).sum();
-        let candidates = build_candidates(shard_data, self.candidates_limit);
+        let (candidates, p1_sampled) = build_candidates(shard_data, self.candidates_limit);
+        self.last_sampled = p1_sampled;
 
         // Mirror the intermediate ply's end-of-step swap (no entries added),
         // then advance the step so Phase 2 below verifies at depth `step+1`
@@ -2180,6 +2220,7 @@ impl BackwardSearch {
         set_progress_phase(3);
         for wave in candidates.chunks(wave_size) {
             if target_w.is_some_and(|w| all_positions.len() >= w) {
+                self.last_sampled = true;
                 break;
             }
             let memo_ref: &Memo = &memo;
@@ -2394,6 +2435,7 @@ impl BackwardSearch {
         if let Some(w) = target_w {
             if all_positions.len() > w {
                 all_positions.truncate(w);
+                self.last_sampled = true;
             }
         }
 
@@ -2442,6 +2484,7 @@ impl BackwardSearch {
         candidate_filter: &(impl Fn(&PositionAux, &UndoMove) -> bool + Sync),
         filter: &(impl Fn(&PositionAux) -> bool + Sync),
     ) -> anyhow::Result<bool> {
+        self.last_sampled = false;
         if self.positions.is_empty() {
             self.last_frontier_in = 0;
             self.last_dead_end = 0;
@@ -2567,7 +2610,8 @@ impl BackwardSearch {
             .map(|m| m.into_inner().unwrap())
             .collect();
         let total_unique: usize = shard_data.iter().map(|b| b.count).sum();
-        let candidates = build_candidates(shard_data, self.candidates_limit);
+        let (candidates, p1_sampled) = build_candidates(shard_data, self.candidates_limit);
+        self.last_sampled = p1_sampled;
 
         if candidates.is_empty() {
             self.last_frontier_in = frontier_in;
@@ -2639,6 +2683,7 @@ impl BackwardSearch {
         set_progress_phase(3); // V: uniqueness verification waves
         for wave in candidates.chunks(wave_size) {
             if target_w.is_some_and(|w| all_positions.len() >= w) {
+                self.last_sampled = true;
                 break;
             }
             let memo_ref: &Memo = &memo;
@@ -2870,6 +2915,7 @@ impl BackwardSearch {
         if let Some(w) = target_w {
             if all_positions.len() > w {
                 all_positions.truncate(w);
+                self.last_sampled = true;
             }
         }
 

@@ -447,6 +447,12 @@ pub(super) fn search_single_seed(
         };
         let advance_elapsed_ms = advance_start.elapsed().as_millis();
         let inner_used = if use_inner_parallel { dynamic_inner } else { 1 };
+        // Candidate sampling / Phase-V early-stop inside the advance also
+        // produces a non-exact frontier; treat it the same as apply_beam
+        // pruning so the checkpoint gate below refuses to persist it as exact.
+        if search.last_sampled() {
+            did_beam_filter = true;
+        }
         mt(
             mem_trace,
             seed_index,
