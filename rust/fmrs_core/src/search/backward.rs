@@ -1970,12 +1970,16 @@ impl BackwardSearch {
         // plies: true 2-ply backward dead-ends.
         let dead_end_count = AtomicUsize::new(0);
         // Per-shard reservoir capacity for candidate sampling. When
-        // candidates_limit is set, each shard holds at most shard_cap items
-        // via Algorithm R (equal-probability reservoir sampling). When unset
-        // (None), shard_cap = usize::MAX and the bucket behaves as before.
+        // candidates_limit (= W) is set, each shard holds at most W items via
+        // Algorithm R. Using the full W per shard (not W/NUM_SHARDS) ensures
+        // that Phase-C proportional allocation w_i = round(W × N_i / N) never
+        // exceeds items.len(): when N ≥ W, w_i ≤ N_i and items.len() =
+        // min(W, N_i) ≥ w_i. This guarantees the output has exactly W items.
+        // Memory is O(W × NUM_SHARDS), a fixed NUM_SHARDS-multiple of W.
+        // When unset (None), shard_cap = usize::MAX and the bucket behaves as
+        // before (unbounded).
         let shard_cap = self
             .candidates_limit
-            .map(|lim| lim.div_ceil(NUM_SHARDS))
             .unwrap_or(usize::MAX);
         let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>, usize, StdRng)>> =
             (0..NUM_SHARDS)
@@ -2426,10 +2430,8 @@ impl BackwardSearch {
         // every chunk-local-dedupped candidate (~75% later dropped by global
         // dedup) and contributed ~10–20 GB of transient RSS at deep steps.
         //
-        // When candidates_limit is set, each shard keeps at most
-        // shard_cap = limit/NUM_SHARDS items via Algorithm R (equal-probability
-        // reservoir sampling). Peak memory is then bounded by O(limit) rather
-        // than O(true_candidate_count).
+        // When candidates_limit (= W) is set, each shard holds at most W items
+        // via Algorithm R. See advance_2ply_fused for the capacity rationale.
         set_progress_phase(1); // P: candidate generation
         let positions = &self.positions;
         let frontier_in = positions.len();
@@ -2439,7 +2441,6 @@ impl BackwardSearch {
         let dead_end_count = AtomicUsize::new(0);
         let shard_cap = self
             .candidates_limit
-            .map(|lim| lim.div_ceil(NUM_SHARDS))
             .unwrap_or(usize::MAX);
         let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>, usize, StdRng)>> =
             (0..NUM_SHARDS)
