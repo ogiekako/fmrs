@@ -228,19 +228,17 @@ cmd_push() {
   local wrapper
   wrapper=$(rsync_ssh_wrapper)
   trap "rm -f '$wrapper'" RETURN
-  # `--out-format=%n` makes rsync print one line per *transferred* path.
-  # rsync -a preserves the (older) local source mtimes, while the remote
-  # target/ binary is excluded and keeps its newer build mtime — so cargo's
-  # mtime fingerprint would judge the binary up-to-date and SKIP the rebuild,
-  # silently running stale code after every push. We capture exactly the
-  # files rsync updated and touch only those on the remote: enough to defeat
-  # the fingerprint while keeping the rebuild incremental (not a full one).
+  # `--out-format=%n` prints one line per transferred path; `-c` (checksum)
+  # compares file contents rather than mtime+size so that the `touch` below
+  # (which sets remote mtime to "now", making it newer than the local source)
+  # does not cause every touched file to be re-transferred on the next push.
+  # `tee /dev/stderr` echoes the list to the terminal while capturing it.
   local transferred
-  transferred=$(rsync -az --out-format='%n' \
+  transferred=$(rsync -azc --out-format='%n' \
     --exclude='target/' \
     --exclude='.git/' \
     -e "$wrapper" \
-    "$LOCAL_DIR/" "$INSTANCE_NAME":"$REMOTE_DIR/")
+    "$LOCAL_DIR/" "$INSTANCE_NAME":"$REMOTE_DIR/" | tee /dev/stderr)
   local build_inputs
   build_inputs=$(printf '%s\n' "$transferred" \
     | grep -E '\.rs$|(^|/)Cargo\.(toml|lock)$|(^|/)build\.rs$' || true)
