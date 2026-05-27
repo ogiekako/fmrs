@@ -165,6 +165,11 @@ pub(super) fn search_single_seed(
     if let Some(limit) = max_memo_entries {
         search.set_memo_entry_limit(Some(limit));
     }
+    // When beam is active, bound the Phase-1 candidate Vec via reservoir
+    // sampling so |mid| = O(beam_width) rather than O(frontier × branching).
+    if let Some(width) = beam.width {
+        search.set_candidates_limit(Some(width));
+    }
     // Track the most recently applied dynamic memo limit so we only re-apply
     // when the per-seed budget grows (dropping `remaining` releases budget to
     // surviving seeds). `max_memo_entries` is the per-seed budget at peak

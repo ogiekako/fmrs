@@ -39,6 +39,7 @@ pub fn progress_phase_char() -> char {
 
 use anyhow::bail;
 use log::{debug, info};
+use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -857,6 +858,70 @@ impl FlatShard {
     }
 }
 
+/// Collect Phase-1 shard reservoirs into a `candidates` Vec.
+///
+/// `shard_data` is a list of `(reservoir, true_count)` pairs — one per shard.
+/// `true_count` is the total number of dedup'd candidates that arrived at that
+/// shard (regardless of how many were kept in the reservoir via Algorithm R).
+///
+/// When `candidates_limit` is `None` (or the total is within the limit) every
+/// reservoir item is included.  Otherwise the function samples exactly `limit`
+/// items with equal probability across all shards:
+///
+///   P(p selected) = w_i / N_i  where  w_i = round(limit × N_i / N)
+///
+/// Each shard's reservation was built with Algorithm R (equal probability within
+/// the shard), so combining with the proportional allocation gives global equal
+/// probability = limit / N.
+fn build_candidates(
+    shard_data: Vec<(Vec<Position>, usize)>,
+    total_unique: usize,
+    candidates_limit: Option<usize>,
+) -> Vec<Position> {
+    let limit = match candidates_limit {
+        None => return {
+            let mut c = Vec::with_capacity(total_unique);
+            for (items, _) in shard_data {
+                c.extend(items);
+            }
+            c
+        },
+        Some(lim) if total_unique <= lim => {
+            let mut c = Vec::with_capacity(total_unique);
+            for (items, _) in shard_data {
+                c.extend(items);
+            }
+            return c;
+        }
+        Some(lim) => lim,
+    };
+
+    let mut candidates = Vec::with_capacity(limit);
+    let mut rng = StdRng::from_entropy();
+    let n_shards = shard_data.len();
+    let mut allocated = 0usize;
+    for (i, (mut items, n_i)) in shard_data.into_iter().enumerate() {
+        // Proportional allocation: round(limit × n_i / total_unique).
+        let w_i = if i == n_shards - 1 {
+            limit.saturating_sub(allocated)
+        } else {
+            // Use u128 to avoid overflow when limit * n_i is large.
+            ((limit as u128 * n_i as u128 + (total_unique as u128 / 2))
+                / total_unique as u128) as usize
+        };
+        allocated += w_i;
+        let take = w_i.min(items.len());
+        if take < items.len() {
+            // partial_shuffle puts `take` random items at the front.
+            let (selected, _) = items.partial_shuffle(&mut rng, take);
+            candidates.extend_from_slice(selected);
+        } else {
+            candidates.extend(items);
+        }
+    }
+    candidates
+}
+
 /// Sharded parallel merge: each delta is partitioned by shard, then each shard
 /// is merged by a single thread (no synchronization needed across shards).
 /// Both phases run with rayon parallelism.
@@ -1148,6 +1213,9 @@ pub struct BackwardSearch {
     parallel: usize,
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
+    /// When set, Phase 1 keeps at most this many dedup'd candidates using
+    /// reservoir sampling (Algorithm R, equal probability). None = unlimited.
+    candidates_limit: Option<usize>,
     delta_trace: bool,
     canonicalize_attacker_goldish: bool,
     /// Precomputed stone contribution to digest (XOR of zobrist_stone for each
@@ -1265,6 +1333,7 @@ impl BackwardSearch {
             parallel,
             pool,
             memo_entry_limit: None,
+            candidates_limit: None,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1391,6 +1460,7 @@ impl BackwardSearch {
             parallel,
             pool,
             memo_entry_limit: None,
+            candidates_limit: None,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1477,6 +1547,7 @@ impl BackwardSearch {
             parallel,
             pool,
             memo_entry_limit: None,
+            candidates_limit: None,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1570,6 +1641,7 @@ impl BackwardSearch {
             parallel,
             pool,
             memo_entry_limit: None,
+            candidates_limit: None,
             delta_trace: false,
             last_frontier_in: 0,
             last_dead_end: 0,
@@ -1638,6 +1710,14 @@ impl BackwardSearch {
     /// adjustment on demand.
     pub fn set_memo_entry_limit_lazy(&mut self, max_entries: Option<usize>) {
         self.memo_entry_limit = max_entries.map(|limit| (limit / 2).max(1));
+    }
+
+    /// Limit the number of dedup'd candidates kept after Phase 1 using
+    /// reservoir sampling (Algorithm R, equal probability). Set to `None` to
+    /// disable (default). When set, Phase 1 keeps at most `limit` candidates
+    /// in O(limit) memory regardless of the true candidate count.
+    pub fn set_candidates_limit(&mut self, limit: Option<usize>) {
+        self.candidates_limit = limit;
     }
 
     pub fn set_delta_trace(&mut self, enabled: bool) {
@@ -1889,9 +1969,25 @@ impl BackwardSearch {
         // Frontier positions that produced zero output candidate over the two
         // plies: true 2-ply backward dead-ends.
         let dead_end_count = AtomicUsize::new(0);
-        let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
-            .map(|_| Mutex::new((NoHashSet64::default(), Vec::new())))
-            .collect();
+        // Per-shard reservoir capacity for candidate sampling. When
+        // candidates_limit is set, each shard holds at most shard_cap items
+        // via Algorithm R (equal-probability reservoir sampling). When unset
+        // (None), shard_cap = usize::MAX and the bucket behaves as before.
+        let shard_cap = self
+            .candidates_limit
+            .map(|lim| lim.div_ceil(NUM_SHARDS))
+            .unwrap_or(usize::MAX);
+        let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>, usize, StdRng)>> =
+            (0..NUM_SHARDS)
+                .map(|i| {
+                    Mutex::new((
+                        NoHashSet64::default(),
+                        Vec::new(),
+                        0usize,
+                        StdRng::seed_from_u64(0x9E3779B97F4A7C15u64.wrapping_mul(i as u64 + 1)),
+                    ))
+                })
+                .collect();
 
         self.install_or_run(|| {
             positions
@@ -1972,11 +2068,21 @@ impl BackwardSearch {
                             continue;
                         }
                         let mut guard = shard_buckets[shard_idx].lock().unwrap();
-                        let (seen, out) = &mut *guard;
-                        out.reserve(local.len());
+                        let (seen, out, count, rng) = &mut *guard;
                         for pos in local {
                             if seen.insert(pos.digest()) {
-                                out.push(pos);
+                                // Algorithm R: equal-probability reservoir
+                                // sampling. When shard_cap == usize::MAX this
+                                // degenerates to an unconditional push.
+                                *count += 1;
+                                if out.len() < shard_cap {
+                                    out.push(pos);
+                                } else {
+                                    let j = rng.gen_range(0..*count);
+                                    if j < shard_cap {
+                                        out[j] = pos;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1985,15 +2091,18 @@ impl BackwardSearch {
 
         let candidate_len = dedup_count.into_inner();
         let dead_end = dead_end_count.into_inner();
-        let total_unique: usize = shard_buckets
-            .iter()
-            .map(|m| m.lock().unwrap().1.len())
-            .sum();
-        let mut candidates = Vec::with_capacity(total_unique);
-        for bucket in shard_buckets {
-            let (_, out) = bucket.into_inner().unwrap();
-            candidates.extend(out);
-        }
+        // Collect (reservoir, true_count) from each shard.  true_count is the
+        // total number of dedup'd candidates that arrived at this shard,
+        // regardless of how many were kept in the reservoir.
+        let shard_data: Vec<(Vec<Position>, usize)> = shard_buckets
+            .into_iter()
+            .map(|m| {
+                let (_, items, count, _) = m.into_inner().unwrap();
+                (items, count)
+            })
+            .collect();
+        let total_unique: usize = shard_data.iter().map(|(_, n)| *n).sum();
+        let candidates = build_candidates(shard_data, total_unique, self.candidates_limit);
 
         // Mirror the intermediate ply's end-of-step swap (no entries added),
         // then advance the step so Phase 2 below verifies at depth `step+1`
@@ -2317,8 +2426,10 @@ impl BackwardSearch {
         // every chunk-local-dedupped candidate (~75% later dropped by global
         // dedup) and contributed ~10–20 GB of transient RSS at deep steps.
         //
-        // Peak memory is now bounded by (per-thread chunk output) + (final
-        // unique candidates), not by total raw candidates.
+        // When candidates_limit is set, each shard keeps at most
+        // shard_cap = limit/NUM_SHARDS items via Algorithm R (equal-probability
+        // reservoir sampling). Peak memory is then bounded by O(limit) rather
+        // than O(true_candidate_count).
         set_progress_phase(1); // P: candidate generation
         let positions = &self.positions;
         let frontier_in = positions.len();
@@ -2326,9 +2437,21 @@ impl BackwardSearch {
         // Frontier positions with zero filter-passing predecessors: true
         // backward dead-ends (the 2-ply-fusion prize metric).
         let dead_end_count = AtomicUsize::new(0);
-        let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>)>> = (0..NUM_SHARDS)
-            .map(|_| Mutex::new((NoHashSet64::default(), Vec::new())))
-            .collect();
+        let shard_cap = self
+            .candidates_limit
+            .map(|lim| lim.div_ceil(NUM_SHARDS))
+            .unwrap_or(usize::MAX);
+        let shard_buckets: Vec<Mutex<(NoHashSet64, Vec<Position>, usize, StdRng)>> =
+            (0..NUM_SHARDS)
+                .map(|i| {
+                    Mutex::new((
+                        NoHashSet64::default(),
+                        Vec::new(),
+                        0usize,
+                        StdRng::seed_from_u64(0x9E3779B97F4A7C15u64.wrapping_mul(i as u64 + 1)),
+                    ))
+                })
+                .collect();
 
         self.install_or_run(|| {
             positions
@@ -2394,11 +2517,18 @@ impl BackwardSearch {
                             continue;
                         }
                         let mut guard = shard_buckets[shard_idx].lock().unwrap();
-                        let (seen, out) = &mut *guard;
-                        out.reserve(local.len());
+                        let (seen, out, count, rng) = &mut *guard;
                         for pos in local {
                             if seen.insert(pos.digest()) {
-                                out.push(pos);
+                                *count += 1;
+                                if out.len() < shard_cap {
+                                    out.push(pos);
+                                } else {
+                                    let j = rng.gen_range(0..*count);
+                                    if j < shard_cap {
+                                        out[j] = pos;
+                                    }
+                                }
                             }
                         }
                     }
@@ -2409,15 +2539,15 @@ impl BackwardSearch {
         let candidate_len = dedup_count.into_inner();
         let dead_end = dead_end_count.into_inner();
 
-        let total_unique: usize = shard_buckets
-            .iter()
-            .map(|m| m.lock().unwrap().1.len())
-            .sum();
-        let mut candidates = Vec::with_capacity(total_unique);
-        for bucket in shard_buckets {
-            let (_, out) = bucket.into_inner().unwrap();
-            candidates.extend(out);
-        }
+        let shard_data: Vec<(Vec<Position>, usize)> = shard_buckets
+            .into_iter()
+            .map(|m| {
+                let (_, items, count, _) = m.into_inner().unwrap();
+                (items, count)
+            })
+            .collect();
+        let total_unique: usize = shard_data.iter().map(|(_, n)| *n).sum();
+        let candidates = build_candidates(shard_data, total_unique, self.candidates_limit);
 
         if candidates.is_empty() {
             self.last_frontier_in = frontier_in;
