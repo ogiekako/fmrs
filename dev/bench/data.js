@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779701612588,
+  "lastUpdate": 1779877424577,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44302,6 +44302,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "fe716e7be415c90caa955c52e77b70cc39f1441a",
+          "message": "perf(backward): build_candidates の sort を par_sort_unstable に変更\n\nBottom-K Sampling の Phase C で 全 shard heap を merge した後の\nsort_unstable_by_key (O(K log K)) がシリアルで Amdahl bottleneck だった。\n\npar_sort_unstable_by_key に変更することで、SAFETY_FACTOR × W\nが大きい場合 (例: W=10^8 なら K=4×10^8) でも cores 数だけ加速する。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-27T10:07:55Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/fe716e7be415c90caa955c52e77b70cc39f1441a"
+        },
+        "date": 1779877421702,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124067,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388942,
             "unit": "Instructions"
           }
         ]
