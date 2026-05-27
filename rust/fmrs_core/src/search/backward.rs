@@ -965,7 +965,9 @@ fn build_candidates(shard_data: Vec<ShardBucket>, candidates_limit: Option<usize
                 all.extend(bucket.heap.into_iter());
             }
             // Hash-ascending so Phase V can lazy-filter in optimal order.
-            all.sort_unstable_by_key(|&(h, _)| h);
+            // par_sort_unstable is the dominant serial cost when SAFETY_FACTOR
+            // × W is large; parallel sort eliminates it as an Amdahl bottleneck.
+            all.par_sort_unstable_by_key(|&(h, _)| h);
             if all.len() > limit {
                 all.truncate(limit);
             }
