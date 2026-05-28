@@ -1895,6 +1895,10 @@ impl BackwardSearch {
         self.last_frontier_in = self.positions.len();
         self.last_dead_end = 0;
         self.last_candidates = 0;
+        // This path does no Bottom-K Sampling; clear the flag so a `true`
+        // left by a previous advance_2ply_fused / advance_parallel_filtered
+        // call doesn't bleed into the caller's "is this exact?" check.
+        self.last_sampled = false;
         let range = self.seen_positions..(self.seen_positions + upto).min(self.positions.len());
         self.seen_positions = range.end;
         let mut undo_moves = vec![];
