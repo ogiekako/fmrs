@@ -1288,6 +1288,12 @@ pub struct BackwardSearch {
     /// When set, Phase 1 keeps at most this many dedup'd candidates using
     /// Bottom-K Sampling (uniform-equivalent via Zobrist hash). None = unlimited.
     candidates_limit: Option<usize>,
+    /// Per-shard reservoir gets `candidates_limit × candidates_pool_factor /
+    /// NUM_SHARDS` slots. Larger factor = more memory but better tolerance of
+    /// low survival rate `s`: Phase V can keep early-stopping at W survivors
+    /// only if pool ≥ W/s. Default 4 covers s ≥ 25%; raise it for searches
+    /// where survival is consistently low (--candidates-pool-factor on CLI).
+    candidates_pool_factor: usize,
     /// Set to `true` by the most recent advance when sampling or early-stop
     /// truncation actually changed the result vs an exact computation. Cleared
     /// at the start of each advance. Callers MUST read this to decide whether
@@ -1412,6 +1418,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            candidates_pool_factor: 4,
             last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
@@ -1540,6 +1547,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            candidates_pool_factor: 4,
             last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
@@ -1628,6 +1636,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            candidates_pool_factor: 4,
             last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
@@ -1723,6 +1732,7 @@ impl BackwardSearch {
             pool,
             memo_entry_limit: None,
             candidates_limit: None,
+            candidates_pool_factor: 4,
             last_sampled: false,
             delta_trace: false,
             last_frontier_in: 0,
@@ -1810,6 +1820,14 @@ impl BackwardSearch {
     /// persist it as an exact checkpoint.
     pub fn last_sampled(&self) -> bool {
         self.last_sampled
+    }
+
+    /// Set the per-shard pool overshoot factor used in Bottom-K Sampling.
+    /// shard_cap = candidates_limit × factor / NUM_SHARDS. Larger absorbs
+    /// lower survival rates `s` (Phase V can fill |next|=W as long as pool ≥
+    /// W/s) at the cost of more Phase-1 memory. Must be ≥ 1.
+    pub fn set_candidates_pool_factor(&mut self, factor: usize) {
+        self.candidates_pool_factor = factor.max(1);
     }
 
     pub fn set_delta_trace(&mut self, enabled: bool) {
@@ -2062,15 +2080,14 @@ impl BackwardSearch {
         // Frontier positions that produced zero output candidate over the two
         // plies: true 2-ply backward dead-ends.
         let dead_end_count = AtomicUsize::new(0);
-        // Per-shard cap for Bottom-K Sampling. SAFETY_FACTOR > 1 leaves
+        // Per-shard cap for Bottom-K Sampling. candidates_pool_factor > 1 leaves
         // headroom for Phase V to lazy-filter from the smallest-digest end
         // (later we keep only the W candidates whose survivors make it to
-        // |next| = W). Memory is O(SAFETY_FACTOR × W). cap = usize::MAX means
+        // |next| = W). Memory is O(pool_factor × W). cap = usize::MAX means
         // "unbounded" (legacy mode, no sampling).
-        const SAFETY_FACTOR: usize = 4;
         let shard_cap = self
             .candidates_limit
-            .map(|lim| (lim.saturating_mul(SAFETY_FACTOR)).div_ceil(NUM_SHARDS))
+            .map(|lim| (lim.saturating_mul(self.candidates_pool_factor)).div_ceil(NUM_SHARDS))
             .unwrap_or(usize::MAX);
         let shard_buckets: Vec<Mutex<ShardBucket>> = (0..NUM_SHARDS)
             .map(|_| Mutex::new(ShardBucket::new(shard_cap)))
@@ -2521,10 +2538,9 @@ impl BackwardSearch {
         // backward dead-ends (the 2-ply-fusion prize metric).
         let dead_end_count = AtomicUsize::new(0);
         // See advance_2ply_fused for the Bottom-K Sampling rationale.
-        const SAFETY_FACTOR: usize = 4;
         let shard_cap = self
             .candidates_limit
-            .map(|lim| (lim.saturating_mul(SAFETY_FACTOR)).div_ceil(NUM_SHARDS))
+            .map(|lim| (lim.saturating_mul(self.candidates_pool_factor)).div_ceil(NUM_SHARDS))
             .unwrap_or(usize::MAX);
         let shard_buckets: Vec<Mutex<ShardBucket>> = (0..NUM_SHARDS)
             .map(|_| Mutex::new(ShardBucket::new(shard_cap)))

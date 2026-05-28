@@ -59,6 +59,7 @@ pub(super) fn search_single_seed(
     feature_log: Option<&Mutex<fs::File>>,
     feature_samples_per_step: usize,
     beam: &BeamConfig,
+    candidates_pool_factor: usize,
     target_max: u32,
     early_exit: bool,
     stop_signal: &AtomicBool,
@@ -165,10 +166,13 @@ pub(super) fn search_single_seed(
     if let Some(limit) = max_memo_entries {
         search.set_memo_entry_limit(Some(limit));
     }
-    // When beam is active, bound the Phase-1 candidate Vec via reservoir
-    // sampling so |mid| = O(beam_width) rather than O(frontier × branching).
+    // When beam is active, bound Phase-1 candidates via Bottom-K Sampling.
+    // pool_factor is the per-shard overshoot (W → W × factor / NUM_SHARDS):
+    // Phase V can early-stop at W survivors as long as survival rate s ≥
+    // 1/factor.
     if let Some(width) = beam.width {
         search.set_candidates_limit(Some(width));
+        search.set_candidates_pool_factor(candidates_pool_factor);
     }
     // Track the most recently applied dynamic memo limit so we only re-apply
     // when the per-seed budget grows (dropping `remaining` releases budget to

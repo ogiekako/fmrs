@@ -126,6 +126,12 @@ pub enum SingleKingSmokeCommand {
         /// Beam scoring: path to model JSON, or "handcraft". Omit for random.
         #[arg(long)]
         beam_model: Option<String>,
+        /// Bottom-K Sampling pool overshoot factor (default 4). Phase 1 keeps
+        /// `--beam-width × factor` candidates so Phase V can early-stop at W
+        /// survivors as long as survival rate s ≥ 1/factor. Raise for
+        /// instances with low survival (e.g. 8, 16); cost is per-shard memory.
+        #[arg(long, default_value_t = 4)]
+        candidates_pool_factor: usize,
         /// Fleet partitioning: this instance's 0-based index.
         #[arg(long)]
         fleet_index: Option<usize>,
@@ -235,6 +241,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             feature_sample_per_step,
             beam_width,
             beam_model,
+            candidates_pool_factor,
             fleet_index,
             fleet_size,
             oracle_model,
@@ -287,6 +294,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     samples_per_step: feature_sample_per_step,
                 },
                 beam,
+                candidates_pool_factor,
                 checkpoint_interval_secs,
                 early_exit,
                 !no_progress_ticker,
