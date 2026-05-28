@@ -4395,4 +4395,106 @@ mod tests {
             assert_eq!(x, 0, "u64 at index {i} not zero after pool reuse");
         }
     }
+
+    /// Regression test for the Bottom-K + shard-routing bug.
+    ///
+    /// `shard_index` routes by the TOP SHARD_BITS of `digest`; if Bottom-K
+    /// also keys on full `digest`, each shard's "smallest K" lies entirely
+    /// inside its disjoint digest range, so the cross-shard merge produces
+    /// only ~K candidates from shard 0 (= W/16 instead of W=`limit`).
+    ///
+    /// The fix: Bottom-K orders on `bottom_k_key(digest)` = lower SHARD_SHIFT
+    /// bits, which is orthogonal to the shard router and uniformly
+    /// distributed inside each shard, so merging the per-shard Bottom-K
+    /// reproduces the global Bottom-K.
+    #[test]
+    fn build_candidates_returns_close_to_limit_under_uniform_digests() {
+        use super::{bottom_k_key, shard_index, ShardBucket, NUM_SHARDS};
+        use crate::position::Position;
+
+        let n_total = 10_000usize;
+        let limit = 1_000usize;
+        let pool_factor = 4usize;
+        let cap = (limit * pool_factor).div_ceil(NUM_SHARDS);
+
+        let positions: Vec<Position> = (0..n_total)
+            .map(|i| {
+                let mut p = Position::default();
+                // Splitmix64 — uniform-ish 64-bit hash from i.
+                let mut x = (i as u64).wrapping_add(0x9E3779B97F4A7C15);
+                x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+                x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
+                x ^= x >> 31;
+                p.set_digest_for_test(x);
+                p
+            })
+            .collect();
+
+        let mut buckets: Vec<ShardBucket> =
+            (0..NUM_SHARDS).map(|_| ShardBucket::new(cap)).collect();
+        for p in positions.iter() {
+            buckets[shard_index(p.digest())].try_insert(p.clone());
+        }
+
+        let (candidates, sampled) = super::build_candidates(buckets, Some(limit));
+        eprintln!(
+            "build_candidates: n_total={} limit={} pool_factor={} cap={} -> got {} (sampled={})",
+            n_total,
+            limit,
+            pool_factor,
+            cap,
+            candidates.len(),
+            sampled,
+        );
+        // Pre-fix bug yielded ~cap × NUM_SHARDS_used = up to limit*factor only
+        // from shard 0's range, which translates to ~ cap candidates total
+        // (since other shards' minima are all larger than shard 0's maximum).
+        // With the bottom_k_key fix we expect exactly `limit` because total
+        // uniques (10k) far exceed limit (1k).
+        assert_eq!(candidates.len(), limit, "frontier should hit exactly W");
+        assert!(sampled, "should report sampled=true since n_total > limit");
+
+        // Sanity: ordering key (bottom_k_key) must be ascending.
+        let keys: Vec<u64> = candidates.iter().map(|p| bottom_k_key(p.digest())).collect();
+        assert!(
+            keys.windows(2).all(|w| w[0] <= w[1]),
+            "candidates not sorted by bottom_k_key"
+        );
+    }
+
+    /// When `n_total <= limit`, no truncation occurs and the entire set is
+    /// returned. The `sampled` flag MUST be false (otherwise checkpoints get
+    /// suppressed unnecessarily).
+    #[test]
+    fn build_candidates_no_sampling_when_under_limit() {
+        use super::{shard_index, ShardBucket, NUM_SHARDS};
+        use crate::position::Position;
+
+        let n_total = 200usize;
+        let limit = 1_000usize;
+        let pool_factor = 4usize;
+        let cap = (limit * pool_factor).div_ceil(NUM_SHARDS);
+
+        let positions: Vec<Position> = (0..n_total)
+            .map(|i| {
+                let mut p = Position::default();
+                let mut x = (i as u64).wrapping_add(0x9E3779B97F4A7C15);
+                x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
+                x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
+                x ^= x >> 31;
+                p.set_digest_for_test(x);
+                p
+            })
+            .collect();
+
+        let mut buckets: Vec<ShardBucket> =
+            (0..NUM_SHARDS).map(|_| ShardBucket::new(cap)).collect();
+        for p in positions.iter() {
+            buckets[shard_index(p.digest())].try_insert(p.clone());
+        }
+
+        let (candidates, sampled) = super::build_candidates(buckets, Some(limit));
+        assert_eq!(candidates.len(), n_total);
+        assert!(!sampled, "no sampling should be reported when total ≤ limit");
+    }
 }

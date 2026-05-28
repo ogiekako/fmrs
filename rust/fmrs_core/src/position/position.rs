@@ -39,6 +39,14 @@ use super::Square;
 use super::UndoMove;
 
 impl Position {
+    /// Test-only: directly set the Zobrist digest. Lets unit tests fabricate
+    /// positions with a controlled digest distribution without going through
+    /// real board construction. Do NOT use outside of tests.
+    #[cfg(test)]
+    pub(crate) fn set_digest_for_test(&mut self, d: u64) {
+        self.digest = d;
+    }
+
     pub fn turn(&self) -> Color {
         self.hands.turn()
     }
