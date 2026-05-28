@@ -858,29 +858,44 @@ impl FlatShard {
     }
 }
 
+/// Hash key used for Bottom-K Sampling ordering.
+///
+/// CRITICAL: cannot be `digest` itself, because `shard_index = digest >>
+/// SHARD_SHIFT` uses the **top** SHARD_BITS to route candidates. Sharding by
+/// top bits means each shard holds a disjoint digest range — shard 0 has the
+/// smallest digests, shard 63 the largest. A per-shard Bottom-K on raw digest
+/// would then keep shard 0's smallest items only, not the global Bottom-K, so
+/// `build_candidates` would emit ≈ shard-0-cap items (cap/NUM_SHARDS of W).
+///
+/// Using the **bottom** SHARD_SHIFT bits (orthogonal to the shard router)
+/// gives each shard a uniformly distributed key in [0, 2^SHARD_SHIFT) → the
+/// per-shard Bottom-K is statistically equivalent to a global Bottom-K under
+/// the merge.
+#[inline]
+fn bottom_k_key(digest: u64) -> u64 {
+    digest & ((1u64 << SHARD_SHIFT) - 1)
+}
+
 /// Per-shard candidate bucket used during Phase 1.
 ///
 /// Two modes — chosen at construction by `cap`:
 ///  - `cap == usize::MAX`: plain Vec push, full dedup (legacy unbounded mode).
-///  - `cap < usize::MAX`: Bottom-K Sampling. Each candidate gets hash
-///    `h = Position::digest()` (Zobrist, ~uniform), and the bucket keeps the
-///    `cap` items with smallest `h`. Cross-shard merge in `build_candidates`
-///    yields a global Bottom-K = the W candidates with smallest digest, which
-///    is statistically equivalent to a uniform random sample of the unique
-///    mid set (hash uniform → smallest-W is uniform-random-W).
+///  - `cap < usize::MAX`: Bottom-K Sampling. Each candidate gets ordering key
+///    `bottom_k_key(digest)`; the bucket keeps the `cap` items with smallest
+///    key. Cross-shard merge in `build_candidates` yields a global Bottom-K,
+///    statistically equivalent to a uniform random sample (key is uniform).
 ///
-/// `seen` tracks only digests currently held by the bucket — never grows past
-/// `cap` in Bottom-K mode, so memory stays O(cap) per shard, O(W) overall
-/// (independent of the true candidate count N). If a previously-evicted
-/// digest re-arrives, the bucket may re-process it; this just wastes work, not
-/// correctness (Bottom-K result is unchanged).
+/// `seen` is keyed by full digest (collision-free dedup across shards). In
+/// Bottom-K mode it mirrors only currently-held items, so it stays bounded at
+/// `cap` entries → memory O(cap) per shard, O(W) overall (independent of N).
+/// A previously-evicted digest that re-arrives is re-processed; this wastes
+/// work but doesn't break correctness (Bottom-K result is unchanged).
 struct ShardBucket {
     seen: NoHashSet64,
     /// Used when `cap == usize::MAX`.
     vec: Vec<Position>,
-    /// Used when `cap < usize::MAX`. Max-heap on (h, Position); root holds the
-    /// largest digest, which is the eviction candidate when a smaller-digest
-    /// item arrives.
+    /// Used when `cap < usize::MAX`. Max-heap on (bottom_k_key, Position);
+    /// root holds the largest key, which is the eviction candidate.
     heap: BinaryHeap<(u64, Position)>,
     cap: usize,
     /// Accepted-into-bucket count. In unbounded mode = distinct candidates.
@@ -900,39 +915,41 @@ impl ShardBucket {
         }
     }
 
-    /// Try to insert `p`. Dedup by `Position::digest()` against currently-held
-    /// items only (not against all-ever-seen, so `seen` stays bounded).
+    /// Try to insert `p`. Dedup by full `digest` against currently-held items
+    /// only (not all-ever-seen, so `seen` stays bounded in Bottom-K mode).
+    /// Ordering for Bottom-K uses `bottom_k_key(digest)`.
     #[inline]
     fn try_insert(&mut self, p: Position) {
-        let h = p.digest();
+        let d = p.digest();
         if self.cap == usize::MAX {
-            if self.seen.insert(h) {
+            if self.seen.insert(d) {
                 self.count += 1;
                 self.vec.push(p);
             }
             return;
         }
         // Bottom-K mode: `seen` mirrors digests currently in `heap`.
-        if self.seen.contains(&h) {
-            return; // already in heap
+        if self.seen.contains(&d) {
+            return;
         }
+        let h = bottom_k_key(d);
         if self.heap.len() < self.cap {
-            self.seen.insert(h);
+            self.seen.insert(d);
             self.heap.push((h, p));
             self.count += 1;
         } else {
             // SAFETY: heap is non-empty (len == cap > 0).
             let max_h = self.heap.peek().unwrap().0;
             if h < max_h {
-                let (evicted_h, _) = self.heap.pop().unwrap();
-                self.seen.remove(&evicted_h);
-                self.seen.insert(h);
+                // pop returns the evicted Position; its full digest is what
+                // sits in `seen` (not bottom_k_key, which collides).
+                let (_, evicted_p) = self.heap.pop().unwrap();
+                self.seen.remove(&evicted_p.digest());
+                self.seen.insert(d);
                 self.heap.push((h, p));
                 self.count += 1;
             }
-            // else: h ≥ max_h → not in Bottom-K, drop. If the same digest
-            // re-arrives later it will be re-processed; harmless since it
-            // still won't beat max_h unless heap state has changed.
+            // else: key ≥ max → drop. Same digest re-arriving is harmless.
         }
     }
 }
@@ -943,16 +960,17 @@ impl ShardBucket {
 /// order (legacy path).
 ///
 /// When `candidates_limit = Some(W)`, returns up to W candidates **sorted by
-/// digest ascending**. The shards each hold their own Bottom-K, so merging
-/// + sort + truncate gives the global Bottom-K = "smallest-digest W
-/// candidates" = uniform-random W candidates over all unique mid candidates.
-/// The hash-sorted order also lets Phase V process candidates lowest-digest
-/// first and early-stop once enough survive (lazy-filter trick).
-/// Returns `(candidates, sampled)`. `sampled = true` means the returned set is
-/// strictly smaller than the true unique candidate set — either because
-/// Bottom-K evicted items in a shard, or because the cross-shard merge had to
-/// truncate. Callers must propagate this through `last_sampled` so checkpoint
-/// writers can refuse to persist a sampled frontier as "exact".
+/// `bottom_k_key(digest)` ascending**. Each shard's Bottom-K (on the same
+/// key) merged + sorted + truncated to W = global Bottom-K, statistically
+/// equivalent to a uniform-random W-sample. The sorted order also lets
+/// Phase V process from smallest-key first and early-stop once enough
+/// survivors accumulate.
+///
+/// Returns `(candidates, sampled)`. `sampled = true` means the result is a
+/// strict subset of the true unique candidate set — either because Bottom-K
+/// evicted items in some shard, or because the cross-shard merge truncated.
+/// Callers must propagate this through `last_sampled` so checkpoint writers
+/// refuse to persist a sampled frontier as "exact".
 fn build_candidates(
     shard_data: Vec<ShardBucket>,
     candidates_limit: Option<usize>,
