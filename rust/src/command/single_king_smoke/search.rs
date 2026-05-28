@@ -60,6 +60,7 @@ pub(super) fn search_single_seed(
     feature_samples_per_step: usize,
     beam: &BeamConfig,
     candidates_pool_factor: usize,
+    max_candidates_pool: Option<usize>,
     target_max: u32,
     early_exit: bool,
     stop_signal: &AtomicBool,
@@ -169,11 +170,27 @@ pub(super) fn search_single_seed(
     // When beam is active, bound Phase-1 candidates via Bottom-K Sampling.
     // pool_factor is the per-shard overshoot (W → W × factor / NUM_SHARDS):
     // Phase V can early-stop at W survivors as long as survival rate s ≥
-    // 1/factor.
+    // 1/factor. We start at the user-given factor and grow it adaptively
+    // based on observed survival, clamped by max_candidates_pool for OOM
+    // safety.
     if let Some(width) = beam.width {
         search.set_candidates_limit(Some(width));
         search.set_candidates_pool_factor(candidates_pool_factor);
     }
+    // Hard cap on Phase-1 candidate pool. Defaults to 8 × beam_width when not
+    // specified. `effective_max_pool_factor` is `max_candidates_pool / width`
+    // — the adaptive ceiling for the pool factor.
+    let beam_width_for_pool = beam.width.unwrap_or(0);
+    let effective_max_pool = max_candidates_pool
+        .unwrap_or_else(|| beam_width_for_pool.saturating_mul(8));
+    let max_pool_factor = if beam_width_for_pool == 0 {
+        candidates_pool_factor
+    } else {
+        (effective_max_pool / beam_width_for_pool).max(candidates_pool_factor)
+    };
+    // Currently-applied pool factor (adapted per step). Starts at the user
+    // value; grows when survival is observed lower than 1/current_factor.
+    let mut adaptive_pool_factor = candidates_pool_factor;
     // Track the most recently applied dynamic memo limit so we only re-apply
     // when the per-seed budget grows (dropping `remaining` releases budget to
     // surviving seeds). `max_memo_entries` is the per-seed budget at peak
@@ -451,25 +468,59 @@ pub(super) fn search_single_seed(
         };
         let advance_elapsed_ms = advance_start.elapsed().as_millis();
         let inner_used = if use_inner_parallel { dynamic_inner } else { 1 };
+        let sampled_now = search.last_sampled();
+        let post_stats = search.stats();
         // Candidate sampling / Phase-V early-stop inside the advance also
         // produces a non-exact frontier; treat it the same as apply_beam
         // pruning so the checkpoint gate below refuses to persist it as exact.
-        if search.last_sampled() {
+        if sampled_now {
             did_beam_filter = true;
+        }
+        // Adaptive pool sizing for the next advance: if Phase V early-stopped
+        // (sampled=true) and |next| < W, the pool was too small for this
+        // step's survival rate. Grow pool_factor toward ceil(W /
+        // observed_survival × safety), clamped to max_pool_factor. If next is
+        // already ≥ W or no truncation happened, keep the current factor.
+        if let Some(width) = beam.width {
+            let next_len = post_stats.positions_len;
+            let mid_processed = post_stats
+                .candidate_count
+                .min(width.saturating_mul(adaptive_pool_factor).max(1));
+            if sampled_now && next_len < width && mid_processed > 0 {
+                // observed survival on the Phase V input window
+                let survival = (next_len as f64 / mid_processed as f64).max(1e-6);
+                // Need pool ≈ W / survival × safety to fill |next| = W.
+                let needed_factor =
+                    ((1.0 / survival) * 2.0).ceil() as usize;
+                let new_factor =
+                    needed_factor.max(adaptive_pool_factor).min(max_pool_factor);
+                if new_factor != adaptive_pool_factor {
+                    adaptive_pool_factor = new_factor;
+                    search.set_candidates_pool_factor(adaptive_pool_factor);
+                    eprintln!(
+                        "adaptive_pool seed={} step={} survival={:.4} new_pool_factor={} (cap={})",
+                        seed_index, next_step, survival, adaptive_pool_factor, max_pool_factor
+                    );
+                }
+            }
         }
         mt(
             mem_trace,
             seed_index,
             &search,
             format_args!(
-                "advance next_step={} advanced={} inner={} remaining={} frontier={} memo_limit={} elapsed_ms={}",
+                "advance next_step={} advanced={} sampled={} mid={} dead={} inner={} remaining={} frontier_in={} memo_limit={} elapsed_ms={} pool_factor={}",
                 next_step,
                 advanced,
+                sampled_now,
+                post_stats.candidate_count,
+                post_stats.dead_end_count,
                 inner_used,
                 remaining,
                 frontier,
                 applied_memo_limit.map(|n| n as i64).unwrap_or(-1),
-                advance_elapsed_ms
+                advance_elapsed_ms,
+                adaptive_pool_factor,
             ),
         );
         if !advanced {

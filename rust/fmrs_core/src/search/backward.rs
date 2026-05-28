@@ -956,15 +956,16 @@ impl ShardBucket {
 
 /// Build the Phase-V input from the per-shard buckets.
 ///
-/// When `candidates_limit` is `None`, returns every kept candidate in arbitrary
+/// When `pool_limit` is `None`, returns every kept candidate in arbitrary
 /// order (legacy path).
 ///
-/// When `candidates_limit = Some(W)`, returns up to W candidates **sorted by
-/// `bottom_k_key(digest)` ascending**. Each shard's Bottom-K (on the same
-/// key) merged + sorted + truncated to W = global Bottom-K, statistically
-/// equivalent to a uniform-random W-sample. The sorted order also lets
-/// Phase V process from smallest-key first and early-stop once enough
-/// survivors accumulate.
+/// When `pool_limit = Some(P)`, returns up to P candidates **sorted by
+/// `bottom_k_key(digest)` ascending**. P should be the maximum number of
+/// candidates the caller is willing to hand to Phase V — typically
+/// `candidates_limit × candidates_pool_factor`. Phase V's own early-stop
+/// (driven by `candidates_limit` = W) then keeps the final |next| ≈ W when
+/// survival is high enough; with low survival, the larger pool lets Phase V
+/// process more of mid before giving up.
 ///
 /// Returns `(candidates, sampled)`. `sampled = true` means the result is a
 /// strict subset of the true unique candidate set — either because Bottom-K
@@ -973,9 +974,9 @@ impl ShardBucket {
 /// refuse to persist a sampled frontier as "exact".
 fn build_candidates(
     shard_data: Vec<ShardBucket>,
-    candidates_limit: Option<usize>,
+    pool_limit: Option<usize>,
 ) -> (Vec<Position>, bool) {
-    match candidates_limit {
+    match pool_limit {
         None => {
             let total: usize = shard_data.iter().map(|b| b.vec.len()).sum();
             let mut c = Vec::with_capacity(total);
@@ -2204,7 +2205,17 @@ impl BackwardSearch {
             .map(|m| m.into_inner().unwrap())
             .collect();
         let total_unique: usize = shard_data.iter().map(|b| b.count).sum();
-        let (candidates, p1_sampled) = build_candidates(shard_data, self.candidates_limit);
+        // build_candidates' truncation limit is `pool_size = candidates_limit
+        // × candidates_pool_factor`, NOT candidates_limit itself.
+        // candidates_limit (= W) is what Phase V uses for its early-stop
+        // target; build_candidates instead caps at the pool size so the
+        // mid-set handed to Phase V can be larger than W (necessary when
+        // survival rate < 1/pool_factor — otherwise |next| would be capped at
+        // W × s < W and the frontier collapses).
+        let pool_size = self
+            .candidates_limit
+            .map(|w| w.saturating_mul(self.candidates_pool_factor));
+        let (candidates, p1_sampled) = build_candidates(shard_data, pool_size);
         self.last_sampled = p1_sampled;
 
         // Mirror the intermediate ply's end-of-step swap (no entries added),
@@ -2644,7 +2655,17 @@ impl BackwardSearch {
             .map(|m| m.into_inner().unwrap())
             .collect();
         let total_unique: usize = shard_data.iter().map(|b| b.count).sum();
-        let (candidates, p1_sampled) = build_candidates(shard_data, self.candidates_limit);
+        // build_candidates' truncation limit is `pool_size = candidates_limit
+        // × candidates_pool_factor`, NOT candidates_limit itself.
+        // candidates_limit (= W) is what Phase V uses for its early-stop
+        // target; build_candidates instead caps at the pool size so the
+        // mid-set handed to Phase V can be larger than W (necessary when
+        // survival rate < 1/pool_factor — otherwise |next| would be capped at
+        // W × s < W and the frontier collapses).
+        let pool_size = self
+            .candidates_limit
+            .map(|w| w.saturating_mul(self.candidates_pool_factor));
+        let (candidates, p1_sampled) = build_candidates(shard_data, pool_size);
         self.last_sampled = p1_sampled;
 
         if candidates.is_empty() {
