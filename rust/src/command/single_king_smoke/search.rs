@@ -188,9 +188,25 @@ pub(super) fn search_single_seed(
     } else {
         (effective_max_pool / beam_width_for_pool).max(candidates_pool_factor)
     };
-    // Currently-applied pool factor (adapted per step). Starts at the user
-    // value; grows when survival is observed lower than 1/current_factor.
+    // Currently-applied pool factor. Starts at the user value; tracked via an
+    // EMA of 1/survival so step-to-step noise is smoothed out, then mapped
+    // back to a target factor each step.
     let mut adaptive_pool_factor = candidates_pool_factor;
+    let default_pool_factor = candidates_pool_factor;
+    // EMA of 1/survival_rate (= "candidates needed per surviving frontier
+    // item"). Updated every step where we get a usable observation (mid large
+    // enough that the ratio is meaningful), regardless of whether sampling
+    // fired. `None` until the first observation seeds it.
+    let mut ema_inv_survival: Option<f64> = None;
+    /// Minimum mid size for an observation to count toward the EMA. Below
+    /// this, the ratio next/mid is too noisy (e.g. mid=3, next=1 → s=0.33
+    /// would jerk the factor around).
+    const MIN_MID_FOR_OBSERVATION: usize = 100;
+    /// EMA decay: weight on the previous value. Higher = smoother but slower
+    /// to react to genuine survival changes.
+    const EMA_ALPHA: f64 = 0.7;
+    /// Safety margin on the target factor (pool ≈ safety × W / s).
+    const POOL_SAFETY: f64 = 2.0;
     // Track the most recently applied dynamic memo limit so we only re-apply
     // when the per-seed budget grows (dropping `remaining` releases budget to
     // surviving seeds). `max_memo_entries` is the per-seed budget at peak
@@ -476,30 +492,57 @@ pub(super) fn search_single_seed(
         if sampled_now {
             did_beam_filter = true;
         }
-        // Adaptive pool sizing for the next advance: if Phase V early-stopped
-        // (sampled=true) and |next| < W, the pool was too small for this
-        // step's survival rate. Grow pool_factor toward ceil(W /
-        // observed_survival × safety), clamped to max_pool_factor. If next is
-        // already ≥ W or no truncation happened, keep the current factor.
+        // Adaptive pool sizing.
+        //
+        // (a) Track an EMA of 1/survival across all steps with a usable
+        //     observation. Smooths step-to-step noise — survival can spike or
+        //     dip on a single step without violently moving the pool.
+        // (b) Each step, derive a target factor = ceil(SAFETY × EMA).
+        // (c) Slow decrease: only halve `adaptive_pool_factor` when the EMA
+        //     target sits comfortably below half the current factor. Prevents
+        //     a single lucky step from shrinking the pool and re-triggering
+        //     the collapse path on the next high-mid step.
         if let Some(width) = beam.width {
             let next_len = post_stats.positions_len;
             let mid_processed = post_stats
                 .candidate_count
                 .min(width.saturating_mul(adaptive_pool_factor).max(1));
-            if sampled_now && next_len < width && mid_processed > 0 {
-                // observed survival on the Phase V input window
-                let survival = (next_len as f64 / mid_processed as f64).max(1e-6);
-                // Need pool ≈ W / survival × safety to fill |next| = W.
-                let needed_factor =
-                    ((1.0 / survival) * 2.0).ceil() as usize;
-                let new_factor =
-                    needed_factor.max(adaptive_pool_factor).min(max_pool_factor);
+            if mid_processed >= MIN_MID_FOR_OBSERVATION {
+                let s_observed = (next_len as f64 / mid_processed as f64).max(1e-6);
+                let inv_s = 1.0 / s_observed;
+                let new_ema = match ema_inv_survival {
+                    None => inv_s,
+                    Some(prev) => EMA_ALPHA * prev + (1.0 - EMA_ALPHA) * inv_s,
+                };
+                ema_inv_survival = Some(new_ema);
+
+                let target_factor = ((new_ema * POOL_SAFETY).ceil() as usize)
+                    .clamp(default_pool_factor, max_pool_factor);
+
+                let new_factor = if target_factor > adaptive_pool_factor {
+                    // Grow immediately to keep up with worsening survival.
+                    target_factor
+                } else if target_factor * 2 < adaptive_pool_factor {
+                    // EMA is comfortably below half of current → halve (still
+                    // honoring default as the floor). One step at a time so
+                    // we don't overshoot.
+                    (adaptive_pool_factor / 2).max(default_pool_factor)
+                } else {
+                    adaptive_pool_factor
+                };
+
                 if new_factor != adaptive_pool_factor {
                     adaptive_pool_factor = new_factor;
                     search.set_candidates_pool_factor(adaptive_pool_factor);
                     eprintln!(
-                        "adaptive_pool seed={} step={} survival={:.4} new_pool_factor={} (cap={})",
-                        seed_index, next_step, survival, adaptive_pool_factor, max_pool_factor
+                        "adaptive_pool seed={} step={} s={:.4} ema_inv_s={:.2} target={} new_pool_factor={} (cap={})",
+                        seed_index,
+                        next_step,
+                        s_observed,
+                        new_ema,
+                        target_factor,
+                        adaptive_pool_factor,
+                        max_pool_factor
                     );
                 }
             }
