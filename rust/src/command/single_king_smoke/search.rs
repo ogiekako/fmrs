@@ -207,6 +207,23 @@ pub(super) fn search_single_seed(
     const EMA_ALPHA: f64 = 0.7;
     /// Safety margin on the target factor (pool ≈ safety × W / s).
     const POOL_SAFETY: f64 = 2.0;
+    // Restore adaptation state from checkpoint if present. This avoids a
+    // cold-start (pool_factor = default) right after resume — which would
+    // shrink |next| for several steps until the EMA caught up, and in the
+    // worst case never recover because the smaller frontier feeds a smaller
+    // mid in subsequent steps. Clamp to [default, max] in case CLI flags
+    // changed since the checkpoint was written.
+    if let (Some(cp), Some(_)) = (checkpoint.as_ref(), beam.width) {
+        if let Some(pf) = cp.adaptive_pool_factor {
+            adaptive_pool_factor = pf.clamp(default_pool_factor, max_pool_factor);
+            search.set_candidates_pool_factor(adaptive_pool_factor);
+        }
+        if let Some(ema) = cp.ema_inv_survival {
+            if ema.is_finite() && ema > 0.0 {
+                ema_inv_survival = Some(ema);
+            }
+        }
+    }
     // Track the most recently applied dynamic memo limit so we only re-apply
     // when the per-seed budget grows (dropping `remaining` releases budget to
     // surviving seeds). `max_memo_entries` is the per-seed budget at peak
@@ -599,6 +616,8 @@ pub(super) fn search_single_seed(
                         best_step,
                         best_sfens: vec![],
                         canonicalize_attacker_goldish,
+                        adaptive_pool_factor: beam.width.map(|_| adaptive_pool_factor),
+                        ema_inv_survival,
                         frontier_bytes: search.frontier_to_binary(),
                         best_position_bytes: best_positions
                             .iter()

@@ -343,6 +343,11 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                 best_step: task.best_step,
                 best_sfens: vec![],
                 canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
+                // scheduler.rs doesn't currently run the adaptive pool logic
+                // (no beam path here). Leave both as None — backwards-compatible
+                // with checkpoints written by the search.rs path too.
+                adaptive_pool_factor: None,
+                ema_inv_survival: None,
                 frontier_bytes: search.frontier_to_binary(),
                 best_position_bytes: task
                     .best_positions

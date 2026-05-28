@@ -73,6 +73,15 @@ pub(super) struct SeedCheckpoint {
     pub(super) best_sfens: Vec<String>,
     #[serde(default)]
     pub(super) canonicalize_attacker_goldish: bool,
+    /// Persisted Bottom-K pool adaptation state. On resume these let the
+    /// search start at the same `pool_factor` it had reached previously,
+    /// avoiding a default-value cold start that would shrink |next| for
+    /// several steps until the EMA caught up. Both Option for backward
+    /// compatibility with checkpoints written before adaptation existed.
+    #[serde(default)]
+    pub(super) adaptive_pool_factor: Option<usize>,
+    #[serde(default)]
+    pub(super) ema_inv_survival: Option<f64>,
     /// Binary-encoded frontier: 88 bytes per `Position`. Not serialized to JSON;
     /// populated when loading a `.ckpt` file and consumed when writing one.
     #[serde(skip)]
@@ -533,6 +542,8 @@ mod tests {
             best_step: 0,
             best_sfens: vec![],
             canonicalize_attacker_goldish,
+            adaptive_pool_factor: None,
+            ema_inv_survival: None,
             frontier_bytes: vec![],
             best_position_bytes: vec![],
         }
