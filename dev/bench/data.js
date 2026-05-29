@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1779877426636,
+  "lastUpdate": 1780046980776,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44496,6 +44496,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434388942,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f1aa7a15c5178038a81a22ad1892c18ee2680a72",
+          "message": "fix(backward): advance_upto_with_candidate_filter で last_sampled をリセット\n\nadvance_2ply_fused と advance_parallel_filtered は冒頭で\nself.last_sampled = false を立てるが、advance_upto_with_candidate_filter\n(serial small-frontier path) はこれを行っていなかった。\n\n結果として:\n1. step N で advance_2ply_fused が sampled=true をセット\n2. step N+1 で frontier が小さくなり advance_upto_with_candidate_filter\n   が呼ばれる\n3. last_sampled は前回の true のまま\n4. search.rs の did_beam_filter |= search.last_sampled() で誤って true に\n5. checkpoint 書かれない (exact 計算なのに)\n\n正確性 (frontier 内容) には影響しないが、resume 可能なポイントが減って\nしまう。advance_upto_with_candidate_filter は Bottom-K Sampling を一切\n行わないので、冒頭で false にリセットするのが正しい挙動。\n\n(smoke コード全体のレビューで発見)\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-28T16:20:33Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f1aa7a15c5178038a81a22ad1892c18ee2680a72"
+        },
+        "date": 1780046977590,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388932,
             "unit": "Instructions"
           }
         ]
