@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780046980776,
+  "lastUpdate": 1780046982945,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42023,6 +42023,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 33666,
             "range": "± 15",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f1aa7a15c5178038a81a22ad1892c18ee2680a72",
+          "message": "fix(backward): advance_upto_with_candidate_filter で last_sampled をリセット\n\nadvance_2ply_fused と advance_parallel_filtered は冒頭で\nself.last_sampled = false を立てるが、advance_upto_with_candidate_filter\n(serial small-frontier path) はこれを行っていなかった。\n\n結果として:\n1. step N で advance_2ply_fused が sampled=true をセット\n2. step N+1 で frontier が小さくなり advance_upto_with_candidate_filter\n   が呼ばれる\n3. last_sampled は前回の true のまま\n4. search.rs の did_beam_filter |= search.last_sampled() で誤って true に\n5. checkpoint 書かれない (exact 計算なのに)\n\n正確性 (frontier 内容) には影響しないが、resume 可能なポイントが減って\nしまう。advance_upto_with_candidate_filter は Bottom-K Sampling を一切\n行わないので、冒頭で false にリセットするのが正しい挙動。\n\n(smoke コード全体のレビューで発見)\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-28T16:20:33Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f1aa7a15c5178038a81a22ad1892c18ee2680a72"
+        },
+        "date": 1780046982434,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 393,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3080,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 400,
+            "range": "± 634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28638,
+            "range": "± 59",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1764,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4810,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1444416,
+            "range": "± 267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12063,
+            "range": "± 24",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 113,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20608838,
+            "range": "± 446432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 33373,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3881,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20074,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 45453,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
