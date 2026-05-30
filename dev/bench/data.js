@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780135109064,
+  "lastUpdate": 1780135111539,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42165,6 +42165,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 45453,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f501a47615db449732b202456b6ed0ded631295d",
+          "message": "feat(smoke): rook/bishop の段階許可 filter を追加\n\n枚数 (pieces_in_play = 盤面 + 黒持駒) が `--rook-bishop-allow-start` 未満\nのとき盤上の bishop/rook 系 (Bishop, ProBishop, Rook, ProRook 両色合計)\nを 0 枚に強制。以降 `--rook-bishop-allow-step` (既定 5) 毎に許容枚数を\n1 つ増やす。\n\n例: --rook-bishop-allow-start 20 --rook-bishop-allow-step 5 で\n  0-19 枚 → 0、20-24 枚 → 1、25-29 枚 → 2、30-34 枚 → 3、…\n\nfilter は出力 ply のみで評価 (satisfies_ideal_smoke_constraints)。\nmid filter には噛ませない方針。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-30T09:32:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f501a47615db449732b202456b6ed0ded631295d"
+        },
+        "date": 1780135110765,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 391,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2720,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 179,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 401,
+            "range": "± 591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25927,
+            "range": "± 575",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1607,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4626,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1333305,
+            "range": "± 901",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11275,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 181,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 108,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 143,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18926098,
+            "range": "± 50759",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26101,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3175,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16668,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 41666,
+            "range": "± 5",
             "unit": "ns/iter"
           }
         ]
