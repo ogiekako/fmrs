@@ -113,6 +113,18 @@ pub enum SingleKingSmokeCommand {
         /// ProSilver は Pawn も Lance も Knight もない場合のみ配置可。
         #[arg(long, default_value_t = false)]
         goldish_priority: bool,
+        /// Allow bishop/rook (incl. promoted) on the board only past this
+        /// piece-count threshold. Pieces in play (board + black hand) must
+        /// be ≥ this value for any rook/bishop to appear. Below the
+        /// threshold no rook/bishop is permitted. Omit (or set to 0) to
+        /// disable the constraint.
+        #[arg(long)]
+        rook_bishop_allow_start: Option<u32>,
+        /// Additional rook/bishop allowed for every increment of this many
+        /// pieces in play past `--rook-bishop-allow-start`. E.g. start=20
+        /// step=5 → 0 below 20, 1 at 20–24, 2 at 25–29, etc.
+        #[arg(long, default_value_t = 5)]
+        rook_bishop_allow_step: u32,
         /// Append per-step frontier samples (with extracted features) to
         /// this JSONL file. Used to build training data for the beam model.
         #[arg(long)]
@@ -253,6 +265,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             miyako,
             double_king,
             goldish_priority,
+            rook_bishop_allow_start,
+            rook_bishop_allow_step,
             feature_log,
             feature_sample_per_step,
             beam_width,
@@ -305,6 +319,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     miyako,
                     double_king,
                     goldish_priority,
+                    rook_bishop_allow_start,
+                    rook_bishop_allow_step,
                 },
                 mem_trace,
                 FeatureLogConfig {

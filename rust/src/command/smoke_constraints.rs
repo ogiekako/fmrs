@@ -50,6 +50,15 @@ pub(super) struct SearchConstraints {
     /// 存在し得ない場合（白持駒に対応する unpromoted 駒がない）のみ。
     #[serde(default)]
     pub(super) goldish_priority: bool,
+    /// bishop/rook 系 (Bishop, ProBishop, Rook, ProRook) を盤上に許可する
+    /// 開始枚数 (= pieces_in_play 閾値)。`None` のとき本制約は無効。
+    /// 枚数 < start のとき盤上に 0 枚まで; 枚数 ≥ start のとき
+    /// `(枚数 - start) / step + 1` 枚まで許可。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) rook_bishop_allow_start: Option<u32>,
+    /// 上記の `step`。`start` が `Some` のとき意味を持つ。最小値 1。
+    #[serde(default)]
+    pub(super) rook_bishop_allow_step: u32,
 }
 
 impl SearchConstraints {
@@ -93,7 +102,44 @@ pub(super) fn satisfies_ideal_smoke_constraints(
     if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
         return false;
     }
+    if !satisfies_rook_bishop_allowance(position, constraints) {
+        return false;
+    }
     satisfies_search_constraints(position, constraints)
+}
+
+/// `--rook-bishop-allow-start` / `--rook-bishop-allow-step` の評価。
+/// 盤上 (両色) の Bishop/ProBishop/Rook/ProRook 合計枚数が、現在の
+/// pieces_in_play から導かれる許容枚数以下であるかを判定する。
+///
+/// start が None のとき本制約は無効化されており常に true を返す。
+fn satisfies_rook_bishop_allowance(
+    position: &PositionAux,
+    constraints: SearchConstraints,
+) -> bool {
+    let Some(start) = constraints.rook_bishop_allow_start else {
+        return true;
+    };
+    let step = constraints.rook_bishop_allow_step.max(1);
+    let total = pieces_in_play(position);
+    let allowed: u32 = if total >= start {
+        (total - start) / step + 1
+    } else {
+        0
+    };
+    bishop_rook_board_count(position) <= allowed
+}
+
+/// 盤上の Bishop/ProBishop/Rook/ProRook の合計枚数 (両色)。
+fn bishop_rook_board_count(position: &PositionAux) -> u32 {
+    let kinds = [Kind::Bishop, Kind::ProBishop, Kind::Rook, Kind::ProRook];
+    let mut count = 0u32;
+    for color in [Color::BLACK, Color::WHITE] {
+        for &kind in &kinds {
+            count += position.bitboard(color, kind).count_ones();
+        }
+    }
+    count
 }
 
 pub(super) fn satisfies_ideal_smoke_generation_constraints(
@@ -1094,5 +1140,128 @@ mod tests {
             ..gp_constraints()
         };
         assert!(satisfies_search_constraints(&position, c));
+    }
+
+    /// Build a constraint with `--rook-bishop-allow-start 20 --rook-bishop-allow-step 5`.
+    fn rb_constraints(start: u32, step: u32) -> SearchConstraints {
+        SearchConstraints {
+            rook_bishop_allow_start: Some(start),
+            rook_bishop_allow_step: step,
+            ..SearchConstraints::default()
+        }
+    }
+
+    /// Place `total - 2` pawns on the white side to inflate pieces_in_play
+    /// (board) without affecting bishop/rook counts. Kings are added separately
+    /// so the returned position has `total` pieces total on board.
+    fn position_with_total_and_rook_bishop(total: u32, rb: u32) -> PositionAux {
+        assert!(rb <= 4, "this helper supports up to 4 rook/bishop pieces");
+        assert!(total >= 2 + rb, "total must accommodate 2 kings + rb pieces");
+        let mut p = PositionAux::default();
+        // Two kings (1九 white, 1一 black) so pieces_in_play counts them too.
+        p.set(Square::S19, Color::WHITE, Kind::King);
+        p.set(Square::S11, Color::BLACK, Kind::King);
+        // Up to 4 rook/bishop pieces at known squares.
+        let rb_squares = [Square::S22, Square::S33, Square::S44, Square::S55];
+        let rb_kinds = [Kind::Rook, Kind::Bishop, Kind::ProRook, Kind::ProBishop];
+        for i in 0..rb as usize {
+            p.set(rb_squares[i], Color::BLACK, rb_kinds[i]);
+        }
+        // Fill remaining slots with white pawns at distinct columns/rows so we
+        // don't double-up on a square.
+        let remaining = (total - 2 - rb) as usize;
+        let mut filled = 0usize;
+        'outer: for col in 0..9usize {
+            for row in 2..8usize {
+                if filled == remaining {
+                    break 'outer;
+                }
+                let sq = Square::new(col, row);
+                if p.get(sq).is_none() {
+                    p.set(sq, Color::WHITE, Kind::Pawn);
+                    filled += 1;
+                }
+            }
+        }
+        assert_eq!(board_piece_count(&p), total, "test helper miscounts");
+        p
+    }
+
+    #[test]
+    fn rook_bishop_allowance_disabled_by_default() {
+        // No --rook-bishop-allow-start → never rejected regardless of count.
+        let p = position_with_total_and_rook_bishop(10, 4);
+        assert!(satisfies_rook_bishop_allowance(&p, SearchConstraints::default()));
+    }
+
+    #[test]
+    fn rook_bishop_allowance_blocks_below_start() {
+        // pieces_in_play = 19 < start=20 → zero rook/bishop allowed.
+        let p_no_rb = position_with_total_and_rook_bishop(19, 0);
+        assert!(satisfies_rook_bishop_allowance(&p_no_rb, rb_constraints(20, 5)));
+
+        let p_with_rb = position_with_total_and_rook_bishop(19, 1);
+        assert!(!satisfies_rook_bishop_allowance(&p_with_rb, rb_constraints(20, 5)));
+    }
+
+    #[test]
+    fn rook_bishop_allowance_step_progression() {
+        // (start=20, step=5): allowed = (total-20)/5 + 1 for total >= 20.
+        //   20..=24 → 1, 25..=29 → 2, 30..=34 → 3, ...
+        let c = rb_constraints(20, 5);
+
+        // total=20 → allow 1; reject 2.
+        assert!(satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(20, 1),
+            c,
+        ));
+        assert!(!satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(20, 2),
+            c,
+        ));
+
+        // total=24 → still 1 allowed.
+        assert!(satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(24, 1),
+            c,
+        ));
+        assert!(!satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(24, 2),
+            c,
+        ));
+
+        // total=25 → 2 allowed.
+        assert!(satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(25, 2),
+            c,
+        ));
+        assert!(!satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(25, 3),
+            c,
+        ));
+
+        // total=30 → 3 allowed.
+        assert!(satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(30, 3),
+            c,
+        ));
+        assert!(!satisfies_rook_bishop_allowance(
+            &position_with_total_and_rook_bishop(30, 4),
+            c,
+        ));
+    }
+
+    #[test]
+    fn rook_bishop_allowance_counts_promoted_and_both_colors() {
+        // bishop_rook_board_count should sum Bishop + ProBishop + Rook + ProRook
+        // across both colors. Place one of each kind on the board.
+        let mut p = PositionAux::default();
+        p.set(Square::S19, Color::WHITE, Kind::King);
+        p.set(Square::S11, Color::BLACK, Kind::King);
+        p.set(Square::S22, Color::BLACK, Kind::Rook);
+        p.set(Square::S33, Color::WHITE, Kind::Bishop);
+        p.set(Square::S44, Color::BLACK, Kind::ProRook);
+        p.set(Square::S55, Color::WHITE, Kind::ProBishop);
+        assert_eq!(bishop_rook_board_count(&p), 4);
     }
 }
