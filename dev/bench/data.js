@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780046982945,
+  "lastUpdate": 1780135109064,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44690,6 +44690,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434388932,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f501a47615db449732b202456b6ed0ded631295d",
+          "message": "feat(smoke): rook/bishop の段階許可 filter を追加\n\n枚数 (pieces_in_play = 盤面 + 黒持駒) が `--rook-bishop-allow-start` 未満\nのとき盤上の bishop/rook 系 (Bishop, ProBishop, Rook, ProRook 両色合計)\nを 0 枚に強制。以降 `--rook-bishop-allow-step` (既定 5) 毎に許容枚数を\n1 つ増やす。\n\n例: --rook-bishop-allow-start 20 --rook-bishop-allow-step 5 で\n  0-19 枚 → 0、20-24 枚 → 1、25-29 枚 → 2、30-34 枚 → 3、…\n\nfilter は出力 ply のみで評価 (satisfies_ideal_smoke_constraints)。\nmid filter には噛ませない方針。\n\nCo-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>",
+          "timestamp": "2026-05-30T09:32:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f501a47615db449732b202456b6ed0ded631295d"
+        },
+        "date": 1780135104857,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434360500,
             "unit": "Instructions"
           }
         ]
