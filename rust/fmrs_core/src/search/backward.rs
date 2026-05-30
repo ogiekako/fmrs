@@ -876,6 +876,58 @@ fn bottom_k_key(digest: u64) -> u64 {
     digest & ((1u64 << SHARD_SHIFT) - 1)
 }
 
+/// 16-byte candidate reference. Replaces materialised `Position` (88 B + Vec
+/// overhead) inside Phase 1's shard buckets and the cross-shard candidate
+/// pool. The q2 `Position` is reconstructed in Phase 2 from
+/// `(frontier[frontier_idx], undo1_idx, undo2_idx)` via `previous()` — see
+/// `previous_is_deterministic_2ply` for the determinism invariant this relies
+/// on.
+///
+/// Layout (16 B total, naturally aligned):
+///   digest: u64       (8 B) — full q2 digest for dedup + Bottom-K key
+///   frontier_idx: u32 (4 B) — index into the Phase-1 input frontier snapshot
+///   undo1_idx: u16    (2 B) — index into undo1[] produced by previous(q0)
+///   undo2_idx: u16    (2 B) — index into undo2[] produced by previous(q1);
+///                              `u16::MAX` is the sentinel for the 1-ply path
+///                              (`advance_parallel_filtered`).
+#[derive(Clone, Copy, Debug)]
+struct CandRef {
+    digest: u64,
+    frontier_idx: u32,
+    undo1_idx: u16,
+    undo2_idx: u16,
+}
+
+impl CandRef {
+    /// Sentinel for `undo2_idx` when the candidate came from the 1-ply
+    /// `advance_parallel_filtered` path — reconstruct stops after applying
+    /// `undo1`.
+    const UNDO2_NONE: u16 = u16::MAX;
+}
+
+/// Max-heap wrapper that orders `CandRef` by `bottom_k_key(digest)` ascending
+/// under `BinaryHeap` (which is a max-heap): we want the root to be the
+/// largest key so it's the eviction candidate when the bucket is full.
+#[derive(Clone, Copy)]
+struct HeapEntry(CandRef);
+
+impl PartialEq for HeapEntry {
+    fn eq(&self, other: &Self) -> bool {
+        bottom_k_key(self.0.digest) == bottom_k_key(other.0.digest)
+    }
+}
+impl Eq for HeapEntry {}
+impl PartialOrd for HeapEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for HeapEntry {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        bottom_k_key(self.0.digest).cmp(&bottom_k_key(other.0.digest))
+    }
+}
+
 /// Per-shard candidate bucket used during Phase 1.
 ///
 /// Two modes — chosen at construction by `cap`:
@@ -893,10 +945,10 @@ fn bottom_k_key(digest: u64) -> u64 {
 struct ShardBucket {
     seen: NoHashSet64,
     /// Used when `cap == usize::MAX`.
-    vec: Vec<Position>,
-    /// Used when `cap < usize::MAX`. Max-heap on (bottom_k_key, Position);
-    /// root holds the largest key, which is the eviction candidate.
-    heap: BinaryHeap<(u64, Position)>,
+    vec: Vec<CandRef>,
+    /// Used when `cap < usize::MAX`. Max-heap (under `bottom_k_key`) of
+    /// CandRefs; root holds the largest key = eviction candidate.
+    heap: BinaryHeap<HeapEntry>,
     cap: usize,
     /// Accepted-into-bucket count. In unbounded mode = distinct candidates.
     /// In Bottom-K mode = number of accepted inserts (≤ cap eventually);
@@ -915,16 +967,16 @@ impl ShardBucket {
         }
     }
 
-    /// Try to insert `p`. Dedup by full `digest` against currently-held items
-    /// only (not all-ever-seen, so `seen` stays bounded in Bottom-K mode).
-    /// Ordering for Bottom-K uses `bottom_k_key(digest)`.
+    /// Try to insert `cand`. Dedup by full `digest` against currently-held
+    /// items only (not all-ever-seen, so `seen` stays bounded in Bottom-K
+    /// mode). Ordering for Bottom-K uses `bottom_k_key(digest)`.
     #[inline]
-    fn try_insert(&mut self, p: Position) {
-        let d = p.digest();
+    fn try_insert(&mut self, cand: CandRef) {
+        let d = cand.digest;
         if self.cap == usize::MAX {
             if self.seen.insert(d) {
                 self.count += 1;
-                self.vec.push(p);
+                self.vec.push(cand);
             }
             return;
         }
@@ -932,21 +984,20 @@ impl ShardBucket {
         if self.seen.contains(&d) {
             return;
         }
-        let h = bottom_k_key(d);
         if self.heap.len() < self.cap {
             self.seen.insert(d);
-            self.heap.push((h, p));
+            self.heap.push(HeapEntry(cand));
             self.count += 1;
         } else {
             // SAFETY: heap is non-empty (len == cap > 0).
-            let max_h = self.heap.peek().unwrap().0;
-            if h < max_h {
-                // pop returns the evicted Position; its full digest is what
+            let max_h = bottom_k_key(self.heap.peek().unwrap().0.digest);
+            if bottom_k_key(d) < max_h {
+                // pop returns the evicted CandRef; its full digest is what
                 // sits in `seen` (not bottom_k_key, which collides).
-                let (_, evicted_p) = self.heap.pop().unwrap();
-                self.seen.remove(&evicted_p.digest());
+                let evicted = self.heap.pop().unwrap().0;
+                self.seen.remove(&evicted.digest);
                 self.seen.insert(d);
-                self.heap.push((h, p));
+                self.heap.push(HeapEntry(cand));
                 self.count += 1;
             }
             // else: key ≥ max → drop. Same digest re-arriving is harmless.
@@ -975,7 +1026,7 @@ impl ShardBucket {
 fn build_candidates(
     shard_data: Vec<ShardBucket>,
     pool_limit: Option<usize>,
-) -> (Vec<Position>, bool) {
+) -> (Vec<CandRef>, bool) {
     match pool_limit {
         None => {
             let total: usize = shard_data.iter().map(|b| b.vec.len()).sum();
@@ -993,22 +1044,22 @@ fn build_candidates(
             // safe over-estimate for the "sampled" flag.)
             let any_eviction = shard_data.iter().any(|b| b.count > b.heap.len());
             let total: usize = shard_data.iter().map(|b| b.heap.len()).sum();
-            let mut all: Vec<(u64, Position)> = Vec::with_capacity(total);
+            // Flatten directly into Vec<CandRef> — no intermediate
+            // Vec<(u64, Position)> needed since CandRef carries the digest
+            // and bottom_k_key is recomputed on sort.
+            let mut all: Vec<CandRef> = Vec::with_capacity(total);
             for bucket in shard_data {
-                all.extend(bucket.heap.into_iter());
+                all.extend(bucket.heap.into_iter().map(|e| e.0));
             }
             // Hash-ascending so Phase V can lazy-filter in optimal order.
             // par_sort_unstable is the dominant serial cost when SAFETY_FACTOR
             // × W is large; parallel sort eliminates it as an Amdahl bottleneck.
-            all.par_sort_unstable_by_key(|&(h, _)| h);
+            all.par_sort_unstable_by_key(|c| bottom_k_key(c.digest));
             let truncated = all.len() > limit;
             if truncated {
                 all.truncate(limit);
             }
-            (
-                all.into_iter().map(|(_, p)| p).collect(),
-                any_eviction || truncated,
-            )
+            (all, any_eviction || truncated)
         }
     }
 }
@@ -2125,18 +2176,26 @@ impl BackwardSearch {
                     let mut undo2 = vec![];
                     let mut local_seens: [NoHashSet64; NUM_SHARDS] =
                         std::array::from_fn(|_| NoHashSet64::default());
-                    let mut local_outs: [Vec<Position>; NUM_SHARDS] =
+                    let mut local_outs: [Vec<CandRef>; NUM_SHARDS] =
                         std::array::from_fn(|_| Vec::new());
                     let mut chunk_dedup = 0usize;
                     let mut chunk_dead = 0usize;
 
-                    for core in chunk.iter() {
+                    // par_chunks gives equal-sized chunks except the last; the
+                    // chunk's first frontier index is `chunk_idx *
+                    // position_chunk_size`. par_chunks is contiguous (Rayon
+                    // docs), so `chunk_idx * chunk_size + pos_in_chunk`
+                    // recovers the global frontier index for any item in
+                    // `chunk`.
+                    let chunk_base = chunk_idx * position_chunk_size;
+                    for (pos_in_chunk, core) in chunk.iter().enumerate() {
+                        let frontier_idx = (chunk_base + pos_in_chunk) as u32;
                         let mut q0 = PositionAux::new(core.clone(), stone);
                         undo1.clear();
                         previous(&mut q0, step > 0, &mut undo1);
 
                         let mut any_survived = false;
-                        for m1 in undo1.iter() {
+                        for (i1, m1) in undo1.iter().enumerate() {
                             if !mid_candidate_filter(&q0, m1) {
                                 continue;
                             }
@@ -2155,7 +2214,7 @@ impl BackwardSearch {
                             // Expand it one more ply without storing it.
                             undo2.clear();
                             previous(&mut q1, step + 1 > 0, &mut undo2);
-                            for m2 in undo2.iter() {
+                            for (i2, m2) in undo2.iter().enumerate() {
                                 if !out_candidate_filter(&q1, m2) {
                                     continue;
                                 }
@@ -2174,9 +2233,17 @@ impl BackwardSearch {
                                 let digest = q2.core().digest();
                                 let shard_idx = shard_index(digest);
                                 if local_seens[shard_idx].insert(digest) {
-                                    local_outs[shard_idx].push(q2.core().clone());
+                                    local_outs[shard_idx].push(CandRef {
+                                        digest,
+                                        frontier_idx,
+                                        undo1_idx: i1 as u16,
+                                        undo2_idx: i2 as u16,
+                                    });
                                     chunk_dedup += 1;
                                 }
+                                // q2 dropped here — the candidate Position is
+                                // reconstructed in Phase 2 from
+                                // (frontier_idx, i1, i2).
                             }
                         }
                         if !any_survived {
@@ -2195,8 +2262,8 @@ impl BackwardSearch {
                             continue;
                         }
                         let mut guard = shard_buckets[shard_idx].lock().unwrap();
-                        for pos in local {
-                            guard.try_insert(pos);
+                        for cand in local {
+                            guard.try_insert(cand);
                         }
                     }
                 });
@@ -2231,6 +2298,16 @@ impl BackwardSearch {
         self.step += 1;
 
         // ---- Phase 2 (verbatim copy of advance_parallel_filtered's) ----
+        // Snapshot of the Phase-1 frontier: candidates reconstruct their q2
+        // Position from `frontier[cand.frontier_idx]`. Phase 2 only reads
+        // `self.positions` indirectly via this slice, and `self.positions`
+        // is only reassigned at the bottom of this function, so the borrow
+        // is safe for the entire wave loop.
+        let frontier: &[Position] = &self.positions;
+        // step at which Phase 2 runs the *first* of the two reconstruction
+        // plies. `previous(q0, step > 0)` reproduces undo1 exactly as Phase
+        // 1 generated it (Phase 1 captured `step` before incrementing).
+        let phase1_step = step;
         let step = self.step;
         if candidates.is_empty() {
             self.last_frontier_in = frontier_in;
@@ -2316,24 +2393,55 @@ impl BackwardSearch {
                         let mut solution_scratch = vec![];
                         let mut killers = Killers::new();
                         let mut history = HistoryTable::new();
+                        // Per-chunk undo move buffers reused for each q2
+                        // reconstruction. Each `previous()` call clears and
+                        // refills these in-place.
+                        let mut undo1_buf: Vec<UndoMove> = vec![];
+                        let mut undo2_buf: Vec<UndoMove> = vec![];
 
-                        for core in chunk.iter() {
-                            // canonicalize=false なら core.digest() ^ stone_digest で
-                            // PositionAux 構築を回避。memo hit 時は kind_cache を作らない
-                            // ぶん丸ごと節約。miss 時のみ DFS 直前で構築する。
-                            let (pp_digest, pp_early): (u64, Option<PositionAux>) = if canonicalize {
-                                let pp = PositionAux::new(core.clone(), stone);
-                                let d = crate::search::canonicalize::canonical_digest_for_smoke(&pp);
-                                (d, Some(pp))
+                        for cand in chunk.iter() {
+                            // Reconstruct q2 from
+                            // (frontier[frontier_idx], undo1_idx, undo2_idx).
+                            // Determinism of `previous()` guarantees the indexed
+                            // undo move matches the one Phase 1 selected (see
+                            // previous_is_deterministic_2ply). The
+                            // `phase1_step` value is captured before
+                            // `self.step += 1`, so the `allow_drop_pawn`
+                            // arguments match Phase 1's exactly.
+                            let frontier_core = &frontier[cand.frontier_idx as usize];
+                            let mut q0 = PositionAux::new(frontier_core.clone(), stone);
+                            undo1_buf.clear();
+                            previous(&mut q0, phase1_step > 0, &mut undo1_buf);
+                            let mut q1 = q0;
+                            q1.undo_move(&undo1_buf[cand.undo1_idx as usize]);
+                            undo2_buf.clear();
+                            previous(&mut q1, phase1_step + 1 > 0, &mut undo2_buf);
+                            let mut pp = q1;
+                            pp.undo_move(&undo2_buf[cand.undo2_idx as usize]);
+                            debug_assert_eq!(
+                                pp.core().digest(),
+                                cand.digest,
+                                "reconstructed q2 digest mismatch: \
+                                 frontier_idx={} i1={} i2={}",
+                                cand.frontier_idx,
+                                cand.undo1_idx,
+                                cand.undo2_idx,
+                            );
+
+                            // memo / shared_v lookup keys. Non-canonicalize
+                            // path can compute pp_digest directly from the
+                            // CandRef without re-hashing.
+                            let pp_digest = if canonicalize {
+                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
                             } else {
-                                (core.digest() ^ stone_digest, None)
+                                cand.digest ^ stone_digest
                             };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
                                     .filter(|ans| !ans.needs_investigation(step + 1))
                             {
                                 if ans.is_uniquely(step + 1) {
-                                    prev_positions.push(core.clone());
+                                    prev_positions.push(pp.core().clone());
                                 }
                                 continue;
                             }
@@ -2360,9 +2468,6 @@ impl BackwardSearch {
                                     // run. Zero release cost.
                                     #[cfg(debug_assertions)]
                                     {
-                                        // shared_v_ref が Some なのは canonicalize=true。
-                                        // よって pp_early も必ず Some。
-                                        let pp = pp_early.as_ref().unwrap();
                                         let mut pp_chk = pp.clone();
                                         crate::search::canonicalize::canonicalize_attacker_goldish(
                                             &mut pp_chk,
@@ -2388,15 +2493,12 @@ impl BackwardSearch {
                                         );
                                     }
                                     if ans.is_uniquely(step + 1) {
-                                        prev_positions.push(core.clone());
+                                        prev_positions.push(pp.core().clone());
                                     }
                                     continue;
                                 }
                             }
 
-                            // DFS が必要なので PositionAux を (まだなら) ここで構築。
-                            let mut pp = pp_early
-                                .unwrap_or_else(|| PositionAux::new(core.clone(), stone));
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -2439,7 +2541,7 @@ impl BackwardSearch {
                                 }
                             }
                             if ans.is_uniquely(step + 1) {
-                                prev_positions.push(core.clone());
+                                prev_positions.push(pp.core().clone());
                             }
                         }
 
@@ -2587,18 +2689,20 @@ impl BackwardSearch {
                     let mut undo_moves = vec![];
                     let mut local_seens: [NoHashSet64; NUM_SHARDS] =
                         std::array::from_fn(|_| NoHashSet64::default());
-                    let mut local_outs: [Vec<Position>; NUM_SHARDS] =
+                    let mut local_outs: [Vec<CandRef>; NUM_SHARDS] =
                         std::array::from_fn(|_| Vec::new());
                     let mut chunk_dedup = 0usize;
                     let mut chunk_dead = 0usize;
 
-                    for core in chunk.iter() {
+                    let chunk_base = chunk_idx * position_chunk_size;
+                    for (pos_in_chunk, core) in chunk.iter().enumerate() {
+                        let frontier_idx = (chunk_base + pos_in_chunk) as u32;
                         let mut position = PositionAux::new(core.clone(), stone);
                         undo_moves.clear();
                         previous(&mut position, step > 0, &mut undo_moves);
 
                         let mut any_survived = false;
-                        for m in undo_moves.iter() {
+                        for (i1, m) in undo_moves.iter().enumerate() {
                             if !candidate_filter(&position, m) {
                                 continue;
                             }
@@ -2619,7 +2723,12 @@ impl BackwardSearch {
                             let digest = pp.core().digest();
                             let shard_idx = shard_index(digest);
                             if local_seens[shard_idx].insert(digest) {
-                                local_outs[shard_idx].push(pp.core().clone());
+                                local_outs[shard_idx].push(CandRef {
+                                    digest,
+                                    frontier_idx,
+                                    undo1_idx: i1 as u16,
+                                    undo2_idx: CandRef::UNDO2_NONE,
+                                });
                                 chunk_dedup += 1;
                             }
                         }
@@ -2643,8 +2752,8 @@ impl BackwardSearch {
                             continue;
                         }
                         let mut guard = shard_buckets[shard_idx].lock().unwrap();
-                        for pos in local {
-                            guard.try_insert(pos);
+                        for cand in local {
+                            guard.try_insert(cand);
                         }
                     }
                 });
@@ -2791,6 +2900,9 @@ impl BackwardSearch {
                         let mut solution_scratch = vec![];
                         let mut killers = Killers::new();
                         let mut history = HistoryTable::new();
+                        // Per-chunk undo move buffer reused across q1
+                        // reconstructions. 1-ply path only needs one buffer.
+                        let mut undo1_buf: Vec<UndoMove> = vec![];
 
                         // Software prefetch for prev_memo slot lookups.
                         // canonicalize=true 時は実 key (canonical_digest_for_smoke) と
@@ -2798,31 +2910,46 @@ impl BackwardSearch {
                         // 自体に副作用は無く correctness には影響しない。
                         const PREFETCH_AHEAD: usize = 8;
                         for j in 0..PREFETCH_AHEAD.min(chunk.len()) {
-                            prev_memo_ref.prefetch_key(chunk[j].digest() ^ stone_digest);
+                            prev_memo_ref.prefetch_key(chunk[j].digest ^ stone_digest);
                         }
 
-                        for (i, core) in chunk.iter().enumerate() {
+                        for (i, cand) in chunk.iter().enumerate() {
                             if i + PREFETCH_AHEAD < chunk.len() {
                                 prev_memo_ref.prefetch_key(
-                                    chunk[i + PREFETCH_AHEAD].digest() ^ stone_digest,
+                                    chunk[i + PREFETCH_AHEAD].digest ^ stone_digest,
                                 );
                             }
-                            // canonicalize=false なら core.digest() ^ stone_digest で
-                            // PositionAux 構築を回避。memo hit 時は kind_cache を作らない
-                            // ぶん丸ごと節約。miss 時のみ DFS 直前で構築する。
-                            let (pp_digest, pp_early): (u64, Option<PositionAux>) = if canonicalize {
-                                let pp = PositionAux::new(core.clone(), stone);
-                                let d = crate::search::canonicalize::canonical_digest_for_smoke(&pp);
-                                (d, Some(pp))
+                            // Reconstruct q1 from
+                            // (frontier[frontier_idx], undo1_idx). Same step
+                            // value as Phase 1 because advance_parallel_filtered
+                            // does not increment self.step between phases (the
+                            // increment happens after Phase 2, at end of fn).
+                            let frontier_core = &positions[cand.frontier_idx as usize];
+                            let mut q0 = PositionAux::new(frontier_core.clone(), stone);
+                            undo1_buf.clear();
+                            previous(&mut q0, step > 0, &mut undo1_buf);
+                            let mut pp = q0;
+                            pp.undo_move(&undo1_buf[cand.undo1_idx as usize]);
+                            debug_assert_eq!(
+                                pp.core().digest(),
+                                cand.digest,
+                                "reconstructed q1 digest mismatch: \
+                                 frontier_idx={} i1={}",
+                                cand.frontier_idx,
+                                cand.undo1_idx,
+                            );
+
+                            let pp_digest = if canonicalize {
+                                crate::search::canonicalize::canonical_digest_for_smoke(&pp)
                             } else {
-                                (core.digest() ^ stone_digest, None)
+                                cand.digest ^ stone_digest
                             };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
                                     .filter(|ans| !ans.needs_investigation(step + 1))
                             {
                                 if ans.is_uniquely(step + 1) {
-                                    prev_positions.push(core.clone());
+                                    prev_positions.push(pp.core().clone());
                                 }
                                 continue;
                             }
@@ -2849,9 +2976,6 @@ impl BackwardSearch {
                                     // run. Zero release cost.
                                     #[cfg(debug_assertions)]
                                     {
-                                        // shared_v_ref が Some なのは canonicalize=true。
-                                        // よって pp_early も必ず Some。
-                                        let pp = pp_early.as_ref().unwrap();
                                         let mut pp_chk = pp.clone();
                                         crate::search::canonicalize::canonicalize_attacker_goldish(
                                             &mut pp_chk,
@@ -2877,15 +3001,12 @@ impl BackwardSearch {
                                         );
                                     }
                                     if ans.is_uniquely(step + 1) {
-                                        prev_positions.push(core.clone());
+                                        prev_positions.push(pp.core().clone());
                                     }
                                     continue;
                                 }
                             }
 
-                            // DFS が必要なので PositionAux を (まだなら) ここで構築。
-                            let mut pp = pp_early
-                                .unwrap_or_else(|| PositionAux::new(core.clone(), stone));
                             let ans = if canonicalize {
                                 let mut pp_canonical = pp.clone();
                                 crate::search::canonicalize::canonicalize_attacker_goldish(
@@ -2928,7 +3049,7 @@ impl BackwardSearch {
                                 }
                             }
                             if ans.is_uniquely(step + 1) {
-                                prev_positions.push(core.clone());
+                                prev_positions.push(pp.core().clone());
                             }
                         }
 
@@ -4434,31 +4555,32 @@ mod tests {
     /// reproduces the global Bottom-K.
     #[test]
     fn build_candidates_returns_close_to_limit_under_uniform_digests() {
-        use super::{bottom_k_key, shard_index, ShardBucket, NUM_SHARDS};
-        use crate::position::Position;
+        use super::{bottom_k_key, shard_index, CandRef, ShardBucket, NUM_SHARDS};
 
         let n_total = 10_000usize;
         let limit = 1_000usize;
         let pool_factor = 4usize;
         let cap = (limit * pool_factor).div_ceil(NUM_SHARDS);
 
-        let positions: Vec<Position> = (0..n_total)
+        let digests: Vec<u64> = (0..n_total)
             .map(|i| {
-                let mut p = Position::default();
                 // Splitmix64 — uniform-ish 64-bit hash from i.
                 let mut x = (i as u64).wrapping_add(0x9E3779B97F4A7C15);
                 x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
                 x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
-                x ^= x >> 31;
-                p.set_digest_for_test(x);
-                p
+                x ^ (x >> 31)
             })
             .collect();
 
         let mut buckets: Vec<ShardBucket> =
             (0..NUM_SHARDS).map(|_| ShardBucket::new(cap)).collect();
-        for p in positions.iter() {
-            buckets[shard_index(p.digest())].try_insert(p.clone());
+        for &d in digests.iter() {
+            buckets[shard_index(d)].try_insert(CandRef {
+                digest: d,
+                frontier_idx: 0,
+                undo1_idx: 0,
+                undo2_idx: 0,
+            });
         }
 
         let (candidates, sampled) = super::build_candidates(buckets, Some(limit));
@@ -4480,7 +4602,7 @@ mod tests {
         assert!(sampled, "should report sampled=true since n_total > limit");
 
         // Sanity: ordering key (bottom_k_key) must be ascending.
-        let keys: Vec<u64> = candidates.iter().map(|p| bottom_k_key(p.digest())).collect();
+        let keys: Vec<u64> = candidates.iter().map(|c| bottom_k_key(c.digest)).collect();
         assert!(
             keys.windows(2).all(|w| w[0] <= w[1]),
             "candidates not sorted by bottom_k_key"
@@ -4492,30 +4614,31 @@ mod tests {
     /// suppressed unnecessarily).
     #[test]
     fn build_candidates_no_sampling_when_under_limit() {
-        use super::{shard_index, ShardBucket, NUM_SHARDS};
-        use crate::position::Position;
+        use super::{shard_index, CandRef, ShardBucket, NUM_SHARDS};
 
         let n_total = 200usize;
         let limit = 1_000usize;
         let pool_factor = 4usize;
         let cap = (limit * pool_factor).div_ceil(NUM_SHARDS);
 
-        let positions: Vec<Position> = (0..n_total)
+        let digests: Vec<u64> = (0..n_total)
             .map(|i| {
-                let mut p = Position::default();
                 let mut x = (i as u64).wrapping_add(0x9E3779B97F4A7C15);
                 x = (x ^ (x >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
                 x = (x ^ (x >> 27)).wrapping_mul(0x94D049BB133111EB);
-                x ^= x >> 31;
-                p.set_digest_for_test(x);
-                p
+                x ^ (x >> 31)
             })
             .collect();
 
         let mut buckets: Vec<ShardBucket> =
             (0..NUM_SHARDS).map(|_| ShardBucket::new(cap)).collect();
-        for p in positions.iter() {
-            buckets[shard_index(p.digest())].try_insert(p.clone());
+        for &d in digests.iter() {
+            buckets[shard_index(d)].try_insert(CandRef {
+                digest: d,
+                frontier_idx: 0,
+                undo1_idx: 0,
+                undo2_idx: 0,
+            });
         }
 
         let (candidates, sampled) = super::build_candidates(buckets, Some(limit));

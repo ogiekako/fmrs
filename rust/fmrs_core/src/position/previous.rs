@@ -155,4 +155,78 @@ mod tests {
         previous(&mut position, false, &mut movements);
         assert_eq!(movements.len(), 2);
     }
+
+    /// `previous()` must be a pure function of `(position core, allow_drop_pawn)`:
+    /// repeated calls from the same core return the same `Vec<UndoMove>` in the
+    /// same order. The CandRef refactor (storing `(frontier_idx, undo1_idx,
+    /// undo2_idx)` instead of materialised `Position`) relies on this so a
+    /// candidate can be reconstructed in Phase 2 without ever materialising it
+    /// in Phase 1.
+    #[test]
+    fn previous_is_deterministic_2ply() {
+        let sfens = [
+            // Backward-search seed used in backward_search_seed_max_step_5.
+            "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+            // Hand-rich position to exercise the UnDrop / capture branches.
+            "8p/8O/9/9/9/7O1/7O+p/7OO/9 b RBGS 1",
+            // Position with promoted captures available.
+            "4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1",
+        ];
+
+        for sfen in sfens {
+            let p0 = PositionAux::from_sfen(sfen).unwrap();
+
+            // Round 1: enumerate undo1 from a fresh clone.
+            let mut p0a = p0.clone();
+            let mut undo1_a = vec![];
+            previous(&mut p0a, true, &mut undo1_a);
+
+            // Round 2: same enumeration must yield identical results.
+            let mut p0b = p0.clone();
+            let mut undo1_b = vec![];
+            previous(&mut p0b, true, &mut undo1_b);
+            assert_eq!(
+                undo1_a, undo1_b,
+                "previous(1st ply) not deterministic for sfen={}",
+                sfen
+            );
+
+            // For each undo1[i1], enumerating undo2 from the reconstructed q1
+            // twice must also be deterministic, and the q2 digest must depend
+            // only on (sfen, i1, i2).
+            for (i1, m1) in undo1_a.iter().enumerate() {
+                let mut q1a = p0.clone();
+                q1a.undo_move(m1);
+                let mut undo2_a = vec![];
+                previous(&mut q1a, true, &mut undo2_a);
+
+                let mut q1b = p0.clone();
+                q1b.undo_move(m1);
+                let mut undo2_b = vec![];
+                previous(&mut q1b, true, &mut undo2_b);
+
+                assert_eq!(q1a.digest(), q1b.digest(), "q1 digest differs i1={}", i1);
+                assert_eq!(
+                    undo2_a, undo2_b,
+                    "previous(2nd ply) not deterministic sfen={} i1={}",
+                    sfen, i1
+                );
+
+                for (i2, m2) in undo2_a.iter().enumerate() {
+                    let mut q2a = q1a.clone();
+                    q2a.undo_move(m2);
+                    let mut q2b = q1b.clone();
+                    q2b.undo_move(m2);
+                    assert_eq!(
+                        q2a.digest(),
+                        q2b.digest(),
+                        "q2 digest differs sfen={} i1={} i2={}",
+                        sfen,
+                        i1,
+                        i2
+                    );
+                }
+            }
+        }
+    }
 }
