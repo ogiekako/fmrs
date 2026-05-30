@@ -33,7 +33,7 @@ use super::super::smoke_persistence::{
     load_seed_checkpoint, write_seed_checkpoint, SeedCheckpoint, SeedRunStats, TerminationReason,
 };
 use super::beam::{apply_beam, sample_features_to_log, BeamConfig};
-use super::system::{ProcStatus, SearchStatsDisplay};
+use super::system::{MemoryBudget, ProcStatus, SearchStatsDisplay};
 
 pub(super) struct SingleSeedResult {
     pub(super) best: Option<(u32, u16, Vec<PositionAux>)>, // (piece_count, step, positions)
@@ -61,6 +61,7 @@ pub(super) fn search_single_seed(
     beam: &BeamConfig,
     candidates_pool_factor: usize,
     max_candidates_pool: Option<usize>,
+    memory_budget: MemoryBudget,
     target_max: u32,
     early_exit: bool,
     stop_signal: &AtomicBool,
@@ -177,17 +178,43 @@ pub(super) fn search_single_seed(
         search.set_candidates_limit(Some(width));
         search.set_candidates_pool_factor(candidates_pool_factor);
     }
-    // Hard cap on Phase-1 candidate pool. Defaults to 8 × beam_width when not
-    // specified. `effective_max_pool_factor` is `max_candidates_pool / width`
-    // — the adaptive ceiling for the pool factor.
-    let beam_width_for_pool = beam.width.unwrap_or(0);
-    let effective_max_pool = max_candidates_pool
-        .unwrap_or_else(|| beam_width_for_pool.saturating_mul(8));
-    let max_pool_factor = if beam_width_for_pool == 0 {
-        candidates_pool_factor
-    } else {
-        (effective_max_pool / beam_width_for_pool).max(candidates_pool_factor)
+    // Hard cap on Phase-1 candidate pool factor.
+    //
+    // Priority order:
+    //  1. `--max-candidates-pool` (legacy): static cap = max_pool / width.
+    //     Honoured as a hard ceiling if set.
+    //  2. `--memory-budget-pct` via MemoryBudget: dynamic ceiling derived
+    //     from (budget − live RSS) / (W × POOL_BYTES_PER_ENTRY). Recomputed
+    //     each step so the cap follows actual memory pressure.
+    //  3. Fallback (neither set, budget probe failed): static 8× of W,
+    //     matching pre-budget default behaviour.
+    //
+    // The ceiling is always ≥ `candidates_pool_factor` (the user-specified
+    // starting factor), so the adaptive logic always has at least one
+    // permissible value.
+    let compute_max_pool_factor = |width: usize| -> usize {
+        if width == 0 {
+            return candidates_pool_factor;
+        }
+        let static_ceiling = max_candidates_pool
+            .map(|cap| (cap / width).max(candidates_pool_factor))
+            .unwrap_or(usize::MAX);
+        let budget_ceiling = memory_budget.pool_factor_ceiling(width);
+        let combined = if budget_ceiling > 0 && static_ceiling != usize::MAX {
+            budget_ceiling.min(static_ceiling)
+        } else if budget_ceiling > 0 {
+            budget_ceiling
+        } else if static_ceiling != usize::MAX {
+            static_ceiling
+        } else {
+            // No budget probe and no --max-candidates-pool → legacy 8×W.
+            candidates_pool_factor.max(8)
+        };
+        combined.max(candidates_pool_factor)
     };
+    // Initial computation used by checkpoint restoration's clamp. Recomputed
+    // each step inside the adaptive loop so it follows live RSS.
+    let mut max_pool_factor = compute_max_pool_factor(beam.width.unwrap_or(0));
     // Currently-applied pool factor. Starts at the user value; tracked via an
     // EMA of 1/survival so step-to-step noise is smoothed out, then mapped
     // back to a target factor each step.
@@ -520,6 +547,10 @@ pub(super) fn search_single_seed(
         //     a single lucky step from shrinking the pool and re-triggering
         //     the collapse path on the next high-mid step.
         if let Some(width) = beam.width {
+            // Recompute the cap before each adjustment so it tracks live RSS.
+            // Without this the cap would be frozen at startup, which is the
+            // exact failure mode the memory-budget design replaces.
+            max_pool_factor = compute_max_pool_factor(width);
             let next_len = post_stats.positions_len;
             let mid_processed = post_stats
                 .candidate_count
@@ -547,19 +578,25 @@ pub(super) fn search_single_seed(
                 } else {
                     adaptive_pool_factor
                 };
+                // Also enforce the (possibly shrunk) cap. If RSS climbed and
+                // the budget-derived ceiling dropped below `adaptive_pool_factor`,
+                // honour that by clamping down — this is the OOM-prevention
+                // half of the budget model.
+                let new_factor = new_factor.min(max_pool_factor).max(default_pool_factor);
 
                 if new_factor != adaptive_pool_factor {
                     adaptive_pool_factor = new_factor;
                     search.set_candidates_pool_factor(adaptive_pool_factor);
                     eprintln!(
-                        "adaptive_pool seed={} step={} s={:.4} ema_inv_s={:.2} target={} new_pool_factor={} (cap={})",
+                        "adaptive_pool seed={} step={} s={:.4} ema_inv_s={:.2} target={} new_pool_factor={} (cap={} budget_avail_gb={:.1})",
                         seed_index,
                         next_step,
                         s_observed,
                         new_ema,
                         target_factor,
                         adaptive_pool_factor,
-                        max_pool_factor
+                        max_pool_factor,
+                        memory_budget.available_bytes() as f64 / (1024.0 * 1024.0 * 1024.0),
                     );
                 }
             }

@@ -133,11 +133,21 @@ pub enum SingleKingSmokeCommand {
         #[arg(long, default_value_t = 4)]
         candidates_pool_factor: usize,
         /// Hard upper bound on the Bottom-K mid pool size, in candidates.
-        /// Default = 8 × beam_width. Adaptive logic raises the effective pool
-        /// up to this cap when survival is low; past the cap, |next| < W is
-        /// accepted as the price of bounded memory.
+        /// When omitted, the cap is derived dynamically from
+        /// `--memory-budget-pct` instead (live RSS-aware). When set, this
+        /// static cap takes precedence over the budget-derived ceiling.
         #[arg(long)]
         max_candidates_pool: Option<usize>,
+        /// Memory budget for adaptive pool sizing, as a percentage of
+        /// `MemTotal`. The Phase-1 candidate pool grows until projected
+        /// usage exceeds this budget (recomputed each step from live RSS).
+        /// Replaces the need to set `--max-candidates-pool` manually — with
+        /// the default, the run uses as much memory as it can without
+        /// risking OOM, so frontier stays at `--beam-width` as long as the
+        /// machine has the RAM. Set to 0 to fall back to the legacy 8× W
+        /// static cap.
+        #[arg(long, default_value_t = 80)]
+        memory_budget_pct: u32,
         /// Fleet partitioning: this instance's 0-based index.
         #[arg(long)]
         fleet_index: Option<usize>,
@@ -249,6 +259,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             beam_model,
             candidates_pool_factor,
             max_candidates_pool,
+            memory_budget_pct,
             fleet_index,
             fleet_size,
             oracle_model,
@@ -303,6 +314,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 beam,
                 candidates_pool_factor,
                 max_candidates_pool,
+                memory_budget_pct,
                 checkpoint_interval_secs,
                 early_exit,
                 !no_progress_ticker,

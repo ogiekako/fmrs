@@ -110,3 +110,85 @@ fn total_memory_bytes() -> usize {
     }
     8 * 1024 * 1024 * 1024
 }
+
+/// Pool entry memory footprint estimate, in bytes per CandRef equivalent.
+///
+/// CandRef itself is 16 B (see backward.rs). Per-entry overhead in the live
+/// Phase-1 shard buckets and the cross-shard candidate pool adds:
+///   - `BinaryHeap<HeapEntry>` slot: 16 B + amortised vec growth (~1.5× ≈ 8 B)
+///   - `NoHashSet64::seen` entry (u64 + hash table slack ≈ 1.5× → ~12 B)
+///   - Phase-1 per-thread `local_outs` Vec slot (16 B + amortised growth)
+///     contributes briefly but flushes per chunk, so amortised below 8 B/entry
+///   - `Vec<CandRef>` final candidates pool: 16 B + ~8 B amortised growth
+///
+/// Rounded up to 64 B for safety. Used as the divisor when converting an
+/// available-bytes budget into a `pool_factor` ceiling.
+pub(super) const POOL_BYTES_PER_ENTRY: usize = 64;
+
+/// Memory budget for adaptive pool sizing.
+///
+/// Captures the total memory budget for this process (a fixed fraction of
+/// `MemTotal`) and exposes `available_bytes()` based on live RSS readings.
+/// Backward search uses this to derive a `pool_factor` ceiling dynamically
+/// each step instead of requiring the user to set `--max-candidates-pool`.
+///
+/// On non-Linux platforms (or if `/proc` is unavailable) the budget falls
+/// back to `0`, which makes `pool_factor_ceiling` collapse to the existing
+/// `--max-candidates-pool` value (or `candidates_pool_factor` if neither is
+/// set) — i.e. behaviour reverts to the pre-budget static cap.
+#[derive(Clone, Copy)]
+pub(super) struct MemoryBudget {
+    budget_bytes: usize,
+}
+
+impl MemoryBudget {
+    /// Build a budget = `MemTotal × pct / 100`. Pass `pct = 0` to disable.
+    pub(super) fn from_pct(pct: u32) -> Self {
+        if pct == 0 {
+            return Self { budget_bytes: 0 };
+        }
+        let total = total_memory_bytes();
+        let budget_bytes = total.saturating_mul(pct as usize) / 100;
+        Self { budget_bytes }
+    }
+
+    pub(super) fn budget_bytes(&self) -> usize {
+        self.budget_bytes
+    }
+
+    /// `budget − current RSS`, clamped at 0. Returns 0 if budget is disabled
+    /// or RSS cannot be read.
+    pub(super) fn available_bytes(&self) -> usize {
+        if self.budget_bytes == 0 {
+            return 0;
+        }
+        let Some(rss_kib) = current_vm_rss_kib() else {
+            return 0;
+        };
+        self.budget_bytes.saturating_sub(rss_kib * 1024)
+    }
+
+    /// Compute the `pool_factor` ceiling for beam width `w` such that the
+    /// resulting pool fits in *half* the remaining budget — leaving the other
+    /// half for Phase-2 transient allocations, memo growth, OS slack, etc.
+    /// Returns 0 if the budget is disabled (caller falls back to its static
+    /// `--max-candidates-pool`).
+    pub(super) fn pool_factor_ceiling(&self, w: usize) -> usize {
+        if self.budget_bytes == 0 || w == 0 {
+            return 0;
+        }
+        let available = self.available_bytes();
+        let pool_budget = available / 2;
+        pool_budget / (w.saturating_mul(POOL_BYTES_PER_ENTRY)).max(1)
+    }
+}
+
+fn current_vm_rss_kib() -> Option<usize> {
+    let status = fs::read_to_string("/proc/self/status").ok()?;
+    for line in status.lines() {
+        if let Some(value) = line.strip_prefix("VmRSS:") {
+            return parse_kib_field(value);
+        }
+    }
+    None
+}

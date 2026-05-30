@@ -23,7 +23,7 @@ use super::enumerate::enumerate_final_2_positions;
 use super::oracle::OracleModel;
 use super::scheduler::run_with_oracle;
 use super::search::search_single_seed;
-use super::system::ProcStatus;
+use super::system::{MemoryBudget, ProcStatus};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn ideal_backward(
@@ -44,6 +44,7 @@ pub(super) fn ideal_backward(
     beam: BeamConfig,
     candidates_pool_factor: usize,
     max_candidates_pool: Option<usize>,
+    memory_budget_pct: u32,
     checkpoint_interval_secs: u64,
     early_exit: bool,
     progress_ticker: bool,
@@ -231,6 +232,16 @@ pub(super) fn ideal_backward(
         .context("failed to build rayon thread pool")?;
     let total_pending = pending_seeds.len();
     let completed_in_run = AtomicUsize::new(0);
+    // Memory budget for adaptive pool sizing. `pct=0` disables (falls back
+    // to legacy --max-candidates-pool / 8×W default).
+    let memory_budget = MemoryBudget::from_pct(memory_budget_pct);
+    if memory_budget.budget_bytes() > 0 {
+        eprintln!(
+            "memory_budget pct={} budget_gb={:.1}",
+            memory_budget_pct,
+            memory_budget.budget_bytes() as f64 / (1024.0 * 1024.0 * 1024.0),
+        );
+    }
     let completed = AtomicUsize::new(loaded_records);
     let next_heartbeat_index = AtomicUsize::new(0);
     let global_best_piece_count = AtomicU64::new(0);
@@ -269,6 +280,7 @@ pub(super) fn ideal_backward(
                     &beam,
                     candidates_pool_factor,
                     max_candidates_pool,
+                    memory_budget,
                     target_max,
                     early_exit,
                     &stop_signal,
