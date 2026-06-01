@@ -31,8 +31,9 @@ use super::super::smoke_constraints::{
     SearchConstraints,
 };
 use super::super::smoke_persistence::{
-    load_seed_checkpoint, load_split_progress, remove_split_progress, write_seed_checkpoint,
-    write_split_progress, SeedCheckpoint, SeedRunStats, SplitProgress, TerminationReason,
+    load_seed_checkpoint, load_split_progress, remove_seed_checkpoint, remove_split_progress,
+    write_seed_checkpoint, write_split_progress, SeedCheckpoint, SeedRunStats, SplitProgress,
+    TerminationReason,
 };
 use super::beam::{apply_beam, sample_features_to_log, BeamConfig};
 use super::ideal_backward::SplitConfig;
@@ -366,7 +367,7 @@ pub(super) fn search_single_seed(
         return run_split(&ctx, seeds, split, search, init);
     }
 
-    let outcome = run_seed_loop(&mut search, &ctx, init, None, true)?;
+    let outcome = run_seed_loop(&mut search, &ctx, init, None, true, None)?;
 
     mt(
         mem_trace,
@@ -492,7 +493,7 @@ fn run_split(
     let mut termination_reason;
 
     // Prefix: exact BFS up to the split step (or natural termination).
-    let prefix = run_seed_loop(&mut search, ctx, init, Some(split_start_step), true)?;
+    let prefix = run_seed_loop(&mut search, ctx, init, Some(split_start_step), true, None)?;
     let mut acc_pc = prefix.best_piece_count;
     let mut acc_step = prefix.best_step;
     let mut acc_positions = prefix.best_positions;
@@ -579,15 +580,53 @@ fn run_split(
         let end = ((chunk_index + 1) * chunk_size).min(frontier.len());
         let chunk_flat: Vec<u8> = frontier[start..end].iter().flatten().copied().collect();
 
+        // Chunk-specific checkpoint path: <log>_split_chunk_<N>.
+        // Using a separate directory prevents the chunk checkpoint from
+        // overwriting the prefix checkpoint (both use seed_index + condition_key
+        // as the filename). On resume, the chunk checkpoint is loaded from here
+        // so within-chunk progress is not lost on kill.
+        let chunk_ckpt_log = std::path::PathBuf::from(format!(
+            "{}_split_chunk_{}",
+            ctx.seed_result_log_path.display(),
+            chunk_index
+        ));
+        let chunk_cp = load_seed_checkpoint(
+            &chunk_ckpt_log,
+            ctx.seed_index,
+            &ctx.representative_sfen,
+            ctx.max_step,
+            ctx.constraints,
+            ctx.canonicalize_attacker_goldish,
+        );
+
         let mut chunk_search = if ctx.canonicalize_attacker_goldish {
-            BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
-                &header,
-                &chunk_flat,
-                seeds,
-                1,
-            )?
+            let resumed = chunk_cp.as_ref().and_then(|cp| {
+                if !cp.frontier_bytes.is_empty() {
+                    BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
+                        &cp.resume_state, &cp.frontier_bytes, seeds, 1).ok()
+                } else {
+                    BackwardSearch::from_resume_state_canonical_group(&cp.resume_state, seeds, 1).ok()
+                }
+            });
+            match resumed {
+                Some(s) => s,
+                None => BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
+                    &header, &chunk_flat, seeds, 1)?,
+            }
         } else {
-            BackwardSearch::from_resume_state_with_frontier_bytes(&header, &chunk_flat, 1)?
+            let resumed = chunk_cp.as_ref().and_then(|cp| {
+                if !cp.frontier_bytes.is_empty() {
+                    BackwardSearch::from_resume_state_with_frontier_bytes(
+                        &cp.resume_state, &cp.frontier_bytes, 1).ok()
+                } else {
+                    BackwardSearch::from_resume_state(&cp.resume_state, 1).ok()
+                }
+            });
+            match resumed {
+                Some(s) => s,
+                None => BackwardSearch::from_resume_state_with_frontier_bytes(
+                    &header, &chunk_flat, 1)?,
+            }
         };
         if let Some(limit) = ctx.max_memo_entries {
             chunk_search.set_memo_entry_limit(Some(limit));
@@ -597,18 +636,50 @@ fn run_split(
         chunk_search.set_delta_trace(ctx.mem_trace);
         chunk_search.set_canonicalize_attacker_goldish(ctx.canonicalize_attacker_goldish);
 
-        let chunk_init = LoopInit {
-            best_piece_count: 0,
-            best_step: 0,
-            best_positions: vec![],
-            adaptive_pool_factor: ctx.candidates_pool_factor,
-            ema_inv_survival: None,
+        let chunk_init = if let Some(ref cp) = chunk_cp {
+            LoopInit {
+                best_piece_count: cp.best_piece_count,
+                best_step: cp.best_step,
+                best_positions: if !cp.best_position_bytes.is_empty() {
+                    cp.best_position_bytes
+                        .chunks_exact(105)
+                        .map(|c| PositionAux::from_bytes(c.try_into().unwrap()))
+                        .collect()
+                } else {
+                    cp.best_sfens
+                        .iter()
+                        .filter_map(|s| PositionAux::from_sfen(s).ok())
+                        .collect()
+                },
+                adaptive_pool_factor: ctx.candidates_pool_factor,
+                ema_inv_survival: None,
+            }
+        } else {
+            LoopInit {
+                best_piece_count: 0,
+                best_step: 0,
+                best_positions: vec![],
+                adaptive_pool_factor: ctx.candidates_pool_factor,
+                ema_inv_survival: None,
+            }
         };
-        // Per-chunk checkpointing is disabled (allow_step_checkpoint=false); a
-        // crash re-runs at most one chunk (bounded by chunk_size). Chunk
-        // boundaries / progress are persisted via SplitProgress below.
-        let out = run_seed_loop(&mut chunk_search, ctx, chunk_init, None, false)?;
+        // Per-step checkpointing is enabled for chunks, writing to the
+        // chunk-specific path so the prefix checkpoint is not disturbed.
+        // On kill inside a chunk, the next resume reloads from here rather
+        // than restarting from split_start_step.
+        let out = run_seed_loop(
+            &mut chunk_search, ctx, chunk_init, None, true,
+            Some(&chunk_ckpt_log),
+        )?;
         drop(chunk_search);
+        // Chunk is done: remove its checkpoint (no longer needed).
+        remove_seed_checkpoint(
+            &chunk_ckpt_log,
+            ctx.seed_index,
+            ctx.max_step,
+            ctx.constraints,
+            ctx.canonicalize_attacker_goldish,
+        );
 
         merge_best(
             &mut acc_pc,
@@ -683,6 +754,10 @@ fn run_seed_loop(
     init: LoopInit,
     stop_at_step: Option<u16>,
     allow_step_checkpoint: bool,
+    // When Some, checkpoint writes use this path's `.checkpoints/` directory
+    // instead of `ctx.seed_result_log_path`. Used by split-chunk runs so they
+    // don't overwrite the prefix checkpoint.
+    ckpt_path_override: Option<&Path>,
 ) -> anyhow::Result<LoopOutcome> {
     let &SeedLoopCtx {
         seed_index,
@@ -1114,8 +1189,9 @@ fn run_seed_loop(
                 Some(t) => t.elapsed() >= checkpoint_interval,
             };
             if should_checkpoint {
+                let eff_ckpt_path = ckpt_path_override.unwrap_or(seed_result_log_path);
                 let _ = write_seed_checkpoint(
-                    seed_result_log_path,
+                    eff_ckpt_path,
                     &SeedCheckpoint {
                         seed_index,
                         seed_sfen: representative_sfen.clone(),
