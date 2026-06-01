@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780314369350,
+  "lastUpdate": 1780317528425,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45660,6 +45660,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434445808,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f3eeb55cff070f5cb6d3ede2a3294439b989714c",
+          "message": "perf(smoke): mid-ply uniqueness prune をデフォルト on に (warm-memo で +35〜48%)\n\ncold-memo の初回実装を solutions_overlay (warm base = shared self.prev_memo /\nself.memo, read-only で並列安全) に切り替えたことで全ステップで高速化が\n確認されたため、デフォルト on に変更。\n\nベンチ結果 (single seed, --parallel 8, release, 2 rep 平均):\n  max-step  9: +44%   max-step 11: +41%   max-step 13: +48%\n  max-step 15: +39%   max-step 17: +35%\n\nopt-out フラグ --no-mid-uniqueness-prune を追加 (旧 --mid-uniqueness-prune 廃止)。\nset_mid_uniqueness_prune(false) で off 相当。フロンティア保存性は全ステップで\n実測確認済。統合テストを on/off 逆転対応に更新。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T12:21:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f3eeb55cff070f5cb6d3ede2a3294439b989714c"
+        },
+        "date": 1780317525172,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434417364,
             "unit": "Instructions"
           }
         ]
