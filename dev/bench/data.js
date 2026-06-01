@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780293075484,
+  "lastUpdate": 1780293077323,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42591,6 +42591,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 45807,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "81a1e93e213102a4aff1717361dffd1b1d9837a1",
+          "message": "feat(smoke): global_best ログの URL を best 集合のランダム要素に\n\n常に best_positions[0] / .first() を出力していたのを\nchoose(&mut thread_rng()) でランダムな代表局面に変更し、改善ごとに\n異なる例局面がログに現れるようにする。best 追跡・global_best パッキング・\nソート済み stdout 出力 (finalize_output) は不変で、探索結果に影響なし。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T05:34:01Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/81a1e93e213102a4aff1717361dffd1b1d9837a1"
+        },
+        "date": 1780293076850,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 393,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3158,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 398,
+            "range": "± 616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29823,
+            "range": "± 1460",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1780,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4813,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1428875,
+            "range": "± 2397",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12117,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 189,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 21001412,
+            "range": "± 515564",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 31261,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3963,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 20025,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 46939,
+            "range": "± 19",
             "unit": "ns/iter"
           }
         ]
