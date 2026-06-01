@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780278025203,
+  "lastUpdate": 1780278027943,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42307,6 +42307,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 41666,
             "range": "± 5",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "e9da3672db105b28171980ca8c9344e8eb64e3ae",
+          "message": "feat(smoke): ideal-backward に exact な split モードを追加\n\n--split-start-step / --split-chunk-size / --split-seed で frontier を\nsplit step で chunk 分割し 1 個ずつ順次処理して peak メモリを抑える\n(beam/oracle とは排他)。cold memo の chunk でも uniqueness 判定は\nsolutions() で self-contained なため exact (checkpoint resume と同種)。\nchunk 粒度の SplitProgress marker で resume 可能。\n\n- search.rs: tuned loop を run_seed_loop に抽出 (非 split は挙動完全同一)、\n  run_split を追加。canon 検証は finalize_seed_best へ移動\n- smoke_persistence.rs: SplitProgress marker (read/write/remove)\n- 統合テスト: split==non-split 同値性テストを追加、URL 出力に合わせ\n  既存 assertion を修正\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T01:20:49Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/e9da3672db105b28171980ca8c9344e8eb64e3ae"
+        },
+        "date": 1780278027146,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 388,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2847,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 181,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 395,
+            "range": "± 566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 27415,
+            "range": "± 260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1675,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4616,
+            "range": "± 118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1318269,
+            "range": "± 1834",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11643,
+            "range": "± 149",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 181,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 145,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19531016,
+            "range": "± 92806",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27152,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3260,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17099,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 43880,
+            "range": "± 38",
             "unit": "ns/iter"
           }
         ]
