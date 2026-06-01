@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780135111539,
+  "lastUpdate": 1780278025203,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44854,6 +44854,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/f501a47615db449732b202456b6ed0ded631295d"
         },
         "date": 1780135104857,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434360500,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "e9da3672db105b28171980ca8c9344e8eb64e3ae",
+          "message": "feat(smoke): ideal-backward に exact な split モードを追加\n\n--split-start-step / --split-chunk-size / --split-seed で frontier を\nsplit step で chunk 分割し 1 個ずつ順次処理して peak メモリを抑える\n(beam/oracle とは排他)。cold memo の chunk でも uniqueness 判定は\nsolutions() で self-contained なため exact (checkpoint resume と同種)。\nchunk 粒度の SplitProgress marker で resume 可能。\n\n- search.rs: tuned loop を run_seed_loop に抽出 (非 split は挙動完全同一)、\n  run_split を追加。canon 検証は finalize_seed_best へ移動\n- smoke_persistence.rs: SplitProgress marker (read/write/remove)\n- 統合テスト: split==non-split 同値性テストを追加、URL 出力に合わせ\n  既存 assertion を修正\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T01:20:49Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/e9da3672db105b28171980ca8c9344e8eb64e3ae"
+        },
+        "date": 1780278021369,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
