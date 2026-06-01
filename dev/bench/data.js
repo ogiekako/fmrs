@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780289704169,
+  "lastUpdate": 1780289706612,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42449,6 +42449,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 43880,
             "range": "± 38",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5cb70f48886e73d72b96e83ff7cfeef75abd8310",
+          "message": "feat(smoke): 駒 family の段階許可を generation 境界に適用 + lance/knight 追加\n\nrook/bishop の段階許可 (--rook-bishop-allow-start/step) は従来 output filter\nのみで frontier/memo 膨張を抑えられていなかった。汎用 family 許容 helper に\nリファクタし generation 境界にも適用 (= 各 backward step で family 駒は\npieces_in_play >= start のときのみ盤上可)。lance/knight 系\n(Lance/ProLance/Knight/ProKnight) にも同形の --lance-knight-allow-start/step\nを追加。promoted/unpromoted は同一 family。\n\n- generic satisfies_family_allowance + family_board_count に統合、\n  satisfies_piece_allowances で generation・output 双方に適用\n- undo 候補に cheap & sound な early rejection (family_undo_allowed):\n  許容 0 の段階で捕獲 family 駒を盤に戻す undo のみ弾く (generation が必ず\n  弾く predecessor のみ; UnDrop/非捕獲/family 内昇格は枚数を増やさない)\n- 後方互換: lance/knight 未使用時は step を 0 に正規化し直列化スキップ、\n  condition_key を従来と同一に保つ (既存 checkpoint 互換)\n\n検証: start=0/step=1 (常時許可) は baseline と完全一致 (exact)、\nstart=999 は board family 駒のみを厳密に除去 (584→372)、peak frontier\n6356→5460 に減少 (generation pruning が効く)。単体テストで未設定保持・\ngeneration 拒否・promoted カウントを網羅。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T04:37:08Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5cb70f48886e73d72b96e83ff7cfeef75abd8310"
+        },
+        "date": 1780289705888,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 387,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2676,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 181,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 394,
+            "range": "± 582",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25972,
+            "range": "± 160",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1631,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4665,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1291641,
+            "range": "± 199",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11276,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 180,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 146,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19042496,
+            "range": "± 53010",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26666,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3247,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16531,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 45807,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
