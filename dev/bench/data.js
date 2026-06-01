@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780327924087,
+  "lastUpdate": 1780329775432,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46018,6 +46018,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/cae7ac4c51038d1b2aa373fe2cc75fc5040907d4"
         },
         "date": 1780327919136,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434417364,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "33b0a96931cbdf0864d79b1f7f8d7635c7c6cbb4",
+          "message": "fix(smoke): split chunk 内の within-chunk checkpoint を有効化\n\nsplit モードで chunk 内が kill された場合、split_start_step から再実行に\nなっていた。各 chunk の run_seed_loop に allow_step_checkpoint=true を渡し、\nchunk 専用パス (<log>_split_chunk_<N>.checkpoints/) へ書くことで prefix の\n.ckpt を上書きせずに chunk 内の進捗を保存する。\n\nresume 時は chunk 専用パスから load_seed_checkpoint → chunk 途中の状態から\n継続。chunk 完了後はチェックポイントを削除。SplitProgress は変更なし。\n\n検証: kill → resume で resume_from_chunk=21 (chunk 0 の within-chunk から\n再開)、結果は non-split baseline と完全一致。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T15:45:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/33b0a96931cbdf0864d79b1f7f8d7635c7c6cbb4"
+        },
+        "date": 1780329772483,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
