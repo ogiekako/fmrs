@@ -826,7 +826,14 @@ fn run_seed_loop(
                 }
                 let positions_increased = best_positions.len() > prev_positions_len;
                 if (improved || positions_increased) && best_piece_count >= 8 {
-                    let url = best_positions[0].sfen_url();
+                    // Log a random representative of the best set (rather than
+                    // always index 0) so successive log lines surface different
+                    // example positions. `improved`/`positions_increased` both
+                    // imply best_positions is non-empty here.
+                    let url = best_positions
+                        .choose(&mut rand::thread_rng())
+                        .unwrap()
+                        .sfen_url();
                     let stats = search.stats();
                     log_global_best_if_improved(
                         global_best_piece_count,

@@ -15,6 +15,7 @@ use fmrs_core::{
     position::{position::PositionAux, UndoMove},
     search::backward::BackwardSearch,
 };
+use rand::seq::SliceRandom;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::fs::File;
@@ -245,7 +246,9 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
             }
             let positions_grew = task.best_positions.len() > prev_len;
             if (improved || positions_grew) && task.best_piece_count >= 8 {
-                if let Some(p) = task.best_positions.first() {
+                // Log a random representative of the best set instead of always
+                // the first, so successive log lines surface different examples.
+                if let Some(p) = task.best_positions.choose(&mut rand::thread_rng()) {
                     let url = p.sfen_url();
                     log_global_best_if_improved(
                         ctx.global_best_piece_count,
