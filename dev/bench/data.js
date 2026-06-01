@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780293077323,
+  "lastUpdate": 1780314367627,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45466,6 +45466,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434360500,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "29c3657dc2135235200644ad6014943e629763c4",
+          "message": "feat(smoke): --mid-uniqueness-prune (実験的フラグ、デフォルト off)\n\nadvance_2ply_fused の Phase 1 で偶数 (mid) ply の uniqueness を条件付き\n検証する実験的フラグ。mid が filtered out-candidate を1つ以上持つとき\nかつ非 unique のとき、その mid を早期に捨てる。非 unique な mid から\nunique な out ply は生じないため frontier-preserving (exactness 実測確認済)。\n\nchunk-local memo で parallel-safe に実装。デフォルト off でフラグ off の\nパスはバイト一致で既存動作と完全同一。\n\nベンチ結果 (single seed, --parallel 8, release):\n  max-step 9/11: on が遅い (cold memo overhead > 節約)\n  max-step 13: +7%、max-step 15: +15% (on 勝ち、安定)\n  max-step 17: -17% (再逆転)\n損益分岐は step 11〜13。warm memo (overlay delta) 方式での改良余地あり。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T11:30:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/29c3657dc2135235200644ad6014943e629763c4"
+        },
+        "date": 1780314365160,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124067,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434445808,
             "unit": "Instructions"
           }
         ]
