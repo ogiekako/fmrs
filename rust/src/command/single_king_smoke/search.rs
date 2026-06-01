@@ -2,6 +2,7 @@ use fmrs_core::{
     position::{position::PositionAux, UndoMove},
     search::backward::{BackwardSearch, BackwardSearchStats},
 };
+use rand::{rngs::SmallRng, seq::SliceRandom, SeedableRng};
 use std::fmt;
 use std::fs;
 use std::io::Write;
@@ -30,9 +31,11 @@ use super::super::smoke_constraints::{
     SearchConstraints,
 };
 use super::super::smoke_persistence::{
-    load_seed_checkpoint, write_seed_checkpoint, SeedCheckpoint, SeedRunStats, TerminationReason,
+    load_seed_checkpoint, load_split_progress, remove_split_progress, write_seed_checkpoint,
+    write_split_progress, SeedCheckpoint, SeedRunStats, SplitProgress, TerminationReason,
 };
 use super::beam::{apply_beam, sample_features_to_log, BeamConfig};
+use super::ideal_backward::SplitConfig;
 use super::system::{MemoryBudget, ProcStatus, SearchStatsDisplay};
 
 pub(super) struct SingleSeedResult {
@@ -41,6 +44,110 @@ pub(super) struct SingleSeedResult {
     /// `true` if beam pruning reduced the frontier at least once during this run.
     /// When `false`, the result is exact even if `--beam-width` was specified.
     pub(super) beam_filtered: bool,
+}
+
+/// Zero result for the "could not initialize this seed" paths (empty seed list,
+/// build failure). `best: None`, all stats zero.
+fn zero_seed_result() -> SingleSeedResult {
+    SingleSeedResult {
+        best: None,
+        stats: SeedRunStats {
+            peak_frontier_size: 0,
+            peak_memo_len: 0,
+            total_seen_positions: 0,
+            terminal_step: 0,
+            termination_reason: TerminationReason::Unknown,
+        },
+        beam_filtered: false,
+    }
+}
+
+/// Immutable per-seed configuration shared by the BFS loop (`run_seed_loop`) and
+/// the split driver (`run_split`). Bundled so the loop can be reused across the
+/// non-split run, the split prefix, and each split chunk without threading ~25
+/// arguments through every call.
+pub(super) struct SeedLoopCtx<'a> {
+    seed_index: usize,
+    representative_sfen: String,
+    max_step: Option<u16>,
+    max_memo_entries: Option<usize>,
+    constraints: SearchConstraints,
+    parallel: usize,
+    total_pending: usize,
+    completed_in_run: &'a AtomicUsize,
+    mem_trace: bool,
+    global_best_piece_count: &'a AtomicU64,
+    seed_result_log_path: &'a Path,
+    feature_log: Option<&'a Mutex<fs::File>>,
+    feature_samples_per_step: usize,
+    beam: &'a BeamConfig,
+    candidates_pool_factor: usize,
+    max_candidates_pool: Option<usize>,
+    memory_budget: MemoryBudget,
+    target_max: u32,
+    early_exit: bool,
+    stop_signal: &'a AtomicBool,
+    trajectory_log: &'a Mutex<fs::File>,
+    cond_hash: &'a str,
+    canonicalize_attacker_goldish: bool,
+    checkpoint_interval_secs: u64,
+}
+
+/// Loop-state seed values handed to `run_seed_loop`. For a fresh/non-split run
+/// (or split prefix) these come from the checkpoint restore; for a split chunk
+/// they are empty/default.
+struct LoopInit {
+    best_piece_count: u32,
+    best_step: u16,
+    best_positions: Vec<PositionAux>,
+    adaptive_pool_factor: usize,
+    ema_inv_survival: Option<f64>,
+}
+
+/// Result of one `run_seed_loop` invocation: the best found plus terminal stats.
+struct LoopOutcome {
+    best_piece_count: u32,
+    best_step: u16,
+    best_positions: Vec<PositionAux>,
+    peak_frontier_size: usize,
+    peak_memo_len: usize,
+    total_seen_positions: u64,
+    terminal_step: u16,
+    termination_reason: TerminationReason,
+    did_beam_filter: bool,
+    /// `true` when the loop stopped because it reached `stop_at_step` (split
+    /// prefix hand-off) rather than terminating naturally.
+    split_reached: bool,
+}
+
+/// Hard upper bound on the Bottom-K candidate pool factor. See the call sites in
+/// `run_seed_loop` for the priority order between the static
+/// `--max-candidates-pool` ceiling, the `--memory-budget-pct` dynamic ceiling,
+/// and the legacy 8×W fallback.
+fn compute_max_pool_factor(
+    width: usize,
+    candidates_pool_factor: usize,
+    max_candidates_pool: Option<usize>,
+    memory_budget: MemoryBudget,
+) -> usize {
+    if width == 0 {
+        return candidates_pool_factor;
+    }
+    let static_ceiling = max_candidates_pool
+        .map(|cap| (cap / width).max(candidates_pool_factor))
+        .unwrap_or(usize::MAX);
+    let budget_ceiling = memory_budget.pool_factor_ceiling(width);
+    let combined = if budget_ceiling > 0 && static_ceiling != usize::MAX {
+        budget_ceiling.min(static_ceiling)
+    } else if budget_ceiling > 0 {
+        budget_ceiling
+    } else if static_ceiling != usize::MAX {
+        static_ceiling
+    } else {
+        // No budget probe and no --max-candidates-pool → legacy 8×W.
+        candidates_pool_factor.max(8)
+    };
+    combined.max(candidates_pool_factor)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -69,21 +176,39 @@ pub(super) fn search_single_seed(
     cond_hash: &str,
     canonicalize_attacker_goldish: bool,
     checkpoint_interval_secs: u64,
+    split: SplitConfig,
 ) -> anyhow::Result<SingleSeedResult> {
     if seeds.is_empty() {
-        return Ok(SingleSeedResult {
-            best: None,
-            stats: SeedRunStats {
-                peak_frontier_size: 0,
-                peak_memo_len: 0,
-                total_seen_positions: 0,
-                terminal_step: 0,
-                termination_reason: TerminationReason::Unknown,
-            },
-            beam_filtered: false,
-        });
+        return Ok(zero_seed_result());
     }
     let representative = &seeds[0];
+    let ctx = SeedLoopCtx {
+        seed_index,
+        representative_sfen: representative.sfen(),
+        max_step,
+        max_memo_entries,
+        constraints,
+        parallel,
+        total_pending,
+        completed_in_run,
+        mem_trace,
+        global_best_piece_count,
+        seed_result_log_path,
+        feature_log,
+        feature_samples_per_step,
+        beam,
+        candidates_pool_factor,
+        max_candidates_pool,
+        memory_budget,
+        target_max,
+        early_exit,
+        stop_signal,
+        trajectory_log,
+        cond_hash,
+        canonicalize_attacker_goldish,
+        checkpoint_interval_secs,
+    };
+
     // canonicalize ON/OFF は path suffix + record フィールドで隔離されており、
     // 同 flag 同士の resume が可能。
     // 書き込みは beam.width.is_none() でガードしているので、.ckpt にあるのは必ず
@@ -120,17 +245,7 @@ pub(super) fn search_single_seed(
         match result {
             Ok(s) => s,
             Err(_) => {
-                return Ok(SingleSeedResult {
-                    best: None,
-                    stats: SeedRunStats {
-                        peak_frontier_size: 0,
-                        peak_memo_len: 0,
-                        total_seen_positions: 0,
-                        terminal_step: 0,
-                        termination_reason: TerminationReason::Unknown,
-                    },
-                    beam_filtered: false,
-                });
+                return Ok(zero_seed_result());
             }
         }
     } else {
@@ -151,17 +266,7 @@ pub(super) fn search_single_seed(
         {
             Some(s) => s,
             None => {
-                return Ok(SingleSeedResult {
-                    best: None,
-                    stats: SeedRunStats {
-                        peak_frontier_size: 0,
-                        peak_memo_len: 0,
-                        total_seen_positions: 0,
-                        terminal_step: 0,
-                        termination_reason: TerminationReason::Unknown,
-                    },
-                    beam_filtered: false,
-                })
+                return Ok(zero_seed_result());
             }
         }
     };
@@ -178,62 +283,20 @@ pub(super) fn search_single_seed(
         search.set_candidates_limit(Some(width));
         search.set_candidates_pool_factor(candidates_pool_factor);
     }
-    // Hard cap on Phase-1 candidate pool factor.
-    //
-    // Priority order:
-    //  1. `--max-candidates-pool` (legacy): static cap = max_pool / width.
-    //     Honoured as a hard ceiling if set.
-    //  2. `--memory-budget-pct` via MemoryBudget: dynamic ceiling derived
-    //     from (budget − live RSS) / (W × POOL_BYTES_PER_ENTRY). Recomputed
-    //     each step so the cap follows actual memory pressure.
-    //  3. Fallback (neither set, budget probe failed): static 8× of W,
-    //     matching pre-budget default behaviour.
-    //
-    // The ceiling is always ≥ `candidates_pool_factor` (the user-specified
-    // starting factor), so the adaptive logic always has at least one
-    // permissible value.
-    let compute_max_pool_factor = |width: usize| -> usize {
-        if width == 0 {
-            return candidates_pool_factor;
-        }
-        let static_ceiling = max_candidates_pool
-            .map(|cap| (cap / width).max(candidates_pool_factor))
-            .unwrap_or(usize::MAX);
-        let budget_ceiling = memory_budget.pool_factor_ceiling(width);
-        let combined = if budget_ceiling > 0 && static_ceiling != usize::MAX {
-            budget_ceiling.min(static_ceiling)
-        } else if budget_ceiling > 0 {
-            budget_ceiling
-        } else if static_ceiling != usize::MAX {
-            static_ceiling
-        } else {
-            // No budget probe and no --max-candidates-pool → legacy 8×W.
-            candidates_pool_factor.max(8)
-        };
-        combined.max(candidates_pool_factor)
-    };
     // Initial computation used by checkpoint restoration's clamp. Recomputed
     // each step inside the adaptive loop so it follows live RSS.
-    let mut max_pool_factor = compute_max_pool_factor(beam.width.unwrap_or(0));
+    let max_pool_factor = compute_max_pool_factor(
+        beam.width.unwrap_or(0),
+        candidates_pool_factor,
+        max_candidates_pool,
+        memory_budget,
+    );
     // Currently-applied pool factor. Starts at the user value; tracked via an
     // EMA of 1/survival so step-to-step noise is smoothed out, then mapped
     // back to a target factor each step.
     let mut adaptive_pool_factor = candidates_pool_factor;
     let default_pool_factor = candidates_pool_factor;
-    // EMA of 1/survival_rate (= "candidates needed per surviving frontier
-    // item"). Updated every step where we get a usable observation (mid large
-    // enough that the ratio is meaningful), regardless of whether sampling
-    // fired. `None` until the first observation seeds it.
     let mut ema_inv_survival: Option<f64> = None;
-    /// Minimum mid size for an observation to count toward the EMA. Below
-    /// this, the ratio next/mid is too noisy (e.g. mid=3, next=1 → s=0.33
-    /// would jerk the factor around).
-    const MIN_MID_FOR_OBSERVATION: usize = 100;
-    /// EMA decay: weight on the previous value. Higher = smoother but slower
-    /// to react to genuine survival changes.
-    const EMA_ALPHA: f64 = 0.7;
-    /// Safety margin on the target factor (pool ≈ safety × W / s).
-    const POOL_SAFETY: f64 = 2.0;
     // Restore adaptation state from checkpoint if present. This avoids a
     // cold-start (pool_factor = default) right after resume — which would
     // shrink |next| for several steps until the EMA caught up, and in the
@@ -251,11 +314,6 @@ pub(super) fn search_single_seed(
             }
         }
     }
-    // Track the most recently applied dynamic memo limit so we only re-apply
-    // when the per-seed budget grows (dropping `remaining` releases budget to
-    // surviving seeds). `max_memo_entries` is the per-seed budget at peak
-    // parallelism (`remaining = parallel`); total budget = base * parallel.
-    let mut applied_memo_limit = max_memo_entries;
     search.set_delta_trace(mem_trace);
     search.set_canonicalize_attacker_goldish(canonicalize_attacker_goldish);
     mt(
@@ -284,6 +342,386 @@ pub(super) fn search_single_seed(
                 .collect()
         };
     }
+
+    let init = LoopInit {
+        best_piece_count,
+        best_step,
+        best_positions,
+        adaptive_pool_factor,
+        ema_inv_survival,
+    };
+
+    // Split mode: run the prefix to the split step, then process the frontier in
+    // bounded chunks one at a time. Beam/oracle are rejected upstream so the
+    // adaptive-pool / candidate-limit machinery is inert here.
+    if split.enabled() {
+        return run_split(&ctx, seeds, split, search, init);
+    }
+
+    let outcome = run_seed_loop(&mut search, &ctx, init, None, true)?;
+
+    mt(
+        mem_trace,
+        seed_index,
+        &search,
+        format_args!(
+            "before_drop best_pieces={} positions={}",
+            outcome.best_piece_count,
+            outcome.best_positions.len()
+        ),
+    );
+    drop(search);
+    if mem_trace {
+        eprintln!(
+            "mem_trace seed={} after_drop best_pieces={} positions={} {}",
+            seed_index,
+            outcome.best_piece_count,
+            outcome.best_positions.len(),
+            ProcStatus::current()
+        );
+    }
+
+    let best = finalize_seed_best(
+        outcome.best_piece_count,
+        outcome.best_step,
+        outcome.best_positions,
+        canonicalize_attacker_goldish,
+    );
+    Ok(SingleSeedResult {
+        best,
+        stats: SeedRunStats {
+            peak_frontier_size: outcome.peak_frontier_size,
+            peak_memo_len: outcome.peak_memo_len,
+            total_seen_positions: outcome.total_seen_positions,
+            terminal_step: outcome.terminal_step,
+            termination_reason: outcome.termination_reason,
+        },
+        beam_filtered: outcome.did_beam_filter,
+    })
+}
+
+/// Post-process the raw best positions into the returned `(pc, step, positions)`.
+/// With canonicalize ON, false positives (unique under canonicalization but
+/// non-unique / non-mate in the original position) are filtered out by re-running
+/// `standard_solve` and keeping only genuinely unique-solution positions.
+fn finalize_seed_best(
+    best_piece_count: u32,
+    best_step: u16,
+    best_positions: Vec<PositionAux>,
+    canonicalize_attacker_goldish: bool,
+) -> Option<(u32, u16, Vec<PositionAux>)> {
+    if best_positions.is_empty() {
+        None
+    } else if canonicalize_attacker_goldish {
+        let verified: Vec<PositionAux> = best_positions
+            .into_iter()
+            .filter(|p| {
+                fmrs_core::solve::standard_solve::standard_solve(p.clone(), 2, true)
+                    .map(|r| r.solutions().len() == 1)
+                    .unwrap_or(false)
+            })
+            .collect();
+        if verified.is_empty() {
+            None
+        } else {
+            Some((best_piece_count, best_step, verified))
+        }
+    } else {
+        // 全 best positions を返す。output 集計側で SFEN HashSet で uniq 化されるので
+        // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
+        Some((best_piece_count, best_step, best_positions))
+    }
+}
+
+/// Merge a `(pc, step, positions)` candidate into the running accumulator using
+/// the (#pieces, steps) lexicographic-max rule with union-on-tie, deduped by
+/// digest. Used to fold split chunk results into one best.
+fn merge_best(
+    acc_pc: &mut u32,
+    acc_step: &mut u16,
+    acc_positions: &mut Vec<PositionAux>,
+    pc: u32,
+    step: u16,
+    positions: Vec<PositionAux>,
+) {
+    use std::cmp::Ordering;
+    if positions.is_empty() {
+        return;
+    }
+    match (pc, step).cmp(&(*acc_pc, *acc_step)) {
+        Ordering::Greater => {
+            *acc_pc = pc;
+            *acc_step = step;
+            *acc_positions = positions;
+        }
+        Ordering::Equal => {
+            acc_positions.extend(positions);
+        }
+        Ordering::Less => return,
+    }
+    let mut seen = fmrs_core::nohash::NoHashSet64::default();
+    acc_positions.retain(|p| seen.insert(p.digest()));
+}
+
+/// Split-mode driver. `search`/`init` are the already-built prefix search/state.
+/// Runs the prefix to the split step, snapshots and deterministically chunks the
+/// frontier, then runs each chunk's BFS to completion sequentially, merging best
+/// results and persisting chunk-granularity progress for resume.
+fn run_split(
+    ctx: &SeedLoopCtx,
+    seeds: &[PositionAux],
+    split: SplitConfig,
+    mut search: BackwardSearch,
+    init: LoopInit,
+) -> anyhow::Result<SingleSeedResult> {
+    let split_start_step = split.start_step.expect("split.enabled() checked");
+    let chunk_size = split.chunk_size.expect("validated in ideal_backward");
+
+    let mut peak_frontier = 0usize;
+    let mut peak_memo = 0usize;
+    let mut total_seen = 0u64;
+    let mut terminal_step = 0u16;
+    let mut termination_reason;
+
+    // Prefix: exact BFS up to the split step (or natural termination).
+    let prefix = run_seed_loop(&mut search, ctx, init, Some(split_start_step), true)?;
+    let mut acc_pc = prefix.best_piece_count;
+    let mut acc_step = prefix.best_step;
+    let mut acc_positions = prefix.best_positions;
+    peak_frontier = peak_frontier.max(prefix.peak_frontier_size);
+    peak_memo = peak_memo.max(prefix.peak_memo_len);
+    total_seen += prefix.total_seen_positions;
+    terminal_step = terminal_step.max(prefix.terminal_step);
+    termination_reason = prefix.termination_reason;
+
+    if !prefix.split_reached {
+        // Search ended (Completed / MaxStep / EarlyExit) before reaching the
+        // split step — no chunks to process, prefix best is the answer.
+        drop(search);
+        let best =
+            finalize_seed_best(acc_pc, acc_step, acc_positions, ctx.canonicalize_attacker_goldish);
+        return Ok(SingleSeedResult {
+            best,
+            stats: SeedRunStats {
+                peak_frontier_size: peak_frontier,
+                peak_memo_len: peak_memo,
+                total_seen_positions: total_seen,
+                terminal_step,
+                termination_reason,
+            },
+            beam_filtered: false,
+        });
+    }
+
+    // Snapshot the frontier F at the split step, then release the prefix search.
+    let header = search.resume_state_header();
+    let frontier_bytes = search.frontier_to_binary();
+    drop(search);
+
+    // Canonicalize F's order (the frontier vector order is not stable across
+    // parallel runs/resume) so shuffle(seed) yields identical chunk boundaries
+    // every time, then shuffle deterministically and chunk.
+    let mut frontier: Vec<[u8; 88]> = frontier_bytes
+        .chunks_exact(88)
+        .map(|c| c.try_into().unwrap())
+        .collect();
+    drop(frontier_bytes);
+    frontier.sort_unstable();
+    let mut rng = SmallRng::seed_from_u64(split.seed);
+    frontier.shuffle(&mut rng);
+    let num_chunks = frontier.len().div_ceil(chunk_size);
+
+    // Resume: skip already-completed chunks and restore the accumulated best.
+    let mut next_chunk = 0usize;
+    if let Some(p) = load_split_progress(
+        ctx.seed_result_log_path,
+        ctx.seed_index,
+        &ctx.representative_sfen,
+        ctx.max_step,
+        ctx.constraints,
+        ctx.canonicalize_attacker_goldish,
+    ) {
+        if p.split_start_step == split_start_step
+            && p.split_chunk_size == chunk_size
+            && p.split_seed == split.seed
+            && p.num_chunks == num_chunks
+        {
+            next_chunk = p.next_chunk.min(num_chunks);
+            acc_pc = p.best_piece_count;
+            acc_step = p.best_step;
+            acc_positions = p
+                .best_position_bytes
+                .chunks_exact(105)
+                .map(|c| PositionAux::from_bytes(c.try_into().unwrap()))
+                .collect();
+        }
+    }
+
+    eprintln!(
+        "split seed={} start_step={} frontier={} chunk_size={} chunks={} resume_from_chunk={}",
+        ctx.seed_index, split_start_step, frontier.len(), chunk_size, num_chunks, next_chunk
+    );
+
+    for chunk_index in next_chunk..num_chunks {
+        if ctx.stop_signal.load(Ordering::Relaxed) {
+            termination_reason = TerminationReason::EarlyExit;
+            break;
+        }
+        let start = chunk_index * chunk_size;
+        let end = ((chunk_index + 1) * chunk_size).min(frontier.len());
+        let chunk_flat: Vec<u8> = frontier[start..end].iter().flatten().copied().collect();
+
+        let mut chunk_search = if ctx.canonicalize_attacker_goldish {
+            BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
+                &header,
+                &chunk_flat,
+                seeds,
+                1,
+            )?
+        } else {
+            BackwardSearch::from_resume_state_with_frontier_bytes(&header, &chunk_flat, 1)?
+        };
+        if let Some(limit) = ctx.max_memo_entries {
+            chunk_search.set_memo_entry_limit(Some(limit));
+        }
+        chunk_search.set_delta_trace(ctx.mem_trace);
+        chunk_search.set_canonicalize_attacker_goldish(ctx.canonicalize_attacker_goldish);
+
+        let chunk_init = LoopInit {
+            best_piece_count: 0,
+            best_step: 0,
+            best_positions: vec![],
+            adaptive_pool_factor: ctx.candidates_pool_factor,
+            ema_inv_survival: None,
+        };
+        // Per-chunk checkpointing is disabled (allow_step_checkpoint=false); a
+        // crash re-runs at most one chunk (bounded by chunk_size). Chunk
+        // boundaries / progress are persisted via SplitProgress below.
+        let out = run_seed_loop(&mut chunk_search, ctx, chunk_init, None, false)?;
+        drop(chunk_search);
+
+        merge_best(
+            &mut acc_pc,
+            &mut acc_step,
+            &mut acc_positions,
+            out.best_piece_count,
+            out.best_step,
+            out.best_positions,
+        );
+        peak_frontier = peak_frontier.max(out.peak_frontier_size);
+        peak_memo = peak_memo.max(out.peak_memo_len);
+        total_seen += out.total_seen_positions;
+        terminal_step = terminal_step.max(out.terminal_step);
+        termination_reason = out.termination_reason;
+
+        let _ = write_split_progress(
+            ctx.seed_result_log_path,
+            &SplitProgress {
+                seed_index: ctx.seed_index,
+                seed_sfen: ctx.representative_sfen.clone(),
+                max_step: ctx.max_step,
+                constraints: ctx.constraints,
+                canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
+                split_start_step,
+                split_chunk_size: chunk_size,
+                split_seed: split.seed,
+                num_chunks,
+                next_chunk: chunk_index + 1,
+                best_piece_count: acc_pc,
+                best_step: acc_step,
+                best_position_bytes: acc_positions.iter().flat_map(|p| p.to_bytes()).collect(),
+            },
+        );
+    }
+
+    // Full completion: drop the marker. (The caller separately removes any prefix
+    // checkpoint and appends the seed-result record.)
+    if !ctx.stop_signal.load(Ordering::Relaxed) {
+        remove_split_progress(
+            ctx.seed_result_log_path,
+            ctx.seed_index,
+            ctx.max_step,
+            ctx.constraints,
+            ctx.canonicalize_attacker_goldish,
+        );
+    }
+
+    let best =
+        finalize_seed_best(acc_pc, acc_step, acc_positions, ctx.canonicalize_attacker_goldish);
+    Ok(SingleSeedResult {
+        best,
+        stats: SeedRunStats {
+            peak_frontier_size: peak_frontier,
+            peak_memo_len: peak_memo,
+            total_seen_positions: total_seen,
+            terminal_step,
+            termination_reason,
+        },
+        beam_filtered: false,
+    })
+}
+
+/// The smoke backward-search BFS loop over an already-built `search`. Runs from
+/// the search's current step until natural termination (Completed / MaxStep /
+/// EarlyExit) or, when `stop_at_step` is set, until the frontier reaches that
+/// step (split prefix hand-off — `LoopOutcome::split_reached` is then true and
+/// the frontier is left at the split step for the caller to snapshot).
+/// Per-step checkpoint writes are gated by `allow_step_checkpoint`.
+fn run_seed_loop(
+    search: &mut BackwardSearch,
+    ctx: &SeedLoopCtx,
+    init: LoopInit,
+    stop_at_step: Option<u16>,
+    allow_step_checkpoint: bool,
+) -> anyhow::Result<LoopOutcome> {
+    let &SeedLoopCtx {
+        seed_index,
+        ref representative_sfen,
+        max_step,
+        max_memo_entries,
+        constraints,
+        parallel,
+        total_pending,
+        completed_in_run,
+        mem_trace,
+        global_best_piece_count,
+        seed_result_log_path,
+        feature_log,
+        feature_samples_per_step,
+        beam,
+        candidates_pool_factor,
+        max_candidates_pool,
+        memory_budget,
+        target_max,
+        early_exit,
+        stop_signal,
+        trajectory_log,
+        cond_hash,
+        canonicalize_attacker_goldish,
+        checkpoint_interval_secs,
+    } = ctx;
+
+    let mut best_piece_count = init.best_piece_count;
+    let mut best_step = init.best_step;
+    let mut best_positions = init.best_positions;
+    let mut adaptive_pool_factor = init.adaptive_pool_factor;
+    let mut ema_inv_survival = init.ema_inv_survival;
+    let default_pool_factor = candidates_pool_factor;
+    /// Minimum mid size for an observation to count toward the EMA. Below
+    /// this, the ratio next/mid is too noisy (e.g. mid=3, next=1 → s=0.33
+    /// would jerk the factor around).
+    const MIN_MID_FOR_OBSERVATION: usize = 100;
+    /// EMA decay: weight on the previous value. Higher = smoother but slower
+    /// to react to genuine survival changes.
+    const EMA_ALPHA: f64 = 0.7;
+    /// Safety margin on the target factor (pool ≈ safety × W / s).
+    const POOL_SAFETY: f64 = 2.0;
+    // Track the most recently applied dynamic memo limit so we only re-apply
+    // when the per-seed budget grows (dropping `remaining` releases budget to
+    // surviving seeds). `max_memo_entries` is the per-seed budget at peak
+    // parallelism (`remaining = parallel`); total budget = base * parallel.
+    let mut applied_memo_limit = max_memo_entries;
+
     let search_limit = max_step.map(|limit| {
         if limit % 2 == 0 {
             limit.saturating_sub(1)
@@ -298,6 +736,7 @@ pub(super) fn search_single_seed(
     // 全 break 経路で上書き済み; loop が他経路で抜けないことの fallback として Unknown。
     #[allow(unused_assignments)]
     let mut termination_reason = TerminationReason::Unknown;
+    let mut split_reached = false;
     // Checkpoint throttle: track when we last wrote so we don't checkpoint
     // every step on large-frontier searches (which generates huge I/O at scale).
     let checkpoint_interval = std::time::Duration::from_secs(checkpoint_interval_secs);
@@ -318,12 +757,21 @@ pub(super) fn search_single_seed(
                 *peak_memo_len = s.memo_len;
             }
         };
-    track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
+    track_peaks(&mut peak_frontier_size, &mut peak_memo_len, search);
 
     loop {
         if stop_signal.load(Ordering::Relaxed) {
             termination_reason = TerminationReason::EarlyExit;
             break;
+        }
+        // Split prefix hand-off: stop once the frontier reaches the split step,
+        // leaving it in place for the caller to snapshot. Snaps to the first
+        // search step >= stop (smoke advances in odd steps).
+        if let Some(stop) = stop_at_step {
+            if search.step() >= stop {
+                split_reached = true;
+                break;
+            }
         }
         if search.step() == 0 || search.step() % 2 == 1 {
             let output_start = Instant::now();
@@ -394,7 +842,7 @@ pub(super) fn search_single_seed(
                 mt(
                     mem_trace,
                     seed_index,
-                    &search,
+                    search,
                     format_args!(
                         "output step={} raw={} filtered={} elapsed_ms={}",
                         step,
@@ -407,7 +855,7 @@ pub(super) fn search_single_seed(
                 mt(
                     mem_trace,
                     seed_index,
-                    &search,
+                    search,
                     format_args!(
                         "output step={} raw={} filtered=skipped elapsed_ms={}",
                         step,
@@ -423,14 +871,14 @@ pub(super) fn search_single_seed(
             mt(
                 mem_trace,
                 seed_index,
-                &search,
+                search,
                 format_args!("output skipped_even_search_step={}", search.step()),
             );
         }
 
         if beam.width.is_none() {
             if let Some(log) = feature_log {
-                sample_features_to_log(log, feature_samples_per_step, seed_index, &search);
+                sample_features_to_log(log, feature_samples_per_step, seed_index, search);
             }
         }
 
@@ -458,7 +906,7 @@ pub(super) fn search_single_seed(
         }
 
         if let Some(width) = beam.width {
-            did_beam_filter |= apply_beam(&mut search, beam, width);
+            did_beam_filter |= apply_beam(search, beam, width);
         }
 
         let advance_start = Instant::now();
@@ -550,7 +998,12 @@ pub(super) fn search_single_seed(
             // Recompute the cap before each adjustment so it tracks live RSS.
             // Without this the cap would be frozen at startup, which is the
             // exact failure mode the memory-budget design replaces.
-            max_pool_factor = compute_max_pool_factor(width);
+            let max_pool_factor = compute_max_pool_factor(
+                width,
+                candidates_pool_factor,
+                max_candidates_pool,
+                memory_budget,
+            );
             let next_len = post_stats.positions_len;
             let mid_processed = post_stats
                 .candidate_count
@@ -604,7 +1057,7 @@ pub(super) fn search_single_seed(
         mt(
             mem_trace,
             seed_index,
-            &search,
+            search,
             format_args!(
                 "advance next_step={} advanced={} sampled={} mid={} dead={} inner={} remaining={} frontier_in={} memo_limit={} elapsed_ms={} pool_factor={}",
                 next_step,
@@ -624,17 +1077,17 @@ pub(super) fn search_single_seed(
             termination_reason = TerminationReason::Completed;
             break;
         }
-        track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
+        track_peaks(&mut peak_frontier_size, &mut peak_memo_len, search);
         push_trajectory_row(
             &mut trajectory_buf,
             cond_hash,
             seed_index,
-            &search,
+            search,
             inner_used,
             advance_elapsed_ms,
         );
 
-        if beam.width.is_none() || !did_beam_filter {
+        if allow_step_checkpoint && (beam.width.is_none() || !did_beam_filter) {
             let should_checkpoint = match last_checkpoint_time {
                 None => true,
                 Some(t) => t.elapsed() >= checkpoint_interval,
@@ -644,7 +1097,7 @@ pub(super) fn search_single_seed(
                     seed_result_log_path,
                     &SeedCheckpoint {
                         seed_index,
-                        seed_sfen: representative.sfen(),
+                        seed_sfen: representative_sfen.clone(),
                         max_step,
                         max_frontier: None,
                         constraints,
@@ -672,64 +1125,20 @@ pub(super) fn search_single_seed(
         let _ = file.write_all(trajectory_buf.as_bytes());
     }
 
-    track_peaks(&mut peak_frontier_size, &mut peak_memo_len, &search);
+    track_peaks(&mut peak_frontier_size, &mut peak_memo_len, search);
     let final_stats = search.stats();
-    let stats = SeedRunStats {
+
+    Ok(LoopOutcome {
+        best_piece_count,
+        best_step,
+        best_positions,
         peak_frontier_size,
         peak_memo_len,
         total_seen_positions: final_stats.seen_positions as u64,
         terminal_step: final_stats.step,
         termination_reason,
-    };
-
-    mt(
-        mem_trace,
-        seed_index,
-        &search,
-        format_args!(
-            "before_drop best_pieces={} positions={}",
-            best_piece_count,
-            best_positions.len()
-        ),
-    );
-    drop(search);
-    if mem_trace {
-        eprintln!(
-            "mem_trace seed={} after_drop best_pieces={} positions={} {}",
-            seed_index,
-            best_piece_count,
-            best_positions.len(),
-            ProcStatus::current()
-        );
-    }
-
-    let best = if best_positions.is_empty() {
-        None
-    } else if canonicalize_attacker_goldish {
-        // canonicalize ON のとき false positive (canonical で唯一だが原局面で非唯一/不詰)
-        // が発生しうる。原局面で改めて standard_solve を走らせ、唯一解だけ残す。
-        let verified: Vec<PositionAux> = best_positions
-            .into_iter()
-            .filter(|p| {
-                fmrs_core::solve::standard_solve::standard_solve(p.clone(), 2, true)
-                    .map(|r| r.solutions().len() == 1)
-                    .unwrap_or(false)
-            })
-            .collect();
-        if verified.is_empty() {
-            None
-        } else {
-            Some((best_piece_count, best_step, verified))
-        }
-    } else {
-        // 全 best positions を返す。output 集計側で SFEN HashSet で uniq 化されるので
-        // 出力 line 数 = unique best position 数。テストでも実体ある count を見たい。
-        Some((best_piece_count, best_step, best_positions))
-    };
-    Ok(SingleSeedResult {
-        best,
-        stats,
-        beam_filtered: did_beam_filter,
+        did_beam_filter,
+        split_reached,
     })
 }
 

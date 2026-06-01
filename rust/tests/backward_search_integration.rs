@@ -40,9 +40,10 @@ fn run_fmrs(args: &[&str], timeout: Duration) -> (String, String) {
 }
 
 /// Extract the result header from stderr (where progress/summary are written)
-/// and all SFENs from stdout (sorted, one per line). Format:
+/// and all result lines from stdout (image URLs, printed in SFEN-sorted order,
+/// one per line). Format:
 ///   stderr: ... best_pieces=N: positions=M succeeded_seeds=K
-///   stdout: <SFEN_1>\n<SFEN_2>\n... (sorted)
+///   stdout: <URL_1>\n<URL_2>\n... (SFEN-sorted)
 fn extract_best_result(stdout: &str, stderr: &str) -> (String, Vec<String>) {
     let header = stderr
         .lines()
@@ -96,16 +97,80 @@ fn backward_search_seed_max_step_5() {
         stderr
     );
     assert_eq!(sfens.len(), 36, "unexpected SFEN count");
-    // Output is sorted. Lock down first/last as a deterministic correctness check.
+    // Output is image URLs (SFEN with spaces → underscores), printed in
+    // SFEN-sorted order. Lock down first/last as a deterministic correctness check.
     assert_eq!(
-        sfens[0], "2k1G4/4G4/9/9/3N5/4L4/9/9/9 b 2r2b2g4s3n3l18p 1",
-        "unexpected first sorted SFEN"
+        sfens[0],
+        "https://ogiekako.github.io/fmrs/2k1G4/4G4/9/9/3N5/4L4/9/9/9_b_2r2b2g4s3n3l18p_1",
+        "unexpected first sorted URL"
     );
     assert_eq!(
         sfens[sfens.len() - 1],
-        "4GG3/9/5k3/9/5N3/4L4/9/9/9 b 2r2b2g4s3n3l18p 1",
-        "unexpected last sorted SFEN"
+        "https://ogiekako.github.io/fmrs/4GG3/9/5k3/9/5N3/4L4/9/9/9_b_2r2b2g4s3n3l18p_1",
+        "unexpected last sorted URL"
     );
+}
+
+/// Split mode (`--split-start-step` / `--split-chunk-size`) must be exact: it
+/// runs the BFS to the split step, then processes the frontier in independent
+/// chunks one at a time. The merged result must equal the full (non-split) BFS
+/// for the same search — same best header and same output (URL) set — for any
+/// split step / chunk size. Covers chunk size 1 (maximum chunk count),
+/// multi-position chunks, and a different split step.
+#[test]
+fn backward_search_split_matches_nonsplit() {
+    let base: Vec<&str> = vec![
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "5",
+        "--parallel",
+        "4",
+        "--no-pawn",
+        "--max-promoted-pct",
+        "20",
+        "--max-promoted-pct-after-step",
+        "5",
+        "--seed-result-log",
+        "/dev/null",
+        "--seed-sfen",
+        "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+        "--allowed-kinds",
+        "pawn,lance,knight,silver,gold",
+    ];
+
+    let (baseline_header, mut baseline_urls) = {
+        let (stdout, stderr) = run_fmrs(&base, Duration::from_secs(20));
+        extract_best_result(&stdout, &stderr)
+    };
+    baseline_urls.sort();
+    assert_eq!(
+        baseline_header,
+        "best_pieces=5 best_steps=5: positions=36 succeeded_seeds=1"
+    );
+
+    // (split_start_step, split_chunk_size)
+    for (start, chunk) in [("3", "1"), ("3", "4"), ("1", "2")] {
+        let mut args = base.clone();
+        args.extend_from_slice(&["--split-start-step", start, "--split-chunk-size", chunk]);
+        let (stdout, stderr) = run_fmrs(&args, Duration::from_secs(20));
+        // Confirm the split path actually engaged (rather than silently running
+        // a normal search) so the equivalence check is meaningful.
+        assert!(
+            stderr.lines().any(|l| l.starts_with("split seed=")),
+            "expected a 'split seed=' line for start={start} chunk={chunk}; stderr:\n{stderr}"
+        );
+        let (header, mut urls) = extract_best_result(&stdout, &stderr);
+        urls.sort();
+        assert_eq!(
+            header, baseline_header,
+            "split header mismatch (start={start} chunk={chunk})"
+        );
+        assert_eq!(
+            urls, baseline_urls,
+            "split output set mismatch (start={start} chunk={chunk})"
+        );
+    }
 }
 
 /// Same seed without `--allowed-kinds` constraint, slightly different config.

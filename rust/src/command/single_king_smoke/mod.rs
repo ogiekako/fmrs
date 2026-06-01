@@ -13,6 +13,7 @@ mod system;
 mod train;
 
 use beam::{build_beam_config, FeatureLogConfig};
+use ideal_backward::SplitConfig;
 use system::parse_max_memo_entries;
 
 #[derive(Debug, Clone, Subcommand)]
@@ -199,6 +200,22 @@ pub enum SingleKingSmokeCommand {
         /// atomic stores per step, so it is on by default.
         #[arg(long, default_value_t = false)]
         no_progress_ticker: bool,
+        /// Memory-bounded split mode: run exact BFS to this search step, then
+        /// partition the frontier into fixed-size chunks and run each chunk's
+        /// BFS to completion sequentially (bounding peak memory). Exact;
+        /// duplicate work across chunks is accepted. Snaps to the first search
+        /// step >= this value (smoke advances in odd steps). Incompatible with
+        /// --beam-width / --oracle-model. Omit to disable.
+        #[arg(long)]
+        split_start_step: Option<u16>,
+        /// Max frontier positions per chunk in split mode. Required (and must be
+        /// > 0) when --split-start-step is set.
+        #[arg(long)]
+        split_chunk_size: Option<usize>,
+        /// Deterministic shuffle seed for split-mode chunking. Stable across
+        /// resume so chunk boundaries do not change. Default 0.
+        #[arg(long, default_value_t = 0)]
+        split_seed: u64,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -281,6 +298,9 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             checkpoint_interval_secs,
             early_exit,
             no_progress_ticker,
+            split_start_step,
+            split_chunk_size,
+            split_seed,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let beam = build_beam_config(beam_width, beam_model.as_deref())?;
@@ -334,6 +354,11 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 checkpoint_interval_secs,
                 early_exit,
                 !no_progress_ticker,
+                SplitConfig {
+                    start_step: split_start_step,
+                    chunk_size: split_chunk_size,
+                    seed: split_seed,
+                },
             )
         }
         SingleKingSmokeCommand::ExportFeatures {

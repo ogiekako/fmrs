@@ -25,6 +25,25 @@ use super::scheduler::run_with_oracle;
 use super::search::search_single_seed;
 use super::system::{MemoryBudget, ProcStatus};
 
+/// Memory-bounded split mode (`--split-start-step`). When `start_step` is
+/// `None`, split mode is disabled and each seed runs as full per-seed BFS. When
+/// set, the per-seed BFS is run exactly to that step, then its frontier is
+/// deterministically shuffled (`seed`) and processed in `chunk_size`-sized
+/// chunks one at a time to bound peak memory. Exact; duplicate work across
+/// chunks is accepted.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct SplitConfig {
+    pub(super) start_step: Option<u16>,
+    pub(super) chunk_size: Option<usize>,
+    pub(super) seed: u64,
+}
+
+impl SplitConfig {
+    pub(super) fn enabled(&self) -> bool {
+        self.start_step.is_some()
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn ideal_backward(
     parallel: usize,
@@ -48,11 +67,25 @@ pub(super) fn ideal_backward(
     checkpoint_interval_secs: u64,
     early_exit: bool,
     progress_ticker: bool,
+    split: SplitConfig,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
     }
     validate_search_constraints(constraints)?;
+    if split.enabled() {
+        if beam.width.is_some() {
+            bail!("--split-start-step is incompatible with --beam-width");
+        }
+        if oracle_model.is_some() {
+            bail!("--split-start-step is incompatible with --oracle-model");
+        }
+        match split.chunk_size {
+            None => bail!("--split-chunk-size is required when --split-start-step is set"),
+            Some(0) => bail!("--split-chunk-size must be positive"),
+            Some(_) => {}
+        }
+    }
     let fleet_partition = match (fleet_index, fleet_size) {
         (Some(idx), Some(size)) => {
             if size == 0 {
@@ -288,6 +321,7 @@ pub(super) fn ideal_backward(
                     &cond_hash,
                     canonicalize_attacker_goldish,
                     checkpoint_interval_secs,
+                    split,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;

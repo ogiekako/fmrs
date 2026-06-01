@@ -92,6 +92,154 @@ pub(super) struct SeedCheckpoint {
     pub(super) best_position_bytes: Vec<u8>,
 }
 
+/// Chunk-granularity progress marker for split mode (`--split-start-step`).
+///
+/// Records how many of the deterministically-ordered frontier chunks have been
+/// fully processed plus the running best across the prefix and completed chunks.
+/// On resume the prefix BFS is re-run to regenerate the split frontier (cheap
+/// relative to the chunks), re-shuffled with the same `split_seed`, and chunks
+/// `< next_chunk` are skipped. Small (a handful of fields + the deduped best),
+/// unlike the per-chunk frontier which is the thing we are bounding.
+#[derive(Clone, Serialize, Deserialize)]
+pub(super) struct SplitProgress {
+    pub(super) seed_index: usize,
+    pub(super) seed_sfen: String,
+    pub(super) max_step: Option<u16>,
+    #[serde(default)]
+    pub(super) constraints: SearchConstraints,
+    #[serde(default)]
+    pub(super) canonicalize_attacker_goldish: bool,
+    /// Split parameters this marker was produced under. A mismatch against the
+    /// current CLI flags invalidates the marker (the chunk boundaries would
+    /// differ), so it is ignored and the split restarts.
+    pub(super) split_start_step: u16,
+    pub(super) split_chunk_size: usize,
+    pub(super) split_seed: u64,
+    pub(super) num_chunks: usize,
+    /// Index of the next chunk to process. `== num_chunks` means all chunks are
+    /// done (the marker is removed on full completion, so this is transient).
+    pub(super) next_chunk: usize,
+    pub(super) best_piece_count: u32,
+    pub(super) best_step: u16,
+    /// Binary-encoded accumulated best positions: 105 bytes per `PositionAux`.
+    /// Not serialized to JSON; carried in the binary tail of the `.split` file.
+    #[serde(skip)]
+    pub(super) best_position_bytes: Vec<u8>,
+}
+
+const SPLIT_MAGIC: &[u8; 8] = b"FMRSSPLT";
+const SPLIT_VERSION: u32 = 1;
+
+fn split_progress_path(
+    seed_result_log: &Path,
+    seed_index: usize,
+    key: &str,
+    canonicalize_attacker_goldish: bool,
+) -> PathBuf {
+    let suffix = canonical_path_suffix(canonicalize_attacker_goldish);
+    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}.split"))
+}
+
+/// Persist a `SplitProgress` marker (binary: magic | version | meta_json |
+/// best section), atomically via tmp-rename. Layout mirrors `.ckpt`.
+pub(super) fn write_split_progress(
+    seed_result_log: &Path,
+    progress: &SplitProgress,
+) -> anyhow::Result<()> {
+    let dir = checkpoint_dir(seed_result_log);
+    fs::create_dir_all(&dir)?;
+    let key = condition_key(progress.max_step, progress.constraints);
+    let path = split_progress_path(
+        seed_result_log,
+        progress.seed_index,
+        &key,
+        progress.canonicalize_attacker_goldish,
+    );
+    let tmp_path = dir.join(format!(
+        ".{}.tmp",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    ));
+    let meta_json = serde_json::to_vec(progress)?;
+    let best_count = progress.best_position_bytes.len() / 105;
+    let result = (|| -> anyhow::Result<()> {
+        let mut f = BufWriter::new(fs::File::create(&tmp_path)?);
+        f.write_all(SPLIT_MAGIC)?;
+        f.write_all(&SPLIT_VERSION.to_le_bytes())?;
+        f.write_all(&(meta_json.len() as u32).to_le_bytes())?;
+        f.write_all(&meta_json)?;
+        f.write_all(&(best_count as u32).to_le_bytes())?;
+        f.write_all(&progress.best_position_bytes)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&tmp_path);
+        return result;
+    }
+    fs::rename(&tmp_path, &path)?;
+    Ok(())
+}
+
+/// Load a `SplitProgress` marker, validating it matches the seed identity and
+/// canonicalize flag. Split-parameter validation (start step / chunk size /
+/// seed) is left to the caller, which knows the current CLI flags. Returns
+/// `None` if absent, unreadable, or mismatched.
+pub(super) fn load_split_progress(
+    seed_result_log: &Path,
+    seed_index: usize,
+    seed_sfen: &str,
+    max_step: Option<u16>,
+    constraints: SearchConstraints,
+    canonicalize_attacker_goldish: bool,
+) -> Option<SplitProgress> {
+    let key = condition_key(max_step, constraints);
+    let path = split_progress_path(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
+    let mut f = BufReader::new(fs::File::open(&path).ok()?);
+    let mut magic = [0u8; 8];
+    f.read_exact(&mut magic).ok()?;
+    if &magic != SPLIT_MAGIC {
+        return None;
+    }
+    let mut u32_buf = [0u8; 4];
+    f.read_exact(&mut u32_buf).ok()?;
+    if u32::from_le_bytes(u32_buf) != SPLIT_VERSION {
+        return None;
+    }
+    f.read_exact(&mut u32_buf).ok()?;
+    let meta_len = u32::from_le_bytes(u32_buf) as usize;
+    let mut meta_json = vec![0u8; meta_len];
+    f.read_exact(&mut meta_json).ok()?;
+    let mut progress: SplitProgress = serde_json::from_slice(&meta_json).ok()?;
+    f.read_exact(&mut u32_buf).ok()?;
+    let best_count = u32::from_le_bytes(u32_buf) as usize;
+    let mut best_bytes = vec![0u8; best_count * 105];
+    f.read_exact(&mut best_bytes).ok()?;
+    progress.best_position_bytes = best_bytes;
+    if progress.seed_index == seed_index
+        && progress.seed_sfen == seed_sfen
+        && progress.canonicalize_attacker_goldish == canonicalize_attacker_goldish
+    {
+        Some(progress)
+    } else {
+        None
+    }
+}
+
+pub(super) fn remove_split_progress(
+    seed_result_log: &Path,
+    seed_index: usize,
+    max_step: Option<u16>,
+    constraints: SearchConstraints,
+    canonicalize_attacker_goldish: bool,
+) {
+    let key = condition_key(max_step, constraints);
+    let _ = fs::remove_file(split_progress_path(
+        seed_result_log,
+        seed_index,
+        &key,
+        canonicalize_attacker_goldish,
+    ));
+}
+
 pub(super) fn condition_key(max_step: Option<u16>, constraints: SearchConstraints) -> String {
     use std::hash::{DefaultHasher, Hasher};
     // None を中央タプル要素として埋めることで、`max_frontier` フラグ廃止前の
