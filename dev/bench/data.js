@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780327921937,
+  "lastUpdate": 1780327924087,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43017,6 +43017,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 28847,
             "range": "± 74",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "cae7ac4c51038d1b2aa373fe2cc75fc5040907d4",
+          "message": "fix(gcp-spot): run-bg のクォートバグを修正\n\nコマンドを直接 ssh_cmd の引数内に埋め込んでいたため、\n--seed-sfen '8k/...' のようなシングルクォートを含む引数で\ntmux new-session のコマンドが壊れていた。\n\nfleet_start_job と同様にリモートスクリプトファイルに書き出してから\ntmux で実行するパターンに変更。exit code もスクリプト内部で記録。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T15:17:49Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/cae7ac4c51038d1b2aa373fe2cc75fc5040907d4"
+        },
+        "date": 1780327923668,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 211,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1122,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 101,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 219,
+            "range": "± 725",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10213,
+            "range": "± 196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1017,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2465,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 635186,
+            "range": "± 174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6796,
+            "range": "± 378",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 106,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 57,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 27,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 72,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 9218626,
+            "range": "± 192187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 14782,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1765,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 9009,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 14084,
+            "range": "± 2",
             "unit": "ns/iter"
           }
         ]
