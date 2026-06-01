@@ -340,9 +340,31 @@ cmd_run_bg() {
     echo "Usage: $0 run-bg 'command'" >&2
     exit 1
   fi
-  local remote_cmd="cd $REMOTE_DIR && source ~/.cargo/env && $*"
-  echo "Running in background on $INSTANCE_NAME: $*"
-  ssh_cmd "tmux kill-session -t $TMUX_SESSION 2>/dev/null || true; tmux new-session -d -s $TMUX_SESSION 'bash -c \"($remote_cmd) 2>&1 | tee $BG_LOG; echo; echo === DONE exit=\\\$? ===\"'"
+  # Write the command to a remote script file to avoid quoting issues when
+  # the command contains single quotes, dollar signs, or other special chars.
+  # (Embedding $remote_cmd inside 'bash -c "..."' via ssh_cmd breaks if the
+  # command contains single quotes, e.g. --seed-sfen '8k/...'.)
+  local remote_script="/tmp/fmrs-bg-job.sh"
+  local user_cmd="$*"
+  # The here-doc delimiter 'BGSCRIPT' is single-quoted so the REMOTE shell
+  # does not expand anything inside. Local vars ($REMOTE_DIR, $user_cmd) ARE
+  # expanded here (inside the outer double-quoted string) before being sent
+  # over SSH — that is intentional: we want the actual values on the remote.
+  # The exit code is recorded inside the script itself so the tmux command
+  # does not need to pass $? through additional quoting layers.
+  ssh_cmd "cat > $remote_script << 'BGSCRIPT'
+#!/bin/bash
+set -uo pipefail
+cd $REMOTE_DIR && source ~/.cargo/env
+_exit=0
+$user_cmd || _exit=\$?
+echo
+echo '=== DONE exit='\$_exit' ==='
+exit \$_exit
+BGSCRIPT
+chmod +x $remote_script"
+  echo "Running in background on $INSTANCE_NAME: $user_cmd"
+  ssh_cmd "tmux kill-session -t $TMUX_SESSION 2>/dev/null || true; tmux new-session -d -s $TMUX_SESSION \"bash -c '$remote_script 2>&1 | tee $BG_LOG'\""
   echo "Job started in tmux session '$TMUX_SESSION'."
   echo "  $0 tail    # watch output"
   echo "  $0 status  # check if the job is still alive"
