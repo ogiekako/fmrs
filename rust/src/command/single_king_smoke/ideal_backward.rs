@@ -435,7 +435,7 @@ fn finalize_output(best: CrossSeedBest) -> anyhow::Result<()> {
         succeeded
     );
     for sfen in positions {
-        println!("{sfen}");
+        println!("{}", fmrs_core::sfen::sfen_to_image_url(&sfen));
     }
     Ok(())
 }
