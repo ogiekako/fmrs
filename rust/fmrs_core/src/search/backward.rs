@@ -899,15 +899,13 @@ struct CandRef {
 }
 
 /// Per-chunk scratch for the experimental mid-ply uniqueness prune
-/// (`mid_uniqueness_prune`). Holds chunk-local (thread-private) memos so the
-/// `solutions` verification of intermediate even-ply positions is parallel-safe
-/// — the shared `self.memo`/`self.prev_memo` cannot be mutated concurrently, so
-/// the prototype caches only within a chunk. `buf` accumulates one mid's
-/// out-candidates so they can be committed or dropped atomically based on the
-/// mid's verdict.
+/// (`mid_uniqueness_prune`). Uses overlay-delta memos (warm base = shared
+/// `self.prev_memo`/`self.memo`, read-only across threads; writes go to
+/// per-chunk delta maps so there is no cross-chunk mutation). This is the same
+/// parallel-safe pattern Phase 2 uses via `solutions_overlay`.
 struct MidVerify {
-    memo: Memo,
-    prev_memo: Memo,
+    memo_delta: NoHashMap64<StepRange>,
+    prev_memo_delta: NoHashMap64<StepRange>,
     killers: Killers,
     history: HistoryTable,
     scratch: Vec<Vec<Movement>>,
@@ -917,8 +915,8 @@ struct MidVerify {
 impl MidVerify {
     fn new() -> Self {
         Self {
-            memo: Memo::new(),
-            prev_memo: Memo::new(),
+            memo_delta: NoHashMap64::with_capacity_and_hasher(256, Default::default()),
+            prev_memo_delta: NoHashMap64::with_capacity_and_hasher(256, Default::default()),
             killers: Killers::new(),
             history: HistoryTable::new(),
             scratch: vec![],
@@ -1545,7 +1543,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
-            mid_uniqueness_prune: false,
+            mid_uniqueness_prune: true,
         })
     }
 
@@ -1676,7 +1674,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: true,
             stone_digest: seeds[0].digest() ^ seeds[0].core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
-            mid_uniqueness_prune: false,
+            mid_uniqueness_prune: true,
         })
     }
 
@@ -1767,7 +1765,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
-            mid_uniqueness_prune: false,
+            mid_uniqueness_prune: true,
         })
     }
 
@@ -1865,7 +1863,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
-            mid_uniqueness_prune: false,
+            mid_uniqueness_prune: true,
         })
     }
 
@@ -2216,7 +2214,13 @@ impl BackwardSearch {
         // Experimental mid-ply uniqueness prune (default off). Captured here so
         // the parallel Phase-1 closure can read them without borrowing self.
         let mid_uniqueness_prune = self.mid_uniqueness_prune;
-        let memo_entry_limit = self.memo_entry_limit;
+        // Warm base memos for mid-V overlay: read-only refs are parallel-safe
+        // since Memo::get() takes &self. New entries go to per-chunk deltas.
+        // q1 is at step+1 (even); the matching call in the serial path is
+        // solutions(&mut pp, &self.prev_memo, &self.memo, step+1, ...), so the
+        // base ordering is (prev_memo=first, memo=second).
+        let mid_v_base_memo: &Memo = &self.prev_memo;
+        let mid_v_base_next_memo: &Memo = &self.memo;
         let position_parallel = self.parallel.min(self.positions.len());
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
 
@@ -2325,16 +2329,19 @@ impl BackwardSearch {
                                 if midv.buf.is_empty() {
                                     continue;
                                 }
-                                // Chunk-local memos (thread-private) make this V
-                                // parallel-safe; it caches only within the chunk.
+                                // Warm-memo overlay: reads from the shared base
+                                // (prev_memo/memo at step N, read-only = safe),
+                                // writes to per-chunk deltas. Same pattern as
+                                // Phase 2's solutions_overlay calls.
                                 let mut q1_v = q1.clone();
-                                let ans = solutions(
+                                let ans = solutions_overlay(
                                     &mut q1_v,
-                                    &midv.prev_memo,
-                                    &midv.memo,
+                                    mid_v_base_memo,
+                                    &mut midv.prev_memo_delta,
+                                    mid_v_base_next_memo,
+                                    &mut midv.memo_delta,
                                     step + 1,
                                     &mut midv.scratch,
-                                    memo_entry_limit,
                                     &mut midv.killers,
                                     &mut midv.history,
                                 );
