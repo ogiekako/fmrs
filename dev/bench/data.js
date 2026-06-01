@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780278027943,
+  "lastUpdate": 1780289704169,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45048,6 +45048,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/e9da3672db105b28171980ca8c9344e8eb64e3ae"
         },
         "date": 1780278021369,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434360500,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5cb70f48886e73d72b96e83ff7cfeef75abd8310",
+          "message": "feat(smoke): 駒 family の段階許可を generation 境界に適用 + lance/knight 追加\n\nrook/bishop の段階許可 (--rook-bishop-allow-start/step) は従来 output filter\nのみで frontier/memo 膨張を抑えられていなかった。汎用 family 許容 helper に\nリファクタし generation 境界にも適用 (= 各 backward step で family 駒は\npieces_in_play >= start のときのみ盤上可)。lance/knight 系\n(Lance/ProLance/Knight/ProKnight) にも同形の --lance-knight-allow-start/step\nを追加。promoted/unpromoted は同一 family。\n\n- generic satisfies_family_allowance + family_board_count に統合、\n  satisfies_piece_allowances で generation・output 双方に適用\n- undo 候補に cheap & sound な early rejection (family_undo_allowed):\n  許容 0 の段階で捕獲 family 駒を盤に戻す undo のみ弾く (generation が必ず\n  弾く predecessor のみ; UnDrop/非捕獲/family 内昇格は枚数を増やさない)\n- 後方互換: lance/knight 未使用時は step を 0 に正規化し直列化スキップ、\n  condition_key を従来と同一に保つ (既存 checkpoint 互換)\n\n検証: start=0/step=1 (常時許可) は baseline と完全一致 (exact)、\nstart=999 は board family 駒のみを厳密に除去 (584→372)、peak frontier\n6356→5460 に減少 (generation pruning が効く)。単体テストで未設定保持・\ngeneration 拒否・promoted カウントを網羅。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T04:37:08Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5cb70f48886e73d72b96e83ff7cfeef75abd8310"
+        },
+        "date": 1780289700834,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
