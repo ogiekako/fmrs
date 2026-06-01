@@ -68,6 +68,7 @@ pub(super) fn ideal_backward(
     early_exit: bool,
     progress_ticker: bool,
     split: SplitConfig,
+    memo_retain_from_step: u16,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
@@ -322,6 +323,7 @@ pub(super) fn ideal_backward(
                     canonicalize_attacker_goldish,
                     checkpoint_interval_secs,
                     split,
+                    memo_retain_from_step,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;

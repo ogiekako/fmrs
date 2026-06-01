@@ -91,6 +91,7 @@ pub(super) struct SeedLoopCtx<'a> {
     cond_hash: &'a str,
     canonicalize_attacker_goldish: bool,
     checkpoint_interval_secs: u64,
+    memo_retain_from_step: u16,
 }
 
 /// Loop-state seed values handed to `run_seed_loop`. For a fresh/non-split run
@@ -177,6 +178,7 @@ pub(super) fn search_single_seed(
     canonicalize_attacker_goldish: bool,
     checkpoint_interval_secs: u64,
     split: SplitConfig,
+    memo_retain_from_step: u16,
 ) -> anyhow::Result<SingleSeedResult> {
     if seeds.is_empty() {
         return Ok(zero_seed_result());
@@ -207,6 +209,7 @@ pub(super) fn search_single_seed(
         cond_hash,
         canonicalize_attacker_goldish,
         checkpoint_interval_secs,
+        memo_retain_from_step,
     };
 
     // canonicalize ON/OFF は path suffix + record フィールドで隔離されており、
@@ -273,6 +276,7 @@ pub(super) fn search_single_seed(
     if let Some(limit) = max_memo_entries {
         search.set_memo_entry_limit(Some(limit));
     }
+    search.set_memo_retain_from_step(memo_retain_from_step);
     // When beam is active, bound Phase-1 candidates via Bottom-K Sampling.
     // pool_factor is the per-shard overshoot (W → W × factor / NUM_SHARDS):
     // Phase V can early-stop at W survivors as long as survival rate s ≥
@@ -584,6 +588,7 @@ fn run_split(
         if let Some(limit) = ctx.max_memo_entries {
             chunk_search.set_memo_entry_limit(Some(limit));
         }
+        chunk_search.set_memo_retain_from_step(ctx.memo_retain_from_step);
         chunk_search.set_delta_trace(ctx.mem_trace);
         chunk_search.set_canonicalize_attacker_goldish(ctx.canonicalize_attacker_goldish);
 
@@ -699,6 +704,9 @@ fn run_seed_loop(
         cond_hash,
         canonicalize_attacker_goldish,
         checkpoint_interval_secs,
+        // Applied to the search before the loop runs (in search_single_seed /
+        // run_split), so the loop itself does not read it.
+        memo_retain_from_step: _,
     } = ctx;
 
     let mut best_piece_count = init.best_piece_count;

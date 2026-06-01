@@ -1340,6 +1340,13 @@ fn merge_backward_results(
     }
 }
 
+/// Default `memo_retain_from_step`. Below this step the per-step memo is
+/// discarded (fresh demand-zero pages beat carrying stale entries for short
+/// searches: see the retention-policy comment in `advance_2ply_fused`); at or
+/// above it the memo is carried across steps and bounded by `memo_entry_limit`.
+/// Tunable via `BackwardSearch::set_memo_retain_from_step`.
+const DEFAULT_MEMO_RETAIN_FROM_STEP: u16 = 10;
+
 pub struct BackwardSearch {
     initial_position: PositionAux,
     solution: Vec<Movement>,
@@ -1355,6 +1362,11 @@ pub struct BackwardSearch {
     parallel: usize,
     pool: Option<rayon::ThreadPool>,
     memo_entry_limit: Option<usize>,
+    /// Step at/above which the cross-step memo is retained (carried via
+    /// `mem::take` and bounded by `memo_entry_limit`); below it the memo is
+    /// discarded each step. See `DEFAULT_MEMO_RETAIN_FROM_STEP`. Raise it above
+    /// the search depth to always discard (minimizes memo memory).
+    memo_retain_from_step: u16,
     /// When set, Phase 1 keeps at most this many dedup'd candidates using
     /// Bottom-K Sampling (uniform-equivalent via Zobrist hash). None = unlimited.
     candidates_limit: Option<usize>,
@@ -1496,6 +1508,7 @@ impl BackwardSearch {
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
+            memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
         })
     }
 
@@ -1625,6 +1638,7 @@ impl BackwardSearch {
             last_candidates: 0,
             canonicalize_attacker_goldish: true,
             stone_digest: seeds[0].digest() ^ seeds[0].core().digest(),
+            memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
         })
     }
 
@@ -1714,6 +1728,7 @@ impl BackwardSearch {
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
+            memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
         })
     }
 
@@ -1810,6 +1825,7 @@ impl BackwardSearch {
             last_candidates: 0,
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
+            memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
         })
     }
 
@@ -1862,6 +1878,14 @@ impl BackwardSearch {
             self.memo.pre_allocate(limit);
             self.prev_memo.pre_allocate(limit);
         }
+    }
+
+    /// Step at/above which the cross-step memo is retained (and bounded by the
+    /// memo entry limit) instead of discarded each step. Defaults to
+    /// `DEFAULT_MEMO_RETAIN_FROM_STEP`. Set above the search depth to always
+    /// discard, minimizing memo memory at the cost of cross-step cache hits.
+    pub fn set_memo_retain_from_step(&mut self, step: u16) {
+        self.memo_retain_from_step = step;
     }
 
     /// Update the memo entry limit without pre-allocating capacity. Use when
@@ -2321,7 +2345,7 @@ impl BackwardSearch {
         let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
         let mut memo;
         let mut prev_memo;
-        if step >= 10 {
+        if step >= self.memo_retain_from_step {
             memo = std::mem::take(&mut self.memo);
             prev_memo = std::mem::take(&mut self.prev_memo);
         } else {
@@ -2796,16 +2820,20 @@ impl BackwardSearch {
         // 細かめに分割すると work-stealing が効いて並列効率が改善する。
         // この workload では `*8` (default rayon-ish) → `*32` で wall ~6% 改善。
         let chunk_size = candidates.len().div_ceil(parallel * 64).max(1);
-        // Cross-step memo retention policy:
-        //  - step < 10: discard. Fresh demand-zero mmap pages beat carrying stale
-        //    entries that bloat the table for little benefit in short searches.
-        //    (bench_backward_search_seed_sfen at max-step 11 regressed 18% with
-        //    unconditional retention.)
-        //  - step >= 10: carry forward via std::mem::take. At deep steps the DFS
-        //    per candidate is expensive enough that cross-step cache hits pay off;
-        //    bench_backward_search_seed_sfen_allowed_kinds at max-step 19 improved
-        //    3.3% with retention.  Threshold lowered from 15 to 10 since memo
-        //    reuse becomes valuable a few steps earlier than originally tuned.
+        // Cross-step memo retention policy (threshold = memo_retain_from_step,
+        // default DEFAULT_MEMO_RETAIN_FROM_STEP=10, tunable via
+        // set_memo_retain_from_step / `--memo-retain-from-step`):
+        //  - below threshold: discard. Fresh demand-zero mmap pages beat carrying
+        //    stale entries that bloat the table for little benefit in short
+        //    searches. (bench_backward_search_seed_sfen at max-step 11 regressed
+        //    18% with unconditional retention.)
+        //  - at/above threshold: carry forward via std::mem::take. At deep steps
+        //    the DFS per candidate is expensive enough that cross-step cache hits
+        //    pay off; bench_backward_search_seed_sfen_allowed_kinds at max-step 19
+        //    improved 3.3% with retention. Default threshold lowered from 15 to 10
+        //    since memo reuse becomes valuable a few steps earlier than originally
+        //    tuned. Raising it above the search depth forces always-discard, which
+        //    minimizes memo memory (OOM escape hatch) at the cost of cache hits.
         //    StepRange::needs_investigation() guards against stale entries;
         //    shrink_memo() below keeps memory bounded by memo_entry_limit.
         //
@@ -2816,7 +2844,7 @@ impl BackwardSearch {
         //    alloc on every step, since most steps don't need full-limit cap.
         let mut memo;
         let mut prev_memo;
-        if step >= 10 {
+        if step >= self.memo_retain_from_step {
             memo = std::mem::take(&mut self.memo);
             prev_memo = std::mem::take(&mut self.prev_memo);
         } else {

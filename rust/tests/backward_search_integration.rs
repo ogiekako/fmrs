@@ -173,6 +173,59 @@ fn backward_search_split_matches_nonsplit() {
     }
 }
 
+/// `--memo-retain-from-step` only governs the cross-step memo cache (a
+/// transposition cache for uniqueness verification), never correctness:
+/// forcing the memo to be discarded every step (a threshold above the search
+/// depth) must yield the identical result as the default. Uses max-step 11 so
+/// the search crosses the default retention threshold (10), where the discard
+/// vs. carry-forward policy actually differs.
+#[test]
+fn backward_search_memo_retain_from_step_is_exact() {
+    let base: Vec<&str> = vec![
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "11",
+        "--parallel",
+        "8",
+        "--no-pawn",
+        "--max-promoted-pct",
+        "20",
+        "--max-promoted-pct-after-step",
+        "5",
+        "--seed-result-log",
+        "/dev/null",
+        "--seed-sfen",
+        "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+        "--allowed-kinds",
+        "pawn,lance,knight,silver,gold",
+    ];
+
+    let (default_header, mut default_urls) = {
+        let (stdout, stderr) = run_fmrs(&base, Duration::from_secs(60));
+        extract_best_result(&stdout, &stderr)
+    };
+    default_urls.sort();
+
+    // A threshold above --max-step forces the memo to be discarded every step.
+    let mut discard = base.clone();
+    discard.extend_from_slice(&["--memo-retain-from-step", "999"]);
+    let (discard_header, mut discard_urls) = {
+        let (stdout, stderr) = run_fmrs(&discard, Duration::from_secs(60));
+        extract_best_result(&stdout, &stderr)
+    };
+    discard_urls.sort();
+
+    assert_eq!(
+        default_header, discard_header,
+        "--memo-retain-from-step changed the best header"
+    );
+    assert_eq!(
+        default_urls, discard_urls,
+        "--memo-retain-from-step changed the output set"
+    );
+}
+
 /// Same seed without `--allowed-kinds` constraint, slightly different config.
 /// Ensures the heuristics work with the default piece-kind set as well.
 #[test]

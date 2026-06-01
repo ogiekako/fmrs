@@ -56,6 +56,14 @@ pub enum SingleKingSmokeCommand {
         /// "full" = memory/parallel, "none" = unlimited, or a number.
         #[arg(long, default_value = "auto")]
         max_memo_entries: String,
+        /// Search step at/above which the cross-step memo is retained (and
+        /// bounded by --max-memo-entries) instead of discarded each step.
+        /// Default 10. Set above --max-step to always discard the memo each
+        /// step, minimizing memo memory (OOM escape hatch) at the cost of
+        /// cross-step cache hits. Pairs with --split-* to bound both frontier
+        /// and memo memory.
+        #[arg(long, default_value_t = 10)]
+        memo_retain_from_step: u16,
         #[arg(long, default_value_t = false)]
         no_gold: bool,
         #[arg(long, default_value_t = false)]
@@ -264,6 +272,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             random_seed,
             max_step,
             max_memo_entries,
+            memo_retain_from_step,
             no_gold,
             no_pawn,
             only_pawn,
@@ -359,6 +368,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     chunk_size: split_chunk_size,
                     seed: split_seed,
                 },
+                memo_retain_from_step,
             )
         }
         SingleKingSmokeCommand::ExportFeatures {
