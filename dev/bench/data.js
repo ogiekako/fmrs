@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780317531028,
+  "lastUpdate": 1780327921937,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45824,6 +45824,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/f3eeb55cff070f5cb6d3ede2a3294439b989714c"
         },
         "date": 1780317525172,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434417364,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "cae7ac4c51038d1b2aa373fe2cc75fc5040907d4",
+          "message": "fix(gcp-spot): run-bg のクォートバグを修正\n\nコマンドを直接 ssh_cmd の引数内に埋め込んでいたため、\n--seed-sfen '8k/...' のようなシングルクォートを含む引数で\ntmux new-session のコマンドが壊れていた。\n\nfleet_start_job と同様にリモートスクリプトファイルに書き出してから\ntmux で実行するパターンに変更。exit code もスクリプト内部で記録。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T15:17:49Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/cae7ac4c51038d1b2aa373fe2cc75fc5040907d4"
+        },
+        "date": 1780327919136,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
