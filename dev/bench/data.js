@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780314367627,
+  "lastUpdate": 1780314369350,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -42733,6 +42733,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 46939,
             "range": "± 19",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "29c3657dc2135235200644ad6014943e629763c4",
+          "message": "feat(smoke): --mid-uniqueness-prune (実験的フラグ、デフォルト off)\n\nadvance_2ply_fused の Phase 1 で偶数 (mid) ply の uniqueness を条件付き\n検証する実験的フラグ。mid が filtered out-candidate を1つ以上持つとき\nかつ非 unique のとき、その mid を早期に捨てる。非 unique な mid から\nunique な out ply は生じないため frontier-preserving (exactness 実測確認済)。\n\nchunk-local memo で parallel-safe に実装。デフォルト off でフラグ off の\nパスはバイト一致で既存動作と完全同一。\n\nベンチ結果 (single seed, --parallel 8, release):\n  max-step 9/11: on が遅い (cold memo overhead > 節約)\n  max-step 13: +7%、max-step 15: +15% (on 勝ち、安定)\n  max-step 17: -17% (再逆転)\n損益分岐は step 11〜13。warm memo (overlay delta) 方式での改良余地あり。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T11:30:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/29c3657dc2135235200644ad6014943e629763c4"
+        },
+        "date": 1780314369023,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 305,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2413,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 142,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 310,
+            "range": "± 382",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22579,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1398,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3791,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1102767,
+            "range": "± 355",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 9363,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 146,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 87,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 40,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 112,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 15885348,
+            "range": "± 264621",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 22905,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2812,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14707,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 35713,
+            "range": "± 7",
             "unit": "ns/iter"
           }
         ]
