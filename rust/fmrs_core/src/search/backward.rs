@@ -898,6 +898,35 @@ struct CandRef {
     undo2_idx: u16,
 }
 
+/// Per-chunk scratch for the experimental mid-ply uniqueness prune
+/// (`mid_uniqueness_prune`). Holds chunk-local (thread-private) memos so the
+/// `solutions` verification of intermediate even-ply positions is parallel-safe
+/// — the shared `self.memo`/`self.prev_memo` cannot be mutated concurrently, so
+/// the prototype caches only within a chunk. `buf` accumulates one mid's
+/// out-candidates so they can be committed or dropped atomically based on the
+/// mid's verdict.
+struct MidVerify {
+    memo: Memo,
+    prev_memo: Memo,
+    killers: Killers,
+    history: HistoryTable,
+    scratch: Vec<Vec<Movement>>,
+    buf: Vec<CandRef>,
+}
+
+impl MidVerify {
+    fn new() -> Self {
+        Self {
+            memo: Memo::new(),
+            prev_memo: Memo::new(),
+            killers: Killers::new(),
+            history: HistoryTable::new(),
+            scratch: vec![],
+            buf: vec![],
+        }
+    }
+}
+
 impl CandRef {
     /// Sentinel for `undo2_idx` when the candidate came from the 1-ply
     /// `advance_parallel_filtered` path — reconstruct stops after applying
@@ -1367,6 +1396,13 @@ pub struct BackwardSearch {
     /// discarded each step. See `DEFAULT_MEMO_RETAIN_FROM_STEP`. Raise it above
     /// the search depth to always discard (minimizes memo memory).
     memo_retain_from_step: u16,
+    /// Experimental (default off): in `advance_2ply_fused`, verify the
+    /// intermediate (even/mid) ply's uniqueness and drop it early when it is
+    /// non-unique but produced at least one filtered out-candidate. A non-unique
+    /// even ply cannot yield a unique odd ply, so this only prunes candidates
+    /// Phase 2 would reject anyway (frontier-preserving) — it trades one mid V
+    /// for the out V of that mid's children. Toggled by `set_mid_uniqueness_prune`.
+    mid_uniqueness_prune: bool,
     /// When set, Phase 1 keeps at most this many dedup'd candidates using
     /// Bottom-K Sampling (uniform-equivalent via Zobrist hash). None = unlimited.
     candidates_limit: Option<usize>,
@@ -1509,6 +1545,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
+            mid_uniqueness_prune: false,
         })
     }
 
@@ -1639,6 +1676,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: true,
             stone_digest: seeds[0].digest() ^ seeds[0].core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
+            mid_uniqueness_prune: false,
         })
     }
 
@@ -1729,6 +1767,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
+            mid_uniqueness_prune: false,
         })
     }
 
@@ -1826,6 +1865,7 @@ impl BackwardSearch {
             canonicalize_attacker_goldish: false,
             stone_digest: initial_position.digest() ^ initial_position.core().digest(),
             memo_retain_from_step: DEFAULT_MEMO_RETAIN_FROM_STEP,
+            mid_uniqueness_prune: false,
         })
     }
 
@@ -1886,6 +1926,12 @@ impl BackwardSearch {
     /// discard, minimizing memo memory at the cost of cross-step cache hits.
     pub fn set_memo_retain_from_step(&mut self, step: u16) {
         self.memo_retain_from_step = step;
+    }
+
+    /// Enable/disable the experimental mid-ply uniqueness prune in
+    /// `advance_2ply_fused`. See the field doc on `mid_uniqueness_prune`.
+    pub fn set_mid_uniqueness_prune(&mut self, enabled: bool) {
+        self.mid_uniqueness_prune = enabled;
     }
 
     /// Update the memo entry limit without pre-allocating capacity. Use when
@@ -2167,6 +2213,10 @@ impl BackwardSearch {
         let step = self.step;
         let stone = self.stone;
         let no_black_goldish = self.no_black_goldish;
+        // Experimental mid-ply uniqueness prune (default off). Captured here so
+        // the parallel Phase-1 closure can read them without borrowing self.
+        let mid_uniqueness_prune = self.mid_uniqueness_prune;
+        let memo_entry_limit = self.memo_entry_limit;
         let position_parallel = self.parallel.min(self.positions.len());
         let position_chunk_size = self.positions.len().div_ceil(position_parallel * 8).max(1);
 
@@ -2198,6 +2248,9 @@ impl BackwardSearch {
                 .for_each(|(chunk_idx, chunk)| {
                     let mut undo1 = vec![];
                     let mut undo2 = vec![];
+                    // Experimental mid-ply uniqueness-prune scratch; `None` when
+                    // the flag is off so the default path pays nothing.
+                    let mut midv = mid_uniqueness_prune.then(MidVerify::new);
                     let mut local_seens: [NoHashSet64; NUM_SHARDS] =
                         std::array::from_fn(|_| NoHashSet64::default());
                     let mut local_outs: [Vec<CandRef>; NUM_SHARDS] =
@@ -2238,36 +2291,96 @@ impl BackwardSearch {
                             // Expand it one more ply without storing it.
                             undo2.clear();
                             previous(&mut q1, step + 1 > 0, &mut undo2);
-                            for (i2, m2) in undo2.iter().enumerate() {
-                                if !out_candidate_filter(&q1, m2) {
-                                    continue;
-                                }
-                                let mut q2 = q1.clone();
-                                q2.undo_move(m2);
-                                if !is_backward_candidate_legal(&mut q2) {
-                                    continue;
-                                }
-                                if !satisfies_backward_constraints(&q2, no_black_goldish) {
-                                    continue;
-                                }
-                                if !out_filter(&q2) {
-                                    continue;
-                                }
-                                any_survived = true;
-                                let digest = q2.core().digest();
-                                let shard_idx = shard_index(digest);
-                                if local_seens[shard_idx].insert(digest) {
-                                    local_outs[shard_idx].push(CandRef {
-                                        digest,
+                            if let Some(midv) = midv.as_mut() {
+                                // Experimental mid-ply uniqueness prune: buffer
+                                // this mid's filtered out-candidates, then commit
+                                // them only if q1 is a unique mate in step+1.
+                                // A non-unique even ply cannot yield a unique odd
+                                // ply, so the dropped candidates would all fail
+                                // Phase-2 V anyway (frontier-preserving). The mid
+                                // V is paid only when the mid is not a dead end.
+                                midv.buf.clear();
+                                for (i2, m2) in undo2.iter().enumerate() {
+                                    if !out_candidate_filter(&q1, m2) {
+                                        continue;
+                                    }
+                                    let mut q2 = q1.clone();
+                                    q2.undo_move(m2);
+                                    if !is_backward_candidate_legal(&mut q2) {
+                                        continue;
+                                    }
+                                    if !satisfies_backward_constraints(&q2, no_black_goldish) {
+                                        continue;
+                                    }
+                                    if !out_filter(&q2) {
+                                        continue;
+                                    }
+                                    midv.buf.push(CandRef {
+                                        digest: q2.core().digest(),
                                         frontier_idx,
                                         undo1_idx: i1 as u16,
                                         undo2_idx: i2 as u16,
                                     });
-                                    chunk_dedup += 1;
                                 }
-                                // q2 dropped here — the candidate Position is
-                                // reconstructed in Phase 2 from
-                                // (frontier_idx, i1, i2).
+                                if midv.buf.is_empty() {
+                                    continue;
+                                }
+                                // Chunk-local memos (thread-private) make this V
+                                // parallel-safe; it caches only within the chunk.
+                                let mut q1_v = q1.clone();
+                                let ans = solutions(
+                                    &mut q1_v,
+                                    &midv.prev_memo,
+                                    &midv.memo,
+                                    step + 1,
+                                    &mut midv.scratch,
+                                    memo_entry_limit,
+                                    &mut midv.killers,
+                                    &mut midv.history,
+                                );
+                                if !ans.is_uniquely(step + 1) {
+                                    continue;
+                                }
+                                for cand in midv.buf.iter() {
+                                    any_survived = true;
+                                    let shard_idx = shard_index(cand.digest);
+                                    if local_seens[shard_idx].insert(cand.digest) {
+                                        local_outs[shard_idx].push(*cand);
+                                        chunk_dedup += 1;
+                                    }
+                                }
+                            } else {
+                                for (i2, m2) in undo2.iter().enumerate() {
+                                    if !out_candidate_filter(&q1, m2) {
+                                        continue;
+                                    }
+                                    let mut q2 = q1.clone();
+                                    q2.undo_move(m2);
+                                    if !is_backward_candidate_legal(&mut q2) {
+                                        continue;
+                                    }
+                                    if !satisfies_backward_constraints(&q2, no_black_goldish) {
+                                        continue;
+                                    }
+                                    if !out_filter(&q2) {
+                                        continue;
+                                    }
+                                    any_survived = true;
+                                    let digest = q2.core().digest();
+                                    let shard_idx = shard_index(digest);
+                                    if local_seens[shard_idx].insert(digest) {
+                                        local_outs[shard_idx].push(CandRef {
+                                            digest,
+                                            frontier_idx,
+                                            undo1_idx: i1 as u16,
+                                            undo2_idx: i2 as u16,
+                                        });
+                                        chunk_dedup += 1;
+                                    }
+                                    // q2 dropped here — the candidate Position is
+                                    // reconstructed in Phase 2 from
+                                    // (frontier_idx, i1, i2).
+                                }
                             }
                         }
                         if !any_survived {

@@ -226,6 +226,56 @@ fn backward_search_memo_retain_from_step_is_exact() {
     );
 }
 
+/// The experimental `--mid-uniqueness-prune` must be frontier-preserving: a
+/// non-unique intermediate (even) ply can't yield a unique output (odd) ply, so
+/// dropping such mids early only removes candidates Phase 2 would reject anyway.
+/// Output (best header + URL set) must be identical to the default path. Uses
+/// max-step 7 so the deeper search actually exercises the mid-ply prune.
+#[test]
+fn backward_search_mid_uniqueness_prune_is_exact() {
+    let base: Vec<&str> = vec![
+        "single-king-smoke",
+        "ideal-backward",
+        "--max-step",
+        "7",
+        "--parallel",
+        "8",
+        "--no-pawn",
+        "--max-promoted-pct",
+        "34",
+        "--max-promoted-pct-after-step",
+        "4",
+        "--seed-result-log",
+        "/dev/null",
+        "--seed-sfen",
+        "4k4/4+N4/9/9/9/4L4/9/9/9 w 2r2b4g4s3n3l18p 1",
+    ];
+
+    let (off_header, mut off_urls) = {
+        let (stdout, stderr) = run_fmrs(&base, Duration::from_secs(60));
+        extract_best_result(&stdout, &stderr)
+    };
+    off_urls.sort();
+
+    let mut on = base.clone();
+    on.push("--mid-uniqueness-prune");
+    let (on_header, mut on_urls) = {
+        let (stdout, stderr) = run_fmrs(&on, Duration::from_secs(60));
+        extract_best_result(&stdout, &stderr)
+    };
+    on_urls.sort();
+
+    assert_eq!(
+        off_header, on_header,
+        "--mid-uniqueness-prune changed the best header"
+    );
+    assert_eq!(
+        off_urls, on_urls,
+        "--mid-uniqueness-prune changed the output set"
+    );
+    assert!(!off_urls.is_empty(), "expected a non-empty result");
+}
+
 /// Same seed without `--allowed-kinds` constraint, slightly different config.
 /// Ensures the heuristics work with the default piece-kind set as well.
 #[test]

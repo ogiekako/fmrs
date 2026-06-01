@@ -64,6 +64,13 @@ pub enum SingleKingSmokeCommand {
         /// and memo memory.
         #[arg(long, default_value_t = 10)]
         memo_retain_from_step: u16,
+        /// Experimental: in the fused 2-ply advance, verify the intermediate
+        /// (even) ply's uniqueness and drop it early when it is non-unique but
+        /// produced at least one filtered out-candidate. Frontier-preserving
+        /// (a non-unique even ply can't yield a unique odd ply); trades one mid
+        /// verification for its children's out verification. Off by default.
+        #[arg(long, default_value_t = false)]
+        mid_uniqueness_prune: bool,
         #[arg(long, default_value_t = false)]
         no_gold: bool,
         #[arg(long, default_value_t = false)]
@@ -286,6 +293,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             max_step,
             max_memo_entries,
             memo_retain_from_step,
+            mid_uniqueness_prune,
             no_gold,
             no_pawn,
             only_pawn,
@@ -394,6 +402,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     seed: split_seed,
                 },
                 memo_retain_from_step,
+                mid_uniqueness_prune,
             )
         }
         SingleKingSmokeCommand::ExportFeatures {

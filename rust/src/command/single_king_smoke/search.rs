@@ -92,6 +92,7 @@ pub(super) struct SeedLoopCtx<'a> {
     canonicalize_attacker_goldish: bool,
     checkpoint_interval_secs: u64,
     memo_retain_from_step: u16,
+    mid_uniqueness_prune: bool,
 }
 
 /// Loop-state seed values handed to `run_seed_loop`. For a fresh/non-split run
@@ -179,6 +180,7 @@ pub(super) fn search_single_seed(
     checkpoint_interval_secs: u64,
     split: SplitConfig,
     memo_retain_from_step: u16,
+    mid_uniqueness_prune: bool,
 ) -> anyhow::Result<SingleSeedResult> {
     if seeds.is_empty() {
         return Ok(zero_seed_result());
@@ -210,6 +212,7 @@ pub(super) fn search_single_seed(
         canonicalize_attacker_goldish,
         checkpoint_interval_secs,
         memo_retain_from_step,
+        mid_uniqueness_prune,
     };
 
     // canonicalize ON/OFF は path suffix + record フィールドで隔離されており、
@@ -277,6 +280,7 @@ pub(super) fn search_single_seed(
         search.set_memo_entry_limit(Some(limit));
     }
     search.set_memo_retain_from_step(memo_retain_from_step);
+    search.set_mid_uniqueness_prune(mid_uniqueness_prune);
     // When beam is active, bound Phase-1 candidates via Bottom-K Sampling.
     // pool_factor is the per-shard overshoot (W → W × factor / NUM_SHARDS):
     // Phase V can early-stop at W survivors as long as survival rate s ≥
@@ -589,6 +593,7 @@ fn run_split(
             chunk_search.set_memo_entry_limit(Some(limit));
         }
         chunk_search.set_memo_retain_from_step(ctx.memo_retain_from_step);
+        chunk_search.set_mid_uniqueness_prune(ctx.mid_uniqueness_prune);
         chunk_search.set_delta_trace(ctx.mem_trace);
         chunk_search.set_canonicalize_attacker_goldish(ctx.canonicalize_attacker_goldish);
 
@@ -705,8 +710,9 @@ fn run_seed_loop(
         canonicalize_attacker_goldish,
         checkpoint_interval_secs,
         // Applied to the search before the loop runs (in search_single_seed /
-        // run_split), so the loop itself does not read it.
+        // run_split), so the loop itself does not read them.
         memo_retain_from_step: _,
+        mid_uniqueness_prune: _,
     } = ctx;
 
     let mut best_piece_count = init.best_piece_count;
