@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780329775432,
+  "lastUpdate": 1780329777652,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43159,6 +43159,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 14084,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "33b0a96931cbdf0864d79b1f7f8d7635c7c6cbb4",
+          "message": "fix(smoke): split chunk 内の within-chunk checkpoint を有効化\n\nsplit モードで chunk 内が kill された場合、split_start_step から再実行に\nなっていた。各 chunk の run_seed_loop に allow_step_checkpoint=true を渡し、\nchunk 専用パス (<log>_split_chunk_<N>.checkpoints/) へ書くことで prefix の\n.ckpt を上書きせずに chunk 内の進捗を保存する。\n\nresume 時は chunk 専用パスから load_seed_checkpoint → chunk 途中の状態から\n継続。chunk 完了後はチェックポイントを削除。SplitProgress は変更なし。\n\n検証: kill → resume で resume_from_chunk=21 (chunk 0 の within-chunk から\n再開)、結果は non-split baseline と完全一致。\n\nCo-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T15:45:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/33b0a96931cbdf0864d79b1f7f8d7635c7c6cbb4"
+        },
+        "date": 1780329777182,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 393,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3112,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 399,
+            "range": "± 626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28483,
+            "range": "± 115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1791,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4924,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1429115,
+            "range": "± 732",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12061,
+            "range": "± 59",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20515066,
+            "range": "± 33706",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28570,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3485,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18246,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 31250,
+            "range": "± 7",
             "unit": "ns/iter"
           }
         ]
