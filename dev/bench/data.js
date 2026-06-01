@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780289706612,
+  "lastUpdate": 1780293075484,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45242,6 +45242,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/5cb70f48886e73d72b96e83ff7cfeef75abd8310"
         },
         "date": 1780289700834,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434360500,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "81a1e93e213102a4aff1717361dffd1b1d9837a1",
+          "message": "feat(smoke): global_best ログの URL を best 集合のランダム要素に\n\n常に best_positions[0] / .first() を出力していたのを\nchoose(&mut thread_rng()) でランダムな代表局面に変更し、改善ごとに\n異なる例局面がログに現れるようにする。best 追跡・global_best パッキング・\nソート済み stdout 出力 (finalize_output) は不変で、探索結果に影響なし。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-01T05:34:01Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/81a1e93e213102a4aff1717361dffd1b1d9837a1"
+        },
+        "date": 1780293072908,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
