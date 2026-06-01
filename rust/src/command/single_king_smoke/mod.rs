@@ -134,6 +134,19 @@ pub enum SingleKingSmokeCommand {
         /// step=5 → 0 below 20, 1 at 20–24, 2 at 25–29, etc.
         #[arg(long, default_value_t = 5)]
         rook_bishop_allow_step: u32,
+        /// Allow lance/knight (incl. promoted: Lance/ProLance/Knight/ProKnight)
+        /// on the board only past this piece-count threshold. Pieces in play
+        /// (board + black hand) must be ≥ this value for any lance/knight to
+        /// appear. Below the threshold none are permitted. Like
+        /// --rook-bishop-allow-start, this prunes both generated frontier and
+        /// final output. Omit to disable.
+        #[arg(long)]
+        lance_knight_allow_start: Option<u32>,
+        /// Additional lance/knight allowed for every increment of this many
+        /// pieces in play past `--lance-knight-allow-start` (same formula as
+        /// --rook-bishop-allow-step).
+        #[arg(long, default_value_t = 5)]
+        lance_knight_allow_step: u32,
         /// Append per-step frontier samples (with extracted features) to
         /// this JSONL file. Used to build training data for the beam model.
         #[arg(long)]
@@ -293,6 +306,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             goldish_priority,
             rook_bishop_allow_start,
             rook_bishop_allow_step,
+            lance_knight_allow_start,
+            lance_knight_allow_step,
             feature_log,
             feature_sample_per_step,
             beam_width,
@@ -350,6 +365,16 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     goldish_priority,
                     rook_bishop_allow_start,
                     rook_bishop_allow_step,
+                    lance_knight_allow_start,
+                    // Normalize step to 0 when the family is unused so the new
+                    // fields are skipped during serialization, keeping the
+                    // condition_key (and existing checkpoints) unchanged for runs
+                    // that do not use --lance-knight-allow-start.
+                    lance_knight_allow_step: if lance_knight_allow_start.is_some() {
+                        lance_knight_allow_step
+                    } else {
+                        0
+                    },
                 },
                 mem_trace,
                 FeatureLogConfig {

@@ -59,7 +59,25 @@ pub(super) struct SearchConstraints {
     /// 上記の `step`。`start` が `Some` のとき意味を持つ。最小値 1。
     #[serde(default)]
     pub(super) rook_bishop_allow_step: u32,
+    /// lance/knight 系 (Lance, ProLance, Knight, ProKnight) を盤上に許可する
+    /// 開始枚数。意味・式は rook/bishop と同一。`None` で無効。
+    ///
+    /// 後方互換: `start` が None のとき `step` は 0 に正規化され、両フィールドとも
+    /// 直列化時にスキップされる。よって本機能を使わない run の condition_key は
+    /// 本フィールド追加前と同一に保たれる (既存 checkpoint と互換)。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) lance_knight_allow_start: Option<u32>,
+    /// 上記の `step`。`start` が `Some` のとき意味を持つ。最小値 1。未使用時は 0。
+    #[serde(default, skip_serializing_if = "is_zero_u32")]
+    pub(super) lance_knight_allow_step: u32,
 }
+
+/// bishop/rook 系の駒種 (unpromoted + promoted 双方を同一 family として数える)。
+const ROOK_BISHOP_FAMILY: [Kind; 4] =
+    [Kind::Bishop, Kind::ProBishop, Kind::Rook, Kind::ProRook];
+/// lance/knight 系の駒種 (unpromoted + promoted 双方)。
+const LANCE_KNIGHT_FAMILY: [Kind; 4] =
+    [Kind::Lance, Kind::ProLance, Kind::Knight, Kind::ProKnight];
 
 impl SearchConstraints {
     pub(super) fn breaks_lr_symmetry(self) -> bool {
@@ -102,44 +120,108 @@ pub(super) fn satisfies_ideal_smoke_constraints(
     if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
         return false;
     }
-    if !satisfies_rook_bishop_allowance(position, constraints) {
+    if !satisfies_piece_allowances(position, constraints) {
         return false;
     }
     satisfies_search_constraints(position, constraints)
 }
 
-/// `--rook-bishop-allow-start` / `--rook-bishop-allow-step` の評価。
-/// 盤上 (両色) の Bishop/ProBishop/Rook/ProRook 合計枚数が、現在の
-/// pieces_in_play から導かれる許容枚数以下であるかを判定する。
+/// 駒 family の保守的な盤上許容枚数判定 (rook/bishop・lance/knight 共通)。
+/// 盤上 (両色) の `family` 駒合計が、現在の pieces_in_play から導かれる許容枚数
+/// 以下であれば true。`start` が None のとき本制約は無効で常に true。
 ///
-/// start が None のとき本制約は無効化されており常に true を返す。
-fn satisfies_rook_bishop_allowance(
+/// 許容枚数: 枚数 < start で 0、枚数 ≥ start で `(枚数 - start) / step + 1`。
+/// `step` は最小 1 にクランプ。promoted/unpromoted は `family` に両方含め同一視。
+fn satisfies_family_allowance(
     position: &PositionAux,
-    constraints: SearchConstraints,
+    start: Option<u32>,
+    step: u32,
+    family: &[Kind],
 ) -> bool {
-    let Some(start) = constraints.rook_bishop_allow_start else {
+    let Some(start) = start else {
         return true;
     };
-    let step = constraints.rook_bishop_allow_step.max(1);
+    let step = step.max(1);
     let total = pieces_in_play(position);
     let allowed: u32 = if total >= start {
         (total - start) / step + 1
     } else {
         0
     };
-    bishop_rook_board_count(position) <= allowed
+    family_board_count(position, family) <= allowed
 }
 
-/// 盤上の Bishop/ProBishop/Rook/ProRook の合計枚数 (両色)。
-fn bishop_rook_board_count(position: &PositionAux) -> u32 {
-    let kinds = [Kind::Bishop, Kind::ProBishop, Kind::Rook, Kind::ProRook];
+/// 盤上 (両色) の `family` 駒種の合計枚数。
+fn family_board_count(position: &PositionAux, family: &[Kind]) -> u32 {
     let mut count = 0u32;
     for color in [Color::BLACK, Color::WHITE] {
-        for &kind in &kinds {
+        for &kind in family {
             count += position.bitboard(color, kind).count_ones();
         }
     }
     count
+}
+
+/// 設定済みの全 family (rook/bishop・lance/knight) の許容枚数制約を満たすか。
+/// generation・output 双方の境界で用いる (枚数を超える盤面を厳密に弾く)。
+fn satisfies_piece_allowances(position: &PositionAux, constraints: SearchConstraints) -> bool {
+    satisfies_family_allowance(
+        position,
+        constraints.rook_bishop_allow_start,
+        constraints.rook_bishop_allow_step,
+        &ROOK_BISHOP_FAMILY,
+    ) && satisfies_family_allowance(
+        position,
+        constraints.lance_knight_allow_start,
+        constraints.lance_knight_allow_step,
+        &LANCE_KNIGHT_FAMILY,
+    )
+}
+
+/// rook/bishop 許容枚数のみの判定 (既存 rook/bishop 単体テスト互換の薄いラッパ)。
+#[cfg(test)]
+fn satisfies_rook_bishop_allowance(
+    position: &PositionAux,
+    constraints: SearchConstraints,
+) -> bool {
+    satisfies_family_allowance(
+        position,
+        constraints.rook_bishop_allow_start,
+        constraints.rook_bishop_allow_step,
+        &ROOK_BISHOP_FAMILY,
+    )
+}
+
+/// undo 候補生成時の保守的・健全な early rejection。
+/// undo が予測局面 (predecessor) の `family` 盤上枚数を増やすのは「取られた family
+/// 駒を盤に戻す」場合のみ (UnMove capture ∈ family)。UnDrop は盤から手に戻すだけ、
+/// 非捕獲 UnMove は family 内昇格に留まるので family 枚数は増えない。よって undo 後の
+/// pieces_in_play が `start` 未満 (許容 0) のとき family 駒を復活させる undo は、
+/// generation filter が必ず弾く predecessor を生むため、ここで早期に弾いてよい。
+/// `start` 以上 (許容 > 0) の場合は generation filter に委ね、常に許可する
+/// (健全性: 妥当な predecessor を決して弾かない)。
+fn family_undo_allowed(
+    undo_move: &UndoMove,
+    pieces_in_play_after: u32,
+    start: Option<u32>,
+    family: &[Kind],
+) -> bool {
+    let Some(start) = start else {
+        return true;
+    };
+    if pieces_in_play_after >= start {
+        return true;
+    }
+    !undo_restores_family_capture(undo_move, family)
+}
+
+/// undo が捕獲駒を盤に戻し、その駒が `family` に属するか (= predecessor の family
+/// 盤上枚数を +1 する唯一のケース)。
+fn undo_restores_family_capture(undo_move: &UndoMove, family: &[Kind]) -> bool {
+    matches!(
+        undo_move,
+        UndoMove::UnMove { capture: Some(k), .. } if family.contains(k)
+    )
 }
 
 pub(super) fn satisfies_ideal_smoke_generation_constraints(
@@ -165,6 +247,12 @@ pub(super) fn satisfies_ideal_smoke_generation_constraints(
         return false;
     }
     if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
+        return false;
+    }
+    // 生成境界 (correctness boundary): family 許容枚数を超える盤面を厳密に弾く。
+    // これにより rook/bishop・lance/knight の段階許可が早期の frontier/memo 膨張を
+    // 実際に抑制する (従来は output 側のみに適用されていた)。
+    if !satisfies_piece_allowances(position, constraints) {
         return false;
     }
     satisfies_search_constraints(position, constraints)
@@ -202,6 +290,25 @@ pub(super) fn satisfies_ideal_smoke_undo_candidate(
     let pip = pieces_in_play_after_undo(position, undo_move);
     let (min, max) = expected_pieces_range(next_step, constraints.slack, constraints.miyako);
     if pip < min || pip > max {
+        return false;
+    }
+    // family 許容枚数の cheap & sound な early rejection。許容 0 (pip < start) の
+    // 段階で family 駒を盤に復活させる undo は generation filter が必ず弾くため、
+    // ここで予測局面を構築する前に弾く。許容 > 0 の場合は generation に委ねる。
+    if !family_undo_allowed(
+        undo_move,
+        pip,
+        constraints.rook_bishop_allow_start,
+        &ROOK_BISHOP_FAMILY,
+    ) {
+        return false;
+    }
+    if !family_undo_allowed(
+        undo_move,
+        pip,
+        constraints.lance_knight_allow_start,
+        &LANCE_KNIGHT_FAMILY,
+    ) {
         return false;
     }
     if !satisfies_promoted_pct(position, next_step, constraints) {
@@ -276,6 +383,10 @@ pub(super) fn validate_search_constraints(constraints: SearchConstraints) -> any
 }
 
 fn is_zero_u128(v: &u128) -> bool {
+    *v == 0
+}
+
+fn is_zero_u32(v: &u32) -> bool {
     *v == 0
 }
 
@@ -1253,7 +1364,7 @@ mod tests {
 
     #[test]
     fn rook_bishop_allowance_counts_promoted_and_both_colors() {
-        // bishop_rook_board_count should sum Bishop + ProBishop + Rook + ProRook
+        // family_board_count should sum Bishop + ProBishop + Rook + ProRook
         // across both colors. Place one of each kind on the board.
         let mut p = PositionAux::default();
         p.set(Square::S19, Color::WHITE, Kind::King);
@@ -1262,6 +1373,151 @@ mod tests {
         p.set(Square::S33, Color::WHITE, Kind::Bishop);
         p.set(Square::S44, Color::BLACK, Kind::ProRook);
         p.set(Square::S55, Color::WHITE, Kind::ProBishop);
-        assert_eq!(bishop_rook_board_count(&p), 4);
+        assert_eq!(family_board_count(&p, &ROOK_BISHOP_FAMILY), 4);
+    }
+
+    // ---- lance/knight family allowance ----
+
+    /// Lance/knight analogue of `position_with_total_and_rook_bishop`: white
+    /// king + black king + `lk` board lance/knight-family pieces (kinds chosen
+    /// so the family count exercises promoted variants) + white-pawn fillers to
+    /// reach `total` pieces in play.
+    fn position_with_total_and_lance_knight(total: u32, lk: u32) -> PositionAux {
+        assert!(lk <= 4, "this helper supports up to 4 lance/knight pieces");
+        assert!(total >= 2 + lk, "total must accommodate 2 kings + lk pieces");
+        let mut p = PositionAux::default();
+        p.set(Square::S19, Color::WHITE, Kind::King);
+        p.set(Square::S11, Color::BLACK, Kind::King);
+        let lk_squares = [Square::S22, Square::S33, Square::S44, Square::S55];
+        let lk_kinds = [Kind::Lance, Kind::ProLance, Kind::Knight, Kind::ProKnight];
+        for i in 0..lk as usize {
+            p.set(lk_squares[i], Color::BLACK, lk_kinds[i]);
+        }
+        let remaining = (total - 2 - lk) as usize;
+        let mut filled = 0usize;
+        'outer: for col in 0..9usize {
+            for row in 2..8usize {
+                if filled == remaining {
+                    break 'outer;
+                }
+                let sq = Square::new(col, row);
+                if p.get(sq).is_none() {
+                    p.set(sq, Color::WHITE, Kind::Pawn);
+                    filled += 1;
+                }
+            }
+        }
+        assert_eq!(board_piece_count(&p), total, "test helper miscounts");
+        p
+    }
+
+    fn lk_constraints(start: u32, step: u32) -> SearchConstraints {
+        SearchConstraints {
+            lance_knight_allow_start: Some(start),
+            lance_knight_allow_step: step,
+            ..SearchConstraints::default()
+        }
+    }
+
+    #[test]
+    fn lance_knight_allowance_disabled_by_default() {
+        // No lance/knight constraint set → any board count allowed.
+        let p = position_with_total_and_lance_knight(10, 4);
+        assert!(satisfies_piece_allowances(&p, SearchConstraints::default()));
+    }
+
+    #[test]
+    fn lance_knight_allowance_blocks_below_start() {
+        // total=19 < start=20 → 0 lance/knight allowed.
+        let p_none = position_with_total_and_lance_knight(19, 0);
+        assert!(satisfies_piece_allowances(&p_none, lk_constraints(20, 5)));
+        let p_one = position_with_total_and_lance_knight(19, 1);
+        assert!(!satisfies_piece_allowances(&p_one, lk_constraints(20, 5)));
+    }
+
+    #[test]
+    fn lance_knight_allowance_step_progression_counts_promoted() {
+        let c = lk_constraints(20, 5);
+        // 20..24 → 1 allowed; the 2nd family piece (a promoted variant) is rejected.
+        assert!(satisfies_piece_allowances(
+            &position_with_total_and_lance_knight(20, 1),
+            c,
+        ));
+        assert!(!satisfies_piece_allowances(
+            &position_with_total_and_lance_knight(20, 2),
+            c,
+        ));
+        // 25..29 → 2 allowed (includes ProLance from the alternating kinds).
+        assert!(satisfies_piece_allowances(
+            &position_with_total_and_lance_knight(25, 2),
+            c,
+        ));
+        assert!(!satisfies_piece_allowances(
+            &position_with_total_and_lance_knight(25, 3),
+            c,
+        ));
+    }
+
+    /// Generation boundary: with a family allowance configured, a position
+    /// carrying a family piece below the `start` threshold is rejected at
+    /// GENERATION time (not just output) — this is what prunes the early
+    /// frontier/memo. With the flags unset, the same position is accepted
+    /// (existing behavior preserved). Families are independent.
+    #[test]
+    fn generation_rejects_family_below_threshold_else_accepts() {
+        // step=11 → required pieces_in_play = 11/2 + 3 = 8 (slack 0). Build an
+        // 8-board-piece position (black hand empty) with one Rook and one Knight
+        // plus non-family fillers.
+        let mut p = PositionAux::default();
+        p.set(Square::S19, Color::WHITE, Kind::King);
+        p.set(Square::S11, Color::BLACK, Kind::King);
+        p.set(Square::S22, Color::BLACK, Kind::Rook);
+        p.set(Square::S33, Color::BLACK, Kind::Knight);
+        p.set(Square::S44, Color::BLACK, Kind::Silver);
+        p.set(Square::S55, Color::BLACK, Kind::Silver);
+        p.set(Square::S66, Color::BLACK, Kind::Silver);
+        p.set(Square::S77, Color::BLACK, Kind::Silver);
+        assert_eq!(board_piece_count(&p), 8);
+        let step = 11;
+
+        // Unset: accepted (criterion 1, behavior preserved).
+        assert!(satisfies_ideal_smoke_generation_constraints(
+            &p,
+            step,
+            SearchConstraints::default()
+        ));
+
+        // rook/bishop start=20 > pip(8) → 0 allowed → the Rook is rejected at
+        // generation (lance/knight unset, so the Knight is irrelevant here).
+        let rb = SearchConstraints {
+            rook_bishop_allow_start: Some(20),
+            rook_bishop_allow_step: 5,
+            ..SearchConstraints::default()
+        };
+        assert!(!satisfies_ideal_smoke_generation_constraints(&p, step, rb));
+
+        // lance/knight start=20 → the Knight is rejected at generation
+        // (rook/bishop unset).
+        assert!(!satisfies_ideal_smoke_generation_constraints(
+            &p,
+            step,
+            lk_constraints(20, 5)
+        ));
+    }
+
+    #[test]
+    fn piece_allowances_families_are_independent() {
+        // A rook/bishop limit must not constrain lance/knight and vice versa.
+        let rb_only = SearchConstraints {
+            rook_bishop_allow_start: Some(20),
+            rook_bishop_allow_step: 5,
+            ..SearchConstraints::default()
+        };
+        // 4 lance/knight pieces at low total: allowed because only rook/bishop is
+        // constrained.
+        assert!(satisfies_piece_allowances(
+            &position_with_total_and_lance_knight(10, 4),
+            rb_only,
+        ));
     }
 }
