@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780393080559,
+  "lastUpdate": 1780401277520,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46406,6 +46406,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a6b3a196c20e8277c2af9905cc05a8903a5157ab"
         },
         "date": 1780393075537,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434417364,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "251122c37635b05aab2ac588233123642c70e1a3",
+          "message": "docs: CLAUDE.md に協力詰(helpmate)ドメイン注記を追加\n\nfmrs は helpmate-tsume(協力詰)で adversarial tsume ではない。AND/OR minimax\n構造がないため df-pn / proof-number search は不適。uniqueness = 協力手順が\n厳密に1本 = 解経路数==1 の問題、という前提を明記。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T11:37:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/251122c37635b05aab2ac588233123642c70e1a3"
+        },
+        "date": 1780401274549,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
