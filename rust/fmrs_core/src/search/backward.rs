@@ -3839,8 +3839,14 @@ fn get_overlay(delta: &NoHashMap64<StepRange>, base: &Memo, digest: u64) -> Opti
 /// level so pass-1 can try them first for subsequent calls. Persistent across
 /// the chunk (thousands of candidates) but reset per chunk to avoid stale moves
 /// leaking across thread boundaries.
+///
+/// KILLER_COUNT tuned by sweep on a deep canonicalize search (max-step 31):
+/// wall time vs count was an inverted-U — 5:280s, 8:267s, 12:263s, 16:266s,
+/// 24:268s. 12 is the sweet spot (~6% faster than 5): more killers catch more
+/// cutoffs in pass-1 (fewer recursive descents) until the per-node killer scan
+/// cost overtakes the gain past ~12.
 const KILLER_DEPTH: usize = 64;
-const KILLER_COUNT: usize = 5;
+const KILLER_COUNT: usize = 12;
 
 struct Killers {
     by_mate_in: [[Option<Movement>; KILLER_COUNT]; KILLER_DEPTH],
