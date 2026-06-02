@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780393078546,
+  "lastUpdate": 1780393080559,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43301,6 +43301,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 31250,
             "range": "± 7",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a6b3a196c20e8277c2af9905cc05a8903a5157ab",
+          "message": "perf(search): KILLER_COUNT を 5→12 に (DFS ~6% 高速化)\n\nPhase 2 uniqueness 検証 DFS の killer move 数を sweep で再調整。\nmax-step 31 の深い canonicalize 探索での wall time は killer 数に対し\ninverted-U: 5→280s, 8→267s, 12→263s, 16→266s, 24→268s。\n12 が最良 (≈6% 高速)。killer が多いほど pass-1 で cutoff を多く拾い\n再帰下降が減るが、~12 を超えると per-node の killer scan コストが上回る。\n\n純粋な move ordering の調整なので探索結果は不変 (統合テスト pass)。\nボトルネックは Phase 2 DFS (CPU/memo-latency 律速) と判明したうえでの調整。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T09:21:01Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a6b3a196c20e8277c2af9905cc05a8903a5157ab"
+        },
+        "date": 1780393080112,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 399,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2731,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 181,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 403,
+            "range": "± 583",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26043,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1675,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4641,
+            "range": "± 156",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1337104,
+            "range": "± 645",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11599,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 181,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 109,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 140,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19074878,
+            "range": "± 60289",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27449,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3311,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17346,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 29790,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
