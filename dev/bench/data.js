@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780329777652,
+  "lastUpdate": 1780393078546,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46212,6 +46212,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/33b0a96931cbdf0864d79b1f7f8d7635c7c6cbb4"
         },
         "date": 1780329772483,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434417364,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a6b3a196c20e8277c2af9905cc05a8903a5157ab",
+          "message": "perf(search): KILLER_COUNT を 5→12 に (DFS ~6% 高速化)\n\nPhase 2 uniqueness 検証 DFS の killer move 数を sweep で再調整。\nmax-step 31 の深い canonicalize 探索での wall time は killer 数に対し\ninverted-U: 5→280s, 8→267s, 12→263s, 16→266s, 24→268s。\n12 が最良 (≈6% 高速)。killer が多いほど pass-1 で cutoff を多く拾い\n再帰下降が減るが、~12 を超えると per-node の killer scan コストが上回る。\n\n純粋な move ordering の調整なので探索結果は不変 (統合テスト pass)。\nボトルネックは Phase 2 DFS (CPU/memo-latency 律速) と判明したうえでの調整。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T09:21:01Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a6b3a196c20e8277c2af9905cc05a8903a5157ab"
+        },
+        "date": 1780393075537,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
