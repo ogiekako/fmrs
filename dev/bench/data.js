@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780401277520,
+  "lastUpdate": 1780401279628,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43443,6 +43443,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 29790,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "251122c37635b05aab2ac588233123642c70e1a3",
+          "message": "docs: CLAUDE.md に協力詰(helpmate)ドメイン注記を追加\n\nfmrs は helpmate-tsume(協力詰)で adversarial tsume ではない。AND/OR minimax\n構造がないため df-pn / proof-number search は不適。uniqueness = 協力手順が\n厳密に1本 = 解経路数==1 の問題、という前提を明記。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T11:37:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/251122c37635b05aab2ac588233123642c70e1a3"
+        },
+        "date": 1780401279135,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 393,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3322,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 397,
+            "range": "± 623",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29823,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1790,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4824,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1398892,
+            "range": "± 393",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12126,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 143,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20865084,
+            "range": "± 66197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 29130,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3547,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18381,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 32188,
+            "range": "± 26",
             "unit": "ns/iter"
           }
         ]
