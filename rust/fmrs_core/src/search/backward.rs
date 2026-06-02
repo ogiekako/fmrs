@@ -2344,6 +2344,8 @@ impl BackwardSearch {
                                     &mut midv.scratch,
                                     &mut midv.killers,
                                     &mut midv.history,
+                                    None,
+                                    None,
                                 );
                                 if !ans.is_uniquely(step + 1) {
                                     continue;
@@ -2489,6 +2491,23 @@ impl BackwardSearch {
         // See advance_parallel_filtered for the lazy-filter rationale.
         let target_w = self.candidates_limit;
         set_progress_phase(3);
+        // Step-scoped cross-chunk shared DFS memo for deep (mate_in >=
+        // threshold) nodes, two parities mirroring (prev_memo, memo). Persisting
+        // across waves (not just within one) lets later waves reuse the deep
+        // subtree verdicts computed by earlier waves -- that temporal separation
+        // is where sharing actually lands (within a wave, concurrent workers
+        // race to the same node before any has published). Dropped at step end
+        // => memory returned. Deep-node count << full memo so memory is bounded.
+        // Always on (independent of canonicalization). See
+        // [[project_phase2_within_step_redo]].
+        let shared_dfs_prev: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
+            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .collect();
+        let shared_dfs_memo: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
+            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .collect();
+        let shared_dfs_prev_ref = Some(shared_dfs_prev.as_slice());
+        let shared_dfs_memo_ref = Some(shared_dfs_memo.as_slice());
         for wave in candidates.chunks(wave_size) {
             if target_w.is_some_and(|w| all_positions.len() >= w) {
                 self.last_sampled = true;
@@ -2626,6 +2645,8 @@ impl BackwardSearch {
                                             &mut solution_scratch,
                                             &mut killers,
                                             &mut history,
+                                            None,
+                                            None,
                                         );
                                         debug_assert_eq!(
                                             ans.is_uniquely(step + 1),
@@ -2659,6 +2680,8 @@ impl BackwardSearch {
                                     &mut solution_scratch,
                                     &mut killers,
                                     &mut history,
+                                    shared_dfs_prev_ref,
+                                    shared_dfs_memo_ref,
                                 )
                             } else {
                                 solutions_overlay(
@@ -2671,6 +2694,8 @@ impl BackwardSearch {
                                     &mut solution_scratch,
                                     &mut killers,
                                     &mut history,
+                                    shared_dfs_prev_ref,
+                                    shared_dfs_memo_ref,
                                 )
                             };
                             // Publish for sibling chunks in this wave. Only
@@ -2997,6 +3022,17 @@ impl BackwardSearch {
         // |next| = W, remaining waves can be skipped without bias.
         let target_w = self.candidates_limit;
         set_progress_phase(3); // V: uniqueness verification waves
+        // Step-scoped cross-chunk shared DFS memo (see the matching block in
+        // advance_2ply_fused). Persists across waves so later waves reuse deep
+        // subtree verdicts from earlier ones. See [[project_phase2_within_step_redo]].
+        let shared_dfs_prev: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
+            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .collect();
+        let shared_dfs_memo: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
+            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .collect();
+        let shared_dfs_prev_ref = Some(shared_dfs_prev.as_slice());
+        let shared_dfs_memo_ref = Some(shared_dfs_memo.as_slice());
         for wave in candidates.chunks(wave_size) {
             if target_w.is_some_and(|w| all_positions.len() >= w) {
                 self.last_sampled = true;
@@ -3138,6 +3174,8 @@ impl BackwardSearch {
                                             &mut solution_scratch,
                                             &mut killers,
                                             &mut history,
+                                            None,
+                                            None,
                                         );
                                         debug_assert_eq!(
                                             ans.is_uniquely(step + 1),
@@ -3171,6 +3209,8 @@ impl BackwardSearch {
                                     &mut solution_scratch,
                                     &mut killers,
                                     &mut history,
+                                    shared_dfs_prev_ref,
+                                    shared_dfs_memo_ref,
                                 )
                             } else {
                                 solutions_overlay(
@@ -3183,6 +3223,8 @@ impl BackwardSearch {
                                     &mut solution_scratch,
                                     &mut killers,
                                     &mut history,
+                                    shared_dfs_prev_ref,
+                                    shared_dfs_memo_ref,
                                 )
                             };
                             // Publish for sibling chunks in this wave. Only
@@ -3935,6 +3977,7 @@ fn movement_hist_idx(m: &Movement) -> usize {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn solutions_overlay(
     position: &mut PositionAux,
     memo_base: &Memo,
@@ -3945,6 +3988,8 @@ fn solutions_overlay(
     scratch: &mut Vec<Vec<Movement>>,
     killers: &mut Killers,
     history: &mut HistoryTable,
+    shared_cur: Option<&SharedDfs>,
+    shared_next: Option<&SharedDfs>,
 ) -> StepRange {
     if scratch.len() <= mate_in as usize {
         scratch.resize_with(mate_in as usize + 1, Vec::new);
@@ -3959,10 +4004,31 @@ fn solutions_overlay(
         scratch,
         killers,
         history,
+        shared_cur,
+        shared_next,
     )
 }
 
+/// Cross-chunk shared DFS memo (sharded concurrent map of digest -> StepRange).
+/// Within a single step the parallel Phase-2 chunks otherwise share nothing
+/// until the end-of-step merge, so the same deep subtree gets fully re-verified
+/// by many workers (~68% of nocut work measured 2026-06, worse at higher core
+/// counts). Sharing only nodes at `mate_in >= SHARED_DFS_MIN_MATE_IN` short-
+/// circuits the *whole* redundant subtree at its root while keeping lock traffic
+/// off the numerous cheap shallow nodes. Soundness is identical to the local
+/// memo: StepRange is intrinsic to the position; we only publish/consume final
+/// (non-investigation) verdicts. See [[project_phase2_within_step_redo]].
+type SharedDfs = [Mutex<NoHashMap64<StepRange>>];
+
+/// Min mate_in at which a node consults/publishes the cross-chunk shared memo.
+/// Tuned 2026-06 (64core, max-step 31): consistent ~2.6% less total CPU work
+/// vs disabled, sound (frontier identical). Sharing only deep nodes keeps lock
+/// traffic off the numerous cheap shallow nodes; threshold 6 and 8 measured
+/// equivalent so 8 (less lock traffic) is kept.
+const SHARED_DFS_MIN_MATE_IN: u16 = 8;
+
 #[inline]
+#[allow(clippy::too_many_arguments)]
 fn solutions_overlay_inner(
     position: &mut PositionAux,
     memo_base: &Memo,
@@ -3973,6 +4039,8 @@ fn solutions_overlay_inner(
     scratch: &mut [Vec<Movement>],
     killers: &mut Killers,
     history: &mut HistoryTable,
+    shared_cur: Option<&SharedDfs>,
+    shared_next: Option<&SharedDfs>,
 ) -> StepRange {
     let digest = position.digest();
     let mut ans = StepRange::unknown();
@@ -3981,6 +4049,26 @@ fn solutions_overlay_inner(
             return a;
         }
         ans = a;
+    }
+
+    // Cross-chunk shared-memo consult (deep nodes only). A sibling chunk may
+    // have already fully verified this digest; if so we skip its whole subtree.
+    let use_shared = mate_in >= SHARED_DFS_MIN_MATE_IN;
+    if use_shared {
+        if let Some(shards) = shared_cur {
+            let cached = shards[shard_index(digest)].lock().unwrap().get(&digest).copied();
+            if let Some(a) = cached {
+                ans = ans.intersection(&a);
+                if !ans.needs_investigation(mate_in) {
+                    // Cache into local delta so repeat visits in this chunk are
+                    // lock-free.
+                    if should_memoize(ans) {
+                        memo_delta.insert(digest, ans);
+                    }
+                    return ans;
+                }
+            }
+        }
     }
 
     if mate_in == 0 {
@@ -4101,6 +4189,8 @@ fn solutions_overlay_inner(
                 scratch,
                 killers,
                 history,
+                shared_next,
+                shared_cur,
             )
             .inc();
             debug_assert!(!a.needs_investigation(mate_in));
@@ -4130,6 +4220,17 @@ fn solutions_overlay_inner(
 
     if should_memoize(res) {
         memo_delta.insert(digest, res);
+        // Publish final deep-node verdicts so sibling chunks skip this subtree.
+        if use_shared {
+            if let Some(shards) = shared_cur {
+                let mut g = shards[shard_index(digest)].lock().unwrap();
+                let merged = match g.get(&digest) {
+                    Some(prev) => prev.intersection(&res),
+                    None => res,
+                };
+                g.insert(digest, merged);
+            }
+        }
     }
     scratch[scratch_index] = movements;
     res
