@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780401279628,
+  "lastUpdate": 1780451485060,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46630,6 +46630,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434417364,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "35463b5b00efef0e425ae78982c80ab298a1d8d1",
+          "message": "perf(backward): Phase2 で worker 間に深ノード検証を共有し within-step 重複を削減\n\nPhase2 の uniqueness DFS は候補を並列処理するが、各 worker は thread-local\nの memo_delta しか持たず、結果共有は step 末の merge まで起きない。このため\n同一 step 内で複数候補の DFS 部分木が同じ深い局面に達すると互いを知らず各自\nフル再検証していた。計測では nocut(全幅検証=支配コスト)の ~68% がこの\nwithin-step 重複で、並列度が上がるほど悪化する。\n\nstep-scope の sharded concurrent memo を導入し、mate_in >= 8 の深ノードのみ\nworker 間で検証結果を共有(浅ノードはロック traffic を避けるため対象外)。\n深ノード共有はその部分木全体の再計算を root で短絡する。step-scope なので\n後続 wave が先行 wave の判定を再利用できる。\n\n正しさは local memo と同一: StepRange は局面固有で、final(非 investigation)\nの判定のみ publish/consume する。frontier は全 run で不変(best 16/264 一致)。\n\n実測(64core, max-step 31, 4rep): user CPU -2.6%(base 13876-14079s vs\nnew 13558-13609s で分布が完全分離)、wall -2.5%。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T23:44:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/35463b5b00efef0e425ae78982c80ab298a1d8d1"
+        },
+        "date": 1780451481183,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124067,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434388944,
             "unit": "Instructions"
           }
         ]
