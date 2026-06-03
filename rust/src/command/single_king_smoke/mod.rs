@@ -168,6 +168,10 @@ pub enum SingleKingSmokeCommand {
         /// Beam scoring: path to model JSON, or "handcraft". Omit for random.
         #[arg(long)]
         beam_model: Option<String>,
+        /// Softmax selection temperature (0 = greedy top-K). Larger = more
+        /// diversity/exploration; very large approaches the random beam.
+        #[arg(long, default_value_t = 0.0)]
+        beam_temperature: f32,
         /// Initial Bottom-K Sampling pool overshoot factor (default 4). After
         /// each step, automatically grows toward 1/observed_survival so Phase V
         /// can early-stop at W survivors. Always clamped by
@@ -335,6 +339,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             feature_sample_per_step,
             beam_width,
             beam_model,
+            beam_temperature,
             candidates_pool_factor,
             max_candidates_pool,
             memory_budget_pct,
@@ -350,7 +355,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             split_seed,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
-            let beam = build_beam_config(beam_width, beam_model.as_deref())?;
+            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature)?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
                 None => None,

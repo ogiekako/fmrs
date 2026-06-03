@@ -28,6 +28,13 @@ enum BeamScorer {
 pub(super) struct BeamConfig {
     pub(super) width: Option<usize>,
     scorer: BeamScorer,
+    /// Softmax temperature for selection. 0 = deterministic top-K (greedy,
+    /// low diversity). Larger = more exploration; T→∞ approaches the uniform
+    /// (random) beam. Implemented via the Gumbel-top-K trick (sampling K
+    /// without replacement ∝ exp(score/T)), which keeps high-value positions
+    /// while preserving diversity — the lever that lets a value model beat the
+    /// pure-random beam.
+    temperature: f32,
 }
 
 impl BeamConfig {
@@ -49,13 +56,18 @@ pub(super) const BEAM_SCORE_POOL: usize = 16;
 pub(super) fn build_beam_config(
     width: Option<usize>,
     model_spec: Option<&str>,
+    temperature: f32,
 ) -> anyhow::Result<BeamConfig> {
     let scorer = match model_spec {
         None => BeamScorer::Random,
         Some("handcraft") => BeamScorer::Handcraft,
         Some(path) => BeamScorer::Model(LinearModel::load(Path::new(path))?),
     };
-    Ok(BeamConfig { width, scorer })
+    Ok(BeamConfig {
+        width,
+        scorer,
+        temperature,
+    })
 }
 
 pub(super) fn open_feature_log(path: &Path) -> anyhow::Result<fs::File> {
@@ -88,16 +100,24 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
         }
         scorer => {
             let step = search.step();
+            let temp = beam.temperature;
             let (stone, positions) = search.positions();
             let mut scored: Vec<(f32, Position)> = positions
                 .par_iter()
                 .map(|p| {
                     let aux = PositionAux::new(p.clone(), stone);
                     let features = extract_features(&aux, step);
-                    let score = match scorer {
+                    let mut score = match scorer {
                         BeamScorer::Model(m) => m.score(&features),
                         _ => handcraft_beam_score(&features),
                     };
+                    // Gumbel-top-K: perturbing by T·Gumbel and taking top-K
+                    // samples K without replacement ∝ exp(score/T), keeping
+                    // value while preserving diversity.
+                    if temp > 0.0 {
+                        let u: f32 = SmallRng::from_entropy().gen::<f32>().clamp(1e-9, 1.0);
+                        score += temp * -(-u.ln()).ln();
+                    }
                     (score, p.clone())
                 })
                 .collect();
