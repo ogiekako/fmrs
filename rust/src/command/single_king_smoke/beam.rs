@@ -71,12 +71,13 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
             search.replace_positions(kept);
         }
         scorer => {
+            let step = search.step();
             let (stone, positions) = search.positions();
             let mut scored: Vec<(f32, Position)> = positions
                 .par_iter()
                 .map(|p| {
                     let aux = PositionAux::new(p.clone(), stone);
-                    let features = extract_features(&aux);
+                    let features = extract_features(&aux, step);
                     let score = match scorer {
                         BeamScorer::Model(m) => m.score(&features),
                         _ => handcraft_beam_score(&features),
@@ -137,7 +138,7 @@ pub(super) fn sample_features_to_log(
     for _ in 0..k {
         let idx = rng.gen_range(0..n);
         let aux = PositionAux::new(positions[idx].clone(), stone);
-        let features = extract_features(&aux);
+        let features = extract_features(&aux, step);
         let sfen = aux.sfen();
         let line = serde_json::json!({
             "seed_index": seed_index,

@@ -144,6 +144,47 @@ Reaching 30+ pieces exactly is infeasible (frontier grows ~1.9×/2 steps → ~10
 at step ~58); the next extension is **beam** (top-K) sampling past the exact
 depth (see §4).
 
+## 6. Learning a beam scorer ("why does a position live?")
+
+Goal: a model that, at a given step, ranks frontier positions by how deep/
+high-piece their descendants reach — a beam scoring function toward 40 pieces.
+
+Pipeline: `single-king-smoke cone-features --dataset data/dataset.csv -o train.csv`
+(runs `extract_features` per position) → `train_cone_model.py` → a `LinearModel`
+JSON for the Rust beam (`--beam-model`). Composer-intuition features were added
+to `extract_features` (king liberties / safe flights / flight coverage / escape
+depth / ray freedom / net tightness, white mobility, board dispersion &
+centroid, promoted count, and an opt-in `black_check_moves`), plus `step`
+(phase).
+
+Key methodological point: `best_piece_reachable` is **dominated by the current
+piece count** (rank-by-piece-count alone gives per-step Spearman 0.95). The
+*interesting* signal is the **gain** = reachable − current pieces, evaluated
+**within (step, piece-count) cells** — "which of the same-piece positions extend
+deeper". Evaluated with GroupKFold (group = `max_best_depth`, so a whole
+solution path stays in one fold; dead rows split freely):
+
+| model | within-cell Spearman (gain) |
+|---|---|
+| Ridge (linear) | 0.15 |
+| GBDT (HistGradientBoosting) | **0.225** |
+
+So the promise IS predictable but **weak–moderate and nonlinear**. The top
+drivers (GBDT permutation importance) are exactly the human-intuition features:
+`step` (phase), `total_black_kiki`, `king_flight_cov_avg`, `king_escape_depth`,
+`king_ray_freedom`, `king_liberties`, `row_std`/dispersion, `king_centroid_cheby`,
+`white_mobility` — piece count is irrelevant within a cell (as it should be).
+`black_check_moves` is individually informative (#2) but redundant with
+`total_black_kiki`, so it barely helps the ensemble and is left off by default
+(opt-in via `FMRS_FEAT_HEAVY=1`; ~2 s to compute over the whole dataset).
+
+Caveats / next: the Rust beam only consumes a **linear** model (per-cell 0.15),
+capturing ~2/3 of the GBDT's signal — closing this needs GBDT-in-beam or
+engineered interactions. The committed `models/cone_beam_model.json` scores the
+predicted reachable value (piece count + learned gain); a width-3000 beam
+retains the exact best at shallow steps. The open validation is **beam width vs
+cone retention / reachable depth** vs random and piece-count baselines.
+
 ## Files
 
 - [`run.sh`](run.sh) — regenerate `data/` and the tables above.

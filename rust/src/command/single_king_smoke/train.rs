@@ -8,6 +8,72 @@ use std::path::Path;
 use super::super::smoke_features::{extract_features, feature_names};
 use super::super::smoke_persistence::SeedResultRecord;
 
+/// Convert a smoke_cone dataset.csv (columns
+/// step,piece_count,live_deeper,max_best_depth,best_piece_reachable,sfen) into a
+/// training CSV: `label,group,live_deeper,<feature columns...>` where features
+/// come from `extract_features(pos, step)`. `group` (= max_best_depth) is a
+/// leakage-safe split key: all positions on one best's solution path share the
+/// same max_best_depth, so grouping by it keeps a path together (Python side
+/// does a GroupKFold; dead rows with group 0 are split independently).
+pub(super) fn export_cone_features(dataset: &Path, out: &Path, label_col: &str) -> anyhow::Result<()> {
+    let file = fs::File::open(dataset).with_context(|| format!("open {}", dataset.display()))?;
+    let mut reader = BufReader::new(file);
+    let mut header = String::new();
+    reader.read_line(&mut header)?;
+    let cols: Vec<&str> = header.trim().split(',').collect();
+    let idx = |name: &str| -> anyhow::Result<usize> {
+        cols.iter()
+            .position(|c| *c == name)
+            .with_context(|| format!("dataset missing column {name}"))
+    };
+    let (i_step, i_sfen, i_label, i_group, i_live) = (
+        idx("step")?,
+        idx("sfen")?,
+        idx(label_col)?,
+        idx("max_best_depth")?,
+        idx("live_deeper")?,
+    );
+
+    let mut writer = std::io::BufWriter::new(
+        fs::File::create(out).with_context(|| format!("create {}", out.display()))?,
+    );
+    let names = feature_names();
+    write!(writer, "label,group,live_deeper")?;
+    for n in &names {
+        write!(writer, ",{n}")?;
+    }
+    writeln!(writer)?;
+
+    let mut rows = 0usize;
+    let mut bad = 0usize;
+    for line in reader.lines() {
+        let line = line?;
+        if line.is_empty() {
+            continue;
+        }
+        let v: Vec<&str> = line.split(',').collect();
+        if v.len() != cols.len() {
+            bad += 1;
+            continue;
+        }
+        let step: u16 = v[i_step].parse().unwrap_or(0);
+        let Ok(pos) = PositionAux::from_sfen(v[i_sfen]) else {
+            bad += 1;
+            continue;
+        };
+        let features = extract_features(&pos, step);
+        write!(writer, "{},{},{}", v[i_label], v[i_group], v[i_live])?;
+        for f in &features {
+            write!(writer, ",{f}")?;
+        }
+        writeln!(writer)?;
+        rows += 1;
+    }
+    writer.flush()?;
+    eprintln!("cone-features: wrote {rows} rows ({bad} skipped) to {}", out.display());
+    Ok(())
+}
+
 pub(super) fn export_features(
     feature_log: &Path,
     seed_result_log: &Path,
@@ -172,7 +238,7 @@ pub(super) fn train_model(
         let label = record.best_piece_count;
         for (i, mv) in movements.iter().enumerate() {
             if pos.turn().is_black() {
-                let features = extract_features(&pos);
+                let features = extract_features(&pos, i as u16);
                 write!(writer, "{},{i},{label}", record.seed_index)?;
                 for f in &features {
                     write!(writer, ",{f}")?;
@@ -183,7 +249,7 @@ pub(super) fn train_model(
             pos.do_move(mv);
         }
         if pos.turn().is_black() {
-            let features = extract_features(&pos);
+            let features = extract_features(&pos, movements.len() as u16);
             write!(writer, "{},{},{label}", record.seed_index, movements.len())?;
             for f in &features {
                 write!(writer, ",{f}")?;

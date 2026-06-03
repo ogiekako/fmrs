@@ -9,9 +9,11 @@ use std::path::Path;
 
 use anyhow::Context as _;
 use fmrs_core::piece::{Color, Kind, KINDS, NUM_HAND_KIND};
+use fmrs_core::position::advance::advance::advance_aux;
+use fmrs_core::position::advance::AdvanceOptions;
 use fmrs_core::position::bitboard::rule::{king_power, reachable_sub};
 use fmrs_core::position::position::PositionAux;
-use fmrs_core::position::{BitBoard, Square};
+use fmrs_core::position::{checked, BitBoard, Movement, Square};
 use serde::{Deserialize, Serialize};
 
 const PER_KIND_NAMES: [(Kind, &str); 14] = [
@@ -34,6 +36,8 @@ const PER_KIND_NAMES: [(Kind, &str); 14] = [
 /// Returns feature names in extraction order.
 pub fn feature_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = Vec::new();
+    // Phase: the right scorer differs early vs late, so step is a feature.
+    v.push("step");
     v.push("board_total");
     v.push("board_black");
     v.push("board_white");
@@ -69,6 +73,31 @@ pub fn feature_names() -> Vec<&'static str> {
     v.push("board_row_spread");
     v.push("board_col_spread");
     v.push("black_pawn_columns");
+    // --- composer-intuition features ---
+    // King freedom / promise (room before forced collapse).
+    v.push("king_liberties");
+    v.push("king_safe_flights");
+    v.push("king_flight_cov_avg");
+    v.push("king_overcovered_flights");
+    v.push("king_escape_depth");
+    v.push("king_net_frac");
+    v.push("king_ray_freedom");
+    v.push("white_mobility");
+    // Dispersion / placement quality.
+    v.push("king_centroid_cheby");
+    v.push("black_far_from_king");
+    v.push("white_nonking_far");
+    v.push("bbox_area");
+    v.push("board_density");
+    v.push("occupied_files");
+    v.push("occupied_ranks");
+    v.push("row_std");
+    v.push("col_std");
+    v.push("promoted_total");
+    // Heavy (cook/余詰ぽさ): # of black moves giving check. Computed only when
+    // env FMRS_FEAT_HEAVY != "0" (else 0.0); the column stays in the schema so
+    // models are comparable and the runtime cost is opt-in for beam.
+    v.push("black_check_moves");
     v
 }
 
@@ -81,13 +110,14 @@ fn static_concat(a: &str, b: &str) -> &'static str {
 
 /// Computes a feature vector for the given position (white = mate target).
 /// The output's length equals `feature_names().len()`.
-pub fn extract_features(position: &PositionAux) -> Vec<f32> {
-    let mut f: Vec<f32> = Vec::with_capacity(80);
+pub fn extract_features(position: &PositionAux, step: u16) -> Vec<f32> {
+    let mut f: Vec<f32> = Vec::with_capacity(96);
     let occupied = position.occupied_bb();
     let black = position.black_bb();
     let white = position.white_bb();
     let hands = position.hands();
 
+    f.push(step as f32);
     f.push(occupied.count_ones() as f32);
     f.push(black.count_ones() as f32);
     f.push(white.count_ones() as f32);
@@ -215,8 +245,201 @@ pub fn extract_features(position: &PositionAux) -> Vec<f32> {
     }
     f.push(col_mask.count_ones() as f32);
 
+    // --- composer-intuition features ---
+    let (_total_black_kiki2, black_cnt) = black_kiki_per_square(position);
+    if let Some(kp) = king_pos_opt {
+        let ring1 = king_power(kp);
+        let ring1_n = ring1.count_ones().max(1);
+        let mut liberties = 0u32;
+        let mut safe_flights = 0u32;
+        let mut flight_cov_sum = 0u32;
+        let mut flight_cnt = 0u32;
+        let mut overcovered_flights = 0u32;
+        let mut escape_depth = 0u32;
+        let mut netted = 0u32;
+        for s in ring1 {
+            let empty = !occupied.contains(s);
+            let cov = black_cnt[s.index()] as u32;
+            if empty {
+                liberties += 1;
+                flight_cov_sum += cov;
+                flight_cnt += 1;
+                if cov == 0 {
+                    safe_flights += 1;
+                    for t in king_power(s) {
+                        if !occupied.contains(t) && black_cnt[t.index()] == 0 {
+                            escape_depth += 1;
+                        }
+                    }
+                }
+                if cov >= 2 {
+                    overcovered_flights += 1;
+                }
+            }
+            if !empty || cov > 0 {
+                netted += 1; // neighbor blocked or covered
+            }
+        }
+        f.push(liberties as f32);
+        f.push(safe_flights as f32);
+        f.push(if flight_cnt > 0 {
+            flight_cov_sum as f32 / flight_cnt as f32
+        } else {
+            0.0
+        });
+        f.push(overcovered_flights as f32);
+        f.push(escape_depth as f32);
+        f.push(netted as f32 / ring1_n as f32);
+        f.push(ray_freedom(&occupied, kp) as f32);
+    } else {
+        for _ in 0..7 {
+            f.push(0.0);
+        }
+    }
+    f.push(white_mobility(position) as f32);
+
+    // Dispersion / placement quality.
+    let (mut sum_r, mut sum_c, mut n_occ) = (0i32, 0i32, 0i32);
+    let mut file_mask: u32 = 0;
+    let mut rank_mask: u32 = 0;
+    for s in occupied {
+        sum_r += s.row() as i32;
+        sum_c += s.col() as i32;
+        n_occ += 1;
+        file_mask |= 1u32 << s.col();
+        rank_mask |= 1u32 << s.row();
+    }
+    let (cen_r, cen_c) = if n_occ > 0 {
+        (sum_r as f32 / n_occ as f32, sum_c as f32 / n_occ as f32)
+    } else {
+        (4.0, 4.0)
+    };
+    if let Some(kp) = king_pos_opt {
+        let dr = (kp.row() as f32 - cen_r).abs();
+        let dc = (kp.col() as f32 - cen_c).abs();
+        f.push(dr.max(dc));
+        let mut black_far = 0u32;
+        let mut white_far = 0u32;
+        for s in occupied {
+            let d = (s.row() as i32 - kp.row() as i32)
+                .abs()
+                .max((s.col() as i32 - kp.col() as i32).abs());
+            if d > 2 {
+                if black.contains(s) {
+                    black_far += 1;
+                } else if white.contains(s) && s != kp {
+                    white_far += 1;
+                }
+            }
+        }
+        f.push(black_far as f32);
+        f.push(white_far as f32);
+    } else {
+        for _ in 0..3 {
+            f.push(0.0);
+        }
+    }
+    let bbox_area = if max_r >= 0 {
+        ((max_r - min_r + 1) * (max_c - min_c + 1)) as f32
+    } else {
+        0.0
+    };
+    f.push(bbox_area);
+    f.push(if bbox_area > 0.0 {
+        occupied.count_ones() as f32 / bbox_area
+    } else {
+        0.0
+    });
+    f.push(file_mask.count_ones() as f32);
+    f.push(rank_mask.count_ones() as f32);
+    // Std of occupied rows/cols.
+    let (mut var_r, mut var_c) = (0f32, 0f32);
+    for s in occupied {
+        var_r += (s.row() as f32 - cen_r).powi(2);
+        var_c += (s.col() as f32 - cen_c).powi(2);
+    }
+    if n_occ > 0 {
+        var_r /= n_occ as f32;
+        var_c /= n_occ as f32;
+    }
+    f.push(var_r.sqrt());
+    f.push(var_c.sqrt());
+    let mut promoted_total = 0u32;
+    for &(kind, _) in PER_KIND_NAMES[NUM_HAND_KIND..].iter() {
+        promoted_total += position.bitboard(Color::BLACK, kind).count_ones();
+        promoted_total += position.bitboard(Color::WHITE, kind).count_ones();
+    }
+    f.push(promoted_total as f32);
+
+    // Heavy: # of black moves giving check (cook/余詰 proximity). Opt-in.
+    let heavy = std::env::var("FMRS_FEAT_HEAVY").map(|v| v != "0").unwrap_or(false);
+    f.push(if heavy {
+        count_black_check_moves(position) as f32
+    } else {
+        0.0
+    });
+
     debug_assert_eq!(f.len(), feature_names().len());
     f
+}
+
+/// Empty squares along the 8 king rays until the first occupied square or edge
+/// (a measure of open space around the king).
+fn ray_freedom(occupied: &BitBoard, king: Square) -> u32 {
+    let (kr, kc) = (king.row() as i32, king.col() as i32);
+    let mut total = 0u32;
+    for dr in -1..=1 {
+        for dc in -1..=1 {
+            if dr == 0 && dc == 0 {
+                continue;
+            }
+            let (mut r, mut c) = (kr + dr, kc + dc);
+            while (0..9).contains(&r) && (0..9).contains(&c) {
+                let s = Square::new(c as usize, r as usize);
+                if occupied.contains(s) {
+                    break;
+                }
+                total += 1;
+                r += dr;
+                c += dc;
+            }
+        }
+    }
+    total
+}
+
+/// Total white kiki (white mobility proxy = sum of reach over white pieces).
+fn white_mobility(position: &PositionAux) -> u32 {
+    let white = position.white_bb();
+    let mut total = 0u32;
+    for &(kind, _) in PER_KIND_NAMES.iter() {
+        let mut bb = position.bitboard(Color::WHITE, kind) & white;
+        while let Some(sq) = bb.next() {
+            total += reachable_sub(position, Color::WHITE, sq, kind).count_ones();
+        }
+    }
+    total
+}
+
+/// Number of black moves (black to move) that put the white king in check.
+fn count_black_check_moves(position: &PositionAux) -> u32 {
+    if !position.turn().is_black() {
+        return 0;
+    }
+    let mut moves: Vec<Movement> = Vec::new();
+    let mut p = position.clone();
+    if advance_aux(&mut p, &AdvanceOptions::default(), &mut moves).is_err() {
+        return 0;
+    }
+    let mut checks = 0u32;
+    for m in &moves {
+        let mut q = position.clone();
+        q.do_move(m);
+        if checked(&mut q, Color::WHITE) {
+            checks += 1;
+        }
+    }
+    checks
 }
 
 fn ring2_around(king: Square) -> BitBoard {
@@ -310,7 +533,7 @@ mod tests {
         let mut p = PositionAux::default();
         p.set(Square::S55, Color::WHITE, Kind::King);
         p.set(Square::S54, Color::BLACK, Kind::Gold);
-        let f = extract_features(&p);
+        let f = extract_features(&p, 5);
         assert_eq!(f.len(), feature_names().len());
     }
 
@@ -319,8 +542,8 @@ mod tests {
         let mut p = PositionAux::default();
         p.set(Square::S19, Color::WHITE, Kind::King);
         p.set(Square::S18, Color::BLACK, Kind::Gold);
-        let a = extract_features(&p);
-        let b = extract_features(&p);
+        let a = extract_features(&p, 5);
+        let b = extract_features(&p, 5);
         assert_eq!(a, b);
     }
 
@@ -331,7 +554,7 @@ mod tests {
         p.set(Square::S55, Color::WHITE, Kind::King);
         p.set(Square::S56, Color::BLACK, Kind::Gold);
         let names = feature_names();
-        let f = extract_features(&p);
+        let f = extract_features(&p, 5);
         let idx = |n: &str| names.iter().position(|x| *x == n).unwrap();
 
         assert_eq!(f[idx("king_white_neighbors_black")], 1.0);

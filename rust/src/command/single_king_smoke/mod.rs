@@ -262,6 +262,20 @@ pub enum SingleKingSmokeCommand {
         #[arg(long, default_value_t = 16)]
         min_label: u32,
     },
+    /// Convert an analysis/smoke_cone dataset.csv into a training CSV
+    /// (label,group,live_deeper,<features...>) via extract_features.
+    #[command(name = "cone-features")]
+    ConeFeatures {
+        /// Input dataset CSV (analysis/smoke_cone/data/dataset.csv).
+        #[arg(long)]
+        dataset: PathBuf,
+        /// Output training CSV.
+        #[arg(long, short = 'o')]
+        out: PathBuf,
+        /// Dataset column to use as the regression label.
+        #[arg(long, default_value = "best_piece_reachable")]
+        label: String,
+    },
     /// Train a beam model from the seed result log (no --feature-log needed).
     ///
     /// Solves each representative_sfen to collect intermediate positions,
@@ -412,6 +426,9 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             out,
             min_label,
         } => train::export_features(&feature_log, &seed_result_log, &out, min_label),
+        SingleKingSmokeCommand::ConeFeatures { dataset, out, label } => {
+            train::export_cone_features(&dataset, &out, &label)
+        }
         SingleKingSmokeCommand::TrainModel {
             seed_result_log,
             out,
