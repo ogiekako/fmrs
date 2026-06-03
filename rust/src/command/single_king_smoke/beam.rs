@@ -36,6 +36,9 @@ pub(super) struct BeamConfig {
     /// while preserving diversity — the lever that lets a value model beat the
     /// pure-random beam.
     temperature: f32,
+    /// Round-robin select across piece-count buckets (diversity floor that
+    /// prevents the high-piece front from crowding out longer-surviving lines).
+    stratify: bool,
 }
 
 impl BeamConfig {
@@ -61,6 +64,7 @@ pub(super) fn build_beam_config(
     width: Option<usize>,
     model_spec: Option<&str>,
     temperature: f32,
+    stratify: bool,
 ) -> anyhow::Result<BeamConfig> {
     let scorer = match model_spec {
         None => BeamScorer::Random,
@@ -80,6 +84,7 @@ pub(super) fn build_beam_config(
         width,
         scorer,
         temperature,
+        stratify,
     })
 }
 
@@ -115,7 +120,7 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
             let step = search.step();
             let temp = beam.temperature;
             let (stone, positions) = search.positions();
-            let mut scored: Vec<(f32, Position)> = positions
+            let mut scored: Vec<(f32, u32, Position)> = positions
                 .par_iter()
                 .map(|p| {
                     let aux = PositionAux::new(p.clone(), stone);
@@ -132,13 +137,52 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
                         let u: f32 = SmallRng::from_entropy().gen::<f32>().clamp(1e-9, 1.0);
                         score += temp * -(-u.ln()).ln();
                     }
-                    (score, p.clone())
+                    let pieces = aux.occupied_bb().count_ones();
+                    (score, pieces, p.clone())
                 })
                 .collect();
-            scored.select_nth_unstable_by(width - 1, |a, b| {
-                b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
-            });
-            let truncated: Vec<Position> = scored.into_iter().take(width).map(|(_, p)| p).collect();
+            let truncated: Vec<Position> = if beam.stratify {
+                // Stratified: keep a balanced spread across piece counts by
+                // round-robin taking the best-scoring position from each
+                // piece-count bucket. Guarantees lower-piece (often longer-
+                // surviving) lines aren't crowded out by the high-piece front,
+                // which is what makes a pure value/temperature beam collapse.
+                let mut buckets: std::collections::BTreeMap<u32, Vec<(f32, Position)>> =
+                    std::collections::BTreeMap::new();
+                for (s, pc, p) in scored {
+                    buckets.entry(pc).or_default().push((s, p));
+                }
+                for v in buckets.values_mut() {
+                    v.sort_unstable_by(|a, b| {
+                        b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+                    });
+                }
+                let mut cursors: Vec<(u32, usize)> = buckets.keys().map(|&k| (k, 0usize)).collect();
+                let mut kept = Vec::with_capacity(width);
+                while kept.len() < width {
+                    let mut any = false;
+                    for (k, cur) in cursors.iter_mut() {
+                        let b = &buckets[k];
+                        if *cur < b.len() {
+                            kept.push(b[*cur].1.clone());
+                            *cur += 1;
+                            any = true;
+                            if kept.len() >= width {
+                                break;
+                            }
+                        }
+                    }
+                    if !any {
+                        break;
+                    }
+                }
+                kept
+            } else {
+                scored.select_nth_unstable_by(width - 1, |a, b| {
+                    b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal)
+                });
+                scored.into_iter().take(width).map(|(_, _, p)| p).collect()
+            };
             search.replace_positions(truncated);
         }
     }

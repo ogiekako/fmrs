@@ -292,8 +292,12 @@ pub(super) fn search_single_seed(
         // With a scorer, keep a wider pool so apply_beam can score-select
         // `width` from it; the digest truncation alone would fix the kept set
         // before the scorer runs. Random beam keeps exactly `width`.
+        let pool_mult = std::env::var("FMRS_BEAM_SCORE_POOL")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(super::beam::BEAM_SCORE_POOL);
         let pool = if beam.uses_scorer() {
-            width.saturating_mul(super::beam::BEAM_SCORE_POOL)
+            width.saturating_mul(pool_mult)
         } else {
             width
         };
