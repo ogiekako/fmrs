@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780451485060,
+  "lastUpdate": 1780451487602,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43585,6 +43585,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 32188,
             "range": "± 26",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "35463b5b00efef0e425ae78982c80ab298a1d8d1",
+          "message": "perf(backward): Phase2 で worker 間に深ノード検証を共有し within-step 重複を削減\n\nPhase2 の uniqueness DFS は候補を並列処理するが、各 worker は thread-local\nの memo_delta しか持たず、結果共有は step 末の merge まで起きない。このため\n同一 step 内で複数候補の DFS 部分木が同じ深い局面に達すると互いを知らず各自\nフル再検証していた。計測では nocut(全幅検証=支配コスト)の ~68% がこの\nwithin-step 重複で、並列度が上がるほど悪化する。\n\nstep-scope の sharded concurrent memo を導入し、mate_in >= 8 の深ノードのみ\nworker 間で検証結果を共有(浅ノードはロック traffic を避けるため対象外)。\n深ノード共有はその部分木全体の再計算を root で短絡する。step-scope なので\n後続 wave が先行 wave の判定を再利用できる。\n\n正しさは local memo と同一: StepRange は局面固有で、final(非 investigation)\nの判定のみ publish/consume する。frontier は全 run で不変(best 16/264 一致)。\n\n実測(64core, max-step 31, 4rep): user CPU -2.6%(base 13876-14079s vs\nnew 13558-13609s で分布が完全分離)、wall -2.5%。\n\nCo-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>",
+          "timestamp": "2026-06-02T23:44:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/35463b5b00efef0e425ae78982c80ab298a1d8d1"
+        },
+        "date": 1780451486838,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 393,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3152,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 398,
+            "range": "± 624",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29289,
+            "range": "± 187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1783,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4836,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1440157,
+            "range": "± 327",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12059,
+            "range": "± 168",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 112,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 52,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20409011,
+            "range": "± 81665",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30613,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3748,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 19374,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 30940,
+            "range": "± 27",
             "unit": "ns/iter"
           }
         ]
