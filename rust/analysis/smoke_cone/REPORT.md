@@ -125,18 +125,24 @@ output-valid frontier position (deduped by canonical digest).
 | `sfen` | the position (featurize downstream) |
 
 Row sources: all per-step max-piece bests (the discriminative population) plus a
-uniform frontier sample (broad negatives). Current build (`--max-step 37`):
+uniform frontier sample (broad negatives). Dedup by canonical digest.
 
-- **162,192 rows**; **48,130 (29.7%)** have `best_piece_reachable > 0`
-  (values spread 4–18, mass at 8–15); 114,062 are negatives (value 0).
-- `live_deeper == 1`: 456 (the strict cone label).
+The committed `data/dataset.csv` is from a **deep GCP run to step 49** (exact,
+non-split with `--memo-retain-from-step 999` so memory tracks the frontier, on
+n2d-highmem-96 / 768 GB; the frontier OOMs near step 38–39 on 128 GB locally):
 
-Caveats: `best_piece_reachable` is a **lower bound** (only traced endpoints
-propagate value; a position may reach higher than any sampled endpoint). It is
-also bounded by the run depth (37) — deeper runs raise the ceiling. Positions
-are canonical-deduped to match the frontier. This is a starting dataset; a
-larger one needs deeper runs (GCP / split mode, since the frontier OOMs near
-step 38–39 on 128 GB).
+- **282,088 rows**; `best_piece_reachable` spans **3–22 pieces** (mass at 11–15;
+  ~3,650 rows reach 19–22). `live_deeper == 1`: 769 (strict cone label).
+- `best_piece_reachable` floor = the position's own piece count (a position
+  trivially reaches its own count; deeper descendants only add pieces), raised
+  by traced deep endpoints — so it is a **lower bound** on true reachable value,
+  also capped by the run depth (49). Tracing is subsampled
+  (`FMRS_BEST_TRACE_CAP`, `FMRS_TRACE_CAP`) so deep `max_best_depth` labels are
+  themselves lower bounds.
+
+Reaching 30+ pieces exactly is infeasible (frontier grows ~1.9×/2 steps → ~10^9
+at step ~58); the next extension is **beam** (top-K) sampling past the exact
+depth (see §4).
 
 ## Files
 

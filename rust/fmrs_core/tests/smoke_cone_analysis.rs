@@ -102,8 +102,16 @@ fn smoke_cone_analysis() {
     let mut per_target_at_step: BTreeMap<u16, BTreeMap<u16, usize>> = BTreeMap::new();
     let mut piece_at_step: BTreeMap<u16, (u32, u32)> = BTreeMap::new();
 
+    // Cap on per-step bests traced (deep steps can have 100k+ max-piece
+    // positions; tracing all is prohibitive). Strided subsample.
+    let best_trace_cap: usize = std::env::var("FMRS_BEST_TRACE_CAP")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(usize::MAX);
     for &s_target in &targets {
-        let positions = read_positions(&format!("{dir}/best_step_{s_target}.txt"));
+        let all = read_positions(&format!("{dir}/best_step_{s_target}.txt"));
+        let stride = (all.len() / best_trace_cap.max(1)).max(1);
+        let positions: Vec<PositionAux> = all.iter().step_by(stride).take(best_trace_cap).cloned().collect();
         if let Some(p0) = positions.first() {
             best_piece_at.insert(s_target, piece_count(p0));
         }
@@ -239,8 +247,10 @@ fn smoke_cone_analysis() {
             let max_depth = cone_map.get(&d).copied().unwrap_or(0);
             let live_deeper = (max_depth > s) as u8;
             // Reachable value (regression target): max deep-endpoint piece count
-            // reachable from this position (lower bound from traced samples).
-            let best_piece = value_map.get(&d).copied().unwrap_or(0);
+            // reachable from this position. Lower bound = own piece count (a
+            // position trivially "reaches" its own count; deeper descendants
+            // only add pieces), raised by traced deep endpoints.
+            let best_piece = value_map.get(&d).copied().unwrap_or(0).max(piece_count(p));
             writeln!(
                 f,
                 "{},{},{},{},{},{}",
