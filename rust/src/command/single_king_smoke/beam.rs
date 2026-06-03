@@ -30,6 +30,22 @@ pub(super) struct BeamConfig {
     scorer: BeamScorer,
 }
 
+impl BeamConfig {
+    /// True when a scorer (model or handcraft) actually ranks positions, as
+    /// opposed to the random/digest beam. When true the Phase-1 candidate pool
+    /// is kept `BEAM_SCORE_POOL`× wider than `width` so `apply_beam` has a pool
+    /// to score-select `width` from (otherwise the deterministic bottom-K-by-
+    /// digest truncation in `advance` already cuts to `width` and the scorer
+    /// never runs).
+    pub(super) fn uses_scorer(&self) -> bool {
+        matches!(self.scorer, BeamScorer::Model(_) | BeamScorer::Handcraft)
+    }
+}
+
+/// How many ×width candidates to retain in the Phase-1 pool when a scorer is
+/// active, so the scorer picks the best `width` from a `width × POOL` sample.
+pub(super) const BEAM_SCORE_POOL: usize = 16;
+
 pub(super) fn build_beam_config(
     width: Option<usize>,
     model_spec: Option<&str>,

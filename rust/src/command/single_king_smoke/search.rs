@@ -289,7 +289,15 @@ pub(super) fn search_single_seed(
     // based on observed survival, clamped by max_candidates_pool for OOM
     // safety.
     if let Some(width) = beam.width {
-        search.set_candidates_limit(Some(width));
+        // With a scorer, keep a wider pool so apply_beam can score-select
+        // `width` from it; the digest truncation alone would fix the kept set
+        // before the scorer runs. Random beam keeps exactly `width`.
+        let pool = if beam.uses_scorer() {
+            width.saturating_mul(super::beam::BEAM_SCORE_POOL)
+        } else {
+            width
+        };
+        search.set_candidates_limit(Some(pool));
         search.set_candidates_pool_factor(candidates_pool_factor);
     }
     // Initial computation used by checkpoint restoration's clamp. Recomputed
