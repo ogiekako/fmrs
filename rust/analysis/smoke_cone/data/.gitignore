@@ -1,0 +1,5 @@
+# Bulky / regenerable intermediates (see run.sh). The committed dataset.csv
+# already embeds the SFENs, so the raw frontier samples are not needed in git.
+frontier_sample_*.txt
+run.out
+run.mem

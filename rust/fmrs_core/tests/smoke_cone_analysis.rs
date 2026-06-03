@@ -1,28 +1,36 @@
-// Smoke best-cone analysis.
+// Smoke best-cone analysis + ML dataset builder.
 //
 // Studies how the "best cone" (solution paths of the max-piece positions at
-// each step) relates to the full backward-search frontier, for the
-// single-king-smoke ideal-backward run. The central question: of the frontier
-// at a shallow step (e.g. step 11), what fraction is "live" -- i.e. an ancestor
-// (on a solution path) of a max-piece "best" position at SOME deeper step?
+// each step) relates to the full backward-search frontier, and emits a labeled
+// dataset for learning which frontier positions are "live" (lead to a deep
+// max-piece best) -- the guidance signal needed to push toward the 40-piece
+// goal (see analysis/smoke_cone/REPORT.md).
 //
 // Inputs (env):
-//   FMRS_CONE_DATA      dir of best_step_<S>.txt (URLs of max-piece positions at
-//                       step S), produced by a run with FMRS_PERSTEP_BEST_DIR set.
-//   FMRS_CONE_FRONTIER  file with lines "<step> <frontier_size>" (from mem-trace).
+//   FMRS_CONE_DATA      dir with best_step_<S>.txt (max-piece positions at step
+//                       S) and optionally frontier_sample_<S>.txt (uniform
+//                       frontier sample). Produced by a run with
+//                       FMRS_PERSTEP_BEST_DIR / FMRS_FRONTIER_SAMPLE_DIR set.
+//   FMRS_CONE_FRONTIER  file with lines "<step> <frontier_size>" (mem-trace).
+//   FMRS_DATASET_OUT    if set, write a labeled CSV dataset there.
 //
-// Run: FMRS_CONE_DATA=analysis/smoke_cone/data \
-//      FMRS_CONE_FRONTIER=analysis/smoke_cone/data/frontier.txt \
-//      cargo test -p fmrs_core --test smoke_cone_analysis -- --nocapture
+// Labels (per position): max_best_depth = deepest step D at which the position
+// is an ancestor of a max-piece best-at-D (0 if none); best_piece_reachable =
+// piece count of that best; live_deeper = max_best_depth > own step.
 //
 // No-op (passes) unless FMRS_CONE_DATA is set.
 
 use fmrs_core::position::position::PositionAux;
 use fmrs_core::solve::standard_solve::standard_solve;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::io::Write;
 
 fn piece_count(p: &PositionAux) -> u32 {
     p.occupied_bb().count_ones()
+}
+
+fn canon_digest(p: &PositionAux) -> u64 {
+    fmrs_core::search::canonicalize::canonical_digest_for_smoke(p)
 }
 
 fn parse_pos(line: &str) -> Option<PositionAux> {
@@ -38,27 +46,31 @@ fn parse_pos(line: &str) -> Option<PositionAux> {
     PositionAux::from_sfen(&sfen).ok()
 }
 
+fn read_positions(path: &str) -> Vec<PositionAux> {
+    std::fs::read_to_string(path)
+        .map(|t| t.lines().filter_map(parse_pos).collect())
+        .unwrap_or_default()
+}
+
 #[test]
 fn smoke_cone_analysis() {
     let Ok(dir) = std::env::var("FMRS_CONE_DATA") else {
         return;
     };
-    // Load frontier sizes (optional).
     let mut frontier: HashMap<u16, u64> = HashMap::new();
     if let Ok(fpath) = std::env::var("FMRS_CONE_FRONTIER") {
         if let Ok(txt) = std::fs::read_to_string(&fpath) {
             for line in txt.lines() {
                 let mut it = line.split_whitespace();
-                if let (Some(s), Some(n)) = (it.next(), it.next()) {
-                    if let (Ok(s), Ok(n)) = (s.parse(), n.parse()) {
-                        frontier.insert(s, n);
-                    }
+                if let (Some(Ok(s)), Some(Ok(n))) =
+                    (it.next().map(str::parse), it.next().map(str::parse))
+                {
+                    frontier.insert(s, n);
                 }
             }
         }
     }
 
-    // Discover target steps (best_step_<S>.txt).
     let mut targets: Vec<u16> = Vec::new();
     for entry in std::fs::read_dir(&dir).unwrap() {
         let name = entry.unwrap().file_name().into_string().unwrap();
@@ -69,23 +81,32 @@ fn smoke_cone_analysis() {
         }
     }
     targets.sort_unstable();
-
-    // For each target step S: reconstruct the solution of each max-piece
-    // position and record, per shallow step s, the set of digests on the path.
-    // cone_by_target[S][s] = set of digests at step s on best-at-S paths.
-    // Also track piece count seen at each step on the deepest target's paths.
-    let mut live: BTreeMap<u16, HashSet<u64>> = BTreeMap::new(); // union over all S >= s
-    let mut live_deeper: BTreeMap<u16, HashSet<u64>> = BTreeMap::new(); // union over S > s only
-    let mut per_target_at_step: BTreeMap<u16, BTreeMap<u16, usize>> = BTreeMap::new();
-    let mut best_count: BTreeMap<u16, usize> = BTreeMap::new();
-    let mut piece_at_step: BTreeMap<u16, (u32, u32)> = BTreeMap::new(); // (min,max) over deepest cone
     let deepest = *targets.last().unwrap();
 
+    // Trace every per-step best's unique solution toward mate.
+    //   cone_map[digest] = deepest target D whose best-cone contains digest
+    //                      (= deepest max-piece best this position is an
+    //                      ancestor of).
+    //   best_piece_at[D] = max piece count at step D.
+    let mut cone_map: HashMap<u64, u16> = HashMap::new();
+    // value_map[digest] = max piece count of any DEEP endpoint reachable by
+    // continuing the backward search from this position (a lower bound on the
+    // position's true "reachable value"). Built by tracing both the per-step
+    // bests and a subsample of deep frontier positions back toward mate and
+    // propagating the endpoint's piece count to every position on the path.
+    // This is the regression target a beam wants to learn.
+    let mut value_map: HashMap<u64, u32> = HashMap::new();
+    let mut best_piece_at: BTreeMap<u16, u32> = BTreeMap::new();
+    let mut live: BTreeMap<u16, HashSet<u64>> = BTreeMap::new();
+    let mut live_deeper: BTreeMap<u16, HashSet<u64>> = BTreeMap::new();
+    let mut per_target_at_step: BTreeMap<u16, BTreeMap<u16, usize>> = BTreeMap::new();
+    let mut piece_at_step: BTreeMap<u16, (u32, u32)> = BTreeMap::new();
+
     for &s_target in &targets {
-        let path = format!("{dir}/best_step_{s_target}.txt");
-        let txt = std::fs::read_to_string(&path).unwrap();
-        let positions: Vec<PositionAux> = txt.lines().filter_map(parse_pos).collect();
-        best_count.insert(s_target, positions.len());
+        let positions = read_positions(&format!("{dir}/best_step_{s_target}.txt"));
+        if let Some(p0) = positions.first() {
+            best_piece_at.insert(s_target, piece_count(p0));
+        }
         let mut this_target: BTreeMap<u16, HashSet<u64>> = BTreeMap::new();
         for pos in &positions {
             let sols = standard_solve(pos.clone(), 2, true).unwrap().solutions();
@@ -93,22 +114,23 @@ fn smoke_cone_analysis() {
             let sol = &sols[0];
             let n = sol.len() as u16;
             let mut p = pos.clone();
+            let endpoint_piece = piece_count(pos);
             let mut record = |step: u16, p: &PositionAux| {
-                // Match the frontier's dedup key: the run uses
-                // --canonicalize-attacker-goldish, so the frontier counts
-                // canonical (goldish-collapsed) classes. Use the same canonical
-                // digest, else raw digests over-count vs frontier.
-                let d = fmrs_core::search::canonicalize::canonical_digest_for_smoke(p);
+                let d = canon_digest(p);
                 this_target.entry(step).or_default().insert(d);
                 live.entry(step).or_default().insert(d);
                 if s_target > step {
                     live_deeper.entry(step).or_default().insert(d);
                 }
+                let e = cone_map.entry(d).or_insert(0);
+                *e = (*e).max(s_target);
+                let v = value_map.entry(d).or_insert(0);
+                *v = (*v).max(endpoint_piece);
                 if s_target == deepest {
                     let pc = piece_count(p);
-                    let e = piece_at_step.entry(step).or_insert((u32::MAX, 0));
-                    e.0 = e.0.min(pc);
-                    e.1 = e.1.max(pc);
+                    let pe = piece_at_step.entry(step).or_insert((u32::MAX, 0));
+                    pe.0 = pe.0.min(pc);
+                    pe.1 = pe.1.max(pc);
                 }
             };
             record(n, &p);
@@ -117,14 +139,51 @@ fn smoke_cone_analysis() {
                 record(n - 1 - k as u16, &p);
             }
         }
-        let mut at: BTreeMap<u16, usize> = BTreeMap::new();
-        for (s, set) in &this_target {
-            at.insert(*s, set.len());
-        }
-        per_target_at_step.insert(s_target, at);
+        per_target_at_step.insert(
+            s_target,
+            this_target.iter().map(|(s, set)| (*s, set.len())).collect(),
+        );
     }
 
-    // Report 1: deepest-target cone vs frontier (the original table).
+    // Enrichment: trace a subsample of DEEP frontier positions back toward mate
+    // and propagate each endpoint's piece count into value_map. This labels many
+    // more positions with a reachable-value lower bound than the max-piece spine
+    // alone. Steps >= FMRS_TRACE_DEEP_FROM (default 21), up to FMRS_TRACE_CAP
+    // (default 4000) endpoints per step.
+    let trace_from: u16 = std::env::var("FMRS_TRACE_DEEP_FROM")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(21);
+    let trace_cap: usize = std::env::var("FMRS_TRACE_CAP")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(4000);
+    for s in (trace_from..=deepest).filter(|s| s % 2 == 1) {
+        let sample = read_positions(&format!("{dir}/frontier_sample_{s}.txt"));
+        if sample.is_empty() {
+            continue;
+        }
+        let stride = (sample.len() / trace_cap).max(1);
+        for pos in sample.iter().step_by(stride).take(trace_cap) {
+            let sols = standard_solve(pos.clone(), 2, true).unwrap().solutions();
+            if sols.len() != 1 {
+                continue;
+            }
+            let endpoint_piece = piece_count(pos);
+            let mut p = pos.clone();
+            let mut prop = |p: &PositionAux| {
+                let v = value_map.entry(canon_digest(p)).or_insert(0);
+                *v = (*v).max(endpoint_piece);
+            };
+            prop(&p);
+            for m in &sols[0] {
+                p.do_move(m);
+                prop(&p);
+            }
+        }
+    }
+
+    // Report 1: deepest-target cone vs frontier.
     eprintln!("\n=== CONE(deepest={deepest}) distinct vs frontier (odd steps) ===");
     eprintln!("step  cone  frontier  cone/frontier");
     let deep_cone = &per_target_at_step[&deepest];
@@ -135,12 +194,7 @@ fn smoke_cone_analysis() {
         eprintln!("{s:>3}  {c:>5}  {f:>9}  {frac:.4}%");
     }
 
-    // Report 2: LIVE set (union over all targets >= s) vs frontier.
-    // = how many step-s frontier positions are an ancestor of a max-piece best
-    //   at SOME deeper-or-equal step.
-    // live      = ancestor of a max-piece best at SOME step >= s (incl. self).
-    // live_deep  = ancestor of a max-piece best at SOME step STRICTLY > s
-    //              (= "its descendants appear as best deeper"; the user's Q).
+    // Report 2: live vs frontier.
     eprintln!("\n=== LIVE vs frontier (odd steps; canonical-deduped) ===");
     eprintln!("step  live  live_deep  frontier  live/frontier  livedeep/frontier");
     for s in (1..=deepest).rev().filter(|s| s % 2 == 1) {
@@ -152,10 +206,57 @@ fn smoke_cone_analysis() {
         eprintln!("{s:>3}  {l:>5}  {ld:>8}  {f:>9}  {frac:>9.4}%  {frac_d:>9.4}%");
     }
 
-    // Report 3: piece-count trajectory along the deepest cone (smoke shape).
-    eprintln!("\n=== piece count along deepest cone (min..max over cone) ===");
-    eprintln!("step  min_pieces  max_pieces");
+    // Report 3: piece count along the deepest cone.
+    eprintln!("\n=== piece count along deepest cone (min..max) ===");
     for (s, (lo, hi)) in piece_at_step.iter().rev() {
-        eprintln!("{s:>3}  {lo:>10}  {hi:>10}");
+        eprintln!("step {s:>3}  pieces {lo}..{hi}");
     }
+
+    // Dataset emission.
+    let Ok(out) = std::env::var("FMRS_DATASET_OUT") else {
+        return;
+    };
+    let mut rows = 0u64;
+    let mut pos_rows = 0u64;
+    let mut seen: HashSet<u64> = HashSet::new();
+    let mut f = std::io::BufWriter::new(std::fs::File::create(&out).unwrap());
+    writeln!(
+        f,
+        "step,piece_count,live_deeper,max_best_depth,best_piece_reachable,sfen"
+    )
+    .unwrap();
+
+    // Candidate rows: per-step bests (the discriminative population) + frontier
+    // samples (broad negatives). Dedup by canonical digest.
+    for s in (1..=deepest).filter(|s| s % 2 == 1) {
+        let mut cands = read_positions(&format!("{dir}/best_step_{s}.txt"));
+        cands.extend(read_positions(&format!("{dir}/frontier_sample_{s}.txt")));
+        for p in &cands {
+            let d = canon_digest(p);
+            if !seen.insert(d) {
+                continue;
+            }
+            let max_depth = cone_map.get(&d).copied().unwrap_or(0);
+            let live_deeper = (max_depth > s) as u8;
+            // Reachable value (regression target): max deep-endpoint piece count
+            // reachable from this position (lower bound from traced samples).
+            let best_piece = value_map.get(&d).copied().unwrap_or(0);
+            writeln!(
+                f,
+                "{},{},{},{},{},{}",
+                s,
+                piece_count(p),
+                live_deeper,
+                max_depth,
+                best_piece,
+                p.sfen()
+            )
+            .unwrap();
+            rows += 1;
+            if live_deeper == 1 {
+                pos_rows += 1;
+            }
+        }
+    }
+    eprintln!("\n=== DATASET written to {out}: {rows} rows, {pos_rows} live_deeper positives ===");
 }

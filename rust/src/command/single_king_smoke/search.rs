@@ -876,6 +876,33 @@ fn run_seed_loop(
                     })
                     .collect::<Vec<_>>();
                 let filtered_len = filtered.len();
+                // Analysis hook (off unless FMRS_FRONTIER_SAMPLE_DIR is set):
+                // dump a deterministic uniform (strided) sample of up to
+                // FMRS_FRONTIER_SAMPLE_N (default 20000) output-valid frontier
+                // positions at THIS step to <dir>/frontier_sample_<S>.txt (URLs).
+                // These are the ML-dataset rows; analysis/smoke_cone labels each
+                // by whether it is an ancestor of a deeper max-piece best.
+                if let Ok(dir) = std::env::var("FMRS_FRONTIER_SAMPLE_DIR") {
+                    let cap: usize = std::env::var("FMRS_FRONTIER_SAMPLE_N")
+                        .ok()
+                        .and_then(|s| s.parse().ok())
+                        .unwrap_or(20000);
+                    if !filtered.is_empty() {
+                        use std::io::Write;
+                        let stride = (filtered.len() / cap).max(1);
+                        if let Ok(mut f) =
+                            std::fs::File::create(format!("{dir}/frontier_sample_{step}.txt"))
+                        {
+                            for p in filtered.iter().step_by(stride).take(cap) {
+                                let _ = writeln!(
+                                    f,
+                                    "{}",
+                                    fmrs_core::sfen::sfen_to_image_url(&p.sfen())
+                                );
+                            }
+                        }
+                    }
+                }
                 // Analysis hook (off unless FMRS_PERSTEP_BEST_DIR is set): dump
                 // the max-piece positions at THIS step to <dir>/best_step_<S>.txt
                 // (URLs). Used by analysis/smoke_cone to study how the per-step

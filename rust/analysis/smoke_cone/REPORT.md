@@ -109,6 +109,35 @@ Two observations matter for the 40-piece goal:
   (piece count, promoted/pawn structure) and measure cone retention vs beam width
   — i.e. how narrow a beam still recovers the 18-piece (and deeper) bests.
 
+## 5. Labeled ML dataset (`data/dataset.csv`)
+
+To make "which positions are live" *learnable* (a beam scoring function toward
+40 pieces), `run.sh` emits a labeled dataset. Each row is one canonical
+output-valid frontier position (deduped by canonical digest).
+
+| column | meaning |
+|---|---|
+| `step` | plies remaining to mate |
+| `piece_count` | board pieces (feature) |
+| `live_deeper` | 1 if an ancestor of a max-piece best at a STRICTLY deeper step (cone-based; strict, rare) |
+| `max_best_depth` | deepest step at which it is an ancestor of a max-piece best (0 if none) |
+| `best_piece_reachable` | **regression target**: max piece count of any deep endpoint reachable from it (lower bound, from tracing per-step bests + a subsample of deep frontier positions back toward mate) |
+| `sfen` | the position (featurize downstream) |
+
+Row sources: all per-step max-piece bests (the discriminative population) plus a
+uniform frontier sample (broad negatives). Current build (`--max-step 37`):
+
+- **162,192 rows**; **48,130 (29.7%)** have `best_piece_reachable > 0`
+  (values spread 4–18, mass at 8–15); 114,062 are negatives (value 0).
+- `live_deeper == 1`: 456 (the strict cone label).
+
+Caveats: `best_piece_reachable` is a **lower bound** (only traced endpoints
+propagate value; a position may reach higher than any sampled endpoint). It is
+also bounded by the run depth (37) — deeper runs raise the ceiling. Positions
+are canonical-deduped to match the frontier. This is a starting dataset; a
+larger one needs deeper runs (GCP / split mode, since the frontier OOMs near
+step 38–39 on 128 GB).
+
 ## Files
 
 - [`run.sh`](run.sh) — regenerate `data/` and the tables above.

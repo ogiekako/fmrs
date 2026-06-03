@@ -22,7 +22,11 @@ mkdir -p "$DATA"
 rm -f "$DATA"/best_step_*.txt
 cargo build --release
 
-FMRS_PERSTEP_BEST_DIR="$DATA" ./target/release/fmrs single-king-smoke ideal-backward \
+# FMRS_PERSTEP_BEST_DIR    -> best_step_<S>.txt   (max-piece positions per step)
+# FMRS_FRONTIER_SAMPLE_DIR -> frontier_sample_<S>.txt (uniform frontier sample)
+FMRS_PERSTEP_BEST_DIR="$DATA" FMRS_FRONTIER_SAMPLE_DIR="$DATA" \
+FMRS_FRONTIER_SAMPLE_N="${SAMPLE_N:-20000}" \
+  ./target/release/fmrs single-king-smoke ideal-backward \
   --parallel "$PARALLEL" --allow-white-pieces --slack 100 --double-king \
   --seed-sfen "$SEED" --canonicalize-attacker-goldish --min-pawn-pct 60 \
   --rook-bishop-allow-start 31 --rook-bishop-allow-step 2 --goldish-priority \
@@ -35,5 +39,7 @@ grep 'advance next_step' "$DATA/run.mem" \
   | sed -E 's/.*next_step=([0-9]+).*frontier_in=([0-9]+).*/\1 \2/' \
   > "$DATA/frontier.txt"
 
+# Build reports + the labeled ML dataset (data/dataset.csv).
 FMRS_CONE_DATA="$DATA" FMRS_CONE_FRONTIER="$DATA/frontier.txt" \
+FMRS_DATASET_OUT="$DATA/dataset.csv" FMRS_TRACE_DEEP_FROM=21 FMRS_TRACE_CAP=4000 \
   cargo test -p fmrs_core --test smoke_cone_analysis -- --nocapture
