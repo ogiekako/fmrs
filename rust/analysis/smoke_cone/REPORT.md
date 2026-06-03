@@ -178,12 +178,32 @@ drivers (GBDT permutation importance) are exactly the human-intuition features:
 `total_black_kiki`, so it barely helps the ensemble and is left off by default
 (opt-in via `FMRS_FEAT_HEAVY=1`; ~2 s to compute over the whole dataset).
 
-Caveats / next: the Rust beam only consumes a **linear** model (per-cell 0.15),
-capturing ~2/3 of the GBDT's signal — closing this needs GBDT-in-beam or
-engineered interactions. The committed `models/cone_beam_model.json` scores the
-predicted reachable value (piece count + learned gain); a width-3000 beam
-retains the exact best at shallow steps. The open validation is **beam width vs
-cone retention / reachable depth** vs random and piece-count baselines.
+### Beam validation — the selection rule matters more than the model
+
+Running the beam (`--beam-width`, deep `--max-step`) and comparing scorers
+revealed two things:
+
+1. **Label accuracy drives model quality.** Tracing the full sample back (not
+   just the per-step max-piece spine) doubled the "promise" rows (15.9k → 30.7k
+   with reachable > current pieces) and lifted within-cell GBDT Spearman
+   **0.225 → 0.322**. Drivers stay the intuition features (step, kiki, king
+   escape depth / liberties / flight coverage / ray freedom / net, dispersion).
+2. **Top-K selection kills diversity → loses to random.** At width 50 000 the
+   greedy value beam *collapses* (high-value positions are similar; the search
+   narrows and dies at step 51, 21 pieces), while a uniform/random beam keeps
+   diverse lines and reaches 28 pieces at step 71. A per-position scorer, used
+   as strict top-K, can't beat random no matter how good.
+
+The fix is **value × diversity**: `--beam-temperature T` perturbs scores by
+`T·Gumbel` and takes top-K — i.e. samples K without replacement ∝ exp(score/T)
+(T=0 greedy, T→∞ random). With the full-trace reachable model at **T=5**, the
+beam **matches the exact optimum (22 pieces at step 49, where random reaches only
+19)** and tracks higher pieces at every deep step, reaching 28 by step 67 (random
+needs step 71; greedy collapses at 21). So a learned value model **does** beat
+random / piece-count once selection preserves diversity.
+
+Open next: push T=5 deeper toward 30+; tune (T, width); and close the linear↔
+GBDT gap (per-cell 0.20 vs 0.32) with GBDT-in-beam or interaction features.
 
 ## Files
 
