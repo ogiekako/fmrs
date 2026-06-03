@@ -876,6 +876,27 @@ fn run_seed_loop(
                     })
                     .collect::<Vec<_>>();
                 let filtered_len = filtered.len();
+                // Analysis hook (off unless FMRS_PERSTEP_BEST_DIR is set): dump
+                // the max-piece positions at THIS step to <dir>/best_step_<S>.txt
+                // (URLs). Used by analysis/smoke_cone to study how the per-step
+                // max-piece "best cone" relates to the full frontier. Zero cost
+                // when the env var is unset.
+                if let Ok(dir) = std::env::var("FMRS_PERSTEP_BEST_DIR") {
+                    if let Some(maxpc) = filtered.iter().map(board_piece_count).max() {
+                        use std::io::Write;
+                        if let Ok(mut f) =
+                            std::fs::File::create(format!("{dir}/best_step_{step}.txt"))
+                        {
+                            for p in filtered.iter().filter(|p| board_piece_count(p) == maxpc) {
+                                let _ = writeln!(
+                                    f,
+                                    "{}",
+                                    fmrs_core::sfen::sfen_to_image_url(&p.sfen())
+                                );
+                            }
+                        }
+                    }
+                }
                 let prev_positions_len = best_positions.len();
                 let mut improved = false;
                 for position in filtered {
