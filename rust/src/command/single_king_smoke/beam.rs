@@ -10,7 +10,7 @@ use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use super::super::smoke_features::{extract_features, LinearModel};
+use super::super::smoke_features::{extract_features, GbdtModel, LinearModel};
 
 #[derive(Clone, Default)]
 pub(super) struct FeatureLogConfig {
@@ -23,6 +23,7 @@ enum BeamScorer {
     Random,
     Handcraft,
     Model(LinearModel),
+    Gbdt(GbdtModel),
 }
 
 pub(super) struct BeamConfig {
@@ -45,7 +46,10 @@ impl BeamConfig {
     /// digest truncation in `advance` already cuts to `width` and the scorer
     /// never runs).
     pub(super) fn uses_scorer(&self) -> bool {
-        matches!(self.scorer, BeamScorer::Model(_) | BeamScorer::Handcraft)
+        matches!(
+            self.scorer,
+            BeamScorer::Model(_) | BeamScorer::Handcraft | BeamScorer::Gbdt(_)
+        )
     }
 }
 
@@ -61,7 +65,16 @@ pub(super) fn build_beam_config(
     let scorer = match model_spec {
         None => BeamScorer::Random,
         Some("handcraft") => BeamScorer::Handcraft,
-        Some(path) => BeamScorer::Model(LinearModel::load(Path::new(path))?),
+        Some(path) => {
+            // GBDT JSON has a "trees" field; linear has "weights".
+            let data = std::fs::read_to_string(path)
+                .with_context(|| format!("read beam model {path}"))?;
+            if data.contains("\"trees\"") {
+                BeamScorer::Gbdt(GbdtModel::load(Path::new(path))?)
+            } else {
+                BeamScorer::Model(LinearModel::load(Path::new(path))?)
+            }
+        }
     };
     Ok(BeamConfig {
         width,
@@ -109,6 +122,7 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
                     let features = extract_features(&aux, step);
                     let mut score = match scorer {
                         BeamScorer::Model(m) => m.score(&features),
+                        BeamScorer::Gbdt(g) => g.score(&features),
                         _ => handcraft_beam_score(&features),
                     };
                     // Gumbel-top-K: perturbing by T·Gumbel and taking top-K

@@ -479,6 +479,60 @@ fn black_kiki_per_square(position: &PositionAux) -> (u32, [u8; 81]) {
     (total, counts)
 }
 
+/// A gradient-boosted tree ensemble (exported from sklearn
+/// HistGradientBoostingRegressor by analysis/smoke_cone/export_gbdt.py).
+/// Captures the nonlinear within-cell signal the LinearModel can't (per-cell
+/// Spearman ~0.32 vs ~0.20). score = baseline + Σ over trees of the reached leaf
+/// value. Each node is (feature_idx, threshold, left, right, value, is_leaf);
+/// a leaf returns `value`, else go `left` if x[feature] <= threshold else right.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct GbdtModel {
+    pub feature_names: Vec<String>,
+    pub baseline: f32,
+    pub trees: Vec<Vec<(u32, f32, u32, u32, f32, u8)>>,
+}
+
+impl GbdtModel {
+    pub fn load(path: &Path) -> anyhow::Result<Self> {
+        let data = std::fs::read_to_string(path)
+            .with_context(|| format!("read gbdt model {}", path.display()))?;
+        let model: GbdtModel = serde_json::from_str(&data)
+            .with_context(|| format!("parse gbdt model {}", path.display()))?;
+        let expected = feature_names();
+        anyhow::ensure!(
+            model.feature_names.len() == expected.len()
+                && model
+                    .feature_names
+                    .iter()
+                    .zip(expected.iter())
+                    .all(|(a, b)| a == b),
+            "gbdt model feature_names do not match the current schema"
+        );
+        Ok(model)
+    }
+
+    #[inline]
+    pub fn score(&self, features: &[f32]) -> f32 {
+        let mut s = self.baseline;
+        for tree in &self.trees {
+            let mut i = 0usize;
+            loop {
+                let (feat, thr, left, right, value, is_leaf) = tree[i];
+                if is_leaf != 0 {
+                    s += value;
+                    break;
+                }
+                i = if features[feat as usize] <= thr {
+                    left as usize
+                } else {
+                    right as usize
+                };
+            }
+        }
+        s
+    }
+}
+
 /// A linear model: score = dot(features, weights) + intercept.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LinearModel {
