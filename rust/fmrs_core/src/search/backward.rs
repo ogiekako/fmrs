@@ -26,6 +26,67 @@ fn set_progress_phase(p: u8) {
     PROGRESS_PHASE.store(p, Ordering::Relaxed);
 }
 
+// ---- Parent→child edge recording for exact max-reachable-pieces value DP ----
+// When FMRS_EDGE_FILE is set, every surviving frontier transition (parent at
+// step s, child predecessor at step s+2) is recorded as (parent_digest,
+// child_digest, parent_pieces, child_pieces). Offline, a fixpoint DP over these
+// edges computes value(P) = max pieces reachable from P (deep→shallow), giving
+// exact (rather than trace-sampled lower-bound) labels. Gather with
+// --no-mid-uniqueness-prune so only the two main advance_2ply_fused push sites
+// fire. Zero cost when the env var is unset.
+const EDGE_SHARDS: usize = 64;
+static EDGE_BUF: [Mutex<Vec<(u64, u64, u8, u8)>>; EDGE_SHARDS] =
+    [const { Mutex::new(Vec::new()) }; EDGE_SHARDS];
+static EDGE_ON: AtomicU8 = AtomicU8::new(0); // 0=unknown,1=on,2=off
+
+#[inline]
+fn edges_enabled() -> bool {
+    match EDGE_ON.load(Ordering::Relaxed) {
+        1 => true,
+        2 => false,
+        _ => {
+            let on = std::env::var("FMRS_EDGE_FILE").is_ok();
+            EDGE_ON.store(if on { 1 } else { 2 }, Ordering::Relaxed);
+            on
+        }
+    }
+}
+
+#[inline]
+fn record_edge(parent_d: u64, child_d: u64, parent_pc: u8, child_pc: u8) {
+    if !edges_enabled() {
+        return;
+    }
+    let shard = (child_d as usize) & (EDGE_SHARDS - 1);
+    EDGE_BUF[shard]
+        .lock()
+        .unwrap()
+        .push((parent_d, child_d, parent_pc, child_pc));
+}
+
+/// Append all buffered edges (binary: parent u64, child u64, parent u8, child
+/// u8, little-endian) to FMRS_EDGE_FILE and clear the buffers. Call once after a
+/// data-gathering search completes.
+pub fn flush_edges() {
+    let Ok(path) = std::env::var("FMRS_EDGE_FILE") else {
+        return;
+    };
+    use std::io::Write;
+    let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) else {
+        return;
+    };
+    let mut w = std::io::BufWriter::new(file);
+    for shard in EDGE_BUF.iter() {
+        let mut g = shard.lock().unwrap();
+        for (p, c, ppc, cpc) in g.drain(..) {
+            let _ = w.write_all(&p.to_le_bytes());
+            let _ = w.write_all(&c.to_le_bytes());
+            let _ = w.write_all(&[ppc, cpc]);
+        }
+    }
+    let _ = w.flush();
+}
+
 /// Current phase as a single display char (`.` = idle/between steps).
 pub fn progress_phase_char() -> char {
     match PROGRESS_PHASE.load(Ordering::Relaxed) {
@@ -2599,11 +2660,27 @@ impl BackwardSearch {
                             } else {
                                 cand.digest ^ stone_digest
                             };
+                            // Edge (parent=frontier_core, child=pp) for the value
+                            // DP. Computed once per cand; only when recording is
+                            // on. record_edge at each surviving-push site below.
+                            let (edge_pd, edge_cd, edge_ppc, edge_cpc) = if edges_enabled() {
+                                use crate::search::canonicalize::canonical_digest_for_smoke;
+                                let pa = PositionAux::new(frontier_core.clone(), stone);
+                                (
+                                    canonical_digest_for_smoke(&pa),
+                                    canonical_digest_for_smoke(&pp),
+                                    pa.occupied_bb().count_ones() as u8,
+                                    pp.occupied_bb().count_ones() as u8,
+                                )
+                            } else {
+                                (0, 0, 0, 0)
+                            };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
                                     .filter(|ans| !ans.needs_investigation(step + 1))
                             {
                                 if ans.is_uniquely(step + 1) {
+                                    record_edge(edge_pd, edge_cd, edge_ppc, edge_cpc);
                                     prev_positions.push(pp.core().clone());
                                 }
                                 continue;
@@ -2658,6 +2735,7 @@ impl BackwardSearch {
                                         );
                                     }
                                     if ans.is_uniquely(step + 1) {
+                                        record_edge(edge_pd, edge_cd, edge_ppc, edge_cpc);
                                         prev_positions.push(pp.core().clone());
                                     }
                                     continue;
@@ -2710,6 +2788,7 @@ impl BackwardSearch {
                                 }
                             }
                             if ans.is_uniquely(step + 1) {
+                                record_edge(edge_pd, edge_cd, edge_ppc, edge_cpc);
                                 prev_positions.push(pp.core().clone());
                             }
                         }
@@ -3128,11 +3207,27 @@ impl BackwardSearch {
                             } else {
                                 cand.digest ^ stone_digest
                             };
+                            // Edge (parent=frontier_core, child=pp) for the value
+                            // DP. Computed once per cand; only when recording is
+                            // on. record_edge at each surviving-push site below.
+                            let (edge_pd, edge_cd, edge_ppc, edge_cpc) = if edges_enabled() {
+                                use crate::search::canonicalize::canonical_digest_for_smoke;
+                                let pa = PositionAux::new(frontier_core.clone(), stone);
+                                (
+                                    canonical_digest_for_smoke(&pa),
+                                    canonical_digest_for_smoke(&pp),
+                                    pa.occupied_bb().count_ones() as u8,
+                                    pp.occupied_bb().count_ones() as u8,
+                                )
+                            } else {
+                                (0, 0, 0, 0)
+                            };
                             if let Some(ans) =
                                 get_overlay(&prev_memo_delta, prev_memo_ref, pp_digest)
                                     .filter(|ans| !ans.needs_investigation(step + 1))
                             {
                                 if ans.is_uniquely(step + 1) {
+                                    record_edge(edge_pd, edge_cd, edge_ppc, edge_cpc);
                                     prev_positions.push(pp.core().clone());
                                 }
                                 continue;
@@ -3187,6 +3282,7 @@ impl BackwardSearch {
                                         );
                                     }
                                     if ans.is_uniquely(step + 1) {
+                                        record_edge(edge_pd, edge_cd, edge_ppc, edge_cpc);
                                         prev_positions.push(pp.core().clone());
                                     }
                                     continue;
@@ -3239,6 +3335,7 @@ impl BackwardSearch {
                                 }
                             }
                             if ans.is_uniquely(step + 1) {
+                                record_edge(edge_pd, edge_cd, edge_ppc, edge_cpc);
                                 prev_positions.push(pp.core().clone());
                             }
                         }

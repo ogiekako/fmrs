@@ -224,6 +224,20 @@ fn smoke_cone_analysis() {
     let Ok(out) = std::env::var("FMRS_DATASET_OUT") else {
         return;
     };
+    // Exact value-DP labels (direction 2): if an edge-value file is given
+    // (digest u64 + value u8, from analysis/smoke_cone/edge_value_dp.py), use it
+    // as best_piece_reachable — exact within the recorded DAG, vs the trace
+    // lower bound. Keyed by canonical_digest_for_smoke (same as value_map).
+    let mut edge_value: HashMap<u64, u32> = HashMap::new();
+    if let Ok(epath) = std::env::var("FMRS_EDGE_VALUE_FILE") {
+        if let Ok(buf) = std::fs::read(&epath) {
+            for ch in buf.chunks_exact(9) {
+                let d = u64::from_le_bytes(ch[0..8].try_into().unwrap());
+                edge_value.insert(d, ch[8] as u32);
+            }
+        }
+        eprintln!("loaded {} edge-DP values", edge_value.len());
+    }
     let mut rows = 0u64;
     let mut pos_rows = 0u64;
     let mut seen: HashSet<u64> = HashSet::new();
@@ -250,7 +264,12 @@ fn smoke_cone_analysis() {
             // reachable from this position. Lower bound = own piece count (a
             // position trivially "reaches" its own count; deeper descendants
             // only add pieces), raised by traced deep endpoints.
-            let best_piece = value_map.get(&d).copied().unwrap_or(0).max(piece_count(p));
+            let best_piece = value_map
+                .get(&d)
+                .copied()
+                .unwrap_or(0)
+                .max(edge_value.get(&d).copied().unwrap_or(0))
+                .max(piece_count(p));
             writeln!(
                 f,
                 "{},{},{},{},{},{}",

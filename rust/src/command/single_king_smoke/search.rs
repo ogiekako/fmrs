@@ -380,6 +380,8 @@ pub(super) fn search_single_seed(
     }
 
     let outcome = run_seed_loop(&mut search, &ctx, init, None, true, None)?;
+    // Flush recorded parent→child edges (no-op unless FMRS_EDGE_FILE is set).
+    fmrs_core::search::backward::flush_edges();
 
     mt(
         mem_trace,
