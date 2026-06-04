@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780451487602,
+  "lastUpdate": 1780580196424,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46824,6 +46824,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434388944,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "14adf33245fb680f4af8ad9a4e70fe14dd3ed746",
+          "message": "feat(beam): 決定的な per-局面 RNG(再現可能・並列安全・速度犠牲なし)\n\napply_beam の Gumbel 摂動を局面ごとに SmallRng::from_entropy()(OS エントロピー読み)\nで引いていたのを、digest⊕step⊕seed の決定的 seed に変更。\n- 再現可能: --random-seed 固定で beam 結果が bit 一致(検証済 md5 一致)。\n- 並列安全: per-局面 seed なので共有 RNG 無し→スレッド数に依らず決定的。\n- 速度: from_entropy の per-call OS エントロピー読みを除去するので犠牲なし(むしろ速い)。\ncheckpoint/resume を bit 一致で継続する土台。",
+          "timestamp": "2026-06-04T11:08:08Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/14adf33245fb680f4af8ad9a4e70fe14dd3ed746"
+        },
+        "date": 1780580193394,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434045476,
             "unit": "Instructions"
           }
         ]
