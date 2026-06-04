@@ -154,6 +154,11 @@ pub fn extract_features(position: &PositionAux, step: u16) -> Vec<f32> {
         king_bb.next()
     };
 
+    // Black kiki (per-square attacker counts) — computed once and reused by both
+    // the king block and the composer-intuition block below (it iterates every
+    // black piece's reach, so it is the costliest part of extract_features).
+    let (total_kiki, black_cnt) = black_kiki_per_square(position);
+
     if let Some(kp) = king_pos_opt {
         f.push(kp.row() as f32);
         f.push(kp.col() as f32);
@@ -172,13 +177,12 @@ pub fn extract_features(position: &PositionAux, step: u16) -> Vec<f32> {
         f.push((ring2 & black).count_ones() as f32);
 
         // Attacker count and kiki on king ring.
-        let (total_kiki, attacker_count_per_square) = black_kiki_per_square(position);
-        let attackers_on_king = attacker_count_per_square[kp.index()];
+        let attackers_on_king = black_cnt[kp.index()];
         f.push(attackers_on_king as f32);
 
         let mut neighbors_attacked: u32 = 0;
         for s in ring1 {
-            if attacker_count_per_square[s.index()] > 0 {
+            if black_cnt[s.index()] > 0 {
                 neighbors_attacked += 1;
             }
         }
@@ -186,10 +190,7 @@ pub fn extract_features(position: &PositionAux, step: u16) -> Vec<f32> {
 
         f.push(total_kiki as f32);
 
-        let overcovered = attacker_count_per_square
-            .iter()
-            .filter(|&&n| n >= 2)
-            .count() as f32;
+        let overcovered = black_cnt.iter().filter(|&&n| n >= 2).count() as f32;
         f.push(overcovered);
     } else {
         // No white king: pad with zeros to keep schema stable.
@@ -246,7 +247,6 @@ pub fn extract_features(position: &PositionAux, step: u16) -> Vec<f32> {
     f.push(col_mask.count_ones() as f32);
 
     // --- composer-intuition features ---
-    let (_total_black_kiki2, black_cnt) = black_kiki_per_square(position);
     if let Some(kp) = king_pos_opt {
         let ring1 = king_power(kp);
         let ring1_n = ring1.count_ones().max(1);
