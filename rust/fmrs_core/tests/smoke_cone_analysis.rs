@@ -289,3 +289,404 @@ fn smoke_cone_analysis() {
     }
     eprintln!("\n=== DATASET written to {out}: {rows} rows, {pos_rows} live_deeper positives ===");
 }
+
+// Confluence analysis for a SET of solved positions (e.g. the 39-piece best
+// set). Traces every position's unique solution toward mate and, aligned by
+// distance-from-mate `d` (d=0 is the mate), counts how many DISTINCT canonical
+// positions the set occupies. Where the count collapses to 1, all solutions
+// pass through a single common position -- a confluence/gateway whose backward
+// cone is a promising place to push the search deeper.
+//
+// Input: FMRS_CONFLUENCE_SFENS = file with one SFEN or fmrs image-URL per line.
+// No-op unless set.
+#[test]
+fn smoke_confluence() {
+    let Ok(path) = std::env::var("FMRS_CONFLUENCE_SFENS") else {
+        return;
+    };
+    let positions = read_positions(&path);
+    assert!(!positions.is_empty(), "no positions parsed from {path}");
+    eprintln!("confluence: {} input positions", positions.len());
+
+    // d (plies-to-mate) -> set of canonical digests across all solutions.
+    let mut by_dist: BTreeMap<u16, HashSet<u64>> = BTreeMap::new();
+    // piece count -> set of canonical digests (pieces are ~monotone along the
+    // smoke solution, so this is an alternative natural alignment).
+    let mut by_pieces: BTreeMap<u32, HashSet<u64>> = BTreeMap::new();
+    // d -> the single digest when fully converged (for printing the gateway).
+    let mut sample_at: BTreeMap<u16, PositionAux> = BTreeMap::new();
+
+    let mut lengths: Vec<u16> = Vec::new();
+    let mut non_unique = 0usize;
+    for pos in &positions {
+        let sols = standard_solve(pos.clone(), 2, true).unwrap().solutions();
+        if sols.len() != 1 {
+            non_unique += 1;
+            continue;
+        }
+        let sol = &sols[0];
+        lengths.push(sol.len() as u16);
+        let mut p = pos.clone();
+        let mut rec = |d: u16, p: &PositionAux| {
+            by_dist.entry(d).or_default().insert(canon_digest(p));
+            by_pieces.entry(piece_count(p)).or_default().insert(canon_digest(p));
+            sample_at.entry(d).or_insert_with(|| p.clone());
+        };
+        // d = remaining plies to mate. Root has d = sol.len(); mate has d = 0.
+        rec(sol.len() as u16, &p);
+        for (k, m) in sol.iter().enumerate() {
+            p.do_move(m);
+            rec(sol.len() as u16 - 1 - k as u16, &p);
+        }
+    }
+    lengths.sort_unstable();
+    let lmin = lengths.first().copied().unwrap_or(0);
+    let lmax = lengths.last().copied().unwrap_or(0);
+    eprintln!(
+        "solved unique: {} (non-unique skipped: {}), solution plies: min={} max={}",
+        lengths.len(), non_unique, lmin, lmax
+    );
+
+    eprintln!("\n=== distinct canonical positions by distance-from-mate d ===");
+    eprintln!("  d  distinct   (d=0 is mate; root is at d=plies)");
+    let mut first_branch: Option<u16> = None; // smallest d with distinct>1
+    let mut last_converged: Option<u16> = None; // largest d with distinct==1
+    for (&d, set) in by_dist.iter() {
+        eprintln!("{:4}  {:7}", d, set.len());
+        if set.len() == 1 {
+            last_converged = Some(last_converged.map_or(d, |x| x.max(d)));
+        } else if first_branch.is_none() {
+            first_branch = Some(d);
+        }
+    }
+    // The gateway: the deepest d (furthest from mate) at which all solutions are
+    // still a single common position before branching as d grows.
+    let mut gateway_d = 0u16;
+    for (&d, set) in by_dist.iter() {
+        if set.len() == 1 {
+            gateway_d = gateway_d.max(d);
+        } else {
+            break; // first branch as d increases from 0
+        }
+    }
+    eprintln!(
+        "\nconfluence gateway: solutions share one position up to d={} from mate{}",
+        gateway_d,
+        match sample_at.get(&gateway_d) {
+            Some(p) => format!(" -> {}", p.sfen()),
+            None => String::new(),
+        }
+    );
+    eprintln!(
+        "first branch at d={:?}, last fully-converged d={:?}",
+        first_branch, last_converged
+    );
+
+    eprintln!("\n=== distinct canonical positions by piece count ===");
+    eprintln!("pieces  distinct");
+    for (&pc, set) in by_pieces.iter() {
+        eprintln!("{:6}  {:7}", pc, set.len());
+    }
+}
+
+// Dump the unique solution path of a single position: per ply, (d, board+hand
+// pieces, sfen). FMRS_DUMP_PATH_SFEN = the SFEN/URL. No-op unless set.
+#[test]
+fn smoke_dump_path() {
+    let Ok(s) = std::env::var("FMRS_DUMP_PATH_SFEN") else { return; };
+    let pos = parse_pos(&s).expect("parse");
+    let sols = standard_solve(pos.clone(), 2, true).unwrap().solutions();
+    assert_eq!(sols.len(), 1, "not unique");
+    let sol = &sols[0];
+    let mut p = pos.clone();
+    let n = sol.len() as u16;
+    eprintln!("PATHDUMP plies={n}");
+    eprintln!("PATH d={} pieces={} {}", n, piece_count(&p), p.sfen());
+    for (k, m) in sol.iter().enumerate() {
+        p.do_move(m);
+        eprintln!("PATH d={} pieces={} {}", n - 1 - k as u16, piece_count(&p), p.sfen());
+    }
+}
+
+// Classify a set of solved positions into "essentially different" procedure
+// classes. Two solutions are equivalent iff their unique mate sequences agree on
+// ALL three ply-indexed projections:
+//   (1) the defender (white) king's trajectory (square per position),
+//   (2) the TYPE of piece the attacker (black) captures at each ply,
+//   (3) the SQUARE at which the defender (white) captures at each ply.
+// They are "essentially different" if they differ in at least one.
+// Input: FMRS_ESSENTIAL_SFENS = file of SFEN/URL lines. Optional FMRS_ESSENTIAL_OUT
+// = path to write one representative SFEN per class. No-op unless the env is set.
+#[test]
+fn smoke_essential_classes() {
+    let Ok(path) = std::env::var("FMRS_ESSENTIAL_SFENS") else { return; };
+    use fmrs_core::piece::{Color, Kind};
+    use fmrs_core::position::Movement;
+    use rayon::prelude::*;
+
+    let positions = read_positions(&path);
+    assert!(!positions.is_empty(), "no positions parsed from {path}");
+    eprintln!("essential: {} input positions", positions.len());
+
+    type Sig = (Vec<u16>, Vec<i32>, Vec<i32>); // (king_traj, atk_capture_kind, def_capture_square)
+
+    let wk = |p: &PositionAux| -> u16 {
+        p.bitboard(Color::WHITE, Kind::King).singleton().index() as u16
+    };
+
+    let results: Vec<Option<(Sig, String, u16)>> = positions
+        .par_iter()
+        .map(|pos| {
+            let sols = standard_solve(pos.clone(), 2, true).ok()?.solutions();
+            if sols.len() != 1 {
+                return None;
+            }
+            let sol = &sols[0];
+            let mut p = pos.clone();
+            let mut king: Vec<u16> = vec![wk(&p)];
+            let mut atk: Vec<i32> = Vec::with_capacity(sol.len());
+            let mut def: Vec<i32> = Vec::with_capacity(sol.len());
+            for m in sol {
+                let mover = p.turn();
+                let (cap_kind, cap_sq) = match m {
+                    Movement::Move { dest, .. } => match p.get(*dest) {
+                        Some((_c, k)) => (Some(k as i32), Some(dest.index() as i32)),
+                        None => (None, None),
+                    },
+                    Movement::Drop(_, _) => (None, None),
+                };
+                if mover == Color::BLACK {
+                    // attacker move: record captured TYPE (proj 2); no defender capture this ply
+                    atk.push(cap_kind.unwrap_or(-1));
+                    def.push(-1);
+                } else {
+                    // defender move: record captured SQUARE (proj 3); no attacker capture this ply
+                    atk.push(-1);
+                    def.push(cap_sq.unwrap_or(-1));
+                }
+                p.do_move(m);
+                king.push(wk(&p));
+            }
+            Some(((king, atk, def), pos.sfen(), sol.len() as u16))
+        })
+        .collect();
+
+    // Aggregate.
+    let mut classes: HashMap<Sig, (usize, String)> = HashMap::new();
+    let mut king_set: HashSet<Vec<u16>> = HashSet::new();
+    let mut atk_set: HashSet<Vec<i32>> = HashSet::new();
+    let mut def_set: HashSet<Vec<i32>> = HashSet::new();
+    let mut nonuniq = 0usize;
+    let mut plies: HashSet<u16> = HashSet::new();
+    for r in &results {
+        match r {
+            Some((sig, sfen, n)) => {
+                plies.insert(*n);
+                king_set.insert(sig.0.clone());
+                atk_set.insert(sig.1.clone());
+                def_set.insert(sig.2.clone());
+                let e = classes.entry(sig.clone()).or_insert((0, sfen.clone()));
+                e.0 += 1;
+            }
+            None => nonuniq += 1,
+        }
+    }
+    eprintln!(
+        "solved unique: {} (non-unique skipped: {}), solution plies seen: {:?}",
+        results.len() - nonuniq,
+        nonuniq,
+        {
+            let mut v: Vec<_> = plies.into_iter().collect();
+            v.sort_unstable();
+            v
+        }
+    );
+    eprintln!("distinct by projection (independent):");
+    eprintln!("  (1) defender-king trajectories : {}", king_set.len());
+    eprintln!("  (2) attacker capture-TYPE seqs : {}", atk_set.len());
+    eprintln!("  (3) defender capture-SQUARE seqs: {}", def_set.len());
+    eprintln!("=> ESSENTIALLY DIFFERENT classes (all three agree): {}", classes.len());
+
+    // Sort classes by size desc, then by representative sfen for determinism.
+    let mut reps: Vec<(usize, String)> =
+        classes.into_iter().map(|(_, (cnt, sfen))| (cnt, sfen)).collect();
+    reps.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+
+    eprintln!("\n=== class representatives (size  sfen) ===");
+    for (cnt, sfen) in &reps {
+        eprintln!("{:6}  {}", cnt, sfen);
+    }
+    if let Ok(out) = std::env::var("FMRS_ESSENTIAL_OUT") {
+        use std::io::Write;
+        let mut f = std::fs::File::create(&out).unwrap();
+        for (cnt, sfen) in &reps {
+            writeln!(f, "{}\t{}", cnt, sfen).unwrap();
+        }
+        eprintln!("\nwrote {} representatives to {}", reps.len(), out);
+    }
+}
+
+// Extract the "most beautiful" all-piece smoke from a set, by the lexicographic
+// preference (all minimized):
+//   1. first move is NOT a capture  (first_cap: 0 better than 1)
+//   2. fewer promoted Silver/Knight/Lance on board:
+//        2a. number of distinct kinds present among {+S,+N,+L}  (minimize)
+//        2b. total count of {+S,+N,+L}                          (minimize)
+//   3. fewer promoted Bishop/Rook on board:
+//        3a. number of distinct kinds present among {+B,+R}     (minimize)
+//        3b. total count of {+B,+R}                             (minimize)
+// All positions tying at the optimum are emitted (prefixed "BEST\t<sfen>").
+// Input: FMRS_BEAUTIFUL_SFENS = file of SFEN/URL. No-op unless set.
+#[test]
+fn smoke_beautiful() {
+    let Ok(path) = std::env::var("FMRS_BEAUTIFUL_SFENS") else { return; };
+    use fmrs_core::piece::{Color, Kind};
+    use fmrs_core::position::Movement;
+    use rayon::prelude::*;
+
+    let positions = read_positions(&path);
+    assert!(!positions.is_empty(), "no positions parsed from {path}");
+
+    let cnt = |p: &PositionAux, k: Kind| -> u32 {
+        p.bitboard(Color::BLACK, k).count_ones() + p.bitboard(Color::WHITE, k).count_ones()
+    };
+    let snl = [Kind::ProSilver, Kind::ProKnight, Kind::ProLance];
+    let br = [Kind::ProBishop, Kind::ProRook];
+
+    let scored: Vec<Option<([u8; 5], String)>> = positions
+        .par_iter()
+        .map(|pos| {
+            let sols = standard_solve(pos.clone(), 2, true).ok()?.solutions();
+            if sols.len() != 1 {
+                return None;
+            }
+            let first_cap = match &sols[0][0] {
+                Movement::Drop(_, _) => 0u8,
+                Movement::Move { dest, .. } => {
+                    if pos.get(*dest).is_some() {
+                        1
+                    } else {
+                        0
+                    }
+                }
+            };
+            let snl_kinds = snl.iter().filter(|&&k| cnt(pos, k) > 0).count() as u8;
+            let snl_total = snl.iter().map(|&k| cnt(pos, k)).sum::<u32>() as u8;
+            let br_kinds = br.iter().filter(|&&k| cnt(pos, k) > 0).count() as u8;
+            let br_total = br.iter().map(|&k| cnt(pos, k)).sum::<u32>() as u8;
+            Some((
+                [first_cap, snl_kinds, snl_total, br_kinds, br_total],
+                pos.sfen(),
+            ))
+        })
+        .collect();
+
+    let mut items: Vec<([u8; 5], String)> = scored.into_iter().flatten().collect();
+    let total = items.len();
+    items.sort();
+    let best = items[0].0;
+    let ties: Vec<&([u8; 5], String)> = items.iter().filter(|(k, _)| *k == best).collect();
+
+    eprintln!("scored unique positions: {}", total);
+    eprintln!("key = [first_move_is_capture, SNLkinds, SNLtotal, BRkinds, BRtotal] (all minimized)");
+    eprintln!("OPTIMUM key = {:?}", best);
+    eprintln!("ties at optimum: {}", ties.len());
+    // small context: how the population thins by criterion.
+    let non_cap = items.iter().filter(|(k, _)| k[0] == 0).count();
+    eprintln!(
+        "  of {}: non-capturing first move = {}; then min SNLkinds among those = {}",
+        total,
+        non_cap,
+        items
+            .iter()
+            .filter(|(k, _)| k[0] == 0)
+            .map(|(k, _)| k[1])
+            .min()
+            .unwrap_or(0)
+    );
+    for (_, s) in &ties {
+        eprintln!("BEST\t{}", s);
+    }
+}
+
+// Second-stage tiebreaks applied to an already-filtered set (the 72 "beautiful"
+// all-piece smokes). Lexicographic, all minimized:
+//   t1: # of promoted Lance/Knight/Silver located OUTSIDE their color's enemy
+//       camp (black enemy camp = ranks 1-3 = row 0..2; white = ranks 7-9 = row
+//       6..8). In-camp promotions carry no penalty.
+//   t2: total promoted pieces on board (incl. tokin/+P), both colors.
+//   t3: first move is a tokin (+P) move? 1 if yes (worse) else 0.
+//   t4: sum of Manhattan distance from the opponent (white/defender) king to
+//       every piece on the board (smaller = pieces nearer the mated king).
+// All positions tying at the optimum are emitted ("BEST2\t<sfen>").
+// Input: FMRS_BEAUTIFUL2_SFENS = file of SFEN/URL. No-op unless set.
+#[test]
+fn smoke_beautiful2() {
+    let Ok(path) = std::env::var("FMRS_BEAUTIFUL2_SFENS") else { return; };
+    use fmrs_core::piece::{Color, Kind};
+    use fmrs_core::position::{Movement, Square};
+    use rayon::prelude::*;
+
+    let positions = read_positions(&path);
+    assert!(!positions.is_empty(), "no positions parsed from {path}");
+
+    let scored: Vec<Option<([i32; 4], String)>> = positions
+        .par_iter()
+        .map(|pos| {
+            let sols = standard_solve(pos.clone(), 2, true).ok()?.solutions();
+            if sols.len() != 1 {
+                return None;
+            }
+            let wk = pos.bitboard(Color::WHITE, Kind::King).singleton();
+            let mut t1 = 0i32; // promoted L/N/S outside own enemy camp
+            let mut t2 = 0i32; // total promoted pieces
+            let mut t4 = 0i32; // sum manhattan(white king, piece)
+            for sq in Square::iter() {
+                if let Some((c, k)) = pos.get(sq) {
+                    if (k as u8) >= 8 {
+                        t2 += 1;
+                    }
+                    if matches!(k, Kind::ProLance | Kind::ProKnight | Kind::ProSilver) {
+                        let in_camp = if c == Color::BLACK {
+                            sq.row() <= 2
+                        } else {
+                            sq.row() >= 6
+                        };
+                        if !in_camp {
+                            t1 += 1;
+                        }
+                    }
+                    t4 += (wk.col() as i32 - sq.col() as i32).abs()
+                        + (wk.row() as i32 - sq.row() as i32).abs();
+                }
+            }
+            let t3 = match &sols[0][0] {
+                Movement::Move { source, .. } => {
+                    matches!(pos.get(*source), Some((_, Kind::ProPawn))) as i32
+                }
+                Movement::Drop(_, _) => 0,
+            };
+            Some(([t1, t2, t3, t4], pos.sfen()))
+        })
+        .collect();
+
+    let mut items: Vec<([i32; 4], String)> = scored.into_iter().flatten().collect();
+    let total = items.len();
+    items.sort();
+    let best = items[0].0;
+    let ties: Vec<&([i32; 4], String)> = items.iter().filter(|(k, _)| *k == best).collect();
+    eprintln!("input positions: {}", total);
+    eprintln!("key = [LNS_promoted_outside_camp, total_promoted, first_move_is_tokin, sum_manhattan_to_white_king] (all minimized)");
+    eprintln!("OPTIMUM key = {:?}", best);
+    eprintln!("ties at optimum: {}", ties.len());
+    // context: spread of each component over the input set
+    for i in 0..4 {
+        let mut vals: Vec<i32> = items.iter().map(|(k, _)| k[i]).collect();
+        vals.sort_unstable();
+        vals.dedup();
+        eprintln!("  component[{}] distinct values present: {:?}", i, vals);
+    }
+    for (_, s) in &ties {
+        eprintln!("BEST2\t{}", s);
+    }
+}
