@@ -73,6 +73,12 @@ pub(super) struct SeedCheckpoint {
     pub(super) best_sfens: Vec<String>,
     #[serde(default)]
     pub(super) canonicalize_attacker_goldish: bool,
+    /// Beam-config fingerprint when this checkpoint was written by a beam run
+    /// (`None` for exact runs). Namespaces the checkpoint file so a beam run
+    /// only resumes from an identically-configured beam checkpoint and never
+    /// shares the exact-run checkpoint path. See `BeamConfig::checkpoint_key`.
+    #[serde(default)]
+    pub(super) beam_key: Option<String>,
     /// Persisted Bottom-K pool adaptation state. On resume these let the
     /// search start at the same `pool_factor` it had reached previously,
     /// avoiding a default-value cold start that would shrink |next| for
@@ -262,9 +268,11 @@ pub(super) fn checkpoint_path(
     seed_index: usize,
     key: &str,
     canonicalize_attacker_goldish: bool,
+    beam_key: Option<&str>,
 ) -> PathBuf {
     let suffix = canonical_path_suffix(canonicalize_attacker_goldish);
-    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}.json"))
+    let beam = beam_segment(beam_key);
+    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}{beam}.json"))
 }
 
 fn canonical_path_suffix(canonicalize_attacker_goldish: bool) -> &'static str {
@@ -275,14 +283,25 @@ fn canonical_path_suffix(canonicalize_attacker_goldish: bool) -> &'static str {
     }
 }
 
+/// Filename segment namespacing beam checkpoints. Empty for exact runs, so the
+/// exact checkpoint path is byte-for-byte unchanged.
+fn beam_segment(beam_key: Option<&str>) -> String {
+    match beam_key {
+        Some(k) => format!("_beam{k}"),
+        None => String::new(),
+    }
+}
+
 fn checkpoint_path_bin(
     seed_result_log: &Path,
     seed_index: usize,
     key: &str,
     canonicalize_attacker_goldish: bool,
+    beam_key: Option<&str>,
 ) -> PathBuf {
     let suffix = canonical_path_suffix(canonicalize_attacker_goldish);
-    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}.ckpt"))
+    let beam = beam_segment(beam_key);
+    checkpoint_dir(seed_result_log).join(format!("seed_{seed_index}_{key}{suffix}{beam}.ckpt"))
 }
 
 const CKPT_MAGIC: &[u8; 8] = b"FMRSCKPT";
@@ -377,6 +396,7 @@ pub(super) fn write_seed_checkpoint(
         checkpoint.seed_index,
         &key,
         checkpoint.canonicalize_attacker_goldish,
+        checkpoint.beam_key.as_deref(),
     );
     write_seed_checkpoint_bin(&path, checkpoint)
 }
@@ -386,11 +406,13 @@ fn validate_checkpoint(
     seed_index: usize,
     seed_sfen: &str,
     canonicalize_attacker_goldish: bool,
+    beam_key: Option<&str>,
 ) -> bool {
     cp.seed_index == seed_index
         && cp.seed_sfen == seed_sfen
         && cp.max_frontier.is_none()
         && cp.canonicalize_attacker_goldish == canonicalize_attacker_goldish
+        && cp.beam_key.as_deref() == beam_key
 }
 
 pub(super) fn load_seed_checkpoint(
@@ -400,6 +422,7 @@ pub(super) fn load_seed_checkpoint(
     max_step: Option<u16>,
     constraints: SearchConstraints,
     canonicalize_attacker_goldish: bool,
+    beam_key: Option<&str>,
 ) -> Option<SeedCheckpoint> {
     let key = condition_key(max_step, constraints);
 
@@ -409,11 +432,19 @@ pub(super) fn load_seed_checkpoint(
         seed_index,
         &key,
         canonicalize_attacker_goldish,
+        beam_key,
     );
     if let Ok(cp) = load_seed_checkpoint_bin(&bin_path) {
-        if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
+        if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish, beam_key)
+        {
             return Some(cp);
         }
+    }
+
+    // Beam checkpoints are a current-format-only feature; no legacy JSON exists
+    // for them, so skip the backward-compat fallbacks below.
+    if beam_key.is_some() {
+        return None;
     }
 
     // 2. Try legacy JSON (keyed format: seed_N_KEY.json).
@@ -422,10 +453,12 @@ pub(super) fn load_seed_checkpoint(
         seed_index,
         &key,
         canonicalize_attacker_goldish,
+        beam_key,
     );
     if let Ok(file) = fs::File::open(&json_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(BufReader::new(file)) {
-            if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish) {
+            if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish, beam_key)
+            {
                 let _ = write_seed_checkpoint_bin(&bin_path, &cp);
                 return Some(cp);
             }
@@ -460,6 +493,7 @@ pub(super) fn remove_seed_checkpoint(
     max_step: Option<u16>,
     constraints: SearchConstraints,
     canonicalize_attacker_goldish: bool,
+    beam_key: Option<&str>,
 ) {
     let key = condition_key(max_step, constraints);
     let _ = fs::remove_file(checkpoint_path_bin(
@@ -467,6 +501,7 @@ pub(super) fn remove_seed_checkpoint(
         seed_index,
         &key,
         canonicalize_attacker_goldish,
+        beam_key,
     ));
     // Also remove any legacy JSON checkpoint that might still exist.
     let _ = fs::remove_file(checkpoint_path(
@@ -474,6 +509,7 @@ pub(super) fn remove_seed_checkpoint(
         seed_index,
         &key,
         canonicalize_attacker_goldish,
+        beam_key,
     ));
 }
 
@@ -672,6 +708,26 @@ mod tests {
         marker: u32,
         canonicalize_attacker_goldish: bool,
     ) -> SeedCheckpoint {
+        dummy_checkpoint_full(
+            seed_index,
+            seed_sfen,
+            max_step,
+            constraints,
+            marker,
+            canonicalize_attacker_goldish,
+            None,
+        )
+    }
+
+    fn dummy_checkpoint_full(
+        seed_index: usize,
+        seed_sfen: &str,
+        max_step: Option<u16>,
+        constraints: SearchConstraints,
+        marker: u32,
+        canonicalize_attacker_goldish: bool,
+        beam_key: Option<String>,
+    ) -> SeedCheckpoint {
         SeedCheckpoint {
             seed_index,
             seed_sfen: seed_sfen.to_string(),
@@ -690,6 +746,7 @@ mod tests {
             best_step: 0,
             best_sfens: vec![],
             canonicalize_attacker_goldish,
+            beam_key,
             adaptive_pool_factor: None,
             ema_inv_survival: None,
             frontier_bytes: vec![],
@@ -717,7 +774,7 @@ mod tests {
         let cp = dummy_checkpoint(7, "sfen-x", Some(5), constraints, 42);
         write_seed_checkpoint(&log, &cp).unwrap();
 
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), constraints, false);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(5), constraints, false, None);
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().best_piece_count, 42);
 
@@ -737,8 +794,8 @@ mod tests {
         write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, a, 1)).unwrap();
         write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, b, 2)).unwrap();
 
-        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false).unwrap();
-        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false).unwrap();
+        let la = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false, None).unwrap();
+        let lb = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false, None).unwrap();
         assert_eq!(la.best_piece_count, 1);
         assert_eq!(lb.best_piece_count, 2);
 
@@ -757,7 +814,7 @@ mod tests {
         let legacy_path = cp_dir.join("seed_7.json");
         serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
 
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None);
         assert!(loaded.is_some());
         assert_eq!(loaded.unwrap().best_piece_count, 99);
 
@@ -792,7 +849,7 @@ mod tests {
         serde_json::to_writer(fs::File::create(&legacy_path).unwrap(), &cp).unwrap();
 
         // Loading with mismatched conditions should not migrate or use it.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, b, false, None);
         assert!(loaded.is_none());
         assert!(
             legacy_path.exists(),
@@ -800,7 +857,7 @@ mod tests {
         );
 
         // Subsequent load with matching conditions still picks it up.
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false);
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", None, a, false, None);
         assert!(loaded.is_some());
         assert!(
             legacy_path.exists(),
@@ -827,49 +884,130 @@ mod tests {
         )
         .unwrap();
 
-        let off = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false).unwrap();
-        let on = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, true).unwrap();
+        let off = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).unwrap();
+        let on = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, true, None).unwrap();
         assert_eq!(off.best_piece_count, 11);
         assert_eq!(on.best_piece_count, 22);
         assert!(!off.canonicalize_attacker_goldish);
         assert!(on.canonicalize_attacker_goldish);
 
         // Files live at distinct paths so removal is mode-specific.
-        remove_seed_checkpoint(&log, 7, None, constraints, true);
-        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, true).is_none());
-        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false).is_some());
+        remove_seed_checkpoint(&log, 7, None, constraints, true, None);
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, true, None).is_none());
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).is_some());
 
         let _ = fs::remove_dir_all(&dir);
     }
 
-    /// Pin: `load_seed_checkpoint` の validation は beam を見ない、つまり
-    /// 非 beam モードで書いた .ckpt を beam モードからも load できる。
-    /// (search.rs 側で beam.width.is_some() のときに load をスキップしていた
-    /// ガードを撤廃したのと対になる invariant。書き込み側は
-    /// beam.width.is_none() で gate しているので、.ckpt にあるのは必ず非 beam の
-    /// 厳密計算途中の状態 = beam での結果より弱くなることはない。)
-    /// 将来 validate_checkpoint に beam 関連のフィールドを足したくなった場合、
-    /// この test がそれを catch する。
+    /// Regression: the exact (non-beam) checkpoint path and round-trip must be
+    /// byte-for-byte unchanged by the beam-namespace feature. An exact run
+    /// writes with `beam_key=None`; the produced filename has no `_beam` segment
+    /// and is loadable with `beam_key=None`.
     #[test]
-    fn checkpoint_validation_is_beam_agnostic() {
-        let dir = unique_test_dir("beam-agnostic");
+    fn exact_checkpoint_path_unchanged_by_beam_feature() {
+        let dir = unique_test_dir("exact-path");
         let log = dir.join("log.jsonl");
         let constraints = SearchConstraints::default();
+        let cp_dir = checkpoint_dir(&log);
 
-        // 非 beam モード相当 (= 通常 run) で書いた checkpoint を simulate。
         let cp = dummy_checkpoint(7, "sfen-x", Some(10), constraints, 42);
         write_seed_checkpoint(&log, &cp).unwrap();
 
-        // 同 (seed_index, seed_sfen, max_step, constraints, canonical) を渡せば
-        // beam モードからの呼び出しでも同じく load できる: load_seed_checkpoint /
-        // validate_checkpoint は beam を一切引数に取らないので caller のモードに
-        // よらず一意に決まる。
-        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(10), constraints, false);
-        assert!(
-            loaded.is_some(),
-            "non-beam checkpoint must be loadable from any caller mode"
-        );
+        // The exact path is exactly seed_{i}_{key}.ckpt (no _beam segment).
+        let key = condition_key(Some(10), constraints);
+        let exact_path = cp_dir.join(format!("seed_7_{key}.ckpt"));
+        assert!(exact_path.exists(), "exact .ckpt path must be unchanged");
+        // And nothing with a _beam segment was written.
+        let beam_like: Vec<_> = fs::read_dir(&cp_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains("_beam"))
+            .collect();
+        assert!(beam_like.is_empty(), "no beam file for an exact run");
+
+        let loaded = load_seed_checkpoint(&log, 7, "sfen-x", Some(10), constraints, false, None);
         assert_eq!(loaded.unwrap().best_piece_count, 42);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A beam checkpoint round-trips only via its own beam key, and lands at a
+    /// distinct path from the exact checkpoint.
+    #[test]
+    fn beam_checkpoint_roundtrips_under_its_key() {
+        let dir = unique_test_dir("beam-roundtrip");
+        let log = dir.join("log.jsonl");
+        let constraints = SearchConstraints::default();
+        let cp_dir = checkpoint_dir(&log);
+
+        let key = "deadbeefcafef00d".to_string();
+        let cp = dummy_checkpoint_full(
+            7,
+            "sfen-x",
+            Some(10),
+            constraints,
+            55,
+            false,
+            Some(key.clone()),
+        );
+        write_seed_checkpoint(&log, &cp).unwrap();
+
+        // Lands at the _beam{key}-suffixed path.
+        let cond = condition_key(Some(10), constraints);
+        let beam_path = cp_dir.join(format!("seed_7_{cond}_beam{key}.ckpt"));
+        assert!(beam_path.exists(), "beam .ckpt must use the _beam path");
+
+        // Loadable with the matching beam key.
+        let loaded =
+            load_seed_checkpoint(&log, 7, "sfen-x", Some(10), constraints, false, Some(&key));
+        assert_eq!(loaded.unwrap().best_piece_count, 55);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A beam run never reads the exact checkpoint and vice-versa: the two live
+    /// at distinct paths and `load` only returns a match when the beam key
+    /// agrees. Different beam configs (keys) are likewise isolated.
+    #[test]
+    fn beam_and_exact_checkpoints_are_isolated() {
+        let dir = unique_test_dir("beam-isolated");
+        let log = dir.join("log.jsonl");
+        let constraints = SearchConstraints::default();
+
+        // Exact checkpoint + two distinct beam-config checkpoints, same seed.
+        write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, constraints, 1)).unwrap();
+        write_seed_checkpoint(
+            &log,
+            &dummy_checkpoint_full(7, "sfen-x", None, constraints, 2, false, Some("aaaa".into())),
+        )
+        .unwrap();
+        write_seed_checkpoint(
+            &log,
+            &dummy_checkpoint_full(7, "sfen-x", None, constraints, 3, false, Some("bbbb".into())),
+        )
+        .unwrap();
+
+        // Each key resolves to its own checkpoint; none bleeds into another.
+        let exact = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).unwrap();
+        let beam_a =
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("aaaa")).unwrap();
+        let beam_b =
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("bbbb")).unwrap();
+        assert_eq!(exact.best_piece_count, 1);
+        assert_eq!(beam_a.best_piece_count, 2);
+        assert_eq!(beam_b.best_piece_count, 3);
+
+        // An unknown beam key matches nothing (no fallback to exact).
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("cccc"))
+            .is_none());
+
+        // Removing one beam checkpoint leaves the exact and the other beam one.
+        remove_seed_checkpoint(&log, 7, None, constraints, false, Some("aaaa"));
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("aaaa"))
+            .is_none());
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).is_some());
+        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("bbbb"))
+            .is_some());
 
         let _ = fs::remove_dir_all(&dir);
     }

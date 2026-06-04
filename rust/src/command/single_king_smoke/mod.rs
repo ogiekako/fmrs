@@ -251,18 +251,29 @@ pub enum SingleKingSmokeCommand {
         /// partition the frontier into fixed-size chunks and run each chunk's
         /// BFS to completion sequentially (bounding peak memory). Exact;
         /// duplicate work across chunks is accepted. Snaps to the first search
-        /// step >= this value (smoke advances in odd steps). Incompatible with
-        /// --beam-width / --oracle-model. Omit to disable.
+        /// step >= this value (smoke advances in odd steps). Omit to disable.
+        ///
+        /// With --beam-width also set, chunking is skipped: the search is exact
+        /// up to this step and then switches to beam (the width bounds memory
+        /// past the split step). Useful to resume a killed exact/split run under
+        /// a width bound — its non-beam checkpoint is picked up automatically.
+        /// Incompatible with --oracle-model.
         #[arg(long)]
         split_start_step: Option<u16>,
         /// Max frontier positions per chunk in split mode. Required (and must be
-        /// > 0) when --split-start-step is set.
+        /// > 0) when --split-start-step is set without --beam-width (pure split,
+        /// which chunks). Ignored when --beam-width is set (no chunking).
         #[arg(long)]
         split_chunk_size: Option<usize>,
         /// Deterministic shuffle seed for split-mode chunking. Stable across
         /// resume so chunk boundaries do not change. Default 0.
         #[arg(long, default_value_t = 0)]
         split_seed: u64,
+        /// Ignore any saved checkpoint and start from scratch. Beam runs
+        /// auto-resume from a checkpoint written by an identical config by
+        /// default (no flag needed); pass --fresh to force a restart instead.
+        #[arg(long, default_value_t = false)]
+        fresh: bool,
     },
     /// Join feature samples with seed results to produce a CSV for offline training.
     #[command(name = "export-features")]
@@ -371,6 +382,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             split_start_step,
             split_chunk_size,
             split_seed,
+            fresh,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let (anchor_step, anchor_width) = match beam_width_at.as_deref() {
@@ -448,6 +460,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 },
                 memo_retain_from_step,
                 !no_mid_uniqueness_prune,
+                fresh,
             )
         }
         SingleKingSmokeCommand::ExportFeatures {

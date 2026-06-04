@@ -182,6 +182,9 @@ pub(super) fn search_single_seed(
     split: SplitConfig,
     memo_retain_from_step: u16,
     mid_uniqueness_prune: bool,
+    // `fresh`: when true, ignore any saved checkpoint (beam or exact) and start
+    // fresh. Threaded from `--fresh`; only affects the resume load below.
+    fresh: bool,
 ) -> anyhow::Result<SingleSeedResult> {
     if seeds.is_empty() {
         return Ok(zero_seed_result());
@@ -222,14 +225,57 @@ pub(super) fn search_single_seed(
     // 非 beam の厳密計算途中の frontier+memo。beam モードでもそれを load して
     // step N まで exact, それ以降だけ beam で進めるほうが、step 0 から beam で
     // 走るより必ず良い (memo hit 率も上がる)。
-    let checkpoint = load_seed_checkpoint(
-        seed_result_log_path,
-        seed_index,
-        &representative.sfen(),
-        max_step,
-        constraints,
-        canonicalize_attacker_goldish,
-    );
+    // Beam runs checkpoint into their own config-keyed namespace so resume only
+    // picks up progress from an identically-configured beam run (and never reads
+    // or clobbers the exact-run checkpoint). `None` for exact runs ⇒ the exact
+    // checkpoint path is unchanged.
+    let beam_ckpt_key = beam.checkpoint_key();
+    let checkpoint = if fresh {
+        // `--fresh`: force a from-scratch run, ignoring every saved checkpoint.
+        None
+    } else {
+        load_seed_checkpoint(
+            seed_result_log_path,
+            seed_index,
+            &representative.sfen(),
+            max_step,
+            constraints,
+            canonicalize_attacker_goldish,
+            beam_ckpt_key.as_deref(),
+        )
+        // Beam warm-start: with no beam checkpoint yet, resume from an exact
+        // checkpoint if one exists — its frontier is a valid exact prefix to
+        // continue under beam from. (Skipped for exact runs: same path twice.)
+        .or_else(|| {
+            beam_ckpt_key.as_ref().and_then(|_| {
+                load_seed_checkpoint(
+                    seed_result_log_path,
+                    seed_index,
+                    &representative.sfen(),
+                    max_step,
+                    constraints,
+                    canonicalize_attacker_goldish,
+                    None,
+                )
+            })
+        })
+    };
+
+    // Surface the forget-proof auto-resume so a beam run that was killed/preempted
+    // makes it visible that it picked up where it left off (vs. silently
+    // restarting). Beam runs only; exact runs resume silently as before.
+    if let (Some(cp), Some(key)) = (checkpoint.as_ref(), beam_ckpt_key.as_deref()) {
+        let from_beam = cp.beam_key.as_deref() == Some(key);
+        eprintln!(
+            "seed {seed_index}: resuming beam run from step {} ({})",
+            cp.resume_state.step,
+            if from_beam {
+                "own beam checkpoint"
+            } else {
+                "exact warm-start checkpoint"
+            }
+        );
+    }
 
     let mut search = if canonicalize_attacker_goldish {
         let resumed = checkpoint.as_ref().and_then(|cp| {
@@ -301,7 +347,12 @@ pub(super) fn search_single_seed(
         } else {
             width
         };
-        search.set_candidates_limit(Some(pool));
+        // Don't cap candidate generation while still in the exact prefix
+        // (step < activate_step): the prefix must be a full-width exact BFS.
+        // Once the loop reaches the activation step it sets the cap itself.
+        if search.step() >= beam.activate_step.unwrap_or(0) {
+            search.set_candidates_limit(Some(pool));
+        }
         search.set_candidates_pool_factor(candidates_pool_factor);
     }
     // Initial computation used by checkpoint restoration's clamp. Recomputed
@@ -372,10 +423,12 @@ pub(super) fn search_single_seed(
         ema_inv_survival,
     };
 
-    // Split mode: run the prefix to the split step, then process the frontier in
-    // bounded chunks one at a time. Beam/oracle are rejected upstream so the
-    // adaptive-pool / candidate-limit machinery is inert here.
-    if split.enabled() {
+    // Pure split mode: run the prefix to the split step, then process the
+    // frontier in bounded chunks one at a time. When --beam-width is also set we
+    // skip chunking and instead fall through to the normal loop, which runs
+    // exact up to `beam.activate_step` (= split step) and beams past it — see the
+    // beam-application gate in `run_seed_loop`.
+    if split.enabled() && beam.width.is_none() {
         return run_split(&ctx, seeds, split, search, init);
     }
 
@@ -611,6 +664,8 @@ fn run_split(
             ctx.max_step,
             ctx.constraints,
             ctx.canonicalize_attacker_goldish,
+            // Split is incompatible with beam, so chunk checkpoints are exact.
+            None,
         );
 
         let mut chunk_search = if ctx.canonicalize_attacker_goldish {
@@ -693,6 +748,7 @@ fn run_split(
             ctx.max_step,
             ctx.constraints,
             ctx.canonicalize_attacker_goldish,
+            None,
         );
 
         merge_best(
@@ -1063,7 +1119,9 @@ fn run_seed_loop(
             break;
         }
 
-        if beam.width.is_some() {
+        // Beam is active only at/after `activate_step` (default 0). Before that
+        // the search runs exact (full-width) — the "exact prefix" of split+beam.
+        if beam.width.is_some() && step_now >= beam.activate_step.unwrap_or(0) {
             // Geometric width ramp: width grows with step (see BeamConfig).
             let w = beam.width_at(step_now).unwrap();
             // Track the candidate-pool cap to the NEXT step's width, since the
@@ -1260,13 +1318,21 @@ fn run_seed_loop(
             advance_elapsed_ms,
         );
 
-        if allow_step_checkpoint && (beam.width.is_none() || !did_beam_filter) {
+        // Beam runs now checkpoint too, into their config-keyed namespace (so a
+        // killed beam run can auto-resume). Split chunks pass a `ckpt_path_override`
+        // and beam is incompatible with split, so `beam_ckpt_key` is None there.
+        if allow_step_checkpoint {
             let should_checkpoint = match last_checkpoint_time {
                 None => true,
                 Some(t) => t.elapsed() >= checkpoint_interval,
             };
             if should_checkpoint {
                 let eff_ckpt_path = ckpt_path_override.unwrap_or(seed_result_log_path);
+                let beam_ckpt_key = if ckpt_path_override.is_some() {
+                    None
+                } else {
+                    beam.checkpoint_key()
+                };
                 let _ = write_seed_checkpoint(
                     eff_ckpt_path,
                     &SeedCheckpoint {
@@ -1280,6 +1346,7 @@ fn run_seed_loop(
                         best_step,
                         best_sfens: vec![],
                         canonicalize_attacker_goldish,
+                        beam_key: beam_ckpt_key,
                         adaptive_pool_factor: beam.width.map(|_| adaptive_pool_factor),
                         ema_inv_survival,
                         frontier_bytes: search.frontier_to_binary(),

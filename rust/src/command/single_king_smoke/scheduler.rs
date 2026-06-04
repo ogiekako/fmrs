@@ -346,6 +346,8 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                 best_step: task.best_step,
                 best_sfens: vec![],
                 canonicalize_attacker_goldish: ctx.canonicalize_attacker_goldish,
+                // scheduler.rs is the exact (non-beam) path, so no beam namespace.
+                beam_key: None,
                 // scheduler.rs doesn't currently run the adaptive pool logic
                 // (no beam path here). Leave both as None — backwards-compatible
                 // with checkpoints written by the search.rs path too.
@@ -485,6 +487,7 @@ fn finalize_task(
                 ctx.max_step,
                 ctx.constraints,
                 ctx.canonicalize_attacker_goldish,
+                None,
             );
         }
     }

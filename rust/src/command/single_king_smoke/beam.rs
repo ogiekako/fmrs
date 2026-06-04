@@ -51,9 +51,58 @@ pub(super) struct BeamConfig {
     /// parallel-safe: each position is seeded from its digest). Enables
     /// checkpoint/resume to continue identically.
     rng_seed: u64,
+    /// Step at which beam filtering begins. `None` (or 0) = beam from step 0.
+    /// Set to `--split-start-step` so the search is exact up to that step and
+    /// only then switches to beam — the memory-bounded "exact core + beam tail"
+    /// mode that lets a killed exact/split run resume under a width bound.
+    pub(super) activate_step: Option<u16>,
 }
 
 impl BeamConfig {
+    /// A short stable hash of the full beam configuration, used to namespace
+    /// resume checkpoints so a beam run only resumes from a checkpoint written
+    /// by an identical config (and never collides with the exact-run
+    /// checkpoints). `None` when beam is off (→ exact checkpoint path unchanged).
+    pub(super) fn checkpoint_key(&self) -> Option<String> {
+        self.width?;
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        self.width.hash(&mut h);
+        self.anchor_step.hash(&mut h);
+        self.anchor_width.hash(&mut h);
+        self.max_width.hash(&mut h);
+        self.temperature.to_bits().hash(&mut h);
+        self.stratify.hash(&mut h);
+        self.rng_seed.hash(&mut h);
+        self.activate_step.hash(&mut h);
+        // Scorer fingerprint: kind + cheap content checksum so swapping the
+        // model invalidates the checkpoint (safe: falls back to fresh).
+        match &self.scorer {
+            BeamScorer::Random => 0u8.hash(&mut h),
+            BeamScorer::Handcraft => 1u8.hash(&mut h),
+            BeamScorer::Model(m) => {
+                2u8.hash(&mut h);
+                m.weights.len().hash(&mut h);
+                m.intercept.to_bits().hash(&mut h);
+                for w in m.weights.iter().step_by((m.weights.len() / 16).max(1)) {
+                    w.to_bits().hash(&mut h);
+                }
+            }
+            BeamScorer::Gbdt(g) => {
+                3u8.hash(&mut h);
+                g.trees.len().hash(&mut h);
+                g.baseline.to_bits().hash(&mut h);
+                for t in g.trees.iter().step_by((g.trees.len() / 16).max(1)) {
+                    t.len().hash(&mut h);
+                    if let Some(n) = t.last() {
+                        n.4.to_bits().hash(&mut h);
+                    }
+                }
+            }
+        }
+        Some(format!("{:016x}", h.finish()))
+    }
+
     /// Beam width to use at `step` (geometric interpolation between the base
     /// width at step 0 and `anchor_width` at `anchor_step`, growing past the
     /// anchor, capped by `max_width`). `None` if beam is off.
@@ -118,6 +167,7 @@ pub(super) fn build_beam_config(
             anchor_width,
             max_width,
             rng_seed,
+            activate_step: None,
         });
     }
     let scorer = match model_spec {
@@ -143,6 +193,7 @@ pub(super) fn build_beam_config(
         anchor_width,
         max_width,
         rng_seed,
+        activate_step: None,
     })
 }
 
@@ -314,5 +365,69 @@ pub(super) fn sample_features_to_log(
     let mut file = log.lock().unwrap();
     for line in lines {
         let _ = writeln!(file, "{}", line);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cfg(width: Option<usize>) -> anyhow::Result<BeamConfig> {
+        // Random scorer; vary only the fields we want to test below.
+        build_beam_config(width, None, 10.0, false, false, None, 0, 0, 7)
+    }
+
+    #[test]
+    fn checkpoint_key_none_when_beam_off() {
+        assert!(cfg(None).unwrap().checkpoint_key().is_none());
+    }
+
+    #[test]
+    fn checkpoint_key_stable_for_identical_config() {
+        let a = cfg(Some(1000)).unwrap();
+        let b = cfg(Some(1000)).unwrap();
+        assert_eq!(a.checkpoint_key(), b.checkpoint_key());
+        assert!(a.checkpoint_key().is_some());
+    }
+
+    #[test]
+    fn checkpoint_key_differs_on_config_change() {
+        let base = cfg(Some(1000)).unwrap().checkpoint_key();
+        // width
+        assert_ne!(base, cfg(Some(2000)).unwrap().checkpoint_key());
+        // temperature
+        let t = build_beam_config(Some(1000), None, 15.0, false, false, None, 0, 0, 7)
+            .unwrap()
+            .checkpoint_key();
+        assert_ne!(base, t);
+        // stratify
+        let s = build_beam_config(Some(1000), None, 10.0, true, false, None, 0, 0, 7)
+            .unwrap()
+            .checkpoint_key();
+        assert_ne!(base, s);
+        // rng_seed
+        let r = build_beam_config(Some(1000), None, 10.0, false, false, None, 0, 0, 99)
+            .unwrap()
+            .checkpoint_key();
+        assert_ne!(base, r);
+        // anchor (width ramp)
+        let an = build_beam_config(Some(1000), None, 10.0, false, false, Some(50), 5000, 0, 7)
+            .unwrap()
+            .checkpoint_key();
+        assert_ne!(base, an);
+        // activate_step (split+beam exact-prefix boundary)
+        let mut act = cfg(Some(1000)).unwrap();
+        act.activate_step = Some(40);
+        assert_ne!(base, act.checkpoint_key());
+    }
+
+    #[test]
+    fn checkpoint_key_differs_by_scorer_kind() {
+        let random = cfg(Some(1000)).unwrap().checkpoint_key();
+        let handcraft =
+            build_beam_config(Some(1000), Some("handcraft"), 10.0, false, false, None, 0, 0, 7)
+                .unwrap()
+                .checkpoint_key();
+        assert_ne!(random, handcraft);
     }
 }

@@ -70,22 +70,30 @@ pub(super) fn ideal_backward(
     split: SplitConfig,
     memo_retain_from_step: u16,
     mid_uniqueness_prune: bool,
+    fresh: bool,
 ) -> anyhow::Result<()> {
     if parallel == 0 {
         bail!("parallel must be positive");
     }
     validate_search_constraints(constraints)?;
+    let mut beam = beam;
     if split.enabled() {
-        if beam.width.is_some() {
-            bail!("--split-start-step is incompatible with --beam-width");
-        }
         if oracle_model.is_some() {
             bail!("--split-start-step is incompatible with --oracle-model");
         }
-        match split.chunk_size {
-            None => bail!("--split-chunk-size is required when --split-start-step is set"),
-            Some(0) => bail!("--split-chunk-size must be positive"),
-            Some(_) => {}
+        if beam.width.is_some() {
+            // Compatible mode: exact BFS up to --split-start-step, then switch
+            // to beam (no chunking). The exact prefix bounds nothing on its own,
+            // so the beam width is what caps memory past the split step. Chunk
+            // size is irrelevant here (no chunks are produced).
+            beam.activate_step = split.start_step;
+        } else {
+            // Pure split mode chunks the frontier at the split step.
+            match split.chunk_size {
+                None => bail!("--split-chunk-size is required when --split-start-step is set"),
+                Some(0) => bail!("--split-chunk-size must be positive"),
+                Some(_) => {}
+            }
         }
     }
     let fleet_partition = match (fleet_index, fleet_size) {
@@ -326,6 +334,7 @@ pub(super) fn ideal_backward(
                     split,
                     memo_retain_from_step,
                     mid_uniqueness_prune,
+                    fresh,
                 );
                 completed_in_run.fetch_add(1, Ordering::Relaxed);
                 let done = completed.fetch_add(1, Ordering::Relaxed) + 1;
@@ -358,25 +367,32 @@ pub(super) fn ideal_backward(
                 let early_exited_partial = early_exit
                     && result.stats.termination_reason == TerminationReason::EarlyExit
                     && result.best.as_ref().is_none_or(|(pc, _, _)| *pc < target_max);
-                if (beam.width.is_none() || !result.beam_filtered) && !early_exited_partial {
-                    append_seed_result_record(
-                        &mut seed_result_log.lock().unwrap(),
-                        build_seed_result_record(
-                            *seed_index,
-                            representative,
-                            max_step,
-                            constraints,
-                            &result.best,
-                            result.stats,
-                            canonicalize_attacker_goldish,
-                        ),
-                    )?;
+                if !early_exited_partial {
+                    // Beam-filtered results are non-authoritative (narrowed
+                    // search), so only exact runs append a result record. Both
+                    // remove their own checkpoint on completion: beam runs the
+                    // beam-namespaced one, exact runs the exact one.
+                    if beam.width.is_none() || !result.beam_filtered {
+                        append_seed_result_record(
+                            &mut seed_result_log.lock().unwrap(),
+                            build_seed_result_record(
+                                *seed_index,
+                                representative,
+                                max_step,
+                                constraints,
+                                &result.best,
+                                result.stats,
+                                canonicalize_attacker_goldish,
+                            ),
+                        )?;
+                    }
                     remove_seed_checkpoint(
                         &seed_result_log_path,
                         *seed_index,
                         max_step,
                         constraints,
                         canonicalize_attacker_goldish,
+                        beam.checkpoint_key().as_deref(),
                     );
                 }
                 if let Some((piece_count, step, positions)) = result.best {
