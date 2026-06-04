@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780580196424,
+  "lastUpdate": 1780580198540,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43727,6 +43727,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 30940,
             "range": "± 27",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "14adf33245fb680f4af8ad9a4e70fe14dd3ed746",
+          "message": "feat(beam): 決定的な per-局面 RNG(再現可能・並列安全・速度犠牲なし)\n\napply_beam の Gumbel 摂動を局面ごとに SmallRng::from_entropy()(OS エントロピー読み)\nで引いていたのを、digest⊕step⊕seed の決定的 seed に変更。\n- 再現可能: --random-seed 固定で beam 結果が bit 一致(検証済 md5 一致)。\n- 並列安全: per-局面 seed なので共有 RNG 無し→スレッド数に依らず決定的。\n- 速度: from_entropy の per-call OS エントロピー読みを除去するので犠牲なし(むしろ速い)。\ncheckpoint/resume を bit 一致で継続する土台。",
+          "timestamp": "2026-06-04T11:08:08Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/14adf33245fb680f4af8ad9a4e70fe14dd3ed746"
+        },
+        "date": 1780580198063,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 388,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2682,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 397,
+            "range": "± 592",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25475,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1667,
+            "range": "± 32",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4621,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1367350,
+            "range": "± 748",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11677,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 184,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 110,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 148,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18985871,
+            "range": "± 163213",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27026,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3269,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16950,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 37763,
+            "range": "± 591",
             "unit": "ns/iter"
           }
         ]
