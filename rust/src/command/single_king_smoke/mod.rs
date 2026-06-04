@@ -380,7 +380,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                 }
                 None => (None, 0),
             };
-            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify, beam_sota, anchor_step, anchor_width, beam_width_max)?;
+            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify, beam_sota, anchor_step, anchor_width, beam_width_max, random_seed.unwrap_or(0))?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
                 None => None,

@@ -47,6 +47,10 @@ pub(super) struct BeamConfig {
     anchor_step: Option<u16>,
     anchor_width: usize,
     max_width: usize, // 0 = uncapped
+    /// Seed for the deterministic per-position Gumbel RNG (reproducible &
+    /// parallel-safe: each position is seeded from its digest). Enables
+    /// checkpoint/resume to continue identically.
+    rng_seed: u64,
 }
 
 impl BeamConfig {
@@ -99,6 +103,7 @@ pub(super) fn build_beam_config(
     anchor_step: Option<u16>,
     anchor_width: usize,
     max_width: usize,
+    rng_seed: u64,
 ) -> anyhow::Result<BeamConfig> {
     // --beam-sota: use the embedded SOTA GBDT (unless an explicit --beam-model
     // overrides it) and default the temperature to the tuned value.
@@ -112,6 +117,7 @@ pub(super) fn build_beam_config(
             anchor_step,
             anchor_width,
             max_width,
+            rng_seed,
         });
     }
     let scorer = match model_spec {
@@ -136,6 +142,7 @@ pub(super) fn build_beam_config(
         anchor_step,
         anchor_width,
         max_width,
+        rng_seed,
     })
 }
 
@@ -156,10 +163,11 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
     }
     match &beam.scorer {
         BeamScorer::Random => {
+            let step = search.step();
             let (_, positions) = search.positions();
             let n = positions.len();
             let mut indices: Vec<usize> = (0..n).collect();
-            let mut rng = SmallRng::from_entropy();
+            let mut rng = SmallRng::seed_from_u64(beam.rng_seed ^ (step as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
             indices.partial_shuffle(&mut rng, width);
             let kept: Vec<Position> = indices[..width]
                 .iter()
@@ -170,6 +178,7 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
         scorer => {
             let step = search.step();
             let temp = beam.temperature;
+            let seed = beam.rng_seed;
             let (stone, positions) = search.positions();
             let mut scored: Vec<(f32, u32, Position)> = positions
                 .par_iter()
@@ -185,7 +194,15 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
                     // samples K without replacement ∝ exp(score/T), keeping
                     // value while preserving diversity.
                     if temp > 0.0 {
-                        let u: f32 = SmallRng::from_entropy().gen::<f32>().clamp(1e-9, 1.0);
+                        // Deterministic per-position seed (digest-based): reproducible
+                        // and parallel-safe (no shared RNG), and cheaper than
+                        // from_entropy's per-call OS-entropy read.
+                        let mut rng = SmallRng::seed_from_u64(
+                            p.digest()
+                                ^ (step as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)
+                                ^ seed,
+                        );
+                        let u: f32 = rng.gen::<f32>().clamp(1e-9, 1.0);
                         score += temp * -(-u.ln()).ln();
                     }
                     let pieces = aux.occupied_bb().count_ones();
