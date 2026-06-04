@@ -60,12 +60,30 @@ impl BeamConfig {
 /// active, so the scorer picks the best `width` from a `width × POOL` sample.
 pub(super) const BEAM_SCORE_POOL: usize = 16;
 
+/// SOTA beam model (GBDT trained on exact value-DP labels), embedded so
+/// `--beam-sota` works with no external file. See analysis/smoke_cone.
+const SOTA_MODEL_JSON: &str = include_str!("../../../models/beam_sota.json");
+/// Default selection temperature paired with the SOTA model.
+pub(super) const SOTA_TEMPERATURE: f32 = 15.0;
+
 pub(super) fn build_beam_config(
     width: Option<usize>,
     model_spec: Option<&str>,
     temperature: f32,
     stratify: bool,
+    sota: bool,
 ) -> anyhow::Result<BeamConfig> {
+    // --beam-sota: use the embedded SOTA GBDT (unless an explicit --beam-model
+    // overrides it) and default the temperature to the tuned value.
+    if sota && model_spec.is_none() {
+        let temp = if temperature > 0.0 { temperature } else { SOTA_TEMPERATURE };
+        return Ok(BeamConfig {
+            width,
+            scorer: BeamScorer::Gbdt(GbdtModel::from_json_str(SOTA_MODEL_JSON)?),
+            temperature: temp,
+            stratify,
+        });
+    }
     let scorer = match model_spec {
         None => BeamScorer::Random,
         Some("handcraft") => BeamScorer::Handcraft,

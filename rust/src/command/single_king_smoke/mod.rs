@@ -172,6 +172,9 @@ pub enum SingleKingSmokeCommand {
         /// diversity/exploration; very large approaches the random beam.
         #[arg(long, default_value_t = 0.0)]
         beam_temperature: f32,
+        /// Use the embedded SOTA beam model + tuned temperature (one flag).
+        #[arg(long, default_value_t = false)]
+        beam_sota: bool,
         /// Round-robin select across piece-count buckets (diversity floor).
         #[arg(long, default_value_t = false)]
         beam_stratify: bool,
@@ -344,6 +347,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             beam_model,
             beam_temperature,
             beam_stratify,
+            beam_sota,
             candidates_pool_factor,
             max_candidates_pool,
             memory_budget_pct,
@@ -359,7 +363,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             split_seed,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
-            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify)?;
+            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify, beam_sota)?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
                 None => None,

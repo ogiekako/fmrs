@@ -496,8 +496,12 @@ impl GbdtModel {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
         let data = std::fs::read_to_string(path)
             .with_context(|| format!("read gbdt model {}", path.display()))?;
-        let model: GbdtModel = serde_json::from_str(&data)
-            .with_context(|| format!("parse gbdt model {}", path.display()))?;
+        Self::from_json_str(&data)
+    }
+
+    pub fn from_json_str(data: &str) -> anyhow::Result<Self> {
+        let model: GbdtModel =
+            serde_json::from_str(data).context("parse gbdt model")?;
         let expected = feature_names();
         anyhow::ensure!(
             model.feature_names.len() == expected.len()
