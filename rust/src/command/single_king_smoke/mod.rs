@@ -1,3 +1,4 @@
+use anyhow::Context as _;
 use clap::Subcommand;
 use std::path::PathBuf;
 
@@ -175,6 +176,13 @@ pub enum SingleKingSmokeCommand {
         /// Use the embedded SOTA beam model + tuned temperature (one flag).
         #[arg(long, default_value_t = false)]
         beam_sota: bool,
+        /// Geometric width ramp: "STEP:WIDTH" sets width at that step (W0 at
+        /// step 0 = --beam-width). e.g. --beam-width-at 101:2000000.
+        #[arg(long)]
+        beam_width_at: Option<String>,
+        /// Cap for the width ramp (0 = uncapped).
+        #[arg(long, default_value_t = 0)]
+        beam_width_max: usize,
         /// Round-robin select across piece-count buckets (diversity floor).
         #[arg(long, default_value_t = false)]
         beam_stratify: bool,
@@ -348,6 +356,8 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             beam_temperature,
             beam_stratify,
             beam_sota,
+            beam_width_at,
+            beam_width_max,
             candidates_pool_factor,
             max_candidates_pool,
             memory_budget_pct,
@@ -363,7 +373,14 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             split_seed,
         } => {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
-            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify, beam_sota)?;
+            let (anchor_step, anchor_width) = match beam_width_at.as_deref() {
+                Some(s) => {
+                    let (st, w) = s.split_once(':').context("--beam-width-at must be STEP:WIDTH")?;
+                    (Some(st.trim().parse::<u16>()?), w.trim().parse::<usize>()?)
+                }
+                None => (None, 0),
+            };
+            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify, beam_sota, anchor_step, anchor_width, beam_width_max)?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
                 None => None,

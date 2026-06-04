@@ -1063,8 +1063,23 @@ fn run_seed_loop(
             break;
         }
 
-        if let Some(width) = beam.width {
-            did_beam_filter |= apply_beam(search, beam, width);
+        if beam.width.is_some() {
+            // Geometric width ramp: width grows with step (see BeamConfig).
+            let w = beam.width_at(step_now).unwrap();
+            // Track the candidate-pool cap to the NEXT step's width, since the
+            // advance below feeds the pool the next apply_beam selects from.
+            let next_w = beam.width_at(next_step).unwrap_or(w);
+            let pool_mult = std::env::var("FMRS_BEAM_SCORE_POOL")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(super::beam::BEAM_SCORE_POOL);
+            let pool = if beam.uses_scorer() {
+                next_w.saturating_mul(pool_mult)
+            } else {
+                next_w
+            };
+            search.set_candidates_limit(Some(pool));
+            did_beam_filter |= apply_beam(search, beam, w);
         }
 
         let advance_start = Instant::now();

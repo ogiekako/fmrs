@@ -39,6 +39,30 @@ pub(super) struct BeamConfig {
     /// Round-robin select across piece-count buckets (diversity floor that
     /// prevents the high-piece front from crowding out longer-surviving lines).
     stratify: bool,
+    /// Geometric width schedule: `width` is W0 (at step 0); at `anchor_step` the
+    /// width is `anchor_width`; interpolated geometrically (log-linear) since the
+    /// frontier grows geometrically, so this keeps the kept-fraction's decay
+    /// controlled. Beyond the anchor it keeps growing geometrically, capped by
+    /// `max_width`. None anchor = constant width (legacy).
+    anchor_step: Option<u16>,
+    anchor_width: usize,
+    max_width: usize, // 0 = uncapped
+}
+
+impl BeamConfig {
+    /// Beam width to use at `step` (geometric interpolation between the base
+    /// width at step 0 and `anchor_width` at `anchor_step`, growing past the
+    /// anchor, capped by `max_width`). `None` if beam is off.
+    pub(super) fn width_at(&self, step: u16) -> Option<usize> {
+        let w0 = self.width?;
+        let Some(s1) = self.anchor_step.filter(|&s| s > 0) else {
+            return Some(w0);
+        };
+        let ratio = self.anchor_width as f64 / w0 as f64;
+        let w = (w0 as f64 * ratio.powf(step as f64 / s1 as f64)).round() as usize;
+        let w = w.max(1);
+        Some(if self.max_width > 0 { w.min(self.max_width) } else { w })
+    }
 }
 
 impl BeamConfig {
@@ -72,6 +96,9 @@ pub(super) fn build_beam_config(
     temperature: f32,
     stratify: bool,
     sota: bool,
+    anchor_step: Option<u16>,
+    anchor_width: usize,
+    max_width: usize,
 ) -> anyhow::Result<BeamConfig> {
     // --beam-sota: use the embedded SOTA GBDT (unless an explicit --beam-model
     // overrides it) and default the temperature to the tuned value.
@@ -82,6 +109,9 @@ pub(super) fn build_beam_config(
             scorer: BeamScorer::Gbdt(GbdtModel::from_json_str(SOTA_MODEL_JSON)?),
             temperature: temp,
             stratify,
+            anchor_step,
+            anchor_width,
+            max_width,
         });
     }
     let scorer = match model_spec {
@@ -103,6 +133,9 @@ pub(super) fn build_beam_config(
         scorer,
         temperature,
         stratify,
+        anchor_step,
+        anchor_width,
+        max_width,
     })
 }
 
