@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780744555646,
+  "lastUpdate": 1780744557816,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -43869,6 +43869,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 37763,
             "range": "± 591",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "62be22480a30a54e38de90eea6af97d8631ebe06",
+          "message": "docs: 全駒煙(40駒ユニーク協力詰)到達の記録と局面集・解析テスト\n\n将棋一組(40駒)を盤上に置いた持駒ゼロのユニーク協力詰(煙詰)を発見・厳密検証(113手)。\n理論最大駒数の全駒煙を達成。\n\n- zenkoma_smoke_journey.md: 問題設定・エンジン基盤・ML 誘導 beam・合流(gateway)解析・\n  39 の構造的天井の exact 証明・d=42 gateway からの 40 到達・作品性ランク付けまでの技術文書。\n- 40piece_solutions.txt: 発見・検証した40駒ユニーク協力詰 全2618局面(URL, 全 step113)。\n- 40piece_beautiful_final.txt: 作品性ランク(成駒最小+玉への駒密集)の上位3局面。\n- fmrs_core/tests/smoke_cone_analysis.rs: 合流解析(smoke_confluence)・解パス出力\n  (smoke_dump_path)・本質同値類(smoke_essential_classes)・美しさ抽出\n  (smoke_beautiful / smoke_beautiful2)テストを追加。\n- .gitignore: .claude/ を無視。",
+          "timestamp": "2026-06-04T16:31:24Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/62be22480a30a54e38de90eea6af97d8631ebe06"
+        },
+        "date": 1780744557275,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 397,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2290,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 191,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 439,
+            "range": "± 808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22370,
+            "range": "± 75",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1731,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4153,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1357451,
+            "range": "± 688",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10741,
+            "range": "± 58",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 184,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 90,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 35,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 128,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18440938,
+            "range": "± 33603",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27253,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3354,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17634,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 28037,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
