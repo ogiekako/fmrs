@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780580198540,
+  "lastUpdate": 1780744555646,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46988,6 +46988,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/14adf33245fb680f4af8ad9a4e70fe14dd3ed746"
         },
         "date": 1780580193394,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434045476,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "62be22480a30a54e38de90eea6af97d8631ebe06",
+          "message": "docs: 全駒煙(40駒ユニーク協力詰)到達の記録と局面集・解析テスト\n\n将棋一組(40駒)を盤上に置いた持駒ゼロのユニーク協力詰(煙詰)を発見・厳密検証(113手)。\n理論最大駒数の全駒煙を達成。\n\n- zenkoma_smoke_journey.md: 問題設定・エンジン基盤・ML 誘導 beam・合流(gateway)解析・\n  39 の構造的天井の exact 証明・d=42 gateway からの 40 到達・作品性ランク付けまでの技術文書。\n- 40piece_solutions.txt: 発見・検証した40駒ユニーク協力詰 全2618局面(URL, 全 step113)。\n- 40piece_beautiful_final.txt: 作品性ランク(成駒最小+玉への駒密集)の上位3局面。\n- fmrs_core/tests/smoke_cone_analysis.rs: 合流解析(smoke_confluence)・解パス出力\n  (smoke_dump_path)・本質同値類(smoke_essential_classes)・美しさ抽出\n  (smoke_beautiful / smoke_beautiful2)テストを追加。\n- .gitignore: .claude/ を無視。",
+          "timestamp": "2026-06-04T16:31:24Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/62be22480a30a54e38de90eea6af97d8631ebe06"
+        },
+        "date": 1780744552636,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
