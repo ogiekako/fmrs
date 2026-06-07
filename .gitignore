@@ -2,3 +2,5 @@
 cachegrind.out.*
 package-lock.json
 .claude/
+rust/analysis/smoke_cone/data_v2/*.bin
+rust/analysis/smoke_cone/data_v2/*.csv
