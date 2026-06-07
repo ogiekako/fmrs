@@ -1271,17 +1271,21 @@ fn run_seed_loop(
                 if new_factor != adaptive_pool_factor {
                     adaptive_pool_factor = new_factor;
                     search.set_candidates_pool_factor(adaptive_pool_factor);
-                    eprintln!(
-                        "adaptive_pool seed={} step={} s={:.4} ema_inv_s={:.2} target={} new_pool_factor={} (cap={} budget_avail_gb={:.1})",
-                        seed_index,
-                        next_step,
-                        s_observed,
-                        new_ema,
-                        target_factor,
-                        adaptive_pool_factor,
-                        max_pool_factor,
-                        memory_budget.available_bytes() as f64 / (1024.0 * 1024.0 * 1024.0),
-                    );
+                    // Diagnostic; gated behind --mem-trace like the `advance` line
+                    // below so the default run isn't spammed on every adaptation.
+                    if mem_trace {
+                        eprintln!(
+                            "adaptive_pool seed={} step={} s={:.4} ema_inv_s={:.2} target={} new_pool_factor={} (cap={} budget_avail_gb={:.1})",
+                            seed_index,
+                            next_step,
+                            s_observed,
+                            new_ema,
+                            target_factor,
+                            adaptive_pool_factor,
+                            max_pool_factor,
+                            memory_budget.available_bytes() as f64 / (1024.0 * 1024.0 * 1024.0),
+                        );
+                    }
                 }
             }
         }
