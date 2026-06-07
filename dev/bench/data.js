@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780744557816,
+  "lastUpdate": 1780804360561,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -47182,6 +47182,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/62be22480a30a54e38de90eea6af97d8631ebe06"
         },
         "date": 1780744552636,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50871,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124055,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18965,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2260,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434045476,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "206ca78cba4cdd3f5316b468257a25023b5c2592",
+          "message": "chore: scratch/ に作業メモ・下書きを整理、smoke_cone 分析 v2 を追加",
+          "timestamp": "2026-06-07T03:35:17Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/206ca78cba4cdd3f5316b468257a25023b5c2592"
+        },
+        "date": 1780804356215,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
