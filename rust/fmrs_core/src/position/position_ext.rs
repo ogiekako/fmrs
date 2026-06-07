@@ -129,7 +129,7 @@ impl PositionExt for Position {
                 h.set_pawn_drop(k == Kind::Pawn);
                 h.set_turn(self.turn().opposite());
 
-                h.x ^ self.digest ^ zobrist(self.turn(), pos, k)
+                h.fold() ^ self.digest ^ zobrist(self.turn(), pos, k)
             }
             Movement::Move {
                 source,
@@ -162,7 +162,7 @@ impl PositionExt for Position {
                     h.add(self.turn(), capture.maybe_unpromote());
                 }
 
-                let mut digest = h.x ^ self.digest;
+                let mut digest = h.fold() ^ self.digest;
                 digest ^= zobrist(self.turn(), source, kind);
                 digest ^= zobrist(self.turn(), dest, dest_kind);
                 if let Some(capture) = capture {
@@ -175,19 +175,17 @@ impl PositionExt for Position {
 
     #[inline]
     fn undo_digest(&self, m: &UndoMove) -> u64 {
-        use crate::position::hands::{Hands, PAWN_DROP_FLAG, TURN_FLAG};
-
         match *m {
             UndoMove::UnDrop(pos, pawn_drop) => {
                 let kind = self.kind_bb().must_get(pos);
                 let color = self.turn().opposite();
 
-                let mut h_x = self.hands().x;
-                h_x += Hands::bit_of(color, kind);
-                h_x = (h_x & !PAWN_DROP_FLAG) | if pawn_drop { PAWN_DROP_FLAG } else { 0 };
-                h_x ^= TURN_FLAG;
+                let mut h = self.hands();
+                h.add(color, kind);
+                h.set_pawn_drop(pawn_drop);
+                h.toggle_turn();
 
-                h_x ^ self.digest ^ zobrist(color, pos, kind)
+                h.fold() ^ self.digest ^ zobrist(color, pos, kind)
             }
             UndoMove::UnMove {
                 source,
@@ -204,14 +202,14 @@ impl PositionExt for Position {
                 };
                 let color = self.turn().opposite();
 
-                let mut h_x = self.hands().x;
-                h_x = (h_x & !PAWN_DROP_FLAG) | if pawn_drop { PAWN_DROP_FLAG } else { 0 };
-                h_x ^= TURN_FLAG;
+                let mut h = self.hands();
+                h.set_pawn_drop(pawn_drop);
+                h.toggle_turn();
                 if let Some(capture) = capture {
-                    h_x -= Hands::bit_of(color, capture.maybe_unpromote());
+                    h.remove(color, capture.maybe_unpromote());
                 }
 
-                let mut digest = h_x ^ self.digest;
+                let mut digest = h.fold() ^ self.digest;
                 digest ^= zobrist(color, dest, dest_kind);
                 digest ^= zobrist(color, source, source_kind);
                 if let Some(capture) = capture {

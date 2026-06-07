@@ -1858,12 +1858,12 @@ impl BackwardSearch {
         }
     }
 
-    /// Encode the current frontier as a flat byte buffer (88 bytes per `Position`).
+    /// Encode the current frontier as a flat byte buffer (96 bytes per `Position`).
     /// Pair with `resume_state_header()` for binary checkpoints.
     pub fn frontier_to_binary(&self) -> Vec<u8> {
-        let mut buf = vec![0u8; self.positions.len() * 88];
+        let mut buf = vec![0u8; self.positions.len() * 96];
         for (i, pos) in self.positions.iter().enumerate() {
-            buf[i * 88..(i + 1) * 88].copy_from_slice(&pos.to_bytes());
+            buf[i * 96..(i + 1) * 96].copy_from_slice(&pos.to_bytes());
         }
         buf
     }
@@ -1876,11 +1876,11 @@ impl BackwardSearch {
         parallel: usize,
     ) -> anyhow::Result<Self> {
         let initial_position = PositionAux::from_sfen(&state.initial_position_sfen)?;
-        let n = frontier_bytes.len() / 88;
+        let n = frontier_bytes.len() / 96;
         let positions: Vec<Position> = (0..n)
             .into_par_iter()
             .map(|i| {
-                let chunk: &[u8; 88] = frontier_bytes[i * 88..(i + 1) * 88].try_into().unwrap();
+                let chunk: &[u8; 96] = frontier_bytes[i * 96..(i + 1) * 96].try_into().unwrap();
                 Position::from_bytes(chunk)
             })
             .collect();
@@ -1947,11 +1947,11 @@ impl BackwardSearch {
             );
         }
         let mut search = Self::new_canonical_group(seeds, parallel)?;
-        let n = frontier_bytes.len() / 88;
+        let n = frontier_bytes.len() / 96;
         let positions: Vec<Position> = (0..n)
             .into_par_iter()
             .map(|i| {
-                let chunk: &[u8; 88] = frontier_bytes[i * 88..(i + 1) * 88].try_into().unwrap();
+                let chunk: &[u8; 96] = frontier_bytes[i * 96..(i + 1) * 96].try_into().unwrap();
                 Position::from_bytes(chunk)
             })
             .collect();

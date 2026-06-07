@@ -88,6 +88,11 @@ pub enum SingleKingSmokeCommand {
         /// R,B <= 1; L,N,S,G <= 2; P <= 9.
         #[arg(long, default_value_t = false)]
         natural_piece_limit: bool,
+        /// 非標準駒数ミッション: 各駒種の総数を Lance/Knight/Silver/Gold=16,
+        /// Bishop/Rook=8, Pawn=0 とする (標準の×4、歩なし)。盤面81マスを
+        /// 80枚+玉で埋める協力詰を狙う実験用。
+        #[arg(long, default_value_t = false)]
+        quad_pieces: bool,
         #[arg(long)]
         max_file: Option<u8>,
         #[arg(long)]
@@ -343,6 +348,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             only_pawn,
             allowed_kinds,
             natural_piece_limit,
+            quad_pieces,
             max_file,
             max_rank,
             allow_white_pieces,
@@ -416,6 +422,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     only_pawn,
                     allowed_kinds_mask,
                     natural_piece_limit,
+                    quad_pieces,
                     max_file,
                     max_rank,
                     allow_white_pieces,

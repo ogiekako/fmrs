@@ -3,6 +3,31 @@ use crate::position::position::PositionAux;
 use crate::position::zobrist::zobrist;
 use crate::position::Hands;
 
+/// Pre-sum a batch of white hand-count changes (+Gold, +Lance, +Knight, +Silver,
+/// −Pawn) into a single delta for the white count word. The same per-kind
+/// `bit_of` shifts that `add_n`/`remove_n` would apply are summed once and added
+/// to `h[1]` in one go.
+#[inline]
+fn white_word_delta(
+    n_gold: u64,
+    n_lance: u64,
+    n_knight: u64,
+    n_silver: u64,
+    n_pawn_sub: u64,
+) -> u64 {
+    let adds = [
+        (Kind::Gold, n_gold),
+        (Kind::Lance, n_lance),
+        (Kind::Knight, n_knight),
+        (Kind::Silver, n_silver),
+    ];
+    let mut word = 0u64;
+    for (kind, n) in adds {
+        word = word.wrapping_add(Hands::bit_of(kind).wrapping_mul(n));
+    }
+    word.wrapping_sub(Hands::bit_of(Kind::Pawn).wrapping_mul(n_pawn_sub))
+}
+
 /// Smoke 用の正規化: 黒の goldish (Gold/ProPawn/ProLance/ProKnight/ProSilver) のうち
 /// ProPawn 以外を順に「白持駒に戻して、白持駒から優先順 [Pawn, Lance, Knight, Silver, Gold]
 /// で取り直し、ProPawn/ProLance/ProKnight/ProSilver/Gold として置き直す」操作。
@@ -54,28 +79,18 @@ pub fn canonicalize_attacker_goldish(position: &mut PositionAux) {
             position.change_kind(sq, Color::BLACK, Kind::ProSilver, Kind::ProPawn);
         }
 
-        // 白手駒の駒種別カウント更新を u64 加算 1 回にバッチ。
-        // Hands は packed u64 で、各駒種が固有の bit_of(color, kind) シフトを持つ。
-        // 各 add_n / remove_n はその bit_of × count を hand.x に加減算する。
-        let delta = crate::position::Hands::bit_of(Color::WHITE, Kind::Gold)
-            .wrapping_mul(n_gold as u64)
-            .wrapping_add(
-                crate::position::Hands::bit_of(Color::WHITE, Kind::Lance)
-                    .wrapping_mul(n_prolance as u64),
-            )
-            .wrapping_add(
-                crate::position::Hands::bit_of(Color::WHITE, Kind::Knight)
-                    .wrapping_mul(n_proknight as u64),
-            )
-            .wrapping_add(
-                crate::position::Hands::bit_of(Color::WHITE, Kind::Silver)
-                    .wrapping_mul(n_prosilver as u64),
-            )
-            .wrapping_sub(
-                crate::position::Hands::bit_of(Color::WHITE, Kind::Pawn).wrapping_mul(k as u64),
-            );
-        let h = position.hands_mut();
-        h.x = h.x.wrapping_add(delta);
+        // 白手駒の駒種別カウント更新を白カウントワードへの加算 1 回にバッチ。
+        // 各駒種は色ワード内で固有の bit_of(kind) シフトを持ち、それを係数倍で
+        // 合算してから一括加算する (ここは全て白)。
+        let word_delta = white_word_delta(
+            n_gold as u64,
+            n_prolance as u64,
+            n_proknight as u64,
+            n_prosilver as u64,
+            k as u64,
+        );
+        let w = position.hands_mut().white_word_mut();
+        *w = w.wrapping_add(word_delta);
         return;
     }
 
@@ -205,17 +220,21 @@ pub fn canonical_digest_for_smoke(position: &PositionAux) -> u64 {
 
     // 白手駒 delta: +n_gold Gold, +n_prolance Lance, +n_proknight Knight,
     //               +n_prosilver Silver, -K Pawn (Phase A 全マス Pawn 取り)。
-    let hand_delta = Hands::bit_of(Color::WHITE, Kind::Gold)
-        .wrapping_mul(n_gold)
-        .wrapping_add(Hands::bit_of(Color::WHITE, Kind::Lance).wrapping_mul(n_prolance))
-        .wrapping_add(Hands::bit_of(Color::WHITE, Kind::Knight).wrapping_mul(n_proknight))
-        .wrapping_add(Hands::bit_of(Color::WHITE, Kind::Silver).wrapping_mul(n_prosilver))
-        .wrapping_sub(Hands::bit_of(Color::WHITE, Kind::Pawn).wrapping_mul(k));
+    let word_delta = white_word_delta(
+        n_gold as u64,
+        n_prolance as u64,
+        n_proknight as u64,
+        n_prosilver as u64,
+        k as u64,
+    );
 
-    let orig_hands_x = position.hands().x;
-    let canon_hands_x = orig_hands_x.wrapping_add(hand_delta);
+    // canon == orig with the white count word advanced by the delta.
+    let orig = position.hands();
+    let mut canon = orig;
+    let w = canon.white_word_mut();
+    *w = w.wrapping_add(word_delta);
 
-    position.digest() ^ board_diff ^ orig_hands_x ^ canon_hands_x
+    position.digest() ^ board_diff ^ orig.fold() ^ canon.fold()
 }
 
 #[inline]

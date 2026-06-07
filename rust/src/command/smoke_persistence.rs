@@ -88,11 +88,11 @@ pub(super) struct SeedCheckpoint {
     pub(super) adaptive_pool_factor: Option<usize>,
     #[serde(default)]
     pub(super) ema_inv_survival: Option<f64>,
-    /// Binary-encoded frontier: 88 bytes per `Position`. Not serialized to JSON;
+    /// Binary-encoded frontier: 96 bytes per `Position`. Not serialized to JSON;
     /// populated when loading a `.ckpt` file and consumed when writing one.
     #[serde(skip)]
     pub(super) frontier_bytes: Vec<u8>,
-    /// Binary-encoded best positions: 105 bytes per `PositionAux`. Not serialized
+    /// Binary-encoded best positions: 113 bytes per `PositionAux`. Not serialized
     /// to JSON; populated when loading a `.ckpt` file.
     #[serde(skip)]
     pub(super) best_position_bytes: Vec<u8>,
@@ -127,7 +127,7 @@ pub(super) struct SplitProgress {
     pub(super) next_chunk: usize,
     pub(super) best_piece_count: u32,
     pub(super) best_step: u16,
-    /// Binary-encoded accumulated best positions: 105 bytes per `PositionAux`.
+    /// Binary-encoded accumulated best positions: 113 bytes per `PositionAux`.
     /// Not serialized to JSON; carried in the binary tail of the `.split` file.
     #[serde(skip)]
     pub(super) best_position_bytes: Vec<u8>,
@@ -166,7 +166,7 @@ pub(super) fn write_split_progress(
         path.file_name().unwrap_or_default().to_string_lossy()
     ));
     let meta_json = serde_json::to_vec(progress)?;
-    let best_count = progress.best_position_bytes.len() / 105;
+    let best_count = progress.best_position_bytes.len() / 113;
     let result = (|| -> anyhow::Result<()> {
         let mut f = BufWriter::new(fs::File::create(&tmp_path)?);
         f.write_all(SPLIT_MAGIC)?;
@@ -217,7 +217,7 @@ pub(super) fn load_split_progress(
     let mut progress: SplitProgress = serde_json::from_slice(&meta_json).ok()?;
     f.read_exact(&mut u32_buf).ok()?;
     let best_count = u32::from_le_bytes(u32_buf) as usize;
-    let mut best_bytes = vec![0u8; best_count * 105];
+    let mut best_bytes = vec![0u8; best_count * 113];
     f.read_exact(&mut best_bytes).ok()?;
     progress.best_position_bytes = best_bytes;
     if progress.seed_index == seed_index
@@ -310,8 +310,8 @@ const CKPT_VERSION: u32 = 1;
 /// Write checkpoint as a binary `.ckpt` file.
 ///
 /// Layout: magic(8) | version u32 LE | meta_json_len u32 LE | meta_json |
-///         frontier_count u64 LE | frontier_bytes (88 B each) |
-///         best_count u32 LE | best_bytes (105 B each)
+///         frontier_count u64 LE | frontier_bytes (96 B each) |
+///         best_count u32 LE | best_bytes (113 B each)
 ///
 /// `meta_json` is `SeedCheckpoint` serialised with empty `frontier_sfens` /
 /// `best_sfens`; the actual positions are in the binary sections that follow.
@@ -323,8 +323,8 @@ fn write_seed_checkpoint_bin(path: &Path, checkpoint: &SeedCheckpoint) -> anyhow
     ));
 
     let meta_json = serde_json::to_vec(checkpoint)?;
-    let frontier_count = checkpoint.frontier_bytes.len() / 88;
-    let best_count = checkpoint.best_position_bytes.len() / 105;
+    let frontier_count = checkpoint.frontier_bytes.len() / 96;
+    let best_count = checkpoint.best_position_bytes.len() / 113;
 
     let result = (|| -> anyhow::Result<()> {
         let mut f = BufWriter::new(fs::File::create(&tmp_path)?);
@@ -371,13 +371,13 @@ fn load_seed_checkpoint_bin(path: &Path) -> anyhow::Result<SeedCheckpoint> {
     let mut u64_buf = [0u8; 8];
     f.read_exact(&mut u64_buf)?;
     let frontier_count = u64::from_le_bytes(u64_buf) as usize;
-    let mut frontier_bytes = vec![0u8; frontier_count * 88];
+    let mut frontier_bytes = vec![0u8; frontier_count * 96];
     f.read_exact(&mut frontier_bytes)?;
     cp.frontier_bytes = frontier_bytes;
 
     f.read_exact(&mut u32_buf)?;
     let best_count = u32::from_le_bytes(u32_buf) as usize;
-    let mut best_bytes = vec![0u8; best_count * 105];
+    let mut best_bytes = vec![0u8; best_count * 113];
     f.read_exact(&mut best_bytes)?;
     cp.best_position_bytes = best_bytes;
 

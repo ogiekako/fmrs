@@ -70,6 +70,12 @@ pub(super) struct SearchConstraints {
     /// 上記の `step`。`start` が `Some` のとき意味を持つ。最小値 1。未使用時は 0。
     #[serde(default, skip_serializing_if = "is_zero_u32")]
     pub(super) lance_knight_allow_step: u32,
+    /// 非標準駒数ミッション (盤面81マスを埋める80枚協力詰): 各駒種の総数を
+    /// Lance/Knight/Silver/Gold=16, Bishop/Rook=8, Pawn=0 とする (標準20枚の
+    /// ×4、歩は最初から存在しない)。`max_count` がこの総数を返し、
+    /// `with_white_complement` / `theoretical_max_piece_count` がそれに従う。
+    #[serde(default)]
+    pub(super) quad_pieces: bool,
 }
 
 /// bishop/rook 系の駒種 (unpromoted + promoted 双方を同一 family として数える)。
@@ -80,6 +86,22 @@ const LANCE_KNIGHT_FAMILY: [Kind; 4] =
     [Kind::Lance, Kind::ProLance, Kind::Knight, Kind::ProKnight];
 
 impl SearchConstraints {
+    /// Total number of pieces of `kind` available in the game (board + both
+    /// hands). Standard shogi by default; under `quad_pieces` the non-standard
+    /// 80-piece inventory (L/N/S/G=16, B/R=8, no pawn).
+    pub(super) fn max_count(&self, kind: Kind) -> u32 {
+        if self.quad_pieces {
+            match kind.maybe_unpromote() {
+                Kind::Lance | Kind::Knight | Kind::Silver | Kind::Gold => 16,
+                Kind::Bishop | Kind::Rook => 8,
+                // Pawn (and any non-hand kind) is absent in this mission.
+                _ => 0,
+            }
+        } else {
+            kind.max_count()
+        }
+    }
+
     pub(super) fn breaks_lr_symmetry(self) -> bool {
         // `mate_squares` (when set) names exact squares; LR canonicalization
         // would mirror seeds whose mate square sits on the larger-file side
@@ -341,7 +363,7 @@ pub(super) fn theoretical_max_piece_count(constraints: SearchConstraints) -> u32
         if !kind_allowed_by_mask(kind, constraints.allowed_kinds_mask) {
             continue;
         }
-        let mut cap = kind.max_count();
+        let mut cap = constraints.max_count(kind);
         if constraints.natural_piece_limit {
             cap = match kind {
                 Kind::Pawn => cap.min(9),
@@ -847,15 +869,18 @@ pub(super) fn count_kind_on_board(position: &PositionAux, kind: Kind) -> u32 {
     count
 }
 
-pub(super) fn with_white_complement(position: &PositionAux) -> PositionAux {
+pub(super) fn with_white_complement(
+    position: &PositionAux,
+    constraints: SearchConstraints,
+) -> PositionAux {
     let mut position = position.clone();
     for kind in KINDS[..NUM_HAND_KIND].iter().copied() {
         let board_used = count_kind_on_board(&position, kind);
         let black_hands = position.hands().count(Color::BLACK, kind) as u32;
         let white_hands = position.hands().count(Color::WHITE, kind) as u32;
         let total_used = board_used + black_hands + white_hands;
-        let missing = kind
-            .max_count()
+        let missing = constraints
+            .max_count(kind)
             .checked_sub(total_used)
             .expect("piece count should not exceed max");
         position
@@ -866,13 +891,17 @@ pub(super) fn with_white_complement(position: &PositionAux) -> PositionAux {
 }
 
 #[cfg(test)]
-pub(super) fn white_hands_are_complement(position: &PositionAux) -> bool {
+pub(super) fn white_hands_are_complement(
+    position: &PositionAux,
+    constraints: SearchConstraints,
+) -> bool {
     KINDS[..NUM_HAND_KIND].iter().copied().all(|kind| {
         let board_used = count_kind_on_board(position, kind);
         let black_hands = position.hands().count(Color::BLACK, kind) as u32;
         let white_hands = position.hands().count(Color::WHITE, kind) as u32;
-        board_used + black_hands + white_hands == kind.max_count()
-            && white_hands == kind.max_count() - board_used - black_hands
+        let max = constraints.max_count(kind);
+        board_used + black_hands + white_hands == max
+            && white_hands == max - board_used - black_hands
     })
 }
 
@@ -901,9 +930,10 @@ mod tests {
     #[test]
     fn with_white_complement_fills_remaining_pieces_to_white_hand() {
         let position = PositionAux::from_sfen("+R1k6/4R4/9/9/9/9/9/9/9 w - 1").unwrap();
-        let position = with_white_complement(&position);
+        let constraints = SearchConstraints::default();
+        let position = with_white_complement(&position, constraints);
         assert!(position.hands().is_empty(Color::BLACK));
-        assert!(white_hands_are_complement(&position));
+        assert!(white_hands_are_complement(&position, constraints));
         assert_eq!(count_kind_on_board(&position, Kind::Rook), 2);
         assert_eq!(position.hands().count(Color::WHITE, Kind::Rook), 0);
         assert_eq!(position.hands().count(Color::WHITE, Kind::Pawn), 18);
@@ -1084,6 +1114,37 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(theoretical_max_piece_count(allowed_pawn), 19);
+
+        // 非標準駒数: 1 (king) + 16L + 16N + 16S + 16G + 8B + 8R = 81 (歩なし)。
+        let quad = SearchConstraints {
+            quad_pieces: true,
+            ..Default::default()
+        };
+        assert_eq!(theoretical_max_piece_count(quad), 81);
+    }
+
+    #[test]
+    fn quad_pieces_max_count_and_white_complement() {
+        let quad = SearchConstraints {
+            quad_pieces: true,
+            ..Default::default()
+        };
+        assert_eq!(quad.max_count(Kind::Lance), 16);
+        assert_eq!(quad.max_count(Kind::Gold), 16);
+        assert_eq!(quad.max_count(Kind::ProLance), 16); // counted via unpromote
+        assert_eq!(quad.max_count(Kind::Bishop), 8);
+        assert_eq!(quad.max_count(Kind::Rook), 8);
+        assert_eq!(quad.max_count(Kind::Pawn), 0);
+
+        // White hand gets complemented to the full non-standard inventory.
+        let position = PositionAux::from_sfen("8k/9/9/9/9/9/9/9/L8 w - 1").unwrap();
+        let position = with_white_complement(&position, quad);
+        assert!(white_hands_are_complement(&position, quad));
+        // 1 lance is on the board; white holds the other 15 + the rest.
+        assert_eq!(position.hands().count(Color::WHITE, Kind::Lance), 15);
+        assert_eq!(position.hands().count(Color::WHITE, Kind::Gold), 16);
+        assert_eq!(position.hands().count(Color::WHITE, Kind::Bishop), 8);
+        assert_eq!(position.hands().count(Color::WHITE, Kind::Pawn), 0);
     }
 
     #[test]

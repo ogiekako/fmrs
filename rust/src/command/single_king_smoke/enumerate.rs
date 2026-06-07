@@ -23,7 +23,7 @@ pub(super) fn enumerate_final_2_sfens(
     let kind_pairs = if constraints.double_king {
         vec![]
     } else {
-        black_piece_kind_pairs()
+        black_piece_kind_pairs(constraints)
     };
     let positions = rayon::ThreadPoolBuilder::new()
         .num_threads(parallel)
@@ -100,7 +100,7 @@ fn try_register_mate(
     for &(color, kind, sq) in placements {
         position.set(sq, color, kind);
     }
-    let mut position = with_white_complement(&position);
+    let mut position = with_white_complement(&position, constraints);
     if !position.checked_slow(Color::WHITE) {
         return;
     }
@@ -474,11 +474,14 @@ fn has_valid_predecessor(position: &mut PositionAux, constraints: SearchConstrai
         .any(|m| satisfies_ideal_smoke_undo_candidate(position, m, 1, constraints))
 }
 
-fn black_piece_kind_pairs() -> Vec<(Kind, Kind)> {
+fn black_piece_kind_pairs(constraints: SearchConstraints) -> Vec<(Kind, Kind)> {
+    // Skip kinds absent from the game (total count 0), e.g. pawns under
+    // `--quad-pieces`; otherwise `with_white_complement` would underflow on a
+    // piece kind that has no inventory to complement.
     let kinds = KINDS
         .iter()
         .copied()
-        .filter(|&kind| kind != Kind::King)
+        .filter(|&kind| kind != Kind::King && constraints.max_count(kind) > 0)
         .collect::<Vec<_>>();
     let mut res = vec![];
     for (i, kind1) in kinds.iter().copied().enumerate() {
@@ -526,7 +529,8 @@ mod tests {
         assert!(!sfens.contains(&"R7k/R8/9/9/9/9/9/9/9 w 2b4g4s4n4l18p 1".to_string()));
         assert_eq!(
             with_white_complement(
-                &PositionAux::from_sfen("6k1+R/4R4/9/9/9/9/9/9/9 w - 1").unwrap()
+                &PositionAux::from_sfen("6k1+R/4R4/9/9/9/9/9/9/9 w - 1").unwrap(),
+                SearchConstraints::default()
             )
             .sfen(),
             "6k1+R/4R4/9/9/9/9/9/9/9 w 2b4g4s4n4l18p 1"

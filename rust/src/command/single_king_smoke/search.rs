@@ -404,7 +404,7 @@ pub(super) fn search_single_seed(
         best_step = cp.best_step;
         best_positions = if !cp.best_position_bytes.is_empty() {
             cp.best_position_bytes
-                .chunks_exact(105)
+                .chunks_exact(113)
                 .map(|chunk| PositionAux::from_bytes(chunk.try_into().unwrap()))
                 .collect()
         } else {
@@ -597,8 +597,8 @@ fn run_split(
     // Canonicalize F's order (the frontier vector order is not stable across
     // parallel runs/resume) so shuffle(seed) yields identical chunk boundaries
     // every time, then shuffle deterministically and chunk.
-    let mut frontier: Vec<[u8; 88]> = frontier_bytes
-        .chunks_exact(88)
+    let mut frontier: Vec<[u8; 96]> = frontier_bytes
+        .chunks_exact(96)
         .map(|c| c.try_into().unwrap())
         .collect();
     drop(frontier_bytes);
@@ -627,7 +627,7 @@ fn run_split(
             acc_step = p.best_step;
             acc_positions = p
                 .best_position_bytes
-                .chunks_exact(105)
+                .chunks_exact(113)
                 .map(|c| PositionAux::from_bytes(c.try_into().unwrap()))
                 .collect();
         }
@@ -711,7 +711,7 @@ fn run_split(
                 best_step: cp.best_step,
                 best_positions: if !cp.best_position_bytes.is_empty() {
                     cp.best_position_bytes
-                        .chunks_exact(105)
+                        .chunks_exact(113)
                         .map(|c| PositionAux::from_bytes(c.try_into().unwrap()))
                         .collect()
                 } else {
