@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780813252753,
+  "lastUpdate": 1780822721370,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -47570,6 +47570,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a1c7100558f8b750489fc21380d53556cf7fc332"
         },
         "date": 1780813247030,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50876,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124097,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434945999,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "18db26606ebb9ae9264a922754490d092f75a1f4",
+          "message": "chore(smoke): adaptive_pool 出力を --mem-trace でゲート(既定で抑制)\n\npool factor 適応のたび無条件 eprintln していた診断行を、直下の\n`advance ...` 行と同様 mem_trace ゲートに。既定実行のログを汚さない。",
+          "timestamp": "2026-06-07T06:30:44Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/18db26606ebb9ae9264a922754490d092f75a1f4"
+        },
+        "date": 1780822718344,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
