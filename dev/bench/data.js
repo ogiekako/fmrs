@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780813250273,
+  "lastUpdate": 1780813252753,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44153,6 +44153,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 29706,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a1c7100558f8b750489fc21380d53556cf7fc332",
+          "message": "feat(smoke): 非標準駒数(80枚)対応 — Hands を 2×u64 に拡張し --quad-pieces 追加\n\n協力詰 smoke の新ミッション「盤面81マスを 80枚+玉 で埋める煙詰」のため、\n標準将棋(各駒種最大4枚など)を超える駒数を扱えるようにする。\n\nHands:\n- 単一 u64 → [u64;2](黒=h[0], 白=h[1])に拡張。各駒種を色ワード内 5bit 等で\n  保持し Lance/Knight/Silver/Gold=16, Bishop/Rook=8 を収容可能に。\n- 色ごとに別ワードなので count/add は純 u64 演算(128bit シフト不要)。\n- digest fold は白ワードを奇数定数で乗算スクランブルし黒/白同種駒の\n  ビットエイリアス衝突を回避(素朴な h[0]^h[1] は uniqueness prune の\n  exact 性を壊す)。\n\n直列化:\n- Position 88→96B, PositionAux 105→113B(hands が 8→16B)。\n  ※既存の .ckpt/.split checkpoint とは非互換。\n\n--quad-pieces:\n- 総数を L/N/S/G=16, B/R=8, Pawn=0 とする smoke 専用フラグ。\n- core の Kind::max_count(標準将棋前提)は不変。SearchConstraints::max_count\n  で上書きし theoretical_max_piece_count / with_white_complement が参照。\n- enumerate は max_count==0 の駒種(歩)を除外(complement の underflow 回避)。\n- 検証: target_max=81, 出力 SFEN の総数が 16/16/16/16/8/8+玉=81・歩0。\n\n性能(iai 命令数, near_mate): u64 比 +0.40%命令/+0.73%cycles。主因は\nPosition 96→112B のキャッシュ。増分ハッシュ化も試したが moved_digest が\n逆に悪化(+1.0%)したため不採用。",
+          "timestamp": "2026-06-07T05:59:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a1c7100558f8b750489fc21380d53556cf7fc332"
+        },
+        "date": 1780813252005,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 389,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2732,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 186,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 393,
+            "range": "± 571",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26039,
+            "range": "± 104",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1662,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4709,
+            "range": "± 20",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1271063,
+            "range": "± 339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11637,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 182,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 143,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19132236,
+            "range": "± 45982",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 26047,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3080,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 15873,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 28985,
+            "range": "± 9",
             "unit": "ns/iter"
           }
         ]
