@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1780822723791,
+  "lastUpdate": 1783594289207,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -47794,6 +47794,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434945999,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "fcb771e036755b594844baf66b7f6a6fba3bfdfb",
+          "message": "efficient backward for one-way",
+          "timestamp": "2026-07-09T10:29:19Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/fcb771e036755b594844baf66b7f6a6fba3bfdfb"
+        },
+        "date": 1783594285078,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50876,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124085,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 121698,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434945987,
             "unit": "Instructions"
           }
         ]
