@@ -1,6 +1,13 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const __wbg_get_onewaymateresult_is_one_way: (a: number) => number;
+export const __wbg_get_onewaymateresult_steps: (a: number) => number;
+export const __wbg_onewaymateresult_free: (a: number, b: number) => void;
+export const __wbg_set_onewaymateresult_is_one_way: (a: number, b: number) => void;
+export const __wbg_set_onewaymateresult_steps: (a: number, b: number) => void;
+export const check_one_way_mate: (a: number, b: number) => number;
+export const is_white_in_check: (a: number, b: number) => number;
 export const __wbg_solver_free: (a: number, b: number) => void;
 export const solver_advance: (a: number, b: number) => void;
 export const solver_is_from_white: (a: number) => number;
@@ -12,20 +19,13 @@ export const solver_solutions_found: (a: number) => number;
 export const solver_solutions_kif: (a: number, b: number) => void;
 export const solver_solutions_sfen: (a: number, b: number) => void;
 export const __wbg_backwardsearch_free: (a: number, b: number) => void;
-export const __wbg_get_onewaymateresult_is_one_way: (a: number) => number;
-export const __wbg_get_onewaymateresult_steps: (a: number) => number;
-export const __wbg_onewaymateresult_free: (a: number, b: number) => void;
-export const __wbg_set_onewaymateresult_is_one_way: (a: number, b: number) => void;
-export const __wbg_set_onewaymateresult_steps: (a: number, b: number) => void;
 export const backwardsearch_advance: (a: number) => number;
 export const backwardsearch_new: (a: number, b: number, c: number) => number;
 export const backwardsearch_sfen: (a: number, b: number) => void;
 export const backwardsearch_step: (a: number) => number;
-export const check_one_way_mate: (a: number, b: number) => number;
-export const is_white_in_check: (a: number, b: number) => number;
 export const Square_relative_file: (a: number, b: number) => number;
-export const Square_rank: (a: number) => number;
 export const Square_relative_rank: (a: number, b: number) => number;
+export const Square_rank: (a: number) => number;
 export const Square_file: (a: number) => number;
 export const PartialPosition_side_to_move: (a: number) => number;
 export const Bitboard_count: (a: number) => number;
