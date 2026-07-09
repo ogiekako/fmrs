@@ -2,14 +2,12 @@ use fmrs_core::{
     piece::Color,
     position::position::PositionAux,
     search::backward::{backward_initial_variants, BackwardSearch as BackwardSearchImpl},
-    solve::one_way::one_way_mate_steps,
 };
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct BackwardSearch {
     inners: Vec<BackwardSearchImpl>,
-    one_way_mate_mode: bool,
 }
 
 #[wasm_bindgen]
@@ -25,18 +23,12 @@ impl BackwardSearch {
             .filter_map(|variant| BackwardSearchImpl::new(&variant, one_way_mate_mode).ok())
             .collect::<Vec<_>>();
         assert!(!inners.is_empty(), "failed to initialize backward search");
-        Self {
-            inners,
-            one_way_mate_mode,
-        }
+        Self { inners }
     }
 
     // Returns has next
     pub fn advance(&mut self) -> bool {
-        let one_way_mate_mode = self.one_way_mate_mode;
-        self.inners
-            .iter_mut()
-            .any(|inner| advance_inner(inner, one_way_mate_mode))
+        self.inners.iter_mut().any(advance_inner)
     }
 
     pub fn step(&self) -> u32 {
@@ -52,20 +44,8 @@ impl BackwardSearch {
     }
 }
 
-fn advance_inner(inner: &mut BackwardSearchImpl, one_way_mate_mode: bool) -> bool {
-    if one_way_mate_mode {
-        inner
-            .advance_upto_with_candidate_filter(10, |_, _| true, |position| {
-                let mut p = position.clone();
-                if p.checked_slow(Color::WHITE) {
-                    p.set_turn(Color::WHITE);
-                }
-                one_way_mate_steps(&mut p, &mut vec![]).is_ok()
-            })
-            .unwrap()
-    } else {
-        inner.advance_upto(10).unwrap()
-    }
+fn advance_inner(inner: &mut BackwardSearchImpl) -> bool {
+    inner.advance_upto(10).unwrap()
 }
 
 impl BackwardSearch {

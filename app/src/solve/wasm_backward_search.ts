@@ -1,5 +1,5 @@
 import { CancellationToken } from ".";
-import { BackwardSearch } from "../wasm_api";
+import { BackwardSearch, check_one_way_mate } from "../wasm_api";
 
 /**
  * @returns solutions or undefined if solution is not found.
@@ -10,6 +10,17 @@ export async function backwardSearchWasm(
   oneWayMateMode: boolean,
   onStep: (step: number, sfen: string) => void
 ): Promise<string | undefined> {
+  if (oneWayMateMode) {
+    const result = check_one_way_mate(sfen);
+    try {
+      if (!result?.is_one_way) {
+        return undefined;
+      }
+    } finally {
+      result?.free();
+    }
+  }
+
   const bs = new BackwardSearch(sfen, oneWayMateMode);
 
   try {

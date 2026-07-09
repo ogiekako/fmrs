@@ -111,7 +111,7 @@ use crate::{
         advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
         Position, UndoMove,
     },
-    solve::standard_solve::standard_solve,
+    solve::{one_way::one_way_mate_steps, standard_solve::standard_solve},
 };
 
 type Memo = ShardedFlatMemo;
@@ -1531,6 +1531,12 @@ impl BackwardSearch {
         if !satisfies_backward_constraints(initial_position, no_black_goldish) {
             bail!("Initial position has a black goldish piece");
         }
+        if one_way {
+            let mut p = initial_position.clone();
+            if one_way_mate_steps(&mut p, &mut vec![]).is_err() {
+                bail!("Initial position is not one-way mate");
+            }
+        }
 
         let mut solution = standard_solve(initial_position.clone(), 2, true)?.solutions();
         if solution.len() != 1 {
@@ -2083,6 +2089,8 @@ impl BackwardSearch {
         self.seen_positions = range.end;
         let mut undo_moves = vec![];
         let mut solution_scratch = vec![];
+        let mut one_way_branches = vec![];
+        let mut one_way_pawn_drop_reply = vec![];
         let mut killers = Killers::new();
         let mut history = HistoryTable::new();
         // Inline dedup set: prevents prev_positions from growing to O(N_total)
@@ -2098,7 +2106,7 @@ impl BackwardSearch {
                     continue;
                 }
                 let mut pp = position.clone();
-                pp.undo_move(m);
+                let redo = pp.undo_move(m);
 
                 if !is_backward_candidate_legal(&mut pp) {
                     continue;
@@ -2112,25 +2120,17 @@ impl BackwardSearch {
                 }
 
                 if self.one_way {
-                    let mut branches = vec![];
-                    let options = crate::position::AdvanceOptions {
-                        max_allowed_branches: Some(1),
-                        ..Default::default()
-                    };
-                    if crate::position::advance::advance::advance_aux(
+                    if is_one_way_predecessor(
                         &mut pp,
-                        &options,
-                        &mut branches,
-                    )
-                    .is_ok()
-                    {
-                        if !branches.is_empty() {
-                            let d = pp.digest();
-                            if prev_added.insert(d) {
-                                self.prev_positions.push(pp.core().clone());
-                            }
-                            self.prev_memo.insert(d, StepRange::exact(self.step + 1));
+                        &redo,
+                        &mut one_way_branches,
+                        &mut one_way_pawn_drop_reply,
+                    ) {
+                        let d = pp.digest();
+                        if prev_added.insert(d) {
+                            self.prev_positions.push(pp.core().clone());
                         }
+                        self.prev_memo.insert(d, StepRange::exact(self.step + 1));
                     }
                     continue;
                 }
@@ -3665,6 +3665,49 @@ fn is_backward_candidate_legal(position: &mut PositionAux) -> bool {
     true
 }
 
+fn is_one_way_predecessor(
+    position: &mut PositionAux,
+    redo: &Movement,
+    branches: &mut Vec<Movement>,
+    pawn_drop_reply: &mut Vec<Movement>,
+) -> bool {
+    branches.clear();
+    let options = crate::position::AdvanceOptions {
+        max_allowed_branches: Some(1),
+        ..Default::default()
+    };
+    if advance_aux(position, &options, branches).is_err() {
+        return false;
+    }
+
+    if branches.len() == 1 {
+        return branches[0] == *redo;
+    }
+
+    if !position.turn().is_black() || branches.len() != 2 {
+        return false;
+    }
+
+    let (main_branch, pawn_drop_branch) =
+        match (branches[0].is_pawn_drop(), branches[1].is_pawn_drop()) {
+            (false, true) => (branches[0], branches[1]),
+            (true, false) => (branches[1], branches[0]),
+            _ => return false,
+        };
+    if main_branch != *redo {
+        return false;
+    }
+
+    let before_pawn_drop = position.clone();
+    position.do_move(&pawn_drop_branch);
+    pawn_drop_reply.clear();
+    let pawn_drop_is_illegal_mate =
+        advance_aux(position, &options, pawn_drop_reply).is_ok() && pawn_drop_reply.is_empty();
+    *position = before_pawn_drop;
+
+    pawn_drop_is_illegal_mate
+}
+
 #[inline(always)]
 fn satisfies_backward_constraints(position: &PositionAux, no_black_goldish: bool) -> bool {
     !no_black_goldish || black_goldish(position).is_empty()
@@ -4548,6 +4591,7 @@ mod tests {
     use crate::{
         position::position::PositionAux,
         search::backward::{backward_initial_variants, backward_search},
+        solve::one_way::one_way_mate_steps,
     };
 
     #[test]
@@ -4628,6 +4672,38 @@ mod tests {
         while search.advance().unwrap() {}
 
         assert!(search.step() > 0);
+    }
+
+    #[test]
+    fn one_way_backward_frontier_stays_one_way_for_web_case() {
+        let initial_position = PositionAux::from_sfen(
+            "5l3/4P4/1G+P1L1+L2/1S1+P1p1+P1/R2p4S/kN1r1l1B1/B4N3/1Ppg1K1pp/PNP6 w 2sn5p 1",
+        )
+        .unwrap();
+        let mut checked_variant = false;
+
+        for variant in backward_initial_variants(&initial_position) {
+            let Ok(mut search) = super::BackwardSearch::new(&variant, true) else {
+                continue;
+            };
+            checked_variant = true;
+
+            for _ in 0..6 {
+                assert!(search.advance().unwrap());
+                let (stone, positions) = search.positions();
+                for core in positions {
+                    let mut position = PositionAux::new(core.clone(), stone);
+                    assert!(
+                        one_way_mate_steps(&mut position, &mut vec![]).is_ok(),
+                        "step={} sfen={}",
+                        search.step(),
+                        position.sfen()
+                    );
+                }
+            }
+        }
+
+        assert!(checked_variant);
     }
 
     /// Sharded Phase 1 (advance_parallel_filtered) と sequential path
