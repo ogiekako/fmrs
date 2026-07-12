@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783856616631,
+  "lastUpdate": 1783856619549,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44579,6 +44579,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 29411,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "9d8f49842ea8d670df93b1f5f3b58c4aa1187e0f",
+          "message": "Web版一本道逆算を高速化",
+          "timestamp": "2026-07-12T11:26:22Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/9d8f49842ea8d670df93b1f5f3b58c4aa1187e0f"
+        },
+        "date": 1783856618648,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 402,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3173,
+            "range": "± 39",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 404,
+            "range": "± 654",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28641,
+            "range": "± 100",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1828,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4823,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1420781,
+            "range": "± 351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12221,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 187,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 113,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 53,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20662749,
+            "range": "± 105811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 31228,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3650,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 19334,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 33333,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
