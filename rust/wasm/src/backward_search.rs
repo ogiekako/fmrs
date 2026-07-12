@@ -5,6 +5,10 @@ use fmrs_core::{
 };
 use wasm_bindgen::prelude::*;
 
+// UI のキャンセル応答性を保ちつつ、JS 側のタイマー・再描画コストが
+// 探索本体を上回らない程度の局面数を一度に処理する。
+const ADVANCE_BATCH_SIZE: usize = 1_000;
+
 #[wasm_bindgen]
 pub struct BackwardSearch {
     inners: Vec<BackwardSearchImpl>,
@@ -45,7 +49,7 @@ impl BackwardSearch {
 }
 
 fn advance_inner(inner: &mut BackwardSearchImpl) -> bool {
-    inner.advance_upto(10).unwrap()
+    inner.advance_upto(ADVANCE_BATCH_SIZE).unwrap()
 }
 
 impl BackwardSearch {
@@ -55,5 +59,23 @@ impl BackwardSearch {
             .enumerate()
             .max_by_key(|(_, inner)| inner.step())
             .map(|(index, _)| index)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::BackwardSearch;
+
+    #[test]
+    fn advance_uses_a_large_enough_batch_for_the_web_case() {
+        let mut search = BackwardSearch::new(
+            "RO3+P3/1OP1P1P2/1OO4+P+P/1O3P1S1/1L3OS2/1L1G1pkN1/GLS1R3B/1P1B1OO2/+p5KNP b P2nl6p 1"
+                .to_owned(),
+            true,
+        );
+
+        assert!(search.advance());
+        assert!(search.advance());
+        assert!(search.step() >= 23);
     }
 }

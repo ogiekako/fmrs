@@ -25,16 +25,20 @@ export async function backwardSearchWasm(
 
   try {
     let lastBlackSfen = bs.sfen();
+    let lastReportedStep: number | undefined;
     while (bs.advance()) {
       if (cancel.isCanceled()) {
         break;
       }
       const currentStep = bs.step();
-      const currentSfen = bs.sfen();
-      if (currentStep === 0 || currentStep % 2 === 1) {
-        lastBlackSfen = currentSfen;
+      if (currentStep !== lastReportedStep) {
+        const currentSfen = bs.sfen();
+        if (currentStep === 0 || currentStep % 2 === 1) {
+          lastBlackSfen = currentSfen;
+        }
+        onStep(currentStep, currentSfen);
+        lastReportedStep = currentStep;
       }
-      onStep(currentStep, currentSfen);
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     return lastBlackSfen;
