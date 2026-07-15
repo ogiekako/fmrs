@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1783856619549,
+  "lastUpdate": 1784096070845,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48182,6 +48182,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 435612694,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "de1ed7f15d9a564f0825fc01f1aa0c6ca5608294",
+          "message": "fix(backward): 逆算の唯一性検証が長手数問題で全候補を棄却する問題を修正\n\n- ShardedFlatMemo の StepRange パックを 4×u8 から 4×u16 (u64) に拡張。\n  release ビルドで step ≥ 254 が mod 256 に黙って切り詰められ\n  (mate-in-8213 → 21)、経路メモが壊れて web の一本道モード OFF の\n  逆算が「前局面なし」と誤判定していた (716ef0c 以降)。\n- mate_in > 250 では唯一性検証を深さ予算付き DFS から standard_solve\n  の解数カウントに切替 (DFS はループを含む部分木で発散するため)。\n- pack/unpack の回帰テストを追加。",
+          "timestamp": "2026-07-15T05:57:44Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/de1ed7f15d9a564f0825fc01f1aa0c6ca5608294"
+        },
+        "date": 1784096066665,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124083,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435612732,
             "unit": "Instructions"
           }
         ]
