@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784096070845,
+  "lastUpdate": 1784096074370,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -44721,6 +44721,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 33333,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "de1ed7f15d9a564f0825fc01f1aa0c6ca5608294",
+          "message": "fix(backward): 逆算の唯一性検証が長手数問題で全候補を棄却する問題を修正\n\n- ShardedFlatMemo の StepRange パックを 4×u8 から 4×u16 (u64) に拡張。\n  release ビルドで step ≥ 254 が mod 256 に黙って切り詰められ\n  (mate-in-8213 → 21)、経路メモが壊れて web の一本道モード OFF の\n  逆算が「前局面なし」と誤判定していた (716ef0c 以降)。\n- mate_in > 250 では唯一性検証を深さ予算付き DFS から standard_solve\n  の解数カウントに切替 (DFS はループを含む部分木で発散するため)。\n- pack/unpack の回帰テストを追加。",
+          "timestamp": "2026-07-15T05:57:44Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/de1ed7f15d9a564f0825fc01f1aa0c6ca5608294"
+        },
+        "date": 1784096073191,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 386,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2293,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 189,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 429,
+            "range": "± 809",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 21403,
+            "range": "± 159",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1700,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4127,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1337322,
+            "range": "± 90",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10869,
+            "range": "± 42",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 181,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 90,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 133,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18512088,
+            "range": "± 230939",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28304,
+            "range": "± 202",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3411,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17649,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 29411,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
