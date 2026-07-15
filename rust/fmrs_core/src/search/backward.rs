@@ -72,7 +72,11 @@ pub fn flush_edges() {
         return;
     };
     use std::io::Write;
-    let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) else {
+    let Ok(file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+    else {
         return;
     };
     let mut w = std::io::BufWriter::new(file);
@@ -116,6 +120,15 @@ use crate::{
 
 type Memo = ShardedFlatMemo;
 
+/// Above this mate_in, uniqueness of a backward candidate is verified with the
+/// BFS `standard_solve` instead of the depth-budgeted `solutions` DFS. The DFS
+/// proves "no alternative mate ≤ mate_in" only by exhausting depth, which
+/// degenerates on cyclic subgraphs of very long problems (e.g. the web's
+/// mate-in-8000+ one-way pieces solved with one-way mode off); the BFS solver
+/// dedups positions globally and handles those in seconds. Smoke searches stay
+/// far below this bound, so their hot path is unchanged.
+const MAX_SOLUTIONS_DFS_MATE_IN: u16 = 250;
+
 // ===== ShardedFlatMemo: lock-free sharded hash table for backward search =====
 //
 // Designed for backward search workload:
@@ -139,64 +152,26 @@ const NUM_SHARDS: usize = 1 << SHARD_BITS;
 const SHARD_SHIFT: u32 = 64 - SHARD_BITS;
 const FLAT_EMPTY_KEY: u64 = 0;
 
-/// Sentinel marker for INF_START/INF_END in the 8-bit packed StepRange.
-/// Real step values must fit in 0..=253 (smoke search bounds, per design).
-/// Backward search beyond ~250 plies would saturate.
-const PACK_SENTINEL_INF_START: u8 = 254;
-const PACK_SENTINEL_INF_END: u8 = 255;
-
-/// Pack a StepRange into u32 (4 × u8 bytes). Caller must ensure non-INF step
-/// values fit in u8 (0..=253). For smoke searches with mate_in ≪ 256 this
-/// always holds; backward search at deeper plies should not use this layout.
+/// Pack a StepRange into u64 (4 × u16, full fidelity). An earlier 4 × u8
+/// layout silently truncated steps ≥ 254 (`v as u8`) in release builds, which
+/// corrupted the path memo of long problems (e.g. mate-in-8213 → 21) and made
+/// the uniqueness check reject every predecessor. Deep backward searches on
+/// the web solve such problems, so the values must keep full u16 width.
 #[inline(always)]
-fn pack_step_range(sr: StepRange) -> u32 {
-    let pack_start = |v: u16| -> u8 {
-        if v >= INF_START {
-            PACK_SENTINEL_INF_START
-        } else {
-            debug_assert!(v <= 253, "StepRange start {} exceeds packed range", v);
-            v as u8
-        }
-    };
-    let pack_end = |v: u16| -> u8 {
-        if v >= INF_END {
-            PACK_SENTINEL_INF_END
-        } else {
-            debug_assert!(v <= 253, "StepRange end {} exceeds packed range", v);
-            v as u8
-        }
-    };
-    let bytes = [
-        pack_start(sr.next_start),
-        pack_end(sr.next_end),
-        pack_start(sr.shortest_start),
-        pack_end(sr.shortest_end),
-    ];
-    u32::from_le_bytes(bytes)
+fn pack_step_range(sr: StepRange) -> u64 {
+    (sr.next_start as u64)
+        | ((sr.next_end as u64) << 16)
+        | ((sr.shortest_start as u64) << 32)
+        | ((sr.shortest_end as u64) << 48)
 }
 
 #[inline(always)]
-fn unpack_step_range(packed: u32) -> StepRange {
-    let bytes = packed.to_le_bytes();
-    let unpack_start = |b: u8| -> u16 {
-        if b == PACK_SENTINEL_INF_START {
-            INF_START
-        } else {
-            b as u16
-        }
-    };
-    let unpack_end = |b: u8| -> u16 {
-        if b == PACK_SENTINEL_INF_END {
-            INF_END
-        } else {
-            b as u16
-        }
-    };
+fn unpack_step_range(packed: u64) -> StepRange {
     StepRange {
-        next_start: unpack_start(bytes[0]),
-        next_end: unpack_end(bytes[1]),
-        shortest_start: unpack_start(bytes[2]),
-        shortest_end: unpack_end(bytes[3]),
+        next_start: packed as u16,
+        next_end: (packed >> 16) as u16,
+        shortest_start: (packed >> 32) as u16,
+        shortest_end: (packed >> 48) as u16,
     }
 }
 
@@ -210,12 +185,13 @@ struct FlatShard {
 }
 
 /// SoA layout: keys probed during lookups, values read only on hit.
-/// Effective per-slot storage is 12 bytes (u64 + u32 packed StepRange) vs.
-/// the legacy 16-byte AoS layout. The split also doubles probe-step
-/// cache-line density (8 keys per 64B line vs. 4 in the AoS layout).
+/// Per-slot storage is 16 bytes (u64 key + u64 packed StepRange); the SoA
+/// split keeps probe-step cache-line density at 8 keys per 64B line (values
+/// are only touched on hit, so widening them from the former u32 packing
+/// does not slow probing).
 struct FlatShardInner {
     keys: MmapSlice<u64>,
-    values: MmapSlice<u32>,
+    values: MmapSlice<u64>,
     mask: usize,
     capacity_threshold: usize,
 }
@@ -352,9 +328,12 @@ fn shard_index(key: u64) -> usize {
     (key >> SHARD_SHIFT) as usize
 }
 
-fn alloc_slot_arrays(size: usize) -> (MmapSlice<u64>, MmapSlice<u32>) {
+fn alloc_slot_arrays(size: usize) -> (MmapSlice<u64>, MmapSlice<u64>) {
     // MADV_DONTNEED on pool return zeroes pages automatically; no write_bytes needed.
-    (alloc_zeroed_slice::<u64>(size), alloc_zeroed_slice::<u32>(size))
+    (
+        alloc_zeroed_slice::<u64>(size),
+        alloc_zeroed_slice::<u64>(size),
+    )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -641,10 +620,10 @@ impl Default for ShardedFlatMemo {
 #[inline(always)]
 unsafe fn probe_insert_into_clear(
     keys: &mut [u64],
-    values: &mut [u32],
+    values: &mut [u64],
     mask: usize,
     key: u64,
-    packed: u32,
+    packed: u64,
 ) {
     let mut idx = (key as usize) & mask;
     loop {
@@ -866,7 +845,7 @@ impl FlatShard {
         }
         let inner = unsafe { &mut *self.inner.get() };
 
-        let mut entries: Vec<(u64, u64, u32)> = inner
+        let mut entries: Vec<(u64, u64, u64)> = inner
             .keys
             .iter()
             .zip(inner.values.iter())
@@ -2152,6 +2131,29 @@ impl BackwardSearch {
                     .filter(|ans| !ans.needs_investigation(mate_in))
                 {
                     ans
+                } else if mate_in > MAX_SOLUTIONS_DFS_MATE_IN {
+                    // Deep problems (web backward on 1000+ ply positions): the
+                    // depth-budgeted uniqueness DFS below can only prove "no
+                    // alternative mate ≤ mate_in" by exhausting depth, which
+                    // degenerates on cyclic subgraphs. Count solutions with the
+                    // BFS standard solver instead (global dedup handles cycles;
+                    // it is also the ground truth `new()` and the debug check
+                    // use). Memoize only verdicts that are honest StepRanges.
+                    let ans = match standard_solve(pp.clone(), 2, true) {
+                        Ok(reconstructor) => {
+                            let sols = reconstructor.solutions();
+                            match sols.len() {
+                                0 => StepRange::unsolvable(),
+                                1 => StepRange::exact(sols[0].len() as u16),
+                                _ => StepRange::unknown(),
+                            }
+                        }
+                        Err(_) => StepRange::unknown(),
+                    };
+                    if should_memoize(ans) {
+                        memo_insert(&self.prev_memo, pp_digest, ans, self.memo_entry_limit);
+                    }
+                    ans
                 } else if self.canonicalize_attacker_goldish {
                     let mut pp_canonical = pp.clone();
                     crate::search::canonicalize::canonicalize_attacker_goldish(&mut pp_canonical);
@@ -2562,10 +2564,20 @@ impl BackwardSearch {
         // Always on (independent of canonicalization). See
         // [[project_phase2_within_step_redo]].
         let shared_dfs_prev: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
-            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .map(|_| {
+                Mutex::new(NoHashMap64::with_capacity_and_hasher(
+                    4096,
+                    Default::default(),
+                ))
+            })
             .collect();
         let shared_dfs_memo: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
-            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .map(|_| {
+                Mutex::new(NoHashMap64::with_capacity_and_hasher(
+                    4096,
+                    Default::default(),
+                ))
+            })
             .collect();
         let shared_dfs_prev_ref = Some(shared_dfs_prev.as_slice());
         let shared_dfs_memo_ref = Some(shared_dfs_memo.as_slice());
@@ -2697,8 +2709,8 @@ impl BackwardSearch {
                                     .unwrap()
                                     .get(&pp_digest)
                                     .copied();
-                                if let Some(ans) = cached
-                                    .filter(|ans| !ans.needs_investigation(step + 1))
+                                if let Some(ans) =
+                                    cached.filter(|ans| !ans.needs_investigation(step + 1))
                                 {
                                     // Self-check: the cached verdict must equal
                                     // a fresh recomputation. This turns the
@@ -3101,14 +3113,24 @@ impl BackwardSearch {
         // |next| = W, remaining waves can be skipped without bias.
         let target_w = self.candidates_limit;
         set_progress_phase(3); // V: uniqueness verification waves
-        // Step-scoped cross-chunk shared DFS memo (see the matching block in
-        // advance_2ply_fused). Persists across waves so later waves reuse deep
-        // subtree verdicts from earlier ones. See [[project_phase2_within_step_redo]].
+                               // Step-scoped cross-chunk shared DFS memo (see the matching block in
+                               // advance_2ply_fused). Persists across waves so later waves reuse deep
+                               // subtree verdicts from earlier ones. See [[project_phase2_within_step_redo]].
         let shared_dfs_prev: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
-            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .map(|_| {
+                Mutex::new(NoHashMap64::with_capacity_and_hasher(
+                    4096,
+                    Default::default(),
+                ))
+            })
             .collect();
         let shared_dfs_memo: Vec<Mutex<NoHashMap64<StepRange>>> = (0..NUM_SHARDS)
-            .map(|_| Mutex::new(NoHashMap64::with_capacity_and_hasher(4096, Default::default())))
+            .map(|_| {
+                Mutex::new(NoHashMap64::with_capacity_and_hasher(
+                    4096,
+                    Default::default(),
+                ))
+            })
             .collect();
         let shared_dfs_prev_ref = Some(shared_dfs_prev.as_slice());
         let shared_dfs_memo_ref = Some(shared_dfs_memo.as_slice());
@@ -3178,9 +3200,8 @@ impl BackwardSearch {
 
                         for (i, cand) in chunk.iter().enumerate() {
                             if i + PREFETCH_AHEAD < chunk.len() {
-                                prev_memo_ref.prefetch_key(
-                                    chunk[i + PREFETCH_AHEAD].digest ^ stone_digest,
-                                );
+                                prev_memo_ref
+                                    .prefetch_key(chunk[i + PREFETCH_AHEAD].digest ^ stone_digest);
                             }
                             // Reconstruct q1 from
                             // (frontier[frontier_idx], undo1_idx). Same step
@@ -3244,8 +3265,8 @@ impl BackwardSearch {
                                     .unwrap()
                                     .get(&pp_digest)
                                     .copied();
-                                if let Some(ans) = cached
-                                    .filter(|ans| !ans.needs_investigation(step + 1))
+                                if let Some(ans) =
+                                    cached.filter(|ans| !ans.needs_investigation(step + 1))
                                 {
                                     // Self-check: the cached verdict must equal
                                     // a fresh recomputation. This turns the
@@ -4196,7 +4217,11 @@ fn solutions_overlay_inner(
     let use_shared = mate_in >= SHARED_DFS_MIN_MATE_IN;
     if use_shared {
         if let Some(shards) = shared_cur {
-            let cached = shards[shard_index(digest)].lock().unwrap().get(&digest).copied();
+            let cached = shards[shard_index(digest)]
+                .lock()
+                .unwrap()
+                .get(&digest)
+                .copied();
             if let Some(a) = cached {
                 ans = ans.intersection(&a);
                 if !ans.needs_investigation(mate_in) {
@@ -4594,6 +4619,26 @@ mod tests {
         solve::one_way::one_way_mate_steps,
     };
 
+    /// 8bit パック時代は step ≥ 254 が release ビルドで黙って mod 256 に
+    /// 化け (mate-in-8213 → 21)、長手数問題の経路メモが壊れて web の逆算が
+    /// 「前局面なし」と誤判定していた。全 u16 域の往復を保証する。
+    #[test]
+    fn packed_step_range_preserves_deep_steps() {
+        for v in [0u16, 1, 253, 254, 255, 256, 8213, 8214] {
+            let sr = StepRange::exact(v);
+            assert_eq!(super::unpack_step_range(super::pack_step_range(sr)), sr);
+        }
+        let unsolvable = StepRange::unsolvable();
+        assert_eq!(
+            super::unpack_step_range(super::pack_step_range(unsolvable)),
+            unsolvable
+        );
+
+        let mut memo = Memo::new();
+        memo.insert(0x123456789abcdef, StepRange::exact(8213));
+        assert_eq!(memo.get(0x123456789abcdef), Some(StepRange::exact(8213)));
+    }
+
     #[test]
     fn memo_shrink_keeps_more_informative_entries() {
         let mut memo = Memo::new();
@@ -4725,7 +4770,8 @@ mod tests {
             let seq_advanced = seq.advance().unwrap();
             let par_advanced = par.advance().unwrap();
             assert_eq!(
-                seq_advanced, par_advanced,
+                seq_advanced,
+                par_advanced,
                 "advance() return differs at step {}",
                 seq.step()
             );
@@ -4754,7 +4800,10 @@ mod tests {
                 break;
             }
         }
-        assert!(seq.step() > 1, "needs a deep enough search to exercise dedup");
+        assert!(
+            seq.step() > 1,
+            "needs a deep enough search to exercise dedup"
+        );
     }
 
     /// 各 step で frontier の digest がすべて unique であることを確認する。
@@ -5071,6 +5120,9 @@ mod tests {
 
         let (candidates, sampled) = super::build_candidates(buckets, Some(limit));
         assert_eq!(candidates.len(), n_total);
-        assert!(!sampled, "no sampling should be reported when total ≤ limit");
+        assert!(
+            !sampled,
+            "no sampling should be reported when total ≤ limit"
+        );
     }
 }
