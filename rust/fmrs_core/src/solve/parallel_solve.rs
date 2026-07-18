@@ -1,5 +1,7 @@
+use std::collections::HashSet;
 use std::sync::Mutex;
 
+use anyhow::bail;
 use rayon::prelude::*;
 
 use crate::memo::DashMemo;
@@ -49,6 +51,61 @@ impl ParallelSolver {
             memo_white_turn: memo,
             stone,
         }
+    }
+
+    /// 複数の根から同時に探索する (LowMemStandardSolver::with_multiple の並列版)。
+    /// 全根が同一手番・同一 stone であること。
+    pub fn with_multiple(
+        positions: Vec<PositionAux>,
+        solutions_upto: usize,
+    ) -> anyhow::Result<Self> {
+        if positions.is_empty() {
+            bail!("No initial positions");
+        }
+        if positions.iter().any(|p| p.is_illegal_initial_position()) {
+            bail!("Illegal initial position");
+        }
+
+        let turns = positions.iter().map(|p| p.turn()).collect::<HashSet<_>>();
+        if turns.len() > 1 {
+            bail!("Multiple turns");
+        }
+        let turn = turns.iter().next().copied().unwrap();
+
+        let stones = positions.iter().map(|p| p.stone()).collect::<HashSet<_>>();
+        if stones.len() > 1 {
+            bail!("Multiple stone formations");
+        }
+        let stone = stones.iter().next().and_then(|s| **s);
+
+        let initial_position_digests: NoHashSet64 = positions.iter().map(|p| p.digest()).collect();
+
+        let mut memo = DashMemo::default();
+        for digest in initial_position_digests.iter() {
+            memo.insert(*digest, 0);
+        }
+
+        let mate_positions: Mutex<Vec<PositionAux>> = Mutex::new(vec![]);
+        let mut positions: Vec<CachedPosition> =
+            positions.iter().map(CachedPosition::from_aux).collect();
+        let mut step = 0;
+
+        if turn.is_black() {
+            let memo_next = DashMemo::default();
+            next_positions(&mate_positions, &memo_next, &mut positions, step, &stone);
+            memo = memo_next;
+            step += 1;
+        }
+
+        Ok(Self {
+            initial_position_digests,
+            solutions_upto,
+            step,
+            positions,
+            mate_positions,
+            memo_white_turn: memo,
+            stone,
+        })
     }
 
     pub fn cached_positions(&self) -> usize {

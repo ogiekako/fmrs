@@ -1,4 +1,5 @@
 pub mod low_mem_standard;
+pub mod mate_within;
 pub mod one_way;
 pub mod parallel_solve;
 pub mod reconstruct;

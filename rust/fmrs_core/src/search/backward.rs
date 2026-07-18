@@ -115,7 +115,10 @@ use crate::{
         advance::advance::advance_aux, position::PositionAux, previous, BitBoard, Movement,
         Position, UndoMove,
     },
-    solve::{one_way::one_way_mate_steps, standard_solve::standard_solve},
+    solve::{
+        mate_within::shallowest_mate_within, one_way::one_way_mate_steps,
+        standard_solve::standard_solve,
+    },
 };
 
 type Memo = ShardedFlatMemo;
@@ -128,6 +131,28 @@ type Memo = ShardedFlatMemo;
 /// dedups positions globally and handles those in seconds. Smoke searches stay
 /// far below this bound, so their hot path is unchanged.
 const MAX_SOLUTIONS_DFS_MATE_IN: u16 = 250;
+
+/// verify_deep_pending の Phase 1 (peel) で union sweep に許す深さ。
+/// 反例 (別詰み) の大半はごく浅いので、浅い sweep + bounded check の
+/// 反復で候補の大部分を安価に棄却できる。これより深い反例は Phase 2 の
+/// 候補ごとフル解図 (並列) が引き受ける。
+const DEEP_PEEL_CAP: u16 = 128;
+
+/// advance_upto の deep 検証で呼び出し内に貯める候補。
+/// (verify_deep_pending でステップ単位に一括検証する)
+struct DeepPending {
+    core: Position,
+    digest: u64,
+    /// この候補を生成した undo 元 (redo で戻る先) の frontier 局面の digest。
+    frontier_digest: u64,
+}
+
+fn run_in<T: Send>(pool: Option<&rayon::ThreadPool>, f: impl FnOnce() -> T + Send) -> T {
+    match pool {
+        Some(pool) => pool.install(f),
+        None => f(),
+    }
+}
 
 // ===== ShardedFlatMemo: lock-free sharded hash table for backward search =====
 //
@@ -1947,7 +1972,14 @@ impl BackwardSearch {
     }
 
     pub fn advance(&mut self) -> anyhow::Result<bool> {
-        if !self.one_way && self.parallel > 1 && self.seen_positions == 0 {
+        // Deep problems (mate_in > MAX_SOLUTIONS_DFS_MATE_IN) must go through
+        // advance_upto's batched standard-solve verification — the parallel
+        // path's DFS-based overlay degenerates there.
+        if !self.one_way
+            && self.parallel > 1
+            && self.seen_positions == 0
+            && self.step < MAX_SOLUTIONS_DFS_MATE_IN
+        {
             return self.advance_parallel_filtered(&|_, _| true, &|_| true);
         }
         self.advance_upto(usize::MAX / 2)
@@ -2075,8 +2107,13 @@ impl BackwardSearch {
         // Inline dedup set: prevents prev_positions from growing to O(N_total)
         // before the end-of-step retain. Keeps peak memory at O(N_unique).
         let mut prev_added: NoHashSet64 = Default::default();
+        // Deep verification (mate_in > MAX_SOLUTIONS_DFS_MATE_IN) batches
+        // candidates per call and verifies them together after the loop.
+        let mut deep_pending: Vec<DeepPending> = vec![];
+        let mut deep_pending_digests: NoHashSet64 = Default::default();
         for core in self.positions[range].iter() {
             let mut position = PositionAux::new(core.clone(), self.stone);
+            let f_digest = position.digest();
             undo_moves.clear();
             previous(&mut position, self.step > 0, &mut undo_moves);
 
@@ -2135,25 +2172,18 @@ impl BackwardSearch {
                     // Deep problems (web backward on 1000+ ply positions): the
                     // depth-budgeted uniqueness DFS below can only prove "no
                     // alternative mate ≤ mate_in" by exhausting depth, which
-                    // degenerates on cyclic subgraphs. Count solutions with the
-                    // BFS standard solver instead (global dedup handles cycles;
-                    // it is also the ground truth `new()` and the debug check
-                    // use). Memoize only verdicts that are honest StepRanges.
-                    let ans = match standard_solve(pp.clone(), 2, true) {
-                        Ok(reconstructor) => {
-                            let sols = reconstructor.solutions();
-                            match sols.len() {
-                                0 => StepRange::unsolvable(),
-                                1 => StepRange::exact(sols[0].len() as u16),
-                                _ => StepRange::unknown(),
-                            }
-                        }
-                        Err(_) => StepRange::unknown(),
-                    };
-                    if should_memoize(ans) {
-                        memo_insert(&self.prev_memo, pp_digest, ans, self.memo_entry_limit);
+                    // degenerates on cyclic subgraphs. Instead, stash the
+                    // candidate and verify the whole batch after the frontier
+                    // loop with shared BFS sweeps (see verify_deep_pending).
+                    debug_assert!(!self.canonicalize_attacker_goldish);
+                    if deep_pending_digests.insert(pp_digest) {
+                        deep_pending.push(DeepPending {
+                            core: pp.core().clone(),
+                            digest: pp_digest,
+                            frontier_digest: f_digest,
+                        });
                     }
-                    ans
+                    continue;
                 } else if self.canonicalize_attacker_goldish {
                     let mut pp_canonical = pp.clone();
                     crate::search::canonicalize::canonicalize_attacker_goldish(&mut pp_canonical);
@@ -2210,6 +2240,10 @@ impl BackwardSearch {
             }
         }
 
+        if !deep_pending.is_empty() {
+            self.verify_deep_pending(deep_pending, &mut prev_added)?;
+        }
+
         if self.seen_positions < self.positions.len() {
             return Ok(true);
         }
@@ -2225,6 +2259,203 @@ impl BackwardSearch {
         self.step += 1;
 
         Ok(true)
+    }
+
+    /// Deep 検証 (mate_in > MAX_SOLUTIONS_DFS_MATE_IN) の一括処理。
+    ///
+    /// 候補 pp の唯一性は successor 分解で判定する:
+    /// solutions(pp) = Σ_{s ∈ succ(pp)} solutions(s)。redo 先の frontier 局面
+    /// f は「mate-in-step で唯一」(frontier 不変条件) なので、
+    ///   pp が mate-in-(step+1) で唯一 ⟺ f 以外のどの successor からも
+    ///   step 手以内に詰みが存在しない
+    /// (∃s: 詰み < step なら pp はより短く詰み、= step なら解が 2 つ以上)。
+    /// 存在判定だけでよいので、生存候補全員の others を 1 回の共有 BFS
+    /// (shallowest_mate_within, グローバル dedup) でまとめて証明できる —
+    /// 従来の「受理候補ごとにフル解図」を「バッチごとに 1 回の走査」に置換。
+    /// 浅い詰みが見つかった round はその深さ d までの安価な bounded check で
+    /// 該当候補を棄却し、次 round の最短詰みは厳密に深くなるので停止する。
+    fn verify_deep_pending(
+        &mut self,
+        pending: Vec<DeepPending>,
+        prev_added: &mut NoHashSet64,
+    ) -> anyhow::Result<()> {
+        let mate_in = self.step + 1;
+        let cap = self.step;
+        let parallel = self.parallel > 1;
+
+        // 各候補の others (= redo 先 frontier を除く successor)。
+        // None は保守的な棄却 (発生しない想定)。
+        let others: Vec<Option<Vec<PositionAux>>> = pending
+            .iter()
+            .map(|p| {
+                let mut pos = PositionAux::new(p.core.clone(), self.stone);
+                let mut movements = vec![];
+                if advance_aux(&mut pos, &Default::default(), &mut movements).is_err() {
+                    debug_assert!(false, "advance_aux failed on a legal candidate");
+                    return None;
+                }
+                let mut redo_found = false;
+                let mut res = Vec::with_capacity(movements.len().saturating_sub(1));
+                for m in movements.iter() {
+                    let mut np = pos.clone();
+                    np.do_move(m);
+                    if np.digest() == p.frontier_digest {
+                        redo_found = true;
+                    } else {
+                        res.push(np);
+                    }
+                }
+                if !redo_found {
+                    debug_assert!(false, "redo successor not found");
+                    return None;
+                }
+                Some(res)
+            })
+            .collect();
+
+        let mut accepted: Vec<usize> = vec![];
+        let mut alive: Vec<usize> = vec![];
+        for (i, o) in others.iter().enumerate() {
+            match o {
+                None => {}
+                // redo が唯一の応手なら分解より自明に唯一
+                Some(v) if v.is_empty() => accepted.push(i),
+                Some(_) => alive.push(i),
+            }
+        }
+
+        let trace = std::env::var("FMRS_DEEP_TRACE").is_ok();
+        if trace {
+            eprintln!(
+                "deep: step={} pending={} accepted_fast={} alive={}",
+                self.step,
+                pending.len(),
+                accepted.len(),
+                alive.len()
+            );
+        }
+
+        let union_of = |alive: &[usize]| {
+            let mut seen: NoHashSet64 = Default::default();
+            let mut union: Vec<PositionAux> = vec![];
+            for &i in alive {
+                for p in others[i].as_ref().unwrap() {
+                    if seen.insert(p.digest()) {
+                        union.push(p.clone());
+                    }
+                }
+            }
+            union
+        };
+
+        // Phase 1 (peel): 浅い反例を持つ候補を安価に間引く。sweep の深さを
+        // DEEP_PEEL_CAP に制限する — 深い反例まで union sweep で剥がそうと
+        // すると「フル走査 1 回につき 1-2 候補の棄却」に退化するため。
+        let peel_cap = DEEP_PEEL_CAP.min(cap);
+        while !alive.is_empty() {
+            let union = union_of(&alive);
+            let union_len = union.len();
+            let t0 = std::time::Instant::now();
+            let first_mate = shallowest_mate_within(union, peel_cap, false)?;
+            if trace {
+                eprintln!(
+                    "deep: peel alive={} union={} sweep={:?} first_mate={:?}",
+                    alive.len(),
+                    union_len,
+                    t0.elapsed(),
+                    first_mate
+                );
+            }
+            let Some(d) = first_mate else { break };
+
+            let rejected: Vec<bool> = run_in(self.pool.as_ref(), || {
+                let check = |&i: &usize| {
+                    shallowest_mate_within(others[i].as_ref().unwrap().clone(), d, false)
+                        .map(|found| found.is_some())
+                };
+                if parallel {
+                    alive.par_iter().map(check).collect::<anyhow::Result<_>>()
+                } else {
+                    alive.iter().map(check).collect()
+                }
+            })?;
+
+            let before = alive.len();
+            let mut it = rejected.iter();
+            alive.retain(|_| !*it.next().unwrap());
+            if alive.len() == before {
+                // union の詰みはいずれかの候補の others から d 手以内に到達
+                // できるはずで、ここには来ない想定。Phase 2 が正しく確定させる。
+                debug_assert!(false, "no candidate owned the shallowest mate");
+                break;
+            }
+        }
+
+        // Phase 2: 生存候補をフル深さで確定させる。まず union sweep 1 回
+        // (全員クリーンなら走査 1 回で全受理 — 共有 BFS の本命ケース)。
+        // 深い反例が混在するときだけ候補ごとのフル解図に切り替える (並列)。
+        if !alive.is_empty() {
+            let union = union_of(&alive);
+            let union_len = union.len();
+            let t0 = std::time::Instant::now();
+            let first_mate = shallowest_mate_within(union, cap, false)?;
+            if trace {
+                eprintln!(
+                    "deep: full alive={} union={} sweep={:?} first_mate={:?}",
+                    alive.len(),
+                    union_len,
+                    t0.elapsed(),
+                    first_mate
+                );
+            }
+            if first_mate.is_none() {
+                accepted.append(&mut alive);
+            } else {
+                let t0 = std::time::Instant::now();
+                let stone = self.stone;
+                let verdicts: Vec<bool> = run_in(self.pool.as_ref(), || {
+                    let verify = |&i: &usize| {
+                        let pos = PositionAux::new(pending[i].core.clone(), stone);
+                        standard_solve(pos, 2, true)
+                            .map(|r| {
+                                let sols = r.solutions();
+                                sols.len() == 1 && sols[0].len() == mate_in as usize
+                            })
+                            .unwrap_or(false)
+                    };
+                    if parallel {
+                        alive.par_iter().map(verify).collect()
+                    } else {
+                        alive.iter().map(verify).collect()
+                    }
+                });
+                if trace {
+                    eprintln!(
+                        "deep: solve-each alive={} elapsed={:?}",
+                        alive.len(),
+                        t0.elapsed()
+                    );
+                }
+                let mut it = verdicts.iter();
+                let accepted_alive: Vec<usize> =
+                    alive.drain(..).filter(|_| *it.next().unwrap()).collect();
+                accepted.extend(accepted_alive);
+            }
+        }
+
+        for &i in &accepted {
+            let p = &pending[i];
+            if prev_added.insert(p.digest) {
+                self.prev_positions.push(p.core.clone());
+            }
+            memo_insert(
+                &self.prev_memo,
+                p.digest,
+                StepRange::exact(mate_in),
+                self.memo_entry_limit,
+            );
+        }
+        Ok(())
     }
 
     /// Fused 2-ply backward step (frontier N → N+2), used as the smoke
