@@ -198,7 +198,12 @@ pub(super) fn load_split_progress(
     canonicalize_attacker_goldish: bool,
 ) -> Option<SplitProgress> {
     let key = condition_key(max_step, constraints);
-    let path = split_progress_path(seed_result_log, seed_index, &key, canonicalize_attacker_goldish);
+    let path = split_progress_path(
+        seed_result_log,
+        seed_index,
+        &key,
+        canonicalize_attacker_goldish,
+    );
     let mut f = BufReader::new(fs::File::open(&path).ok()?);
     let mut magic = [0u8; 8];
     f.read_exact(&mut magic).ok()?;
@@ -435,8 +440,13 @@ pub(super) fn load_seed_checkpoint(
         beam_key,
     );
     if let Ok(cp) = load_seed_checkpoint_bin(&bin_path) {
-        if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish, beam_key)
-        {
+        if validate_checkpoint(
+            &cp,
+            seed_index,
+            seed_sfen,
+            canonicalize_attacker_goldish,
+            beam_key,
+        ) {
             return Some(cp);
         }
     }
@@ -457,8 +467,13 @@ pub(super) fn load_seed_checkpoint(
     );
     if let Ok(file) = fs::File::open(&json_path) {
         if let Ok(cp) = serde_json::from_reader::<_, SeedCheckpoint>(BufReader::new(file)) {
-            if validate_checkpoint(&cp, seed_index, seed_sfen, canonicalize_attacker_goldish, beam_key)
-            {
+            if validate_checkpoint(
+                &cp,
+                seed_index,
+                seed_sfen,
+                canonicalize_attacker_goldish,
+                beam_key,
+            ) {
                 let _ = write_seed_checkpoint_bin(&bin_path, &cp);
                 return Some(cp);
             }
@@ -978,36 +993,61 @@ mod tests {
         write_seed_checkpoint(&log, &dummy_checkpoint(7, "sfen-x", None, constraints, 1)).unwrap();
         write_seed_checkpoint(
             &log,
-            &dummy_checkpoint_full(7, "sfen-x", None, constraints, 2, false, Some("aaaa".into())),
+            &dummy_checkpoint_full(
+                7,
+                "sfen-x",
+                None,
+                constraints,
+                2,
+                false,
+                Some("aaaa".into()),
+            ),
         )
         .unwrap();
         write_seed_checkpoint(
             &log,
-            &dummy_checkpoint_full(7, "sfen-x", None, constraints, 3, false, Some("bbbb".into())),
+            &dummy_checkpoint_full(
+                7,
+                "sfen-x",
+                None,
+                constraints,
+                3,
+                false,
+                Some("bbbb".into()),
+            ),
         )
         .unwrap();
 
         // Each key resolves to its own checkpoint; none bleeds into another.
-        let exact = load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).unwrap();
+        let exact =
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).unwrap();
         let beam_a =
-            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("aaaa")).unwrap();
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("aaaa"))
+                .unwrap();
         let beam_b =
-            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("bbbb")).unwrap();
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("bbbb"))
+                .unwrap();
         assert_eq!(exact.best_piece_count, 1);
         assert_eq!(beam_a.best_piece_count, 2);
         assert_eq!(beam_b.best_piece_count, 3);
 
         // An unknown beam key matches nothing (no fallback to exact).
-        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("cccc"))
-            .is_none());
+        assert!(
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("cccc"))
+                .is_none()
+        );
 
         // Removing one beam checkpoint leaves the exact and the other beam one.
         remove_seed_checkpoint(&log, 7, None, constraints, false, Some("aaaa"));
-        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("aaaa"))
-            .is_none());
+        assert!(
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("aaaa"))
+                .is_none()
+        );
         assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, None).is_some());
-        assert!(load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("bbbb"))
-            .is_some());
+        assert!(
+            load_seed_checkpoint(&log, 7, "sfen-x", None, constraints, false, Some("bbbb"))
+                .is_some()
+        );
 
         let _ = fs::remove_dir_all(&dir);
     }

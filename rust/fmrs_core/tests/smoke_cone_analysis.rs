@@ -74,7 +74,10 @@ fn smoke_cone_analysis() {
     let mut targets: Vec<u16> = Vec::new();
     for entry in std::fs::read_dir(&dir).unwrap() {
         let name = entry.unwrap().file_name().into_string().unwrap();
-        if let Some(rest) = name.strip_prefix("best_step_").and_then(|s| s.strip_suffix(".txt")) {
+        if let Some(rest) = name
+            .strip_prefix("best_step_")
+            .and_then(|s| s.strip_suffix(".txt"))
+        {
             if let Ok(s) = rest.parse::<u16>() {
                 targets.push(s);
             }
@@ -111,7 +114,12 @@ fn smoke_cone_analysis() {
     for &s_target in &targets {
         let all = read_positions(&format!("{dir}/best_step_{s_target}.txt"));
         let stride = (all.len() / best_trace_cap.max(1)).max(1);
-        let positions: Vec<PositionAux> = all.iter().step_by(stride).take(best_trace_cap).cloned().collect();
+        let positions: Vec<PositionAux> = all
+            .iter()
+            .step_by(stride)
+            .take(best_trace_cap)
+            .cloned()
+            .collect();
         if let Some(p0) = positions.first() {
             best_piece_at.insert(s_target, piece_count(p0));
         }
@@ -198,7 +206,11 @@ fn smoke_cone_analysis() {
     for s in (1..=deepest).rev().filter(|s| s % 2 == 1) {
         let c = deep_cone.get(&s).copied().unwrap_or(0);
         let f = frontier.get(&s).copied().unwrap_or(0);
-        let frac = if f > 0 { c as f64 / f as f64 * 100.0 } else { 0.0 };
+        let frac = if f > 0 {
+            c as f64 / f as f64 * 100.0
+        } else {
+            0.0
+        };
         eprintln!("{s:>3}  {c:>5}  {f:>9}  {frac:.4}%");
     }
 
@@ -209,8 +221,16 @@ fn smoke_cone_analysis() {
         let l = live.get(&s).map(|x| x.len()).unwrap_or(0);
         let ld = live_deeper.get(&s).map(|x| x.len()).unwrap_or(0);
         let f = frontier.get(&s).copied().unwrap_or(0);
-        let frac = if f > 0 { l as f64 / f as f64 * 100.0 } else { 0.0 };
-        let frac_d = if f > 0 { ld as f64 / f as f64 * 100.0 } else { 0.0 };
+        let frac = if f > 0 {
+            l as f64 / f as f64 * 100.0
+        } else {
+            0.0
+        };
+        let frac_d = if f > 0 {
+            ld as f64 / f as f64 * 100.0
+        } else {
+            0.0
+        };
         eprintln!("{s:>3}  {l:>5}  {ld:>8}  {f:>9}  {frac:>9.4}%  {frac_d:>9.4}%");
     }
 
@@ -329,7 +349,10 @@ fn smoke_confluence() {
         let mut p = pos.clone();
         let mut rec = |d: u16, p: &PositionAux| {
             by_dist.entry(d).or_default().insert(canon_digest(p));
-            by_pieces.entry(piece_count(p)).or_default().insert(canon_digest(p));
+            by_pieces
+                .entry(piece_count(p))
+                .or_default()
+                .insert(canon_digest(p));
             sample_at.entry(d).or_insert_with(|| p.clone());
         };
         // d = remaining plies to mate. Root has d = sol.len(); mate has d = 0.
@@ -344,7 +367,10 @@ fn smoke_confluence() {
     let lmax = lengths.last().copied().unwrap_or(0);
     eprintln!(
         "solved unique: {} (non-unique skipped: {}), solution plies: min={} max={}",
-        lengths.len(), non_unique, lmin, lmax
+        lengths.len(),
+        non_unique,
+        lmin,
+        lmax
     );
 
     eprintln!("\n=== distinct canonical positions by distance-from-mate d ===");
@@ -393,7 +419,9 @@ fn smoke_confluence() {
 // pieces, sfen). FMRS_DUMP_PATH_SFEN = the SFEN/URL. No-op unless set.
 #[test]
 fn smoke_dump_path() {
-    let Ok(s) = std::env::var("FMRS_DUMP_PATH_SFEN") else { return; };
+    let Ok(s) = std::env::var("FMRS_DUMP_PATH_SFEN") else {
+        return;
+    };
     let pos = parse_pos(&s).expect("parse");
     let sols = standard_solve(pos.clone(), 2, true).unwrap().solutions();
     assert_eq!(sols.len(), 1, "not unique");
@@ -404,7 +432,12 @@ fn smoke_dump_path() {
     eprintln!("PATH d={} pieces={} {}", n, piece_count(&p), p.sfen());
     for (k, m) in sol.iter().enumerate() {
         p.do_move(m);
-        eprintln!("PATH d={} pieces={} {}", n - 1 - k as u16, piece_count(&p), p.sfen());
+        eprintln!(
+            "PATH d={} pieces={} {}",
+            n - 1 - k as u16,
+            piece_count(&p),
+            p.sfen()
+        );
     }
 }
 
@@ -419,7 +452,9 @@ fn smoke_dump_path() {
 // = path to write one representative SFEN per class. No-op unless the env is set.
 #[test]
 fn smoke_essential_classes() {
-    let Ok(path) = std::env::var("FMRS_ESSENTIAL_SFENS") else { return; };
+    let Ok(path) = std::env::var("FMRS_ESSENTIAL_SFENS") else {
+        return;
+    };
     use fmrs_core::piece::{Color, Kind};
     use fmrs_core::position::Movement;
     use rayon::prelude::*;
@@ -505,11 +540,16 @@ fn smoke_essential_classes() {
     eprintln!("  (1) defender-king trajectories : {}", king_set.len());
     eprintln!("  (2) attacker capture-TYPE seqs : {}", atk_set.len());
     eprintln!("  (3) defender capture-SQUARE seqs: {}", def_set.len());
-    eprintln!("=> ESSENTIALLY DIFFERENT classes (all three agree): {}", classes.len());
+    eprintln!(
+        "=> ESSENTIALLY DIFFERENT classes (all three agree): {}",
+        classes.len()
+    );
 
     // Sort classes by size desc, then by representative sfen for determinism.
-    let mut reps: Vec<(usize, String)> =
-        classes.into_iter().map(|(_, (cnt, sfen))| (cnt, sfen)).collect();
+    let mut reps: Vec<(usize, String)> = classes
+        .into_iter()
+        .map(|(_, (cnt, sfen))| (cnt, sfen))
+        .collect();
     reps.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
 
     eprintln!("\n=== class representatives (size  sfen) ===");
@@ -539,7 +579,9 @@ fn smoke_essential_classes() {
 // Input: FMRS_BEAUTIFUL_SFENS = file of SFEN/URL. No-op unless set.
 #[test]
 fn smoke_beautiful() {
-    let Ok(path) = std::env::var("FMRS_BEAUTIFUL_SFENS") else { return; };
+    let Ok(path) = std::env::var("FMRS_BEAUTIFUL_SFENS") else {
+        return;
+    };
     use fmrs_core::piece::{Color, Kind};
     use fmrs_core::position::Movement;
     use rayon::prelude::*;
@@ -588,7 +630,9 @@ fn smoke_beautiful() {
     let ties: Vec<&([u8; 5], String)> = items.iter().filter(|(k, _)| *k == best).collect();
 
     eprintln!("scored unique positions: {}", total);
-    eprintln!("key = [first_move_is_capture, SNLkinds, SNLtotal, BRkinds, BRtotal] (all minimized)");
+    eprintln!(
+        "key = [first_move_is_capture, SNLkinds, SNLtotal, BRkinds, BRtotal] (all minimized)"
+    );
     eprintln!("OPTIMUM key = {:?}", best);
     eprintln!("ties at optimum: {}", ties.len());
     // small context: how the population thins by criterion.
@@ -622,7 +666,9 @@ fn smoke_beautiful() {
 // Input: FMRS_BEAUTIFUL2_SFENS = file of SFEN/URL. No-op unless set.
 #[test]
 fn smoke_beautiful2() {
-    let Ok(path) = std::env::var("FMRS_BEAUTIFUL2_SFENS") else { return; };
+    let Ok(path) = std::env::var("FMRS_BEAUTIFUL2_SFENS") else {
+        return;
+    };
     use fmrs_core::piece::{Color, Kind};
     use fmrs_core::position::{Movement, Square};
     use rayon::prelude::*;

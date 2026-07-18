@@ -41,8 +41,10 @@ pub(super) fn enumerate_final_2_sfens(
                     };
                     if constraints.miyako && white_king == Square::S55 {
                         if constraints.double_king {
-                            results
-                                .extend(enumerate_miyako_4piece_double_king(white_king, constraints));
+                            results.extend(enumerate_miyako_4piece_double_king(
+                                white_king,
+                                constraints,
+                            ));
                         } else {
                             results.extend(enumerate_miyako_4piece(white_king, constraints));
                         }
@@ -716,8 +718,7 @@ mod tests {
         // 5×5 bottom-left quadrant that contains S55, dramatically reducing
         // the search space while still covering both attacker and non-attacker
         // square combinations that exercise the pruning logic.
-        let mask =
-            parse_allowed_kinds(&["silver".to_string(), "rook".to_string()]).unwrap();
+        let mask = parse_allowed_kinds(&["silver".to_string(), "rook".to_string()]).unwrap();
         SearchConstraints {
             allowed_kinds_mask: Some(mask),
             miyako: true,

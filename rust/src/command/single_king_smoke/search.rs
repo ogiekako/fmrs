@@ -574,8 +574,12 @@ fn run_split(
         // Search ended (Completed / MaxStep / EarlyExit) before reaching the
         // split step — no chunks to process, prefix best is the answer.
         drop(search);
-        let best =
-            finalize_seed_best(acc_pc, acc_step, acc_positions, ctx.canonicalize_attacker_goldish);
+        let best = finalize_seed_best(
+            acc_pc,
+            acc_step,
+            acc_positions,
+            ctx.canonicalize_attacker_goldish,
+        );
         return Ok(SingleSeedResult {
             best,
             stats: SeedRunStats {
@@ -635,7 +639,12 @@ fn run_split(
 
     eprintln!(
         "split seed={} start_step={} frontier={} chunk_size={} chunks={} resume_from_chunk={}",
-        ctx.seed_index, split_start_step, frontier.len(), chunk_size, num_chunks, next_chunk
+        ctx.seed_index,
+        split_start_step,
+        frontier.len(),
+        chunk_size,
+        num_chunks,
+        next_chunk
     );
 
     for chunk_index in next_chunk..num_chunks {
@@ -672,29 +681,44 @@ fn run_split(
             let resumed = chunk_cp.as_ref().and_then(|cp| {
                 if !cp.frontier_bytes.is_empty() {
                     BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
-                        &cp.resume_state, &cp.frontier_bytes, seeds, 1).ok()
+                        &cp.resume_state,
+                        &cp.frontier_bytes,
+                        seeds,
+                        1,
+                    )
+                    .ok()
                 } else {
-                    BackwardSearch::from_resume_state_canonical_group(&cp.resume_state, seeds, 1).ok()
+                    BackwardSearch::from_resume_state_canonical_group(&cp.resume_state, seeds, 1)
+                        .ok()
                 }
             });
             match resumed {
                 Some(s) => s,
                 None => BackwardSearch::from_resume_state_canonical_group_with_frontier_bytes(
-                    &header, &chunk_flat, seeds, 1)?,
+                    &header,
+                    &chunk_flat,
+                    seeds,
+                    1,
+                )?,
             }
         } else {
             let resumed = chunk_cp.as_ref().and_then(|cp| {
                 if !cp.frontier_bytes.is_empty() {
                     BackwardSearch::from_resume_state_with_frontier_bytes(
-                        &cp.resume_state, &cp.frontier_bytes, 1).ok()
+                        &cp.resume_state,
+                        &cp.frontier_bytes,
+                        1,
+                    )
+                    .ok()
                 } else {
                     BackwardSearch::from_resume_state(&cp.resume_state, 1).ok()
                 }
             });
             match resumed {
                 Some(s) => s,
-                None => BackwardSearch::from_resume_state_with_frontier_bytes(
-                    &header, &chunk_flat, 1)?,
+                None => {
+                    BackwardSearch::from_resume_state_with_frontier_bytes(&header, &chunk_flat, 1)?
+                }
             }
         };
         if let Some(limit) = ctx.max_memo_entries {
@@ -737,7 +761,11 @@ fn run_split(
         // On kill inside a chunk, the next resume reloads from here rather
         // than restarting from split_start_step.
         let out = run_seed_loop(
-            &mut chunk_search, ctx, chunk_init, None, true,
+            &mut chunk_search,
+            ctx,
+            chunk_init,
+            None,
+            true,
             Some(&chunk_ckpt_log),
         )?;
         drop(chunk_search);
@@ -797,8 +825,12 @@ fn run_split(
         );
     }
 
-    let best =
-        finalize_seed_best(acc_pc, acc_step, acc_positions, ctx.canonicalize_attacker_goldish);
+    let best = finalize_seed_best(
+        acc_pc,
+        acc_step,
+        acc_positions,
+        ctx.canonicalize_attacker_goldish,
+    );
     Ok(SingleSeedResult {
         best,
         stats: SeedRunStats {
@@ -1109,11 +1141,7 @@ fn run_seed_loop(
         // parity.
         let step_now = search.step();
         let two_ply = step_now % 2 == 1;
-        let next_step = if two_ply {
-            step_now + 2
-        } else {
-            step_now + 1
-        };
+        let next_step = if two_ply { step_now + 2 } else { step_now + 1 };
         if search_limit.is_some_and(|limit| next_step > limit) {
             termination_reason = TerminationReason::MaxStep;
             break;

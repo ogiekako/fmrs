@@ -375,7 +375,9 @@ pub fn extract_features(position: &PositionAux, step: u16) -> Vec<f32> {
     // Cache the env read once — extract_features runs per position in the beam.
     static HEAVY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     let heavy = *HEAVY.get_or_init(|| {
-        std::env::var("FMRS_FEAT_HEAVY").map(|v| v != "0").unwrap_or(false)
+        std::env::var("FMRS_FEAT_HEAVY")
+            .map(|v| v != "0")
+            .unwrap_or(false)
     });
     f.push(if heavy {
         count_black_check_moves(position) as f32
@@ -504,8 +506,7 @@ impl GbdtModel {
     }
 
     pub fn from_json_str(data: &str) -> anyhow::Result<Self> {
-        let model: GbdtModel =
-            serde_json::from_str(data).context("parse gbdt model")?;
+        let model: GbdtModel = serde_json::from_str(data).context("parse gbdt model")?;
         let expected = feature_names();
         anyhow::ensure!(
             model.feature_names.len() == expected.len()

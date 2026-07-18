@@ -114,7 +114,11 @@ impl BeamConfig {
         let ratio = self.anchor_width as f64 / w0 as f64;
         let w = (w0 as f64 * ratio.powf(step as f64 / s1 as f64)).round() as usize;
         let w = w.max(1);
-        Some(if self.max_width > 0 { w.min(self.max_width) } else { w })
+        Some(if self.max_width > 0 {
+            w.min(self.max_width)
+        } else {
+            w
+        })
     }
 }
 
@@ -157,7 +161,11 @@ pub(super) fn build_beam_config(
     // --beam-sota: use the embedded SOTA GBDT (unless an explicit --beam-model
     // overrides it) and default the temperature to the tuned value.
     if sota && model_spec.is_none() {
-        let temp = if temperature > 0.0 { temperature } else { SOTA_TEMPERATURE };
+        let temp = if temperature > 0.0 {
+            temperature
+        } else {
+            SOTA_TEMPERATURE
+        };
         return Ok(BeamConfig {
             width,
             scorer: BeamScorer::Gbdt(GbdtModel::from_json_str(SOTA_MODEL_JSON)?),
@@ -175,8 +183,8 @@ pub(super) fn build_beam_config(
         Some("handcraft") => BeamScorer::Handcraft,
         Some(path) => {
             // GBDT JSON has a "trees" field; linear has "weights".
-            let data = std::fs::read_to_string(path)
-                .with_context(|| format!("read beam model {path}"))?;
+            let data =
+                std::fs::read_to_string(path).with_context(|| format!("read beam model {path}"))?;
             if data.contains("\"trees\"") {
                 BeamScorer::Gbdt(GbdtModel::load(Path::new(path))?)
             } else {
@@ -218,7 +226,9 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
             let (_, positions) = search.positions();
             let n = positions.len();
             let mut indices: Vec<usize> = (0..n).collect();
-            let mut rng = SmallRng::seed_from_u64(beam.rng_seed ^ (step as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15));
+            let mut rng = SmallRng::seed_from_u64(
+                beam.rng_seed ^ (step as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15),
+            );
             indices.partial_shuffle(&mut rng, width);
             let kept: Vec<Position> = indices[..width]
                 .iter()
@@ -249,9 +259,7 @@ pub(super) fn apply_beam(search: &mut BackwardSearch, beam: &BeamConfig, width: 
                         // and parallel-safe (no shared RNG), and cheaper than
                         // from_entropy's per-call OS-entropy read.
                         let mut rng = SmallRng::seed_from_u64(
-                            p.digest()
-                                ^ (step as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15)
-                                ^ seed,
+                            p.digest() ^ (step as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ seed,
                         );
                         let u: f32 = rng.gen::<f32>().clamp(1e-9, 1.0);
                         score += temp * -(-u.ln()).ln();
@@ -424,10 +432,19 @@ mod tests {
     #[test]
     fn checkpoint_key_differs_by_scorer_kind() {
         let random = cfg(Some(1000)).unwrap().checkpoint_key();
-        let handcraft =
-            build_beam_config(Some(1000), Some("handcraft"), 10.0, false, false, None, 0, 0, 7)
-                .unwrap()
-                .checkpoint_key();
+        let handcraft = build_beam_config(
+            Some(1000),
+            Some("handcraft"),
+            10.0,
+            false,
+            false,
+            None,
+            0,
+            0,
+            7,
+        )
+        .unwrap()
+        .checkpoint_key();
         assert_ne!(random, handcraft);
     }
 }

@@ -454,7 +454,12 @@ fn finalize_task(
     // Update global best.
     if let Some((pc, step, ref positions)) = best {
         let mut guard = ctx.best.lock().unwrap();
-        merge_best_candidate(&mut guard, pc, step, positions.iter().map(PositionAux::sfen));
+        merge_best_candidate(
+            &mut guard,
+            pc,
+            step,
+            positions.iter().map(PositionAux::sfen),
+        );
     }
 
     // EarlyExit + partial best → keep checkpoint, skip record (see ideal_backward.rs).

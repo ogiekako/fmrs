@@ -100,8 +100,7 @@ fn backward_search_seed_max_step_5() {
     // Output is image URLs (SFEN with spaces → underscores), printed in
     // SFEN-sorted order. Lock down first/last as a deterministic correctness check.
     assert_eq!(
-        sfens[0],
-        "https://ogiekako.github.io/fmrs/2k1G4/4G4/9/9/3N5/4L4/9/9/9_b_2r2b2g4s3n3l18p_1",
+        sfens[0], "https://ogiekako.github.io/fmrs/2k1G4/4G4/9/9/3N5/4L4/9/9/9_b_2r2b2g4s3n3l18p_1",
         "unexpected first sorted URL"
     );
     assert_eq!(

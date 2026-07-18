@@ -393,12 +393,24 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             let max_memo_entries = parse_max_memo_entries(&max_memo_entries, parallel)?;
             let (anchor_step, anchor_width) = match beam_width_at.as_deref() {
                 Some(s) => {
-                    let (st, w) = s.split_once(':').context("--beam-width-at must be STEP:WIDTH")?;
+                    let (st, w) = s
+                        .split_once(':')
+                        .context("--beam-width-at must be STEP:WIDTH")?;
                     (Some(st.trim().parse::<u16>()?), w.trim().parse::<usize>()?)
                 }
                 None => (None, 0),
             };
-            let beam = build_beam_config(beam_width, beam_model.as_deref(), beam_temperature, beam_stratify, beam_sota, anchor_step, anchor_width, beam_width_max, random_seed.unwrap_or(0))?;
+            let beam = build_beam_config(
+                beam_width,
+                beam_model.as_deref(),
+                beam_temperature,
+                beam_stratify,
+                beam_sota,
+                anchor_step,
+                anchor_width,
+                beam_width_max,
+                random_seed.unwrap_or(0),
+            )?;
             let allowed_kinds_mask = match allowed_kinds {
                 Some(names) => Some(parse_allowed_kinds(&names)?),
                 None => None,
@@ -476,9 +488,11 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             out,
             min_label,
         } => train::export_features(&feature_log, &seed_result_log, &out, min_label),
-        SingleKingSmokeCommand::ConeFeatures { dataset, out, label } => {
-            train::export_cone_features(&dataset, &out, &label)
-        }
+        SingleKingSmokeCommand::ConeFeatures {
+            dataset,
+            out,
+            label,
+        } => train::export_cone_features(&dataset, &out, &label),
         SingleKingSmokeCommand::TrainModel {
             seed_result_log,
             out,

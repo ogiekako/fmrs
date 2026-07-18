@@ -14,16 +14,15 @@ use super::super::smoke_constraints::{
 use super::super::smoke_persistence::{
     append_seed_result_record, build_seed_result_record, condition_key, load_seed_result_log,
     merge_best_candidate, merge_seed_result_record, open_seed_result_log, remove_seed_checkpoint,
-    trajectory_log_path, CrossSeedBest, SeedResultRecord,
-    TerminationReason,
+    trajectory_log_path, CrossSeedBest, SeedResultRecord, TerminationReason,
 };
-use rustc_hash::FxHashMap;
 use super::beam::{open_feature_log, BeamConfig, FeatureLogConfig};
 use super::enumerate::enumerate_final_2_positions;
 use super::oracle::OracleModel;
 use super::scheduler::run_with_oracle;
 use super::search::search_single_seed;
 use super::system::{MemoryBudget, ProcStatus};
+use rustc_hash::FxHashMap;
 
 /// Memory-bounded split mode (`--split-start-step`). When `start_step` is
 /// `None`, split mode is disabled and each seed runs as full per-seed BFS. When
@@ -366,7 +365,10 @@ pub(super) fn ideal_backward(
                 // 自身が target_max に到達した seed は EarlyExit でも保存する。
                 let early_exited_partial = early_exit
                     && result.stats.termination_reason == TerminationReason::EarlyExit
-                    && result.best.as_ref().is_none_or(|(pc, _, _)| *pc < target_max);
+                    && result
+                        .best
+                        .as_ref()
+                        .is_none_or(|(pc, _, _)| *pc < target_max);
                 if !early_exited_partial {
                     // Beam-filtered results are non-authoritative (narrowed
                     // search), so only exact runs append a result record. Both
@@ -536,7 +538,12 @@ mod tests {
         PositionAux::from_sfen(sfen).unwrap()
     }
 
-    fn record(seed_index: usize, seed_sfen: &str, best_piece_count: u32, best_step: u16) -> SeedResultRecord {
+    fn record(
+        seed_index: usize,
+        seed_sfen: &str,
+        best_piece_count: u32,
+        best_step: u16,
+    ) -> SeedResultRecord {
         SeedResultRecord {
             version: IDEAL_BACKWARD_SEED_LOG_VERSION,
             max_step: None,
@@ -586,7 +593,10 @@ mod tests {
         assert_eq!(loaded, 1);
         assert_eq!(pending.len(), 1);
         assert_eq!(pending[0].0, 1, "seed 0 should have been filtered out");
-        assert_eq!(best.0, 17, "best piece count should pick up the record's bpc");
+        assert_eq!(
+            best.0, 17,
+            "best piece count should pick up the record's bpc"
+        );
         assert_eq!(best.1, 9, "best step should pick up the record's step");
         assert_eq!(best.3, 1, "one succeeded seed merged into best");
     }

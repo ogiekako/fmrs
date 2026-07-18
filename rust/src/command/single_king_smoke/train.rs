@@ -15,7 +15,11 @@ use super::super::smoke_persistence::SeedResultRecord;
 /// leakage-safe split key: all positions on one best's solution path share the
 /// same max_best_depth, so grouping by it keeps a path together (Python side
 /// does a GroupKFold; dead rows with group 0 are split independently).
-pub(super) fn export_cone_features(dataset: &Path, out: &Path, label_col: &str) -> anyhow::Result<()> {
+pub(super) fn export_cone_features(
+    dataset: &Path,
+    out: &Path,
+    label_col: &str,
+) -> anyhow::Result<()> {
     let file = fs::File::open(dataset).with_context(|| format!("open {}", dataset.display()))?;
     let mut reader = BufReader::new(file);
     let mut header = String::new();
@@ -70,7 +74,10 @@ pub(super) fn export_cone_features(dataset: &Path, out: &Path, label_col: &str) 
         rows += 1;
     }
     writer.flush()?;
-    eprintln!("cone-features: wrote {rows} rows ({bad} skipped) to {}", out.display());
+    eprintln!(
+        "cone-features: wrote {rows} rows ({bad} skipped) to {}",
+        out.display()
+    );
     Ok(())
 }
 

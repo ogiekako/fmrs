@@ -79,11 +79,9 @@ pub(super) struct SearchConstraints {
 }
 
 /// bishop/rook 系の駒種 (unpromoted + promoted 双方を同一 family として数える)。
-const ROOK_BISHOP_FAMILY: [Kind; 4] =
-    [Kind::Bishop, Kind::ProBishop, Kind::Rook, Kind::ProRook];
+const ROOK_BISHOP_FAMILY: [Kind; 4] = [Kind::Bishop, Kind::ProBishop, Kind::Rook, Kind::ProRook];
 /// lance/knight 系の駒種 (unpromoted + promoted 双方)。
-const LANCE_KNIGHT_FAMILY: [Kind; 4] =
-    [Kind::Lance, Kind::ProLance, Kind::Knight, Kind::ProKnight];
+const LANCE_KNIGHT_FAMILY: [Kind; 4] = [Kind::Lance, Kind::ProLance, Kind::Knight, Kind::ProKnight];
 
 impl SearchConstraints {
     /// Total number of pieces of `kind` available in the game (board + both
@@ -202,10 +200,7 @@ fn satisfies_piece_allowances(position: &PositionAux, constraints: SearchConstra
 
 /// rook/bishop 許容枚数のみの判定 (既存 rook/bishop 単体テスト互換の薄いラッパ)。
 #[cfg(test)]
-fn satisfies_rook_bishop_allowance(
-    position: &PositionAux,
-    constraints: SearchConstraints,
-) -> bool {
+fn satisfies_rook_bishop_allowance(position: &PositionAux, constraints: SearchConstraints) -> bool {
     satisfies_family_allowance(
         position,
         constraints.rook_bishop_allow_start,
@@ -526,7 +521,10 @@ fn satisfies_goldish_priority(position: &PositionAux, constraints: SearchConstra
         return true;
     }
     for kind in [Kind::ProLance, Kind::ProKnight, Kind::ProSilver] {
-        if position.bitboard(Color::BLACK, kind).any(|sq| sq.row() >= 6) {
+        if position
+            .bitboard(Color::BLACK, kind)
+            .any(|sq| sq.row() >= 6)
+        {
             return false;
         }
     }
@@ -1262,7 +1260,10 @@ mod tests {
         position.set(Square::S19, Color::WHITE, Kind::King);
         position.hands_mut().add_n(Color::WHITE, Kind::Pawn, 18);
 
-        assert!(satisfies_search_constraints(&position, SearchConstraints::default()));
+        assert!(satisfies_search_constraints(
+            &position,
+            SearchConstraints::default()
+        ));
     }
 
     #[test]
@@ -1328,7 +1329,10 @@ mod tests {
     /// so the returned position has `total` pieces total on board.
     fn position_with_total_and_rook_bishop(total: u32, rb: u32) -> PositionAux {
         assert!(rb <= 4, "this helper supports up to 4 rook/bishop pieces");
-        assert!(total >= 2 + rb, "total must accommodate 2 kings + rb pieces");
+        assert!(
+            total >= 2 + rb,
+            "total must accommodate 2 kings + rb pieces"
+        );
         let mut p = PositionAux::default();
         // Two kings (1九 white, 1一 black) so pieces_in_play counts them too.
         p.set(Square::S19, Color::WHITE, Kind::King);
@@ -1363,17 +1367,26 @@ mod tests {
     fn rook_bishop_allowance_disabled_by_default() {
         // No --rook-bishop-allow-start → never rejected regardless of count.
         let p = position_with_total_and_rook_bishop(10, 4);
-        assert!(satisfies_rook_bishop_allowance(&p, SearchConstraints::default()));
+        assert!(satisfies_rook_bishop_allowance(
+            &p,
+            SearchConstraints::default()
+        ));
     }
 
     #[test]
     fn rook_bishop_allowance_blocks_below_start() {
         // pieces_in_play = 19 < start=20 → zero rook/bishop allowed.
         let p_no_rb = position_with_total_and_rook_bishop(19, 0);
-        assert!(satisfies_rook_bishop_allowance(&p_no_rb, rb_constraints(20, 5)));
+        assert!(satisfies_rook_bishop_allowance(
+            &p_no_rb,
+            rb_constraints(20, 5)
+        ));
 
         let p_with_rb = position_with_total_and_rook_bishop(19, 1);
-        assert!(!satisfies_rook_bishop_allowance(&p_with_rb, rb_constraints(20, 5)));
+        assert!(!satisfies_rook_bishop_allowance(
+            &p_with_rb,
+            rb_constraints(20, 5)
+        ));
     }
 
     #[test]
@@ -1445,7 +1458,10 @@ mod tests {
     /// reach `total` pieces in play.
     fn position_with_total_and_lance_knight(total: u32, lk: u32) -> PositionAux {
         assert!(lk <= 4, "this helper supports up to 4 lance/knight pieces");
-        assert!(total >= 2 + lk, "total must accommodate 2 kings + lk pieces");
+        assert!(
+            total >= 2 + lk,
+            "total must accommodate 2 kings + lk pieces"
+        );
         let mut p = PositionAux::default();
         p.set(Square::S19, Color::WHITE, Kind::King);
         p.set(Square::S11, Color::BLACK, Kind::King);
