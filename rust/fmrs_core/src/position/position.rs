@@ -513,6 +513,14 @@ impl PositionAux {
         self.core.digest() ^ self.stone_digest
     }
 
+    /// Zobrist digest of the board (and optional stones), excluding hands and
+    /// the side to move.  This is useful for detecting mechanisms that merely
+    /// revisit the same board while transferring indistinguishable hand
+    /// pieces.
+    pub fn board_digest(&self) -> u64 {
+        self.core.digest ^ self.stone_digest
+    }
+
     #[inline(always)]
     pub fn unset(&mut self, pos: Square, color: Color, kind: Kind) {
         self.occupied.unset(pos);

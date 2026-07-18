@@ -72,7 +72,14 @@ fn one_way_mate_steps_inner(
             position.do_move(movements.last().unwrap());
         }
 
-        assert!(position.turn().is_white(), "{:?}", position);
+        // Mutation search can temporarily construct positions for which the
+        // selected pseudo-legal movement does not advance the turn (for
+        // example, after a king-capture artefact).  Such a position is simply
+        // not a one-way prefix; do not let one malformed beam candidate abort
+        // every worker.
+        if !position.turn().is_white() {
+            return Err(step);
+        }
 
         let prev_len = movements.len();
         let is_mate = match advance_aux(position, &options, movements) {
