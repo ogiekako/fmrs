@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785233800545,
+  "lastUpdate": 1785238904261,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48928,6 +48928,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/832171ed98037043ee17f810049b79e010474df7"
         },
         "date": 1785233794079,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125203,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435716076,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "1ae1567ee2745d2f5280e3a1c5b3a28970257f78",
+          "message": "docs(paper): §1 を背景と到達結果に絞り、空いた紙幅を主張の裏付けに回す\n\n§1 の歴史的経緯（helpmate との対応、1961年の提唱、25枚の詳細な引用文）は\nextended abstract には過剰だったため落とし、査読者が必要とする\n「何が難しく、何を達成したか」に絞った。節名も「背景と到達結果」に。\n\n- 「著者の知る限り、協力詰における初の全駒煙である」を明示\n- 参照されなくなった文献3件(lange, ogino, kanna)を削除し 10件→7件\n- 空いた紙幅で、紙幅の都合で削っていた以下を復活\n  - 本稿の位置づけ（新規アルゴリズムの報告ではなく計算機支援創作の事例報告）\n  - 生存局面の割合の実測値（詰みから11手で2.6%、31手で0.02%）",
+          "timestamp": "2026-07-28T11:23:13Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/1ae1567ee2745d2f5280e3a1c5b3a28970257f78"
+        },
+        "date": 1785238900702,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
