@@ -8,6 +8,13 @@
     // paper/ の原稿は ltjsarticle (LuaTeX-ja) を使うため LuaLaTeX 必須。
     // LaTeX Workshop 既定の pdflatex レシピでは
     // "Package luatexja-core Error: This package requires Lua(HB)(La)TeX." で失敗する。
+    //
+    // "env.PATH" を明示しているのは別の理由もある: この環境は code serve-web
+    // 経由で動いており、拡張機能ホストは systemd --user から直接起動されるため
+    // シェルの rc ファイル（PATH に texlive を足す部分）を経由しない。
+    // その結果 PATH に texlive が入らず lualatex/latexmk が見つからずビルドが
+    // 失敗することがある（起動方法やポートを変えるたびに再発しうる）。
+    // ここで PATH を明示することで、起動元の環境に依存せず動くようにしている。
     "latex-workshop.latex.tools": [
         {
             "name": "latexmk-lualatex",
@@ -20,7 +27,9 @@
                 "-outdir=%OUTDIR%",
                 "%DOC%"
             ],
-            "env": {}
+            "env": {
+                "PATH": "/usr/local/texlive/2025/bin/x86_64-linux:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            }
         },
         {
             "name": "lualatex",
@@ -31,7 +40,9 @@
                 "-file-line-error",
                 "%DOC%"
             ],
-            "env": {}
+            "env": {
+                "PATH": "/usr/local/texlive/2025/bin/x86_64-linux:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            }
         }
     ],
     "latex-workshop.latex.recipes": [

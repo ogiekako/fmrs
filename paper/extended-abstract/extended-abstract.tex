@@ -20,6 +20,13 @@
   \renewcommand{\headrulewidth}{0pt}%
 }
 
+% URL: 表示は scheme を省いて短く、リンク先は https:// 付きの完全な URL にする。
+% \weburl{} に scheme を書かないと PDF の /URI もそのまま scheme 無しになり、
+% ビューアから開けない（= リンク切れに見える）ため。
+\newcommand{\weburl}[1]{\href{https://#1}{\nolinkurl{#1}}}
+% http 専用のサイト用（fm の配布元は 443 番を開けていない）
+\newcommand{\weburlhttp}[1]{\href{http://#1}{\nolinkurl{#1}}}
+
 % 盤面図（paper/tools/sfen2tikz.py が生成する noroshi_board.tex 用）
 \newcommand{\koma}{\fontsize{13}{13}\selectfont}
 \newcommand{\mochi}{\normalsize}
@@ -57,7 +64,7 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 
 協力詰（ばか詰）は，攻方と受方が\emph{協力して}最短手数で受方玉を詰める
 フェアリー詰将棋のルールである．チェス・プロブレムの helpmate~\cite{lange}に
-対応し，日本では1961年の提唱\cite{kanna}以来の歴史を持つ．
+対応し，日本では1961年の提唱\cite{ogino,kanna}以来の歴史を持つ．
 煙詰は，初形で盤上に多数の駒を置き，駒が煙のように消えていって詰上がりでは
 玉を含む3枚のみとなる詰将棋のジャンルである
 （伊藤看寿『将棋図巧』（1755）\cite{zuko}に始まる）．
@@ -77,7 +84,7 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 報告する（図\ref{fig:noroshi}）．本作は『詰将棋パラダイス』2026年8月号に
 特別懸賞出題される予定である\footnote{ogiekako「狼煙（のろし）」協力詰113手．
 著者は筆名 ogiekako で作品発表を行っている．}．
-本稿は新規探索アルゴリズムの性能評価というよりは，探索が停滞するたびに創作者が
+本稿は新規探索アルゴリズムの報告というよりは，探索が停滞するたびに創作者が
 探索履歴や解の構造を解析し，次に何を探索させるかを設計し直すことで
 記録的作品に到達した，計算機支援創作の事例報告である．
 
@@ -85,8 +92,8 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 \centering
 \input{noroshi_board}\\[1mm]
 {\small 盤上40枚 $\to$ 盤上3枚（113手の最短解は1通り）}
-\caption{発表作「狼煙」の初形．逆向きの駒は受方の駒．
-\url{ogiekako.github.io/fmrs/noroshi}}
+\caption{発表作「狼煙」の初形．
+\weburl{ogiekako.github.io/fmrs/noroshi}}
 \label{fig:noroshi}
 \end{figure}
 
@@ -97,10 +104,10 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 逆算法\cite{hirose1998,hirose2026}の計算機化である．3枚の詰上がりを起点に，
 層別の幅優先探索で1手ずつ逆向きに展開し，生成された各候補局面について
 最短協力手順が一意であることをキャッシュ付きの深さ制限DFSによる完全探索で
-確認する．協力詰には攻防の対立構造がなく，普通詰将棋で主力の証明数探索（df-pn）は
-適用できないため，一意性は解経路数の数え上げで判定する．
+確認する．一意性は解経路数の数え上げで判定する．協力詰には攻防の対立構造がないため，普通詰将棋で主力の証明数探索（df-pn）は
+適用外である．
 
-逆算のフロンティアは2手あたり約1.7--1.9倍で増加し，40枚に必要な70手超の
+逆算のフロンティアは2手あたり約1.7--1.9倍で増加し，単純な外挿では40枚に必要な70手超の
 遡行では$10^{10}$局面を超える．実測では768\,GBメモリの計算機でも22枚で
 限界に達し（表\ref{tab:results}），全幅探索の高速化だけでは40枚に到達できないと
 判断した．また探索対象にも制約を課した．40枚探索では，玉を除く駒のうち歩が
@@ -181,8 +188,6 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 計算機が候補を生成し，人間が探索すべき空間そのものを設計する計算機支援創作の
 一例である．普通詰将棋の煙詰自動生成\cite{hirose2026}を，
 本報告はルールの異なる協力詰側の事例として補完する．
-残る問いは40枚局面の全列挙と最長手数の決定であり，合流点からの
-メモリ有界な分割全幅探索として定式化できる．
 
 \section*{謝辞}
 
@@ -197,18 +202,19 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 \setlength{\topsep}{2pt}
 \bibitem{zuko} 伊藤看寿：『将棋図巧』第99番，1755．
 \bibitem{lange} M. Lange: \textit{Deutsche Schachzeitung}, Dec.\ 1854.
+\bibitem{ogino} S・オギノ：詰将棋パラダイス，第67号，1961．（ばか詰の提唱）
 \bibitem{kanna} 神無七郎：神無一族の氾濫 第19回．
-\url{k7ro.sakura.ne.jp/overflow/hr19.htm}
+\weburl{k7ro.sakura.ne.jp/overflow/hr19.htm}
 \bibitem{tetsu2004} TETSU：協力詰の煙詰．詰将棋メモ，2004．
-\url{toybox.tea-nifty.com/memo/2004/10/post_23.html}
+\weburl{toybox.tea-nifty.com/memo/2004/10/post_23.html}
 \bibitem{mozu2004} mozuyama：ばか煙．勝手に将棋トピックス，2004．
-\url{mozuyama.hatenadiary.org/entry/20041024/P20041024BAKAKEMURI}
+\weburl{mozuyama.hatenadiary.org/entry/20041024/P20041024BAKAKEMURI}
 \bibitem{hirose1998} 広瀬正幸，伊藤琢巳，松原仁：逆算法による詰め将棋の自動創作．
 人工知能学会誌，Vol.~13，No.~3，pp.~452--460，1998．
 \bibitem{hirose2026} 広瀬稔，馬屋原剛：独自の評価関数に基づいた煙詰の自動生成．
 情報処理学会研究報告，Vol.~2026-GI-57，No.~4，2026．
-\bibitem{fmrs} K. Oka: fmrs．\url{github.com/ogiekako/fmrs}
-\bibitem{fm} 神無次郎：fm．\url{www.dokidoki.ne.jp/home2/takuji/FM.html}
+\bibitem{fmrs} K. Oka: fmrs．\weburl{github.com/ogiekako/fmrs}
+\bibitem{fm} 神無次郎：fm．\weburlhttp{www.dokidoki.ne.jp/home2/takuji/FM.html}
 \end{thebibliography}
 
 \end{document}
