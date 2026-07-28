@@ -7,7 +7,32 @@ function basePath(): string {
   return "/";
 }
 
+// 作品の恒久リンク。/fmrs/<名前> で該当局面を開く。
+// 読み込み後、URL は通常の SFEN 形式に置き換わる。
+const NAMED_POSITIONS: Record<string, string> = {
+  noroshi:
+    "8+P/6K1p/4S3+P/3+Pp+PP+pn/2BpPP1p1/3Bk+p+p1P/1RRs+lgLNG/2SPNlNPG/G+pL4S1 b - 1",
+};
+
+function namedPosition(): string | null {
+  const base = basePath();
+  const path = window.location.pathname;
+  if (!path.startsWith(base)) {
+    return null;
+  }
+  const name = path.slice(base.length).replace(/\/$/, "").toLowerCase();
+  return NAMED_POSITIONS[name] ?? null;
+}
+
+export function isNamedPositionUrl(): boolean {
+  return namedPosition() !== null;
+}
+
 export function sfenFromUrl(): string | null {
+  const named = namedPosition();
+  if (named) {
+    return named;
+  }
   const base = basePath();
   const path = window.location.pathname;
   if (path.startsWith(base) && path.length > base.length) {

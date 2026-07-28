@@ -5,7 +5,14 @@ import Position from "./Position";
 import Problems from "./Problems";
 import Sfen from "./Sfen";
 import SolveButton from "./SolveButton";
-import { decodeSfen, encodeSfen, sfenFromUrl, sfenToPath, isOldFormatUrl } from "../../model";
+import {
+  decodeSfen,
+  encodeSfen,
+  sfenFromUrl,
+  sfenToPath,
+  isOldFormatUrl,
+  isNamedPositionUrl,
+} from "../../model";
 
 export function Editor(props: {}) {
   const [state, dispatch] = useReducer(reduce, newState());
@@ -15,7 +22,7 @@ export function Editor(props: {}) {
   const url = new URL(window.location.href);
   if (url.pathname !== targetPath || url.search) {
     const newHref = window.location.origin + targetPath + window.location.hash;
-    if (isOldFormatUrl()) {
+    if (isOldFormatUrl() || isNamedPositionUrl()) {
       window.history.replaceState({}, "", newHref);
     } else {
       window.history.pushState({}, "", newHref);

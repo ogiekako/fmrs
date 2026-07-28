@@ -6,4 +6,9 @@ export { type Board, emptyBoard } from "./board";
 export { type Position, emptyPosition } from "./position";
 export { clonePosition } from "./clone";
 export { encodeSfen, decodeSfen } from "./sfen";
-export { sfenFromUrl, sfenToPath, isOldFormatUrl } from "./url";
+export {
+  sfenFromUrl,
+  sfenToPath,
+  isOldFormatUrl,
+  isNamedPositionUrl,
+} from "./url";
