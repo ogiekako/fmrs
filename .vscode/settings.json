@@ -4,5 +4,59 @@
     },
     "[typescriptreact]": {
         "editor.tabSize": 2
-    }
+    },
+    // paper/ の原稿は ltjsarticle (LuaTeX-ja) を使うため LuaLaTeX 必須。
+    // LaTeX Workshop 既定の pdflatex レシピでは
+    // "Package luatexja-core Error: This package requires Lua(HB)(La)TeX." で失敗する。
+    "latex-workshop.latex.tools": [
+        {
+            "name": "latexmk-lualatex",
+            "command": "latexmk",
+            "args": [
+                "-lualatex",
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "-outdir=%OUTDIR%",
+                "%DOC%"
+            ],
+            "env": {}
+        },
+        {
+            "name": "lualatex",
+            "command": "lualatex",
+            "args": [
+                "-synctex=1",
+                "-interaction=nonstopmode",
+                "-file-line-error",
+                "%DOC%"
+            ],
+            "env": {}
+        }
+    ],
+    "latex-workshop.latex.recipes": [
+        {
+            "name": "latexmk (lualatex)",
+            "tools": [
+                "latexmk-lualatex"
+            ]
+        },
+        {
+            "name": "lualatex x2",
+            "tools": [
+                "lualatex",
+                "lualatex"
+            ]
+        }
+    ],
+    "latex-workshop.view.pdf.viewer": "tab",
+    "latex-workshop.latex.clean.fileTypes": [
+        "*.aux",
+        "*.fdb_latexmk",
+        "*.fls",
+        "*.log",
+        "*.out",
+        "*.synctex.gz",
+        "*.toc"
+    ]
 }
