@@ -10,7 +10,7 @@ all: abstract
 abstract: extended-abstract/extended-abstract.pdf
 
 extended-abstract/noroshi_board.tex: tools/sfen2tikz.py
-	python3 tools/sfen2tikz.py '$(NOROSHI_SFEN)' 4.4 4.8 > $@
+	python3 tools/sfen2tikz.py '$(NOROSHI_SFEN)' 5.2 5.6 > $@
 
 # lualatex を2回: 1回目で相互参照(\ref, 文献番号)を .aux に書き、2回目で解決する
 extended-abstract/extended-abstract.pdf: \

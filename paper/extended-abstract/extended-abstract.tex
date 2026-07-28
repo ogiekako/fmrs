@@ -90,9 +90,8 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 
 \begin{figure}[t]
 \centering
-\input{noroshi_board}\\[1mm]
-{\small 盤上40枚 $\to$ 盤上3枚（113手の最短解は1通り）}
-\caption{発表作「狼煙」の初形．
+\input{noroshi_board}
+\caption{発表作「狼煙」協力詰113手（盤上40枚，詰上がり3枚）．
 \weburl{ogiekako.github.io/fmrs/noroshi}}
 \label{fig:noroshi}
 \end{figure}
@@ -104,11 +103,11 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 逆算法\cite{hirose1998,hirose2026}の計算機化である．3枚の詰上がりを起点に，
 層別の幅優先探索で1手ずつ逆向きに展開し，生成された各候補局面について
 最短協力手順が一意であることをキャッシュ付きの深さ制限DFSによる完全探索で
-確認する．一意性は解経路数の数え上げで判定する．協力詰には攻防の対立構造がないため，普通詰将棋で主力の証明数探索（df-pn）は
-適用外である．
+確認する．協力詰には攻防の対立構造がないため，普通詰将棋で主力の
+証明数探索（df-pn）は適用外である．
 
-逆算のフロンティアは2手あたり約1.7--1.9倍で増加し，単純な外挿では40枚に必要な
-70手超の遡行で$10^{10}$局面を超える．実測では768\,GBメモリの計算機でも22枚で
+逆算のフロンティアは指数的に増え，40枚に必要な70手超の遡行では
+単純な外挿でも$10^{10}$局面を超える．実測では768\,GBメモリの計算機でも22枚で
 限界に達し（表\ref{tab:results}），全幅探索の高速化だけでは40枚に到達できないと
 判断した．そこで，探索空間を制約で絞り，評価関数で展開の優先度を付ける方針を
 採った（普通詰将棋の煙詰自動生成\cite{hirose2026}に倣う）．40枚探索では，玉を除く駒のうち歩が44\%以上を占めること，および
@@ -142,9 +141,9 @@ Computer-Aided Composition through Stepwise Design and Refinement of Search Meth
 \toprule
 追加した工夫 & 駒数 & 備考 \\
 \midrule
-全幅逆算探索 & 22 & 768\,GB，制約が別 \\
+全幅逆算探索 & 22 & 制約が別 \\
 ビーム選択（乱択） & 30 & 幅$10^5$ \\
-探索履歴から学習した評価 & 35 & 同幅（$3{\times}10^5$で37） \\
+探索履歴から学習した評価 & 35 & 同幅 \\
 深さに応じた幅の配分 & 39 & 107手・438局 \\
 解構造の分析に基づく再始動 & 40 & 113手 \\
 \bottomrule
