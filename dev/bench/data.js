@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1784353684221,
+  "lastUpdate": 1785233797583,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48734,6 +48734,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/47bd0d40b52af2c7cc96f43d4aa7674221b9adf5"
         },
         "date": 1784353677442,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125203,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435716076,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "832171ed98037043ee17f810049b79e010474df7",
+          "message": "docs(paper): 原稿中の TODO 5件を解消し2ページに収める\n\n- 探索制約の具体値を本文に記載（歩44%以上、飛角は駒数31から・香桂は\n  駒数8から2枚ごとに1枚。smoke_constraints.rs の実装から確認）\n- 「幅ランプ」を「幅の段階拡大」等の平易な表現に置き換え\n- §4冒頭の口語調を改める\n- スポットインスタンス利用と謝辞（神無七郎氏）を追記\n- 図1キャプションに恒久リンク ogiekako.github.io/fmrs/noroshi を追加\n- 参考文献の字下げ・余白・盤面サイズを調整して2ページ以内に戻す",
+          "timestamp": "2026-07-28T09:57:34Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/832171ed98037043ee17f810049b79e010474df7"
+        },
+        "date": 1785233794079,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
