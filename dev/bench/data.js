@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785238904261,
+  "lastUpdate": 1785238907208,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45289,6 +45289,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 24694,
             "range": "± 122",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "1ae1567ee2745d2f5280e3a1c5b3a28970257f78",
+          "message": "docs(paper): §1 を背景と到達結果に絞り、空いた紙幅を主張の裏付けに回す\n\n§1 の歴史的経緯（helpmate との対応、1961年の提唱、25枚の詳細な引用文）は\nextended abstract には過剰だったため落とし、査読者が必要とする\n「何が難しく、何を達成したか」に絞った。節名も「背景と到達結果」に。\n\n- 「著者の知る限り、協力詰における初の全駒煙である」を明示\n- 参照されなくなった文献3件(lange, ogino, kanna)を削除し 10件→7件\n- 空いた紙幅で、紙幅の都合で削っていた以下を復活\n  - 本稿の位置づけ（新規アルゴリズムの報告ではなく計算機支援創作の事例報告）\n  - 生存局面の割合の実測値（詰みから11手で2.6%、31手で0.02%）",
+          "timestamp": "2026-07-28T11:23:13Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/1ae1567ee2745d2f5280e3a1c5b3a28970257f78"
+        },
+        "date": 1785238906396,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 395,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2787,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 188,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 404,
+            "range": "± 598",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25703,
+            "range": "± 191",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1624,
+            "range": "± 25",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4591,
+            "range": "± 30",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1351535,
+            "range": "± 562",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11357,
+            "range": "± 45",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 184,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 107,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 145,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19247385,
+            "range": "± 90300",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28571,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3313,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17297,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 31015,
+            "range": "± 10",
             "unit": "ns/iter"
           }
         ]
