@@ -1,5 +1,6 @@
 /node_modules
 cachegrind.out.*
+texput.log
 package-lock.json
 .claude/
 rust/analysis/smoke_cone/data_v2/*.bin
