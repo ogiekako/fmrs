@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785238907208,
+  "lastUpdate": 1785557934665,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -49152,6 +49152,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 435716076,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "385940a7e1a1ba58f5494d5a58cb069380114cc4",
+          "message": "chore(ci): Cloud Run デプロイのアクションを Node 24 世代へ更新\n\ncheckout v4→v7 / google-github-actions auth v2→v3 / setup-gcloud v2→v3。\nauth v3 は \"Bump to Node 24 and remove old parameters\" だが、本ワークフローが\n使う credentials_json は v3 の action.yml にも残っていることを確認済み。",
+          "timestamp": "2026-08-01T04:01:15Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/385940a7e1a1ba58f5494d5a58cb069380114cc4"
+        },
+        "date": 1785557931372,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125203,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435716016,
             "unit": "Instructions"
           }
         ]
