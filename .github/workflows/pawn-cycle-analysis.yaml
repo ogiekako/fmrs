@@ -1,0 +1,54 @@
+name: Pawn cycle analysis
+
+on:
+  push:
+    branches:
+      - analysis/pawn-cycle-20260801
+    paths:
+      - ".github/workflows/pawn-cycle-analysis.yaml"
+      - "analysis/pawn_cycle_trigger.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  solve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: analysis/pawn-cycle-20260801
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Solve corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ../analysis/pawn_cycle/results
+          sfens=(
+            '1K1R1r1S1/L2+Pl1L+NB/3+P+ng1N1/1nps2g1P/1gbl1g1P1/1kP1s1P2/3P1P3/4+p4/P1s1P4 b P5p 1'
+            'l5npg/1KB3rLs/1GL3sr1/k1LG1sp1P/1nnNsp1P1/P3p1P2/1P1P1P3/2P1P4/2b5g b 5p 1'
+            '+PS2b2+P+P/S1L+L3PP/1N1+PNG1KB/2ppgS3/1P1gLPP1p/2P1p1pk1/3PP+p3/3g2l2/5srrN b N 1'
+            'g1K2+B1r1/GL1lg1+bl1/2k1+P2n1/4gn1nl/1nrppss2/P1p2s3/8P/3P5/1PPsPPPP1 b 5P 1'
+            'G+p2GSGSG/1l2S1S1P/1p1L1N1N+R/k1+P3PP1/+r1b3N2/3b4N/1P6+p/2P6/3PPLL1K b P6p 1'
+          )
+          for i in "${!sfens[@]}"; do
+            n=$((i+1))
+            echo "Solving $n" >&2
+            /usr/bin/time -v cargo run -r -- solve standard "${sfens[$i]}" \
+              > "../analysis/pawn_cycle/results/${n}.stdout.txt" \
+              2> "../analysis/pawn_cycle/results/${n}.stderr.txt"
+          done
+      - name: Commit results
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add analysis/pawn_cycle/results
+          git commit -m 'analysis: store pawn-cycle solve outputs' || exit 0
+          git push origin HEAD:analysis/pawn-cycle-20260801
