@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785557934665,
+  "lastUpdate": 1785557937145,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45431,6 +45431,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 31015,
             "range": "± 10",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "385940a7e1a1ba58f5494d5a58cb069380114cc4",
+          "message": "chore(ci): Cloud Run デプロイのアクションを Node 24 世代へ更新\n\ncheckout v4→v7 / google-github-actions auth v2→v3 / setup-gcloud v2→v3。\nauth v3 は \"Bump to Node 24 and remove old parameters\" だが、本ワークフローが\n使う credentials_json は v3 の action.yml にも残っていることを確認済み。",
+          "timestamp": "2026-08-01T04:01:15Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/385940a7e1a1ba58f5494d5a58cb069380114cc4"
+        },
+        "date": 1785557936534,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 397,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2745,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 189,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 407,
+            "range": "± 608",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25642,
+            "range": "± 115",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1640,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4645,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1319995,
+            "range": "± 555",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 11456,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 178,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 108,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 49,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 158,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 38,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19064539,
+            "range": "± 80825",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27526,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3267,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17241,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 29851,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
