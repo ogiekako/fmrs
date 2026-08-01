@@ -40,8 +40,13 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # apt-get update を省くと、ランナーイメージに焼かれた古いインデックスを使う。
+      # Ubuntu 側でポイントリリースが差し替わると、そこに載っている .deb は
+      # アーカイブから消えるため 404 で失敗する（valgrind の依存 libc6-dbg で実際に発生）。
       - name: Install Valgrind
-        run: sudo apt-get install -y valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
 
       - name: Install iai-callgrind-runner
         run: |
