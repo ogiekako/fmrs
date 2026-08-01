@@ -1,0 +1,27 @@
+[1m[92m    Finished[0m `release` profile [optimized] target(s) in 0.16s
+[1m[92m     Running[0m `target/release/fmrs solve standard 'G+p2GSGSG/1l2S1S1P/1p1L1N1N+R/k1+P3PP1/+r1b3N2/3b4N/1P6+p/2P6/3PPLL1K b P6p 1'`
+Solved in 3933 steps
+last state: https://ogiekako.github.io/fmrs/4GSGSG/+pl2SkS1P/1p1L1N+RN1/1+r3G1P1/P1b3N2/1P1b4N/2P5+p/3P5/5LL1K_w_9p_1
+	Command being timed: "cargo run -r -- solve standard G+p2GSGSG/1l2S1S1P/1p1L1N1N+R/k1+P3PP1/+r1b3N2/3b4N/1P6+p/2P6/3PPLL1K b P6p 1"
+	User time (seconds): 0.66
+	System time (seconds): 0.08
+	Percent of CPU this job got: 100%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:00.74
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 87156
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 19514
+	Voluntary context switches: 286
+	Involuntary context switches: 4
+	Swaps: 0
+	File system inputs: 0
+	File system outputs: 80
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
