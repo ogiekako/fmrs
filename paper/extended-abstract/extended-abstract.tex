@@ -24,8 +24,6 @@
 % \weburl{} に scheme を書かないと PDF の /URI もそのまま scheme 無しになり、
 % ビューアから開けない（= リンク切れに見える）ため。
 \newcommand{\weburl}[1]{\href{https://#1}{\nolinkurl{#1}}}
-% http 専用のサイト用（fm の配布元は 443 番を開けていない）
-\newcommand{\weburlhttp}[1]{\href{http://#1}{\nolinkurl{#1}}}
 
 % 盤面図（paper/tools/sfen2tikz.py が生成する noroshi_board.tex 用）
 \newcommand{\koma}{\fontsize{13}{13}\selectfont}
@@ -206,7 +204,7 @@ fmrs の完全探索により，各40枚候補に113手未満の解がなく，
 \bibitem{hirose2026} 広瀬稔，馬屋原剛：独自の評価関数に基づいた煙詰の自動生成．
 情報処理学会研究報告，Vol.~2026-GI-57，No.~4，2026．
 \bibitem{fmrs} K. Oka: fmrs．\weburl{github.com/ogiekako/fmrs}
-\bibitem{fm} 神無次郎：fm．\weburlhttp{www.dokidoki.ne.jp/home2/takuji/FM.html}
+\bibitem{fm} 神無次郎：fm．\weburl{k7ro.sakura.ne.jp/fm.html}
 \end{thebibliography}
 
 \end{document}
