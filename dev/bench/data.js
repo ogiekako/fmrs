@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786063254442,
+  "lastUpdate": 1786065093284,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -49510,6 +49510,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/4def8b29475464bd3846602384c92a2536ec393e"
         },
         "date": 1786063247196,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125203,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435716016,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "6798b27b7a40c0e2e175bad1b0d6b9b41209b34a",
+          "message": "Merge pull request #4 from ogiekako/docs/smoke-docs-followup\n\ndocs(smoke): 記述の誤りを修正し、REPORT.md を日本語化",
+          "timestamp": "2026-08-07T00:54:07Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/6798b27b7a40c0e2e175bad1b0d6b9b41209b34a"
+        },
+        "date": 1786065088630,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
