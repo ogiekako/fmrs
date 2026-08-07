@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785557937145,
+  "lastUpdate": 1786063251095,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -49316,6 +49316,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/385940a7e1a1ba58f5494d5a58cb069380114cc4"
         },
         "date": 1785557931372,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125203,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435716016,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "4def8b29475464bd3846602384c92a2536ec393e",
+          "message": "Merge pull request #2 from ogiekako/docs/smoke-feature-docs\n\ndocs(smoke): 特徴量 85 次元の定義と寄与度分析を追加",
+          "timestamp": "2026-08-07T00:23:42Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4def8b29475464bd3846602384c92a2536ec393e"
+        },
+        "date": 1786063247196,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
