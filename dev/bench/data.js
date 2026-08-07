@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786063251095,
+  "lastUpdate": 1786063254442,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45573,6 +45573,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 29851,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "GitHub",
+            "username": "web-flow",
+            "email": "noreply@github.com"
+          },
+          "id": "4def8b29475464bd3846602384c92a2536ec393e",
+          "message": "Merge pull request #2 from ogiekako/docs/smoke-feature-docs\n\ndocs(smoke): 特徴量 85 次元の定義と寄与度分析を追加",
+          "timestamp": "2026-08-07T00:23:42Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4def8b29475464bd3846602384c92a2536ec393e"
+        },
+        "date": 1786063253301,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 403,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3229,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 402,
+            "range": "± 620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29609,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1835,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4853,
+            "range": "± 38",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1393656,
+            "range": "± 1068",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12219,
+            "range": "± 427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 113,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 53,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 143,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20473208,
+            "range": "± 40947",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 29850,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3582,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18521,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 33067,
+            "range": "± 116",
             "unit": "ns/iter"
           }
         ]
