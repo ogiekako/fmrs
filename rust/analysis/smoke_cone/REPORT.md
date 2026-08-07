@@ -1,24 +1,26 @@
-# Smoke best-cone analysis
+# 煙詰 best-cone 解析
 
-Investigation into how the *useful* part of the single-king-smoke backward
-search relates to the full frontier, and what that implies for the project goal:
-**construct the maximum-piece cooperative smoke-mate (target 40 pieces).**
+single-king-smoke の逆算探索において、frontier 全体のうち*実際に役に立っている*部分が
+どれだけを占めるのか、そしてそれがプロジェクトの目標——
+**最多枚数の協力詰煙詰（目標 40 枚）の構成**——にとって何を意味するのかの調査。
 
-Reproduce with [`run.sh`](run.sh) (drives a `--max-step 37` run that dumps the
-per-step max-piece "best" positions, then runs
-[`fmrs_core/tests/smoke_cone_analysis.rs`](../../fmrs_core/tests/smoke_cone_analysis.rs)).
-Raw inputs are committed under [`data/`](data/). Run config: the standard 5-min
-seed `8k/6K+P1/...` with `--min-pawn-pct 60 --rook-bishop-allow-start 31
---lance-knight-allow-start 8 --max-file 7 --canonicalize-attacker-goldish`.
+再現は [`run.sh`](run.sh)（`--max-step 37` の実行で step ごとの最多枚数「best」局面を出力し、
+続けて [`fmrs_core/tests/smoke_cone_analysis.rs`](../../fmrs_core/tests/smoke_cone_analysis.rs)
+を実行する）。生の入力は [`data/`](data/) にコミット済み。実行設定は標準の 5 分 seed
+`8k/6K+P1/...` に `--min-pawn-pct 60 --rook-bishop-allow-start 31
+--lance-knight-allow-start 8 --max-file 7 --canonicalize-attacker-goldish` を付けたもの。
 
-All position counts are **canonical** (goldish-collapsed) to match how the
-frontier dedups; `step` = plies remaining to mate (frontier exists at odd steps).
+局面数はすべて frontier の重複排除に合わせた **canonical**（goldish 縮約後）の値。
+`step` = 詰みまでの残り手数（frontier は奇数 step に存在する）。
 
-## 1. The "best cone" is a vanishingly thin sliver of the frontier
+- 特徴量 85 次元の定義は [`FEATURES.md`](FEATURES.md)。
+- そのうちどれが効いているかは [`FEATURE_IMPORTANCE.md`](FEATURE_IMPORTANCE.md)。
 
-Take the 352 max-piece (18-piece) best positions at the deepest step (37),
-reconstruct each unique solution, and trace it toward mate. The distinct
-positions on these paths ("cone") per step, vs the full frontier:
+## 1. 「best cone」は frontier の中の極めて薄い切片でしかない
+
+最深 step（37）における最多枚数（18 枚）の best 局面 352 個を取り、それぞれの一意な解を
+再構成して詰み方向へ辿る。これらの経路上に現れる相異なる局面（「cone」）の step ごとの数を、
+frontier 全体と比べる：
 
 | step | cone | frontier | cone/frontier |
 |---:|---:|---:|---:|
@@ -31,17 +33,17 @@ positions on these paths ("cone") per step, vs the full frontier:
 | 7 | 2 | 112 | 1.79% |
 | 1 | 1 | 1 | 100% |
 
-The whole 18-piece result funnels through **1–2 canonical positions** across the
-entire mid-game. 99.998% of the step-37 frontier is not on any deepest-best path.
+18 枚の結果は、中盤全体を通じて **1〜2 個の canonical 局面**に収束している。
+step 37 の frontier の 99.998% は、最深 best へ至るいかなる経路上にも乗っていない。
 
-## 2. "Live fraction": how much frontier ever contributes to a best
+## 2. 「live 率」：frontier のうち best に寄与するのはどれだけか
 
-The central question: of the frontier at a shallow step, how much is an
-*ancestor of a max-piece best at some deeper step* (vs dead weight)?
+中心的な問い：浅い step の frontier のうち、*より深い step の最多枚数 best の祖先*である
+ものはどれだけか（残りは無駄な重み）。
 
-`live_deep` = canonical frontier positions whose descendants appear as the
-max-piece best at some **strictly deeper** step (this is the user's question);
-`live` additionally counts being max-piece best at the step itself.
+`live_deep` = **厳密により深い** step で最多枚数 best として現れる子孫を持つ canonical
+frontier 局面（これが元々の問い）。`live` はこれに加えて、その step 自体で最多枚数 best で
+あるものも数える。
 
 | step | live_deep | live | frontier | live_deep/frontier | live/frontier |
 |---:|---:|---:|---:|---:|---:|
@@ -56,164 +58,155 @@ max-piece best at some **strictly deeper** step (this is the user's question);
 | 9 | 20 | 33 | 298 | 6.71% | 11.1% |
 | 7 | 14 | 14 | 112 | 12.5% | 12.5% |
 
-**Answer to the step-11 question:** of the 1,816 canonical positions in the
-step-11 frontier, only **47 (2.6%)** have a descendant that ever becomes the
-max-piece best deeper; **83 (4.6%)** are live including being best at step 11
-itself. **~95% are dead** — they never contribute to any max-piece result.
+**step 11 の問いへの答え：** step 11 の frontier にある canonical 局面 1,816 個のうち、
+より深い step で最多枚数 best になる子孫を持つものは **47 個（2.6%）**のみ。step 11 自体で
+best であるものを含めても **83 個（4.6%）**。**約 95% は dead** であり、いかなる最多枚数の
+結果にも寄与しない。
 
-The live fraction *falls* with depth (step 11: 2.6% → step 31: 0.02%). The
-deeper the search, the larger the share of frontier work that is, in hindsight,
-irrelevant to the maximal-piece answer.
+live 率は深くなるほど*下がる*（step 11: 2.6% → step 31: 0.02%）。探索が深くなるほど、
+最多枚数の答えにとって——後から見れば——無関係な frontier 上の作業の割合が増えていく。
 
-> Caveat: this is **descriptive, not a pruning rule** — we cannot know a priori
-> which 3% is live (that is the search result). Dead positions are also not
-> "wasted" for *correctness*: they are still needed to *prove* uniqueness of the
-> live ones. (The shallow steps 1–5 show >100% because the frontier there is a
-> seed-initialization artifact, not a true unique-position count.)
+> 注意：これは**記述的な観察であって枝刈り規則ではない**。どの 3% が live なのかを事前に
+> 知ることはできない（それこそが探索の結果である）。また dead な局面は*正しさ*の観点では
+> 「無駄」ではない。live な局面の一意性を*証明*するために依然として必要である。
+> （step 1〜5 で 100% を超えるのは、そこでの frontier が seed 初期化の副産物であり、
+> 真の一意局面数ではないため。）
 
-## 3. Piece-count trajectory — the "smoke" shape
+## 3. 駒数の推移——「煙」の形
 
-Along the deepest cone, piece count is monotone toward mate (min==max at every
-step on the cone, i.e. the cone is single-valued in piece count):
+最深 cone に沿って、駒数は詰みに向かって単調である（cone 上の各 step で min == max、
+すなわち cone は駒数について一価）：
 
 ```
 step  37 35 33 31 29 27 25 23 21 19 17 15 13 11  9  7  5  3  1
-pieces 18 16 14 15 14 12 13 12 11 11 11 10  9  8  7  6  5  4  3
+枚数  18 16 14 15 14 12 13 12 11 11 11 10  9  8  7  6  5  4  3
 ```
 
-Two observations matter for the 40-piece goal:
+40 枚の目標にとって重要な観察が 2 つある：
 
-- The cone rides the admissible bound `max = step/2 + 3` **early** (step 11:
-  8 pieces = the bound) but **falls below it at depth** (step 37: 18 vs bound
-  21 — a 3-piece gap). For this seed/constraints you cannot keep adding a piece
-  every 2 plies; the achievable maximum grows sub-linearly in the bound.
-- The per-step max-piece positions *are* the cone (the global-best solution
-  passes through the highest-piece position available at each step). So **piece
-  count is a strong guidance signal**: a search biased toward high-piece
-  positions naturally follows the live cone.
+- cone は**浅いうち**は許容上界 `max = step/2 + 3` に張り付いている（step 11 では
+  8 枚 = 上界）が、**深部では上界から離れる**（step 37 で 18 枚に対し上界 21——3 枚の差）。
+  この seed と制約のもとでは、2 手ごとに 1 枚ずつ増やし続けることはできず、
+  達成可能な最大値は上界に対して劣線形にしか伸びない。
+- step ごとの最多枚数局面が*そのまま* cone になっている（大域最良解は、各 step で
+  利用可能な最多枚数の局面を通る）。したがって**駒数は強い誘導信号**であり、
+  高駒数の局面を優先する探索は自然と live cone を辿ることになる。
 
-## 4. Implications for reaching 40 pieces
+## 4. 40 枚到達に向けた含意
 
-- **Exact full-width is infeasible.** 40 pieces needs step ≈ `2·(40−3) = 74`
-  (and likely deeper, given the sub-linear gap above). The frontier grows
-  **~1.7× per 2 steps** (4.06M @ 37). Extrapolating to step 74 gives
-  ~1.7^18 × 4M ≈ **10^10–10^11 positions** — far beyond memory (the run already
-  OOMs near step 38–39 on 128 GB).
-- **The problem is search *guidance*, not search *speed*.** Sections 1–2 show the
-  relevant cone is ~0.002–5% of the frontier and strongly convergent. A beam /
-  heuristic that retains the live cone could reach deep bests at a tiny fraction
-  of the cost; the engine already has a beam mode. The open problem is a *scoring
-  function that keeps the live ~3% per step* without dropping the eventual best.
-- **Piece count is the obvious first beam feature** (§3): the best cone coincides
-  with the per-step max-piece set. Promising next step: evaluate a beam keyed on
-  (piece count, promoted/pawn structure) and measure cone retention vs beam width
-  — i.e. how narrow a beam still recovers the 18-piece (and deeper) bests.
+- **厳密な全幅探索は不可能。** 40 枚には step ≈ `2·(40−3) = 74` が必要（上記の劣線形な
+  ずれを考えるとおそらくもっと深い）。frontier は **2 step ごとに約 1.7 倍**に増える
+  （step 37 で 406 万）。step 74 まで外挿すると 1.7^18 × 400 万 ≈ **10^10〜10^11 局面**——
+  メモリの限界を遥かに超える（実際 128 GB では step 38〜39 付近で OOM する）。
+- **問題は探索の*速度*ではなく*誘導*である。** §1〜2 が示す通り、関係する cone は
+  frontier の 0.002〜5% であり、しかも強く収束している。live cone を保持できる
+  beam やヒューリスティクスがあれば、ごく僅かなコストで深部の best に到達できるはずである。
+  エンジンには既に beam モードがある。未解決なのは、*最終的な best を落とさずに
+  step ごとの live な約 3% を保持するスコア関数*である。
+- **駒数が最初の beam 特徴として自明な候補**（§3）。best cone は step ごとの最多枚数集合と
+  一致するため。次の一手として有望なのは、（駒数, 成駒・歩の構成）を鍵にした beam を評価し、
+  beam 幅に対する cone の保持率を測ること——つまり、どこまで beam を絞っても
+  18 枚（およびそれより深い）の best を復元できるかを調べることである。
 
-## 5. Labeled ML dataset (`data/dataset.csv`)
+## 5. ラベル付き ML データセット（`data/dataset.csv`）
 
-To make "which positions are live" *learnable* (a beam scoring function toward
-40 pieces), `run.sh` emits a labeled dataset. Each row is one canonical
-output-valid frontier position (deduped by canonical digest).
+「どの局面が live か」を*学習可能*にするため（40 枚に向けた beam スコア関数のため）、
+`run.sh` はラベル付きデータセットを出力する。各行は 1 つの canonical な output-valid
+frontier 局面（canonical digest で重複排除済み）。
 
-| column | meaning |
+| 列 | 意味 |
 |---|---|
-| `step` | plies remaining to mate |
-| `piece_count` | board pieces (feature) |
-| `live_deeper` | 1 if an ancestor of a max-piece best at a STRICTLY deeper step (cone-based; strict, rare) |
-| `max_best_depth` | deepest step at which it is an ancestor of a max-piece best (0 if none) |
-| `best_piece_reachable` | **regression target**: max piece count of any deep endpoint reachable from it (lower bound, from tracing per-step bests + a subsample of deep frontier positions back toward mate) |
-| `sfen` | the position (featurize downstream) |
+| `step` | 詰みまでの残り手数 |
+| `piece_count` | 盤上の駒数（特徴） |
+| `live_deeper` | **厳密により深い** step の最多枚数 best の祖先なら 1（cone ベース、厳しい条件で稀） |
+| `max_best_depth` | 最多枚数 best の祖先となる最深の step（該当なしなら 0） |
+| `best_piece_reachable` | **回帰ターゲット**：そこから到達可能な深部終点の最大駒数（下界。step ごとの best と深部 frontier の部分標本を詰み方向へ辿って算出） |
+| `sfen` | 局面（特徴量化は下流で行う） |
 
-Row sources: all per-step max-piece bests (the discriminative population) plus a
-uniform frontier sample (broad negatives). Dedup by canonical digest.
+行の出所は、step ごとの最多枚数 best すべて（識別に効く母集団）と、frontier からの一様標本
+（広い負例）。canonical digest で重複排除。
 
-The committed `data/dataset.csv` is from a **deep GCP run to step 49** (exact,
-non-split with `--memo-retain-from-step 999` so memory tracks the frontier, on
-n2d-highmem-96 / 768 GB; the frontier OOMs near step 38–39 on 128 GB locally):
+コミットされている `data/dataset.csv` は **step 49 までの GCP 上の深い実行**によるもの
+（厳密・非分割、`--memo-retain-from-step 999` によりメモリが frontier に追随する設定、
+n2d-highmem-96 / 768 GB。ローカルの 128 GB では frontier は step 38〜39 付近で OOM する）：
 
-- **282,088 rows**; `best_piece_reachable` spans **3–22 pieces** (mass at 11–15;
-  ~3,650 rows reach 19–22). `live_deeper == 1`: 769 (strict cone label).
-- `best_piece_reachable` floor = the position's own piece count (a position
-  trivially reaches its own count; deeper descendants only add pieces), raised
-  by traced deep endpoints — so it is a **lower bound** on true reachable value,
-  also capped by the run depth (49). Tracing is subsampled
-  (`FMRS_BEST_TRACE_CAP`, `FMRS_TRACE_CAP`) so deep `max_best_depth` labels are
-  themselves lower bounds.
+- **282,088 行**。`best_piece_reachable` は **3〜22 枚**に分布（質量は 11〜15 に集中、
+  19〜22 に達するのは約 3,650 行）。`live_deeper == 1` は 769 行（厳しい cone ラベル）。
+- `best_piece_reachable` の下限はその局面自身の駒数（局面は自明に自分の駒数に到達でき、
+  深部の子孫は駒を増やすだけ）であり、辿った深部終点によって引き上げられる。よってこれは
+  真の到達値の**下界**であり、実行の深さ（49）によっても頭打ちになる。トレースは部分標本
+  （`FMRS_BEST_TRACE_CAP`, `FMRS_TRACE_CAP`）なので、深い `max_best_depth` のラベル自体も
+  下界である。
 
-Reaching 30+ pieces exactly is infeasible (frontier grows ~1.9×/2 steps → ~10^9
-at step ~58); the next extension is **beam** (top-K) sampling past the exact
-depth (see §4).
+30 枚以上に厳密に到達するのは不可能（frontier は 2 step ごとに約 1.9 倍 → step 58 付近で
+10^9）。次の拡張は、厳密探索の深さを超えた先での **beam**（top-K）サンプリングである（§4）。
 
-## 6. Learning a beam scorer ("why does a position live?")
+## 6. beam スコアラの学習（「なぜその局面は live なのか」）
 
-Goal: a model that, at a given step, ranks frontier positions by how deep/
-high-piece their descendants reach — a beam scoring function toward 40 pieces.
+目標は、ある step において frontier の局面を「その子孫がどれだけ深く・高駒数まで届くか」で
+順位付けするモデル——40 枚に向けた beam スコア関数である。
 
-Pipeline: `single-king-smoke cone-features --dataset data/dataset.csv -o train.csv`
-(runs `extract_features` per position) → `train_cone_model.py` → a `LinearModel`
-JSON for the Rust beam (`--beam-model`). Composer-intuition features were added
-to `extract_features` (king liberties / safe flights / flight coverage / escape
-depth / ray freedom / net tightness, white mobility, board dispersion &
-centroid, promoted count, and an opt-in `black_check_moves`), plus `step`
-(phase).
+パイプライン：`single-king-smoke cone-features --dataset data/dataset.csv -o train.csv`
+（局面ごとに `extract_features` を実行）→ `train_cone_model.py` → Rust の beam 用
+（`--beam-model`）の `LinearModel` JSON。`extract_features` には作家の直感に相当する特徴を
+追加した（玉の liberties / safe flights / flight coverage / escape depth / ray freedom /
+net tightness、玉方の mobility、盤面の分散と重心、成駒数、opt-in の `black_check_moves`）。
+加えて `step`（局面の位相）。
 
-Key methodological point: `best_piece_reachable` is **dominated by the current
-piece count** (rank-by-piece-count alone gives per-step Spearman 0.95). The
-*interesting* signal is the **gain** = reachable − current pieces, evaluated
-**within (step, piece-count) cells** — "which of the same-piece positions extend
-deeper". Evaluated with GroupKFold (group = `max_best_depth`, so a whole
-solution path stays in one fold; dead rows split freely):
+方法論上の要点：`best_piece_reachable` は**現在の駒数に支配される**（駒数だけで順位付けしても
+step 内 Spearman は 0.95）。興味深い信号は **gain = 到達値 − 現在の駒数**であり、
+**(step, 駒数) のセル内**で評価すべきものである——「同じ駒数の局面のうち、どれがより深く
+伸びるか」。GroupKFold（group = `max_best_depth`。1 つの解経路が 1 つの fold に収まるようにし、
+dead 行は自由に分割される）で評価した結果：
 
-| model | within-cell Spearman (gain) |
+| モデル | セル内 Spearman（gain） |
 |---|---|
-| Ridge (linear) | 0.15 |
-| GBDT (HistGradientBoosting) | **0.225** |
+| Ridge（線形） | 0.15 |
+| GBDT（HistGradientBoosting） | **0.225** |
 
-So the promise IS predictable but **weak–moderate and nonlinear**. The top
-drivers (GBDT permutation importance) are exactly the human-intuition features:
-`step` (phase), `total_black_kiki`, `king_flight_cov_avg`, `king_escape_depth`,
-`king_ray_freedom`, `king_liberties`, `row_std`/dispersion, `king_centroid_cheby`,
-`white_mobility` — piece count is irrelevant within a cell (as it should be).
-`black_check_moves` is individually informative (#2) but redundant with
-`total_black_kiki`, so it barely helps the ensemble and is left off by default
-(opt-in via `FMRS_FEAT_HEAVY=1`; ~2 s to compute over the whole dataset).
+つまり有望度は確かに予測可能だが、**弱〜中程度であり、かつ非線形**である。上位の駆動要因
+（GBDT の permutation importance）は、まさに人間の直感に対応する特徴である：
+`step`（位相）、`total_black_kiki`、`king_flight_cov_avg`、`king_escape_depth`、
+`king_ray_freedom`、`king_liberties`、`row_std` などの分散、`king_centroid_cheby`、
+`white_mobility`。駒数はセル内では（当然ながら）無関係になる。
+`black_check_moves` は単独では有力（2 位）だが `total_black_kiki` と冗長であり、
+アンサンブルへの寄与はごく僅かなので既定では無効にしてある
+（`FMRS_FEAT_HEAVY=1` で有効化。データセット全体で計算しても約 2 秒）。
 
-### Beam validation — the selection rule matters more than the model
+### beam による検証——モデルよりも選別規則が効く
 
-Running the beam (`--beam-width`, deep `--max-step`) and comparing scorers
-revealed two things:
+beam（`--beam-width` と深い `--max-step`）を実行してスコアラを比較したところ、
+2 つのことが分かった。
 
-1. **Label accuracy drives model quality.** Tracing the full sample back (not
-   just the per-step max-piece spine) doubled the "promise" rows (15.9k → 30.7k
-   with reachable > current pieces) and lifted within-cell GBDT Spearman
-   **0.225 → 0.322**. Drivers stay the intuition features (step, kiki, king
-   escape depth / liberties / flight coverage / ray freedom / net, dispersion).
-2. **Top-K selection kills diversity → loses to random.** At width 50 000 the
-   greedy value beam *collapses* (high-value positions are similar; the search
-   narrows and dies at step 51, 21 pieces), while a uniform/random beam keeps
-   diverse lines and reaches 28 pieces at step 71. A per-position scorer, used
-   as strict top-K, can't beat random no matter how good.
+1. **ラベルの精度がモデルの質を決める。** step ごとの最多枚数の背骨だけでなく、標本全体を
+   遡ってトレースすることで「有望」行が倍増し（15.9k → 30.7k、到達値 > 現在の駒数）、
+   セル内 GBDT Spearman が **0.225 → 0.322** に向上した。駆動要因は依然として直感系の特徴
+   （step、kiki、玉の escape depth / liberties / flight coverage / ray freedom / net、分散）。
+2. **top-K 選別は多様性を殺し、random に負ける。** 幅 50,000 において、貪欲な value beam は
+   *崩壊*する（高スコア局面は互いに似ており、探索が狭まって step 51・21 枚で行き詰まる）。
+   一方、一様・ランダムな beam は多様な筋を保ち、step 71 で 28 枚に到達する。
+   局面ごとのスコアラを厳密な top-K として使う限り、どれだけモデルが良くても random には
+   勝てない。
 
-The fix is **value × diversity**: `--beam-temperature T` perturbs scores by
-`T·Gumbel` and takes top-K — i.e. samples K without replacement ∝ exp(score/T)
-(T=0 greedy, T→∞ random). With the full-trace reachable model at **T=5**, the
-beam **matches the exact optimum (22 pieces at step 49, where random reaches only
-19)** and tracks higher pieces at every deep step, reaching 28 by step 67 (random
-needs step 71; greedy collapses at 21). So a learned value model **does** beat
-random / piece-count once selection preserves diversity.
+解決策は **value × 多様性**：`--beam-temperature T` はスコアを `T·Gumbel` で摂動させてから
+top-K を取る——すなわち exp(score/T) に比例した非復元 K 個サンプリング（T=0 で貪欲、
+T→∞ で random）。full-trace の到達値モデルを **T=5** で使うと、beam は
+**厳密最適に一致する（step 49 で 22 枚。random は 19 枚止まり）**うえ、あらゆる深い step で
+より高い駒数を辿り、step 67 で 28 枚に到達する（random は step 71 を要し、貪欲は 21 枚で崩壊）。
+つまり、選別が多様性を保ちさえすれば、学習した value モデルは**確かに** random や駒数ヒューリスティクスに勝つ。
 
-Open next: push T=5 deeper toward 30+; tune (T, width); and close the linear↔
-GBDT gap (per-cell 0.20 vs 0.32) with GBDT-in-beam or interaction features.
+今後の課題：T=5 をさらに深く押し進めて 30 枚以上を狙うこと、(T, 幅) の調整、そして
+線形↔GBDT の差（セル内 0.20 対 0.32）を GBDT-in-beam や交互作用特徴で埋めること。
 
-## Files
+## ファイル
 
-- [`FEATURES.md`](FEATURES.md) — the 85 `extract_features` columns, defined and categorised.
-- [`FEATURE_IMPORTANCE.md`](FEATURE_IMPORTANCE.md) — which of them actually drive the SOTA model.
-- [`gbdt_structural_importance.py`](gbdt_structural_importance.py) — regenerates those importance
-  numbers from a committed model JSON (no training data needed).
-- [`run.sh`](run.sh) — regenerate `data/` and the tables above.
-- [`data/best_step_<S>.txt`](data/) — canonical-URL max-piece positions at step S.
-- [`data/frontier.txt`](data/frontier.txt) — `<step> <frontier_size>`.
-- [`fmrs_core/tests/smoke_cone_analysis.rs`](../../fmrs_core/tests/smoke_cone_analysis.rs) — the analysis.
-- Data-collection hook: `FMRS_PERSTEP_BEST_DIR` in
-  `src/command/single_king_smoke/search.rs` (env-gated, zero cost when unset).
+- [`FEATURES.md`](FEATURES.md) — `extract_features` の 85 列の定義とカテゴリ分け。
+- [`FEATURE_IMPORTANCE.md`](FEATURE_IMPORTANCE.md) — そのうち実際に SOTA モデルを駆動しているのはどれか。
+- [`gbdt_structural_importance.py`](gbdt_structural_importance.py) — 上記の寄与度を
+  コミット済みのモデル JSON から再生成する（学習データ不要）。
+- [`run.sh`](run.sh) — `data/` と上記の表を再生成する。
+- [`data/best_step_<S>.txt`](data/) — step S における最多枚数局面の canonical URL。
+- [`data/frontier.txt`](data/frontier.txt) — `<step> <frontier_size>`。
+- [`fmrs_core/tests/smoke_cone_analysis.rs`](../../fmrs_core/tests/smoke_cone_analysis.rs) — 解析本体。
+- データ収集フック：`src/command/single_king_smoke/search.rs` の `FMRS_PERSTEP_BEST_DIR`
+  （env で制御、未設定ならコストゼロ）。
