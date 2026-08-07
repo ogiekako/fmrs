@@ -207,6 +207,10 @@ GBDT gap (per-cell 0.20 vs 0.32) with GBDT-in-beam or interaction features.
 
 ## Files
 
+- [`FEATURES.md`](FEATURES.md) — the 85 `extract_features` columns, defined and categorised.
+- [`FEATURE_IMPORTANCE.md`](FEATURE_IMPORTANCE.md) — which of them actually drive the SOTA model.
+- [`gbdt_structural_importance.py`](gbdt_structural_importance.py) — regenerates those importance
+  numbers from a committed model JSON (no training data needed).
 - [`run.sh`](run.sh) — regenerate `data/` and the tables above.
 - [`data/best_step_<S>.txt`](data/) — canonical-URL max-piece positions at step S.
 - [`data/frontier.txt`](data/frontier.txt) — `<step> <frontier_size>`.
