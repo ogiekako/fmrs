@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786169301768,
+  "lastUpdate": 1786170464263,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -49928,6 +49928,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 435716016,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3394cc02988e89fe7d1011537c3842504cc66b25",
+          "message": "fix(solver): 玉の枚数を検証して不正局面での panic を防ぐ\n\n受方玉が2枚以上、または0枚の局面を Solve すると探索中に panic して\nいた。受方玉2枚では NoAttacker で unwrap 失敗、0枚では white_king_pos\nの singleton() が空 bitboard に対し index 128 を返して範囲外アクセス。\nwasm では unreachable トラップになり「メモリ不足」と誤表示され、\nサーバーではストリームが結果なしで終わり「No solution」に化けていた。\n\nwasm と server に重複していた decode_and_validate_position を\nfmrs_core::validate に集約し、盤面に触る前に玉の枚数を検証する。\n受方玉≠1 と攻方玉≧2 を「初形が不正です: ...」として弾く。",
+          "timestamp": "2026-08-08T06:02:13Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3394cc02988e89fe7d1011537c3842504cc66b25"
+        },
+        "date": 1786170460976,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124143,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435125994,
             "unit": "Instructions"
           }
         ]
