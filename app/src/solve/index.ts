@@ -1,5 +1,5 @@
 import * as model from "../model";
-import { solveServer } from "./server_solver";
+import { ServerUnavailableError, solveServer } from "./server_solver";
 import { solveWasm } from "./wasm_solver";
 
 export class CancellationToken {
@@ -22,12 +22,34 @@ declare const FMRS_API_BASE_URL: string;
 
 const API_BASE_URL = resolveApiBaseUrl();
 const ALIVE_URL = apiUrl("/fmrs_alive");
-export async function isServerAvailable(): Promise<boolean> {
+
+/**
+ * サーバーの応答をここまで待ち、超えたら wasm に切り替える。
+ * 疎通確認と /solve のヘッダ受信で共有する予算なので、
+ * 「Solve を押してから探索が始まるまで」がおおよそこの時間で頭打ちになる。
+ */
+const SERVER_RESPONSE_BUDGET_MS = 2000;
+/** ローカル開発時はフォールバックできない (エラーになる) ので長めに待つ。 */
+const LOCAL_SERVER_RESPONSE_BUDGET_MS = 10000;
+
+export async function isServerAvailable(
+  timeoutMs: number = SERVER_RESPONSE_BUDGET_MS
+): Promise<boolean> {
+  if (timeoutMs <= 0) {
+    return false;
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const resp = await fetch(ALIVE_URL, { cache: "no-store" });
+    const resp = await fetch(ALIVE_URL, {
+      cache: "no-store",
+      signal: controller.signal,
+    });
     return resp.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -47,14 +69,24 @@ export async function solve(
 ): Promise<Response | undefined> {
   const sfen = model.encodeSfen(position);
   const requireServer = isLocalDevServerBackedPage();
-  if (await isServerAvailable()) {
+  const deadline =
+    Date.now() +
+    (requireServer ? LOCAL_SERVER_RESPONSE_BUDGET_MS : SERVER_RESPONSE_BUDGET_MS);
+  if (await isServerAvailable(deadline - Date.now())) {
     try {
-      return await solveServer(sfen, n, cancelToken, onStep);
+      return await solveServer(
+        sfen,
+        n,
+        cancelToken,
+        onStep,
+        deadline - Date.now()
+      );
     } catch (e) {
-      if (e instanceof Error && e.message === "サーバーに接続できませんでした。") {
+      if (e instanceof ServerUnavailableError) {
         if (requireServer) {
           throw e;
         }
+        // 進捗が出たあとに切れた場合は step 0 からやり直しになる。
         console.warn("server solve unavailable, falling back to wasm", e);
       } else {
         throw e;

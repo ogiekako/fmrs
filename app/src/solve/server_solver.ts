@@ -1,5 +1,16 @@
 import { apiUrl, CancellationToken, Response } from ".";
 
+/**
+ * サーバーが使えない (つながらない・遅すぎる・途中で切れた) ことを表すエラー。
+ * 呼び出し側はこれを受けたら wasm にフォールバックする。
+ */
+export class ServerUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ServerUnavailableError";
+  }
+}
+
 type ServerEvent =
   | {
       ty: "progress";
@@ -27,32 +38,57 @@ export async function solveServer(
   sfen: string,
   solutionLimit: number,
   cancelToken: CancellationToken,
-  onStep: (step: number) => void
+  onStep: (step: number) => void,
+  connectTimeoutMs: number
 ): Promise<Response | undefined> {
+  // ヘッダが返るまでの時間だけを制限する。解図自体は何分かかってもよい。
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(0, connectTimeoutMs));
   let response: globalThis.Response;
   try {
     response = await fetch(apiUrl(`/solve?solutions_upto=${solutionLimit + 1}`), {
       method: "POST",
       body: sfen,
+      signal: controller.signal,
     });
   } catch {
-    throw new Error("サーバーに接続できませんでした。");
+    throw new ServerUnavailableError(
+      controller.signal.aborted
+        ? `サーバーが ${connectTimeoutMs}ms 以内に応答しませんでした。`
+        : "サーバーに接続できませんでした。"
+    );
+  } finally {
+    clearTimeout(timer);
   }
 
   if (!response.ok) {
-    throw new Error((await response.text()) || "サーバーでの解図に失敗しました。");
+    // 400 は局面が不正などサーバーが下した判断なのでそのまま表示する。
+    // それ以外 (404/405/5xx など) はサーバーが機能していないとみなす。
+    if (response.status === 400) {
+      throw new Error((await response.text()) || "サーバーでの解図に失敗しました。");
+    }
+    throw new ServerUnavailableError(
+      `サーバーが解図に失敗しました (HTTP ${response.status})。`
+    );
   }
 
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("サーバー応答を読み取れませんでした。");
+    throw new ServerUnavailableError("サーバー応答を読み取れませんでした。");
   }
 
   const utf8Decoder = new TextDecoder("utf-8");
   let line = "";
   let nextYieldStep = nextAwait(0);
   for (;;) {
-    const { value, done } = await reader.read();
+    let value: Uint8Array | undefined;
+    let done: boolean;
+    try {
+      ({ value, done } = await reader.read());
+    } catch {
+      // ストリーム途中で回線が切れた場合もフォールバックさせる。
+      throw new ServerUnavailableError("サーバーとの通信が中断されました。");
+    }
     if (done) {
       if (line) {
         const event = JSON.parse(line) as ServerEvent;
