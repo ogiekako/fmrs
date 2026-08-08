@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786065096350,
+  "lastUpdate": 1786169298163,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -49704,6 +49704,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/6798b27b7a40c0e2e175bad1b0d6b9b41209b34a"
         },
         "date": 1786065088630,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50875,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 125203,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 122124,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 2258,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 435716016,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a662b829967499bb63551420fdddae42358d7623",
+          "message": "feat(web): wasm にフォールバックしたことを UI に表示\n\nこれまで console.warn に出るだけで、画面上はサーバー解図と区別が\nつかなかった。solve() に onFallback コールバックを追加し、解図中は\nボタン下に、完了後は結果メッセージに注記を出す。",
+          "timestamp": "2026-08-08T05:51:09Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a662b829967499bb63551420fdddae42358d7623"
+        },
+        "date": 1786169294314,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
