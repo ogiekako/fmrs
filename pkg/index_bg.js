@@ -263,10 +263,10 @@ export function is_white_in_check(sfen) {
     const ret = wasm.is_white_in_check(ptr0, len0);
     return ret !== 0;
 }
-export function __wbg___wbindgen_throw_344f42d3211c4765(arg0, arg1) {
+export function __wbg___wbindgen_throw_bb96b2010945f0bc(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
-export function __wbg_error_a6fa202b58aa1cd3(arg0, arg1) {
+export function __wbg_error_757e9472f8410341(arg0, arg1) {
     let deferred0_0;
     let deferred0_1;
     try {
