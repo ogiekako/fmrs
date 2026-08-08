@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786170464263,
+  "lastUpdate": 1786170467026,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -45999,6 +45999,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 31249,
             "range": "± 12",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3394cc02988e89fe7d1011537c3842504cc66b25",
+          "message": "fix(solver): 玉の枚数を検証して不正局面での panic を防ぐ\n\n受方玉が2枚以上、または0枚の局面を Solve すると探索中に panic して\nいた。受方玉2枚では NoAttacker で unwrap 失敗、0枚では white_king_pos\nの singleton() が空 bitboard に対し index 128 を返して範囲外アクセス。\nwasm では unreachable トラップになり「メモリ不足」と誤表示され、\nサーバーではストリームが結果なしで終わり「No solution」に化けていた。\n\nwasm と server に重複していた decode_and_validate_position を\nfmrs_core::validate に集約し、盤面に触る前に玉の枚数を検証する。\n受方玉≠1 と攻方玉≧2 を「初形が不正です: ...」として弾く。",
+          "timestamp": "2026-08-08T06:02:13Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3394cc02988e89fe7d1011537c3842504cc66b25"
+        },
+        "date": 1786170466195,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 402,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3166,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 402,
+            "range": "± 616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 28353,
+            "range": "± 581",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1790,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4795,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1378415,
+            "range": "± 88",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12176,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 188,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 113,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 53,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20548783,
+            "range": "± 43346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 30772,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3629,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18768,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 32023,
+            "range": "± 9",
             "unit": "ns/iter"
           }
         ]
