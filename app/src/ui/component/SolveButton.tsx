@@ -37,14 +37,25 @@ export default function SolveButton(props: {
           props.dispatch({ ty: "set-solve-response", response: undefined });
 
           let nextStepUpdate = nextStepRender(0);
+          let lastStep = 0;
+          let fallback = false;
           const onStep = (step: number) => {
+            lastStep = step;
             if (step < nextStepUpdate) {
               return;
             }
             nextStepUpdate = nextStepRender(step);
             props.dispatch({
               ty: "set-solving",
-              solving: { cancelToken, step },
+              solving: { cancelToken, step, fallback },
+            });
+          };
+          const onFallback = () => {
+            fallback = true;
+            nextStepUpdate = nextStepRender(0);
+            props.dispatch({
+              ty: "set-solving",
+              solving: { cancelToken, step: lastStep, fallback },
             });
           };
           const start = new Date();
@@ -53,7 +64,8 @@ export default function SolveButton(props: {
               props.position,
               props.solutionLimit,
               cancelToken,
-              onStep
+              onStep,
+              onFallback
             );
             const stone = positionStone(props.position);
             const millis = new Date().getTime() - start.getTime();
@@ -65,12 +77,13 @@ export default function SolveButton(props: {
                   response,
                   stone,
                   millis,
+                  fallback,
                 },
               });
             } else if (!cancelToken.isCanceled()) {
               props.dispatch({
                 ty: "set-solve-response",
-                response: { ty: "no-solution", millis },
+                response: { ty: "no-solution", millis, fallback },
               });
             }
           } catch (e: any) {
@@ -88,6 +101,7 @@ export default function SolveButton(props: {
                       ? e
                       : "不明なエラーが発生しました。",
                 millis,
+                fallback,
               },
             });
           } finally {
@@ -125,6 +139,13 @@ export default function SolveButton(props: {
   return (
     <div>
       {solveButtonWithProgress}
+      {props.solving?.fallback ? (
+        <div className="text-muted" style={{ fontSize: "0.8em" }}>
+          サーバーに接続できないため、ブラウザ内で解図しています。
+        </div>
+      ) : (
+        <></>
+      )}
       <InputGroup className="mb-3" style={{ width: "200px" }}>
         <InputGroup.Text>最大検出解数</InputGroup.Text>
         <Form.Control

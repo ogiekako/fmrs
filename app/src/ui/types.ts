@@ -32,9 +32,11 @@ export type Solving = {
   cancelToken: solve.CancellationToken;
   step: number;
   sfen?: string;
+  /** サーバーが使えず wasm に切り替えた場合に true。 */
+  fallback?: boolean;
 };
 
-export type SolveResponse = { millis: number } & (
+export type SolveResponse = { millis: number; fallback?: boolean } & (
   | {
       ty: "solved";
       response: solve.Response;

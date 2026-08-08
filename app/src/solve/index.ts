@@ -65,7 +65,8 @@ export async function solve(
   position: model.Position,
   n: number,
   cancelToken: CancellationToken,
-  onStep: (step: number) => void
+  onStep: (step: number) => void,
+  onFallback?: () => void
 ): Promise<Response | undefined> {
   const sfen = model.encodeSfen(position);
   const requireServer = isLocalDevServerBackedPage();
@@ -82,20 +83,22 @@ export async function solve(
         deadline - Date.now()
       );
     } catch (e) {
-      if (e instanceof ServerUnavailableError) {
-        if (requireServer) {
-          throw e;
-        }
-        // 進捗が出たあとに切れた場合は step 0 からやり直しになる。
-        console.warn("server solve unavailable, falling back to wasm", e);
-      } else {
+      if (!(e instanceof ServerUnavailableError)) {
         throw e;
       }
+      if (requireServer) {
+        throw e;
+      }
+      // 進捗が出たあとに切れた場合は step 0 からやり直しになる。
+      console.warn("server solve unavailable, falling back to wasm", e);
+      onFallback?.();
     }
   } else if (requireServer) {
     throw new Error(
       "ローカル解図サーバーに接続できませんでした。npm run dev を起動し直してください。"
     );
+  } else {
+    onFallback?.();
   }
   return await solveWasm(sfen, n, cancelToken, onStep);
 }

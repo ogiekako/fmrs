@@ -25,13 +25,23 @@ export default function SolveResponse(props: {
     }
   }
 
+  const fallbackMessage = props.solveResponse.fallback ? (
+    <div className="text-muted" style={{ fontSize: "0.8em" }}>
+      サーバーに接続できなかったため、ブラウザ内で解図しました。
+    </div>
+  ) : null;
+
   const text = message ? (
     <div>
       {message} ({(props.solveResponse.millis / 1000).toFixed(1)}s)
       {oneWayMessage}
+      {fallbackMessage}
     </div>
   ) : (
-    <div>{oneWayMessage}</div>
+    <div>
+      {oneWayMessage}
+      {fallbackMessage}
+    </div>
   );
 
   return props.solveResponse.ty === "solved" ? (
