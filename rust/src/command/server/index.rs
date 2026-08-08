@@ -1,9 +1,7 @@
 use actix_cors::Cors;
 use actix_web::{get, http::header, post, web, App, HttpRequest, HttpResponse, HttpServer};
 use fmrs_core::{
-    piece::{Color, Kind},
-    position::position::PositionAux,
-    sfen,
+    piece::Color, position::position::PositionAux, validate::decode_and_validate_position,
 };
 use futures::StreamExt;
 use serde::Serialize;
@@ -152,68 +150,6 @@ async fn solve(query: web::Query<SolveQuery>, body_sfen: String) -> HttpResponse
 #[get("/fmrs_alive")]
 async fn fmrs_alive() -> &'static str {
     "OK"
-}
-
-fn decode_and_validate_position(problem_sfen: &str) -> Result<PositionAux, String> {
-    let mut position = sfen::decode_position(problem_sfen)
-        .map_err(|_| "局面の読み込みに失敗しました。".to_string())?;
-
-    let black_checked = position.checked_slow(Color::BLACK);
-    let white_checked = position.checked_slow(Color::WHITE);
-    if black_checked && white_checked {
-        return Err("両方の玉に王手がかかっています。".to_string());
-    }
-    if white_checked {
-        position.set_turn(Color::WHITE);
-    }
-
-    let mut reasons = vec![];
-    if has_double_pawns(&position) {
-        reasons.push("二歩があります");
-    }
-    if has_unmovable_pieces(&position) {
-        reasons.push("行きどころのない駒があります");
-    }
-    if !reasons.is_empty() {
-        return Err(format!("初形が不正です: {}。", reasons.join("、")));
-    }
-
-    Ok(position)
-}
-
-fn has_double_pawns(position: &PositionAux) -> bool {
-    for color in [Color::BLACK, Color::WHITE] {
-        let pawns = position.bitboard(color, Kind::Pawn).u128();
-        for col in 0..9 {
-            if (pawns >> (col * 9) & 0x1FF).count_ones() > 1 {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-fn has_unmovable_pieces(position: &PositionAux) -> bool {
-    for color in [Color::BLACK, Color::WHITE] {
-        for kind in [Kind::Pawn, Kind::Lance, Kind::Knight] {
-            for pos in position.bitboard(color, kind) {
-                if is_unmovable_square(pos, color, kind) {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
-
-fn is_unmovable_square(pos: fmrs_core::position::Square, color: Color, kind: Kind) -> bool {
-    match (color, kind) {
-        (Color::BLACK, Kind::Pawn | Kind::Lance) => pos.row() == 0,
-        (Color::WHITE, Kind::Pawn | Kind::Lance) => pos.row() == 8,
-        (Color::BLACK, Kind::Knight) => pos.row() <= 1,
-        (Color::WHITE, Kind::Knight) => pos.row() >= 7,
-        _ => false,
-    }
 }
 
 fn is_redundant(problem: &PositionAux, solutions: &[fmrs_core::solve::Solution]) -> bool {
