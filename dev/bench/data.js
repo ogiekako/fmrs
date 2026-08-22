@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787389053425,
+  "lastUpdate": 1787389056808,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -46141,6 +46141,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 32023,
             "range": "± 9",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "546167f38447f7d322bc41a29048b3e05d94a313",
+          "message": "fix(deps): webpack-dev-server を 5.2.6 へ更新し脆弱性6件を解消\n\nDependabot が報告していた moderate 6件はすべて webpack-dev-server で、\nいずれも 5.2.6 以上で解消する (GHSA-f5vj-f2hx-8m93, GHSA-m28w-2pqf-7qgj,\nGHSA-mx8g-39q3-5c79, GHSA-79cf-xcqc-c78w, GHSA-4v9v-hfq4-rm2v,\nGHSA-9jgg-88mc-972h)。開発用サーバのみで使う devDependency であり、\nGitHub Pages に配信される成果物には含まれない。\n\nwebpack-cli も 4.10.0 → 5.1.4 に上げる必要があった。webpack-cli 4 は\nwebpack-dev-server 5 と非互換で、そのままでは起動時に\n\n  Invalid options object. Dev Server has been initialized using an options\n  object that does not match the API schema.\n   - options has an unknown property '_assetEmittingPreviousFiles'\n\nとなり `npm run serve` が動かない。webpack-cli 7 は Node >= 20.9 を要求するが\nCI (actions/setup-node@v7) は Node バージョンを固定していないため、\nwds 5 との実績が厚く Node 要件も緩い 5.1.4 を選んだ。\n\nwebpack.config.js の devServer 設定は変更不要。webpack-dev-server 5.2.6 は\nhttp-proxy-middleware ^2.0.9 に依存しており (v3 ではない)、proxy の\nイベントハンドラは従来どおり `onProxyReq` のままで正しい。\n\n検証:\n- `npm run serve`: 設定エラーなしで起動し compiled successfully、HTTP 200 応答\n- `npm run build`: compiled successfully、docs/ の出力に差分なし\n\nなお `npm audit` は他にも推移的依存の指摘を出すが、package-lock.json は\n.gitignore 済みでリポジトリに反映されないため、Dependabot が見る直接依存\n(package.json) の解消をもって対応とする。",
+          "timestamp": "2026-08-22T08:40:17Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/546167f38447f7d322bc41a29048b3e05d94a313"
+        },
+        "date": 1787389055765,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 402,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 3067,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 402,
+            "range": "± 631",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 29167,
+            "range": "± 292",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1810,
+            "range": "± 55",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4791,
+            "range": "± 165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1367070,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 12276,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 187,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 95,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 39,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 38,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 15,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 20333352,
+            "range": "± 38463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 29778,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3559,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 18692,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 31010,
+            "range": "± 7",
             "unit": "ns/iter"
           }
         ]
