@@ -8,12 +8,15 @@
 |---|---|
 | `extended-abstract/` | ゲームプログラミングワークショップ (GPW) 2026 投稿用の **extended abstract**（A4縦・2ページ以内） |
 | `tools/` | 原稿共通のツール |
-| `main/` | 本論文（未着手） |
+| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（6ページ）・LaTeX・再検証資料 |
 
 `extended-abstract/` はあくまで投稿用の要旨であり、本論文とは別稿。
 GPW 2026 の投稿規定は A4縦2ページ以内・フォント10pt以上・PDF・EasyChair (GPW-26) 経由。
 
 ## ビルド
+
+本論文のPDFと再現手順は [`main/README.md`](main/README.md) を参照してください。
+本論文は XeLaTeX、以下の extended abstract は LuaLaTeX を使用します。
 
 ```
 make -C paper abstract     # extended-abstract/extended-abstract.pdf
@@ -49,3 +52,4 @@ python3 tools/sfen2tikz.py '<sfen>' [マス幅mm マス高mm] > board.tex
 『詰将棋パラダイス』2026年8月号に特別懸賞出題（ogiekako 名義）。
 
 探索の技術的経緯は [`../scratch/zenkoma_smoke_journey.md`](../scratch/zenkoma_smoke_journey.md) に記録がある。
+
