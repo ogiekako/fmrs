@@ -263,7 +263,7 @@ export function is_white_in_check(sfen) {
     const ret = wasm.is_white_in_check(ptr0, len0);
     return ret !== 0;
 }
-export function __wbg___wbindgen_throw_bb96b2010945f0bc(arg0, arg1) {
+export function __wbg___wbindgen_throw_41e9ee4f547fc59a(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
 export function __wbg_error_757e9472f8410341(arg0, arg1) {
@@ -288,7 +288,7 @@ export function __wbg_stack_3b0d974bbf31e44f(arg0, arg1) {
     getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
     getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
 }
-export function __wbindgen_cast_0000000000000001(arg0, arg1) {
+export function __wbindgen_generic_0000000000000001(arg0, arg1) {
     // Cast intrinsic for `Ref(String) -> Externref`.
     const ret = getStringFromWasm0(arg0, arg1);
     return addHeapObject(ret);
