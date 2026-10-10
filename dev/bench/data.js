@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787389056808,
+  "lastUpdate": 1791614923814,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -50316,6 +50316,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 435616914,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "id": "23b5b73cbc06dc589ee835be25ef79769d4521f3",
+          "message": "GPW 2026協力詰論文のレビュー稿と再検証資料を追加",
+          "timestamp": "2026-10-10T06:34:18Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/23b5b73cbc06dc589ee835be25ef79769d4521f3"
+        },
+        "date": 1791614919180,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260125,
             "unit": "Instructions"
           }
         ]
