@@ -126,6 +126,10 @@ pub(super) struct SearchConstraints {
     /// `with_white_complement` / `theoretical_max_piece_count` がそれに従う。
     #[serde(default)]
     pub(super) quad_pieces: bool,
+    /// 出力 (初形) に攻方持駒を許し、駒数を盤上＋攻方持駒で数える。
+    /// 未使用時は直列化でスキップし、既存 run の condition_key を変えない。
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub(super) allow_black_hand: bool,
 }
 
 /// bishop/rook 系の駒種 (unpromoted + promoted 双方を同一 family として数える)。
@@ -178,13 +182,13 @@ pub(super) fn satisfies_ideal_smoke_constraints(
     if position.turn() != Color::BLACK {
         return false;
     }
-    // Output must always have no black hand pieces.
-    if !position.hands().is_empty(Color::BLACK) {
+    // Output must have no black hand pieces unless --allow-black-hand.
+    if !constraints.allow_black_hand && !position.hands().is_empty(Color::BLACK) {
         return false;
     }
-    let board = board_piece_count(position);
+    let count = output_piece_count(position, constraints);
     let (min, max) = expected_pieces_range(step, constraints.slack, constraints.miyako);
-    if board < min || board > max {
+    if count < min || count > max {
         return false;
     }
     if constraints.natural_piece_limit && !satisfies_natural_piece_limit(position) {
@@ -464,6 +468,10 @@ pub(super) fn validate_search_constraints(constraints: SearchConstraints) -> any
         }
     }
     Ok(())
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
 }
 
 fn is_zero_u128(v: &u128) -> bool {
@@ -1065,6 +1073,16 @@ pub(super) fn pieces_in_play(position: &PositionAux) -> u32 {
     board_piece_count(position) + black_hand_count(position)
 }
 
+/// best の比較に使う出力局面 (初形) の駒数。`allow_black_hand` なら盤上＋攻方持駒、
+/// それ以外は盤上枚数 (出力は攻方持駒なしなので両者は一致する)。
+pub(super) fn output_piece_count(position: &PositionAux, constraints: SearchConstraints) -> u32 {
+    if constraints.allow_black_hand {
+        pieces_in_play(position)
+    } else {
+        board_piece_count(position)
+    }
+}
+
 pub(super) fn pieces_in_play_after_undo(position: &PositionAux, undo_move: &UndoMove) -> u32 {
     let board = board_piece_count_after_undo(position, undo_move);
     let prev_turn = position.turn().opposite();
@@ -1251,6 +1269,30 @@ mod tests {
             2,
             SearchConstraints::default()
         ));
+    }
+
+    #[test]
+    fn smoke_constraint_black_hand_requires_allow_black_hand() {
+        // 盤上3枚＋攻方持駒の歩1枚。step 3 の上限は 3/2+3 = 4 枚。
+        let position =
+            PositionAux::from_sfen("8k/7+P1/7+P1/9/9/9/9/9/9 b P2r2b4g4s4n4l15p 1").unwrap();
+        let allow = SearchConstraints {
+            allow_black_hand: true,
+            ..SearchConstraints::default()
+        };
+        assert!(!satisfies_ideal_smoke_constraints(
+            &position,
+            3,
+            SearchConstraints::default()
+        ));
+        assert!(satisfies_ideal_smoke_constraints(&position, 3, allow));
+        assert_eq!(output_piece_count(&position, allow), 4);
+        assert_eq!(
+            output_piece_count(&position, SearchConstraints::default()),
+            3
+        );
+        // 盤上＋持駒で数えるので、step 1 の上限 3 枚を超える。
+        assert!(!satisfies_ideal_smoke_constraints(&position, 1, allow));
     }
 
     #[test]

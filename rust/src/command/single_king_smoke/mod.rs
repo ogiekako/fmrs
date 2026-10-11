@@ -93,6 +93,10 @@ pub enum SingleKingSmokeCommand {
         /// 80枚+玉で埋める協力詰を狙う実験用。
         #[arg(long, default_value_t = false)]
         quad_pieces: bool,
+        /// 初形に攻方持駒を許し、盤上＋攻方持駒の枚数を最大化する
+        /// (既定では初形は攻方持駒なしで、盤上枚数を最大化する)。
+        #[arg(long, default_value_t = false)]
+        allow_black_hand: bool,
         #[arg(long)]
         max_file: Option<u8>,
         #[arg(long)]
@@ -395,6 +399,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
             allowed_kinds,
             natural_piece_limit,
             quad_pieces,
+            allow_black_hand,
             max_file,
             max_rank,
             white_king_min_rank,
@@ -491,6 +496,7 @@ pub fn single_king_smoke(cmd: SingleKingSmokeCommand) -> anyhow::Result<()> {
                     allowed_kinds_mask,
                     natural_piece_limit,
                     quad_pieces,
+                    allow_black_hand,
                     max_file,
                     max_rank,
                     white_king_min_rank,

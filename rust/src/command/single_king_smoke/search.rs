@@ -26,7 +26,7 @@ use std::time::Instant;
 const FRONTIER_PARALLEL_THRESHOLD: usize = 1024;
 
 use super::super::smoke_constraints::{
-    board_piece_count, satisfies_ideal_smoke_constraints,
+    output_piece_count, satisfies_ideal_smoke_constraints,
     satisfies_ideal_smoke_generation_constraints, satisfies_ideal_smoke_undo_candidate,
     SearchConstraints,
 };
@@ -1011,12 +1011,19 @@ fn run_seed_loop(
                 // max-piece "best cone" relates to the full frontier. Zero cost
                 // when the env var is unset.
                 if let Ok(dir) = std::env::var("FMRS_PERSTEP_BEST_DIR") {
-                    if let Some(maxpc) = filtered.iter().map(board_piece_count).max() {
+                    if let Some(maxpc) = filtered
+                        .iter()
+                        .map(|p| output_piece_count(p, constraints))
+                        .max()
+                    {
                         use std::io::Write;
                         if let Ok(mut f) =
                             std::fs::File::create(format!("{dir}/best_step_{step}.txt"))
                         {
-                            for p in filtered.iter().filter(|p| board_piece_count(p) == maxpc) {
+                            for p in filtered
+                                .iter()
+                                .filter(|p| output_piece_count(p, constraints) == maxpc)
+                            {
                                 let _ = writeln!(
                                     f,
                                     "{}",
@@ -1029,7 +1036,7 @@ fn run_seed_loop(
                 let prev_positions_len = best_positions.len();
                 let mut improved = false;
                 for position in filtered {
-                    let pc = board_piece_count(&position);
+                    let pc = output_piece_count(&position, constraints);
                     // best = (#pieces, steps) の辞書順最大。より大きい (pc, step)
                     // を見つけたら現在の best をすべて捨てる。
                     if (pc, step) > (best_piece_count, best_step) {

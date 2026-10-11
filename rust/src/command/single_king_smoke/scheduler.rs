@@ -26,7 +26,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::Instant;
 
 use super::super::smoke_constraints::{
-    board_piece_count, satisfies_ideal_smoke_constraints,
+    output_piece_count, satisfies_ideal_smoke_constraints,
     satisfies_ideal_smoke_generation_constraints, satisfies_ideal_smoke_undo_candidate,
     SearchConstraints,
 };
@@ -232,7 +232,7 @@ fn advance_one(task: &mut Task, ctx: &WorkerCtx<'_>) -> anyhow::Result<StepOutco
                 if !satisfies_ideal_smoke_constraints(&position, step, ctx.constraints) {
                     continue;
                 }
-                let pc = board_piece_count(&position);
+                let pc = output_piece_count(&position, ctx.constraints);
                 // best = (#pieces, steps) の辞書順最大。
                 if (pc, step) > (task.best_piece_count, task.best_step) {
                     task.best_piece_count = pc;
