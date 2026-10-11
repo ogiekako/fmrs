@@ -1,0 +1,6 @@
+ 1i2i 3i4i 2i3i 4i5i 3i4i 5i6i 4i5i 6i7i 5i6i 7i8i 6i7i 8i9i 9g9h 9i9h 7i8i 9h8g 8i7h 8g7f 5g6f 7f6f 5e5f 6f5f 5h5g 5f6f 7h6g 6f5e 6g5f
+ 9i8i 7i6i 8i7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2i 4i3i 2i1i 1g1h 1i1h 3i2i 1h2g 2i3h 2g3f 5g4f 3f4f 5e5f 4f5f 5h5g 5f4f 3h4g 4f5e 4g5f
+ 1i2i 3i4i 2i3i 4i5i 3i4i 5i6i 4i5i 6i7i 5i6i 7i8i 6i7i 8i9i 9g9h 9i9h 7i8h 9h8h 8f8g 8h7h 8g8h 7h6g 8h7h 6g5f P*5g 5f6f 7h6g 6f5e 6g5f
+ 1i2i 3i4i 2i3i 4i5i 3i4i 5i6i 4i5i 6i7i 5i6i 7i8i 6i7i 8i9i 9g9h 9i9h 7i8h 9h8h 8f8g 8h7h 8g8h 7h6g 8h7h 6g5f P*5g 5f6f 7h6g 6f5e 6g5f
+ 9i8i 7i6i 8i7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2i 4i3i 2i1i 1g1h 1i1h 3i2h 1h2h 2f2g 2h3h 2g2h 3h4g 2h3h 4g5f P*5g 5f4f 3h4g 4f5e 4g5f
+ 9i8i 7i6i 8i7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2i 4i3i 2i1i 1g1h 1i1h 3i2h 1h2h 2f2g 2h3h 2g2h 3h4g 2h3h 4g5f P*5g 5f4f 3h4g 4f5e 4g5f

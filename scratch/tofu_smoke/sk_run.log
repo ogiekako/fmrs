@@ -1,0 +1,17 @@
+seeds=42 pending=42 loaded_seed_results=0 target_max=19 seed_result_log=sk/seeds.jsonl
+memory_budget pct=80 budget_gb=100.4
+global_best_pieces=8 steps=11 seed=38 positions=3 https://ogiekako.github.io/fmrs/9/9/9/9/9/9/+P4+P3/9/PPPPPk3_b_2r2b4g4s4n4l11p_1 search(step=11 seen=0 frontier=2798 prev_frontier=0 memo=1386266 prev_memo=534037) rss=265188KiB vmsize=2670792KiB threads=15
+global_best_pieces=9 steps=13 seed=38 positions=3 https://ogiekako.github.io/fmrs/9/9/9/9/9/9/+P8/7+P1/PPPPPPk2_b_2r2b4g4s4n4l10p_1 search(step=13 seen=0 frontier=3478 prev_frontier=0 memo=3652276 prev_memo=1433494) rss=459952KiB vmsize=2670792KiB threads=15
+global_best_pieces=10 steps=15 seed=38 positions=3 https://ogiekako.github.io/fmrs/9/9/9/9/9/9/+P6+P1/9/PPPPPPPk1_b_2r2b4g4s4n4l9p_1 search(step=15 seen=0 frontier=3406 prev_frontier=0 memo=5577783 prev_memo=2200583) rss=507452KiB vmsize=2670792KiB threads=15
+global_best_pieces=11 steps=17 seed=38 positions=2 https://ogiekako.github.io/fmrs/9/9/9/9/9/9/+P8/7+P1/PPPPPPPPk_b_2r2b4g4s4n4l8p_1 search(step=17 seen=0 frontier=3524 prev_frontier=0 memo=7623677 prev_memo=2965153) rss=683864KiB vmsize=2670792KiB threads=15
+global_best_pieces=11 steps=19 seed=38 positions=2 https://ogiekako.github.io/fmrs/9/9/9/9/9/9/+P8/6+P1k/PPPPPPPP1_b_2r2b4g4s4n4l8p_1 search(step=19 seen=0 frontier=2302 prev_frontier=0 memo=11745379 prev_memo=4488328) rss=819536KiB vmsize=2814152KiB threads=15
+global_best_pieces=11 steps=21 seed=38 positions=14 https://ogiekako.github.io/fmrs/9/9/9/9/9/9/+P7+P/9/PPP+PPPPPk_b_2r2b4g4s4n4l8p_1 search(step=21 seen=0 frontier=1364 prev_frontier=0 memo=13618648 prev_memo=5174198) rss=944636KiB vmsize=2932936KiB threads=15
+global_best_pieces=11 steps=23 seed=38 positions=16 https://ogiekako.github.io/fmrs/9/9/9/9/9/8+P/+P8/8k/PPP+PPPPP1_b_2r2b4g4s4n4l8p_1 search(step=23 seen=0 frontier=696 prev_frontier=0 memo=13989046 prev_memo=5309944) rss=986860KiB vmsize=2932936KiB threads=15
+global_best_pieces=11 steps=25 seed=38 positions=5 https://ogiekako.github.io/fmrs/9/9/9/9/+P8/9/1P7/7+P1/+P1PPPPPPk_b_2r2b4g4s4n4l8p_1 search(step=25 seen=0 frontier=216 prev_frontier=0 memo=14091902 prev_memo=5348214) rss=1019844KiB vmsize=2932936KiB threads=15
+global_best_pieces=11 steps=27 seed=38 positions=2 https://ogiekako.github.io/fmrs/9/9/9/9/+P8/8+P/1P7/8k/+P1PPPPPP1_b_2r2b4g4s4n4l8p_1 search(step=27 seen=0 frontier=120 prev_frontier=0 memo=14092260 prev_memo=5348386) rss=1022468KiB vmsize=2932936KiB threads=15
+global_best_pieces=11 steps=29 seed=38 positions=4 https://ogiekako.github.io/fmrs/9/9/9/9/+P8/9/1P+P6/1+PP6/P2PPPk1+P_b_2r2b4g4s4n4l8p_1 search(step=29 seen=0 frontier=32 prev_frontier=0 memo=14092344 prev_memo=5348424) rss=949348KiB vmsize=2932936KiB threads=15
+best_pieces=11 best_steps=29: positions=4 succeeded_seeds=1
+https://ogiekako.github.io/fmrs/9/9/9/+P8/9/P+P7/+P8/9/1PPPPPk1+P_b_2r2b4g4s4n4l8p_1
+https://ogiekako.github.io/fmrs/9/9/9/9/+P8/9/+P1+P6/2P6/PP1PPPk1+P_b_2r2b4g4s4n4l8p_1
+https://ogiekako.github.io/fmrs/9/9/9/9/+P8/9/1P+P6/1+PP6/P2PPPk1+P_b_2r2b4g4s4n4l8p_1
+https://ogiekako.github.io/fmrs/9/9/9/9/9/1+P7/1P+P6/1+PP6/P2PPPk1+P_b_2r2b4g4s4n4l8p_1
