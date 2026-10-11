@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791614927285,
+  "lastUpdate": 1791716019178,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -50510,6 +50510,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434260125,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "c6178ef9c63afeac12e06746e8831b791afdadfb",
+          "message": "docs(smoke): 豆腐図式の煙詰の最大初形枚数を記録\n\n盤上が玉・歩・と金だけの煙詰を、ビームなしの完全な逆算で調べた。\n最大は単玉11枚（29手）、双玉16枚（53手、詰上がりは狼煙と同じ）、\n双玉都詰12枚（27手、4枚の詰上がり）。初形の攻方持駒を許しても最大は\n変わらない。最大局面の一覧・解手順・独立実装での検証結果・再現手順と、\n特徴的な盤面の fmrs URL を scratch/tofu_smoke/README.md にまとめた。",
+          "timestamp": "2026-10-11T10:39:34Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/c6178ef9c63afeac12e06746e8831b791afdadfb"
+        },
+        "date": 1791716015617,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124107,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
             "unit": "Instructions"
           }
         ]
