@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791777258337,
+  "lastUpdate": 1791777801368,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -51062,6 +51062,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a86b90974e13ec610b2f1dbb4def12a369d27b7d"
         },
         "date": 1791777252854,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260125,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a86b90974e13ec610b2f1dbb4def12a369d27b7d",
+          "message": "docs(paper): 今回追記した5段落の長い文を分けて読みやすくする\n\nyomiyasu（AI生成の日本語を推敲するスキル）の手順を試用し、§1、§2.1、§2.2、§6.4 の\n追記段落を意味を変えずに整えた。複数の節が続く長い文を、順序や対比を示す語を\n残して分け、「協力詰では，煙詰は」の主題の重なりや曖昧な「仕組み」を直した。",
+          "timestamp": "2026-10-12T03:46:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a86b90974e13ec610b2f1dbb4def12a369d27b7d"
+        },
+        "date": 1791777798127,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
