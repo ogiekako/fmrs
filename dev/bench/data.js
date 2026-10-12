@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791785062882,
+  "lastUpdate": 1791787499187,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -51644,6 +51644,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/4ebe6f0ecd444ce006307522063c8fb28bdf8df1"
         },
         "date": 1791785055739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "31dc9d715060cda31a50b7e322d45ec086b40566",
+          "message": "docs(paper): 第1・2章の表現を見直す\n\n- 煙詰・全駒煙・ミニ煙の定義を冒頭に置いた。\n- 協力詰の規則は普通の将棋に準ずると書き、目標の局面を数式を使わずに説明した\n  （盤上駒数 pc は第4章で定義）。\n- 不要な限定の文を削り、図1に出典を入れ、「狼煙」が初の全駒煙であることを\n  「記録に残る限り」とした。\n- 関連研究の段落の結びを、先行研究との対比で本研究の範囲を述べる文にした。",
+          "timestamp": "2026-10-12T06:28:05Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/31dc9d715060cda31a50b7e322d45ec086b40566"
+        },
+        "date": 1791787495871,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
