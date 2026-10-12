@@ -34,7 +34,7 @@
 \begin{center}
 {\LARGE\bfseries 協力詰における全駒煙詰の発見}\\[2mm]
 {\large 探索手法の段階的な設計と改良による計算機支援創作}\\[3mm]
-{\large 岡 圭吾\quad Keigo Oka}\\[3mm]
+{\large 岡 圭吾\textsuperscript{1,a)}\quad Keigo Oka\textsuperscript{1,a)}}\\[3mm]
 {\large\bfseries Discovery of a 40-Piece Smoke Helpmate in Shogi}\\[1mm]
 {\normalsize Computer-Aided Composition through Stepwise Design\\and Refinement of Search Methods}
 \end{center}
@@ -63,6 +63,18 @@ The final composition was also checked by an independent breadth-first implement
 \vspace{5mm}
 }]
 \thispagestyle{empty}
+% 所属とメール（jsample-gpw.tex を日本語モードで組んだときの \affiliate / \author の脚注と同じ形）
+\begingroup
+\makeatletter
+\def\thefootnote{\@arabic{\c@footnote}\protect\hphantom{\rparen}}%
+\setcounter{footnote}{0}\refstepcounter{footnote}%
+\footnotetext{Google (Work done in a personal capacity)}%
+\def\thefootnote{\@alph{\c@footnote}\rparen}%
+\setcounter{footnote}{0}\refstepcounter{footnote}%
+\footnotetext{ogiekako@gmail.com}%
+\makeatother
+\endgroup
+\setcounter{footnote}{0}
 
 \section{はじめに}
 多数の駒が，長い詰手順の中で次々に盤上から消えていく．煙詰は，この変化そのものを表現とする詰将棋である．
