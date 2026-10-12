@@ -8,7 +8,7 @@
 |---|---|
 | `extended-abstract/` | ゲームプログラミングワークショップ (GPW) 2026 投稿用の **extended abstract**（A4縦・2ページ以内） |
 | `tools/` | 原稿共通のツール |
-| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（6ページ）・LaTeX・再検証資料 |
+| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（7ページ）・LaTeX・再検証資料 |
 
 `extended-abstract/` はあくまで投稿用の要旨であり、本論文とは別稿。
 GPW 2026 の投稿規定は A4縦2ページ以内・フォント10pt以上・PDF・EasyChair (GPW-26) 経由。
@@ -37,8 +37,11 @@ SFEN を変えたときは `make` を通すこと。
 外枠 0.4mm）に倣い、後手駒は180度回転、持駒は盤の左右に縦書きする。
 
 ```
-python3 tools/sfen2tikz.py '<sfen>' [マス幅mm マス高mm] > board.tex
+python3 tools/sfen2tikz.py '<sfen>' [マス幅mm マス高mm] [--gote-hand 残り全部] > board.tex
 ```
+
+`--gote-hand` は受方の持駒欄に SFEN の代わりに指定文字列を縦書きする（詰上がり図で受方持駒が多いとき用）。
+本論文（`main/`）の盤面図も同じツールで生成している（`main/generate_figures.py`）。
 
 生成側では `\koma` と `\mochi` の2つのコマンドを定義しておく（`extended-abstract.tex` を参照）。
 

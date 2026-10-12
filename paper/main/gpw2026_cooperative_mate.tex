@@ -8,6 +8,8 @@
 \setCJKsansfont{Noto Sans CJK JP}[BoldFont={Noto Sans CJK JP Bold}]
 \setCJKmonofont{Noto Sans CJK JP}
 \xeCJKsetup{PunctStyle=plain,AutoFallBack=true}
+% 盤面図の持駒欄の☖☗を和文フォントで組む（Latin Modern には字形がない）
+\xeCJKDeclareCharClass{CJK}{"2616,"2617}
 \usepackage{amsmath,amssymb,graphicx,booktabs,array,tikz,url,float,balance}
 \usetikzlibrary{arrows.meta,positioning}
 \makeatletter
@@ -64,8 +66,11 @@ The final composition was also checked by an independent breadth-first implement
 
 \section{はじめに}
 多数の駒が，長い詰手順の中で次々に盤上から消えていく．煙詰は，この変化そのものを表現とする詰将棋である．
-古典的な例として，伊藤看寿『将棋図巧』第99番が知られている\cite{zuko}．
-本研究では，攻方と受方が協力して詰みに向かう協力詰において，標準の将棋駒一組40枚をすべて盤上に置き，最後に3枚を残す作品を探索した．
+その一号局は，1755年の伊藤看寿『将棋図巧』第99番である\cite{zuko}．
+2作目の黒川一郎「落花」が現れるまでの約200年間，煙詰はこの1局だけであったが\cite{toybox56}，その後は多くの作品が作られ，都煙・小駒煙・貧乏煙などを含めて2015年の時点で338作が数えられている\cite{tetsu2015}．
+一方，攻方と受方が協力して詰みに向かう協力詰では，煙詰は従来実現不可能と言われてきた\cite{wfp218}．
+2004年には，39枚（双玉なら40枚）から3枚にするのは「おそらく不可能」との見方も示されている\cite{mozu2004}．
+本研究では，協力詰において，標準の将棋駒一組40枚をすべて盤上に置き，最後に3枚を残す作品を探索した．
 40枚は，この駒一組を用いる条件下で初形の盤上駒数の上限である．
 
 得られた作品が，図\ref{fig:noroshi}の「狼煙」（のろし）である．
@@ -98,6 +103,10 @@ The final composition was also checked by an independent breadth-first implement
 通常の将棋と同様に，取った駒は持駒になり，再び打つことができる．
 「駒が消える」とは盤上から消えることであり，駒一組から除去されることではない．
 
+協力詰は，1961年に『詰将棋パラダイス』67号でS・オギノ氏が「ばか詰」の名で提唱したルールである\cite{kanna}．
+提唱後しばらくは顧みられなかったが，1970年の中出慶一氏の新作発表をきっかけに広まり，直後に発表された加藤徹氏の作品によって長編の可能性も認識され，1971年には同誌に「ばか詰教室」が開設された\cite{kanna}．
+1975年には加藤徹氏作の「寿限無」19447手が発表されている\cite{kanna}．
+
 本稿の対象は，双方の玉を盤上に置く双玉の煙詰である．
 初形で標準の駒一組（玉2，飛2，角2，金4，銀4，桂4，香4，歩18）をすべて使用し，詰上がりの盤上駒数を3枚とする．
 この条件は，すべての煙詰に共通する定義ではなく，本研究の創作目標である．
@@ -119,6 +128,10 @@ The final composition was also checked by an independent breadth-first implement
 25枚から3枚への到達がコメントとして報告された一方，その図は未公表であったと，後年の紹介には記されている\cite{wfp186}．
 したがって，この数値を公表作品による確立した世界記録として扱うことは避ける．
 「狼煙」は，著者の知る限り，協力詰における初の全駒煙であり，『詰将棋パラダイス』2026年8月号に出題された．
+
+著者は「狼煙」の完成に先立ち，使う駒種を限った単玉の煙詰として，歩を使わない歩なし煙（初形21枚，51手）と，金銀を使わない貧乏煙（初形31枚，75手）を逆算探索を用いて作り，第182回WFP作品展で発表した\cite{wfp218}．
+同作品展の解説では，後者の初形31枚が単玉の協力詰の煙詰として当時の最大枚数とされている\cite{wfp218}．
+単玉で39枚すべてを盤上に置く全駒煙は，まだ見つかっていない．
 
 逆算法による計算機創作には蓄積がある．広瀬正幸らは詰上がりから初形を構成する逆算法による自動創作を研究した\cite{hirose1998}．
 普通詰将棋の煙詰について，広瀬稔・馬屋原は，配置駒数，駒の温存，玉の可動域などを考慮した評価関数を用いて39枚から3枚になる作品を自動生成した\cite{hirose2026}．
@@ -420,6 +433,14 @@ $s$ 自身も含め，教師値を
 また，これらの別系列も，同じ収束を共有する局面から生成されたものであり，あらゆる3枚詰上がりに共通する構造を示すものではない．
 独立な収束を含む大規模な作品群の比較は今後の課題である．
 
+\subsection{豆腐図式の煙詰}
+同じ逆算と検証の仕組みで，盤上の駒が玉と歩・と金だけの豆腐図式の煙詰も調べた．
+詰上がりを3枚（受方玉を5五で詰める双玉の都詰では4枚）とし，ビームによる間引きをせずに逆算候補が尽きるまで探索した．
+攻方の王手は歩・と金による隣接王手に限られて合駒が生じないため，解手順の全局面で盤上を玉・歩・と金に限っても候補を取りこぼさない．
+初形の最大枚数は，単玉で11枚（29手），双玉で16枚（53手），双玉の都詰で12枚（27手）であった．
+初形に攻方の持駒を許して盤上と持駒の合計で数えても，最大枚数は変わらなかった．
+最大局面の最短解が一意であることはfmrsのソルバーで全局面について，独立の幅優先探索で一部の局面について確かめたが，これより多い枚数の局面がないことは逆算探索の網羅性に依存する．
+
 \section{考察}
 \subsection{人間と計算機の役割}
 本事例では，計算機が合法な逆算候補を大量に生成し，その解を検証した．
@@ -453,9 +474,13 @@ $s$ 自身も含め，教師値を
 \begin{thebibliography}{99}
 \raggedright
 \bibitem{zuko} 伊藤看寿：将棋図巧，第99番（1755）．
+\bibitem{toybox56} TETSU：記録展示室 No.56，詰将棋おもちゃ箱．\weburl{www.ne.jp/asahi/tetsu/toybox/challenge/ct056.htm}（参照2026-10-12）．
+\bibitem{tetsu2015} TETSU：看寿賞作品の煙詰率，詰将棋メモ（2015）．\weburl{toybox.tea-nifty.com/memo/2015/07/post-9f8e.html}．
 \bibitem{tetsu2004} TETSU：協力詰の煙詰，詰将棋メモ（2004）．\weburl{toybox.tea-nifty.com/memo/2004/10/post_23.html}．
 \bibitem{mozu2004} mozuyama：ばか煙，勝手に将棋トピックス（2004）．\weburl{mozuyama.hatenadiary.org/entry/20041024/P20041024BAKAKEMURI}．
 \bibitem{wfp186} たくぼん：緩募！ナンマイダ～コンテスト，Web Fairy Paradise，No.186，p.78（2023）．\weburl{tsume-springs.com/web-fairy-paradise/WFP186.pdf}．
+\bibitem{wfp218} 神無七郎：第182回WFP作品展結果，Web Fairy Paradise，No.218，pp.28--34（2026）．\weburl{tsume-springs.com/web-fairy-paradise/WFP218.pdf}．
+\bibitem{kanna} 神無七郎：神無一族の氾濫，第19回（2003）．\weburl{k7ro.sakura.ne.jp/overflow/hr19.htm}（参照2026-10-12）．
 \bibitem{hirose1998} 広瀬正幸，伊藤琢巳，松原仁：逆算法による詰め将棋の自動創作，人工知能学会誌，Vol.13，No.3，pp.452--460（1998）．
 \bibitem{hoshi2002} 星由雄，野下浩平，柳井啓司：反復深化探索に基く協力詰将棋の解法，情報処理学会論文誌，Vol.43，No.1，pp.11--19（2002）．
 \bibitem{hirose2026} 広瀬稔，馬屋原剛：独自の評価関数に基づいた煙詰の自動生成，情報処理学会研究報告，Vol.2026-GI-57，No.4，pp.1--8（2026）．

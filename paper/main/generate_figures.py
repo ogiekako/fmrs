@@ -1,28 +1,17 @@
 #!/usr/bin/env python3
-import json,re,pathlib
+import json,re,pathlib,subprocess,sys
 HERE=pathlib.Path(__file__).resolve().parent
 DATA=HERE/'verification'
 OUT=HERE/'figures';OUT.mkdir(exist_ok=True)
 r=json.load(open(DATA/'noroshi_fmrs_verification.json'))
 s=json.load(open(DATA/'noroshi_independent_replay.json'))
-pieces={'P':'歩','L':'香','N':'桂','S':'銀','G':'金','B':'角','R':'飛','K':'王','+P':'と','+L':'杏','+N':'圭','+S':'全','+B':'馬','+R':'龍'}
-def board(sfen,path):
- lines=[r'\begin{tikzpicture}[x=5.2mm,y=-5.2mm]',r'\draw[line width=.4pt] (0,0) grid (9,9);',r'\draw[line width=.8pt] (0,0) rectangle (9,9);']
- for i in range(9):
-  lines.append(r'\node[font=\footnotesize] at (%s,-.55) {%d};'%(i+.5,9-i))
-  lines.append(r'\node[font=\footnotesize] at (9.5,%s) {%s};'%(i+.5,'一二三四五六七八九'[i]))
- for row,line in enumerate(sfen.split()[0].split('/')):
-  col=0
-  for piece in re.findall(r'\+?[A-Za-z]|[1-9]',line):
-   if piece.isdigit(): col+=int(piece);continue
-   text=pieces[piece.upper()]
-   if piece=='k':text='玉'
-   rotate=',rotate=180' if piece[-1].islower() else ''
-   lines.append(r'\node[inner sep=0pt%s] at (%s,%s) {\koma %s};'%(rotate,col+.5,row+.5,text));col+=1
- lines.append(r'\end{tikzpicture}')
- path.write_text('\n'.join(lines)+'\n')
+SFEN2TIKZ=HERE.parent/'tools'/'sfen2tikz.py'
+def board(sfen,path,*opts):
+ # 盤面図は extended abstract と同じ paper/tools/sfen2tikz.py で生成する（マス 5.2mm×5.6mm）
+ out=subprocess.run([sys.executable,str(SFEN2TIKZ),sfen,'5.2','5.6',*opts],check=True,capture_output=True,text=True).stdout
+ path.write_text(out)
 board(r['sfen'],OUT/'noroshi_initial.tex')
-board(s['final_sfen'],OUT/'noroshi_final.tex')
+board(s['final_sfen'],OUT/'noroshi_final.tex','--gote-hand','残り全部')
 m=[]
 for line in r['kif'].splitlines():
  p=re.match(r'\s+([0-9]+)\s+(\S+)',line)

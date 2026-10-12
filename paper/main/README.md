@@ -2,17 +2,17 @@
 
 岡 圭吾「協力詰における全駒煙詰の発見：探索手法の段階的な設計と改良による計算機支援創作」の著者レビュー用原稿です。
 
-- [本文PDF（6ページ）](gpw2026_cooperative_mate.pdf)
+- [本文PDF（7ページ）](gpw2026_cooperative_mate.pdf)
 - [LaTeXソース](gpw2026_cooperative_mate.tex)
 - [検証結果と再現手順](verification/README.md)
 - [投稿用 extended abstract](../extended-abstract/)
 
-本文・PDFは2026年10月9日作成のレビュー稿です。最終提出版ではありません。
+本文・PDFは2026年10月12日更新のレビュー稿です（初版は10月9日）。最終提出版ではありません。
 
 ## 構成
 
 - `figures/`：SFENと検証済み113手から生成した初形・詰上がり・着手表
-- `generate_figures.py`：図と着手表の再生成（Python標準ライブラリのみ）
+- `generate_figures.py`：図と着手表の再生成（Python標準ライブラリのみ。盤面図は `../tools/sfen2tikz.py` を呼ぶ）
 - `build.sh`：XeLaTeXによる本文PDFのビルド
 - `verification/`：発表形「狼煙」、保存候補2,618局、169類の分類、保存GBDTの構造的特徴指標の再検証資料
 - `THIRD_PARTY_NOTICES.txt`：同梱ファイルと依存関係の権利・出典
@@ -23,6 +23,10 @@
 必要な環境：XeLaTeX、xeCJK、fontspec、PGF/TikZ、一般的なAMS/LaTeXパッケージ、
 Latin Modern、Noto Serif CJK JPおよびNoto Sans CJK JP。
 TeX Liveの日本語/CJKとXeTeXパッケージを導入した環境を想定しています。
+XeTeXはフォントを名前で探すので、Latin ModernとNoto CJKがfontconfigから見える必要があります
+（`fc-list | grep -E "Latin Modern|Noto (Serif|Sans) CJK JP"` で確認）。
+TeX Live付属のLatin Modernが見えない場合は、TeX Liveの `fonts/opentype/public/lm` を
+`<dir>` に加えたfonts.confを用意し、`FONTCONFIG_FILE` で指定してビルドしてください。
 
 IPSJの公式スタイルから **UTF8版の `ipsj.cls` v4.1** を取得し、
 このディレクトリへ置いてください。クラスファイルはこのリポジトリには同梱していません。
@@ -47,6 +51,7 @@ XeLaTeXを2回実行します。BibTeXは不要です。
 python3 generate_figures.py
 ```
 
+盤面図は extended abstract と同じ `../tools/sfen2tikz.py` で生成します（マス5.2mm×5.6mm、詰上がり図の受方持駒は「残り全部」と表示）。
 入力は `verification/noroshi_fmrs_verification.json` と
 `verification/noroshi_independent_replay.json` です。
 図を変更するときは、手で駒文字を動かさず、入力SFENと検証結果をそろえてください。
