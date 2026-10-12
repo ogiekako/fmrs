@@ -2,7 +2,7 @@
 
 岡 圭吾「協力詰における全駒煙詰の発見：探索手法の段階的な設計と改良による計算機支援創作」の著者レビュー用原稿です。
 
-- [本文PDF（7ページ）](gpw2026_cooperative_mate.pdf)
+- [本文PDF（8ページ）](gpw2026_cooperative_mate.pdf)
 - [LaTeXソース](gpw2026_cooperative_mate.tex)
 - [検証結果と再現手順](verification/README.md)
 - [投稿用 extended abstract](../extended-abstract/)
