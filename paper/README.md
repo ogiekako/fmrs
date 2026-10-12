@@ -8,7 +8,7 @@
 |---|---|
 | `extended-abstract/` | ゲームプログラミングワークショップ (GPW) 2026 投稿用の **extended abstract**（A4縦・2ページ以内） |
 | `tools/` | 原稿共通のツール |
-| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（8ページ）・LaTeX・再検証資料 |
+| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（7ページ）・LaTeX・再検証資料 |
 
 `extended-abstract/` はあくまで投稿用の要旨であり、本論文とは別稿。
 GPW 2026 の投稿規定は A4縦2ページ以内・フォント10pt以上・PDF・EasyChair (GPW-26) 経由。
@@ -44,6 +44,15 @@ python3 tools/sfen2tikz.py '<sfen>' [マス幅mm マス高mm] [--gote-hand 残�
 本論文（`main/`）の盤面図も同じツールで生成している（`main/generate_figures.py`）。
 
 生成側では `\koma` と `\mochi` の2つのコマンドを定義しておく（`extended-abstract.tex` を参照）。
+
+## 変更箇所の確認
+
+`tools/tex_linediff.py` は、1文1行で書いた原稿の新旧を文単位で比べ、削除を灰色の取り消し線、
+追加を青で示した LaTeX を出力する（XeLaTeX + xeCJK 用。latexdiff は和文を1文字ずつ比べるため使わない）。
+
+```
+python3 tools/tex_linediff.py old.tex new.tex > diff.tex
+```
 
 ## 一号局「狼煙」
 
