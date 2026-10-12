@@ -8,7 +8,7 @@
 |---|---|
 | `extended-abstract/` | ゲームプログラミングワークショップ (GPW) 2026 投稿用の **extended abstract**（A4縦・2ページ以内） |
 | `tools/` | 原稿共通のツール |
-| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（7ページ）・LaTeX・再検証資料 |
+| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（8ページ）・LaTeX・再検証資料 |
 
 `extended-abstract/` はあくまで投稿用の要旨であり、本論文とは別稿。
 GPW 2026 の投稿規定は A4縦2ページ以内・フォント10pt以上・PDF・EasyChair (GPW-26) 経由。

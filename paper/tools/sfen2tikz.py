@@ -5,9 +5,10 @@
 cf. https://silvertumekster.fc2.net/blog-entry-61.html) に倣う。
 後手駒は 180 度回転。持駒は盤の左右に縦書き (☖=左, ☗=右)。
 
-usage: python3 sfen2tikz.py '<sfen>' [cell_w_mm cell_h_mm] [--gote-hand TEXT] > out.tex
+usage: python3 sfen2tikz.py '<sfen>' [cell_w_mm cell_h_mm] [--gote-hand TEXT] [--coords] > out.tex
   --gote-hand: 後手（受方）の持駒欄に SFEN の代わりに TEXT を縦書きする
                （例: 詰上がり図で「残り全部」）。
+  --coords:    盤の上に筋（９〜１）、右に段（一〜九）を書く。先手の持駒欄はその右へずらす。
 """
 import sys
 
@@ -76,6 +77,9 @@ def hand_text(hand, gote):
 def main():
     args = sys.argv[1:]
     gote_hand = None
+    coords = '--coords' in args
+    if coords:
+        args.remove('--coords')
     if '--gote-hand' in args:
         i = args.index('--gote-hand')
         gote_hand = list(args[i + 1])
@@ -100,8 +104,13 @@ def main():
         opt = ',rotate=180' if gote else ''
         print(rf'\node[inner sep=0pt{opt}] at ({f - 0.5},{r - 0.5})'
               rf' {{\koma {kanji}}};')
-    # 持駒: 後手=盤の左(玉側から見て右), 先手=盤の右
-    for gote, x, mark in [(True, 9.75, r'☖'), (False, -0.75, r'☗')]:
+    if coords:
+        for f in range(1, 10):
+            print(rf'\node[inner sep=0pt] at ({f - 0.5},-0.4) {{\mochi {"１２３４５６７８９"[f - 1]}}};')
+        for r in range(1, 10):
+            print(rf'\node[inner sep=0pt] at (-0.4,{r - 0.5}) {{\mochi {"一二三四五六七八九"[r - 1]}}};')
+    # 持駒: 後手=盤の左(玉側から見て右), 先手=盤の右（段の目盛りがあればその右）
+    for gote, x, mark in [(True, 9.75, r'☖'), (False, -1.15 if coords else -0.75, r'☗')]:
         text = gote_hand if gote and gote_hand else hand_text(hands, gote)
         chars = [mark] + text
         for i, ch in enumerate(chars):

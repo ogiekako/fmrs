@@ -31,6 +31,8 @@ def is_text(line):
     t = line.strip()
     if not t or t.startswith("%"):
         return False
+    if "&" in t or t.endswith("\\\\"):  # 表の行は構造として扱う
+        return False
     if t.startswith("\\"):
         return t.startswith(("\\ref{", "\\eqref{", "\\cite{"))
     return True
