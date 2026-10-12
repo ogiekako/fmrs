@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791716021927,
+  "lastUpdate": 1791776396139,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -50704,6 +50704,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "b0a2989284db19d838bd18bc90cbd9480fa8697d",
+          "message": "docs(paper): 協力詰で唯一解が重視されることを出典付きで追記\n\n普通詰将棋では成・不成や打つ地点の非限定が許容範囲とされる一方、\n現代のフェアリー詰将棋は唯一解を基本とし、WFP作品展のルールも注釈が\nない限り唯一解を完全作の条件とすることを §2.1 に書いた。本稿の一意性は\nこの意味であり、「狼煙」の最短解はその意味で一意であることを明記した。",
+          "timestamp": "2026-10-12T03:37:17Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/b0a2989284db19d838bd18bc90cbd9480fa8697d"
+        },
+        "date": 1791776393241,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260125,
             "unit": "Instructions"
           }
         ]
