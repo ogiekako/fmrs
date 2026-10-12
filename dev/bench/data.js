@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791787502116,
+  "lastUpdate": 1791798063947,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -51838,6 +51838,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/31dc9d715060cda31a50b7e322d45ec086b40566"
         },
         "date": 1791787495871,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "ea890a27d92ceec8d22425a0fe8cd3eccec71e70",
+          "message": "docs(paper): 第3章以降を「何であるか」を先に書く形に改め、変更箇所のPDFを添付\n\n- 逆算探索・検証探索の役割、フロンティア、全幅探索とビーム探索を先に定義し、\n  否定から入る説明（「〜ではない」）を、目的や意図を述べる文に置き換えた。\n- 正規化と駒種の優先制約の内容を具体的に書き、不要な限定の文を削った。\n- 「子孫」を「前局面」に、pc を piece count として説明した。\n- 英語副題を1行にし、概要との間隔を空けた。7ページに収まった。\n- 前版（31dc9d7）からの変更を文単位で示す review/diff_since_31dc9d7.pdf と、\n  その生成スクリプト tools/tex_linediff.py を追加した。",
+          "timestamp": "2026-10-12T09:25:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/ea890a27d92ceec8d22425a0fe8cd3eccec71e70"
+        },
+        "date": 1791798060218,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
