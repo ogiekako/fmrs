@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791798067132,
+  "lastUpdate": 1791803030592,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -52032,6 +52032,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/ea890a27d92ceec8d22425a0fe8cd3eccec71e70"
         },
         "date": 1791798060218,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "69d5523da174751e365e87f3f8918ac96d3ca345",
+          "message": "docs(paper): 3人の批評役による2回の査読を反映\n\n- 主張の範囲を記録に合わせた：協力詰で不可能と見られていたのは全駒煙、\n  「狼煙」は初の双玉の全駒煙、再始動点とビーム幅の寄与は分けていない。\n- 学習評価の記述を記録どおりにした：選別比較は旧教師値の線形モデルで各1回、\n  順位相関は各モデル自身の教師値に対する参考値、教師値は過去の探索範囲での下界、\n  T=15 での選好の強さ、39枚と40枚の実行は同じ最終モデル。\n- 表3を時系列順にし起点の列を加え、各実行の設定とビーム幅の決め方を書いた。\n- 系列・金類の正規化・作意・余詰・非限定などを定義し、検証の三段階を整理した。\n- 発表図と最も近い候補の差、飾り駒が元の候補にあったこと、飾り駒の有無は\n  発表後に調べたことを書いた。\n- 盤面図に筋・段の目盛りを付け（sfen2tikz.py に --coords）、着手表に「同」を使った。\n- 変更箇所の PDF を ea890a2 からの差分に差し替えた（tex_linediff.py は表の行を構造として扱う）。",
+          "timestamp": "2026-10-12T10:48:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/69d5523da174751e365e87f3f8918ac96d3ca345"
+        },
+        "date": 1791803027308,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
