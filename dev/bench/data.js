@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791780390704,
+  "lastUpdate": 1791785059600,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -51450,6 +51450,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/d9664b0b2b427038146547b118ddecb7d909ebc2"
         },
         "date": 1791780384688,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "4ebe6f0ecd444ce006307522063c8fb28bdf8df1",
+          "message": "docs(paper): 著者の所属とメールアドレスを追加\n\nGPW-26 の執筆要項（情報処理学会研究会標準フォーマット）に合わせ、著者名に印を付け、\n1ページ目の脚注に所属「Google (Work done in a personal capacity)」とメールアドレスを\n置いた。jsample-gpw.tex を日本語モードで組んだときの \\affiliate と \\author の脚注と同じ形。",
+          "timestamp": "2026-10-12T05:47:33Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4ebe6f0ecd444ce006307522063c8fb28bdf8df1"
+        },
+        "date": 1791785055739,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
