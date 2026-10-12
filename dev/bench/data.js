@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791787499187,
+  "lastUpdate": 1791787502116,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -47277,6 +47277,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 28708,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "31dc9d715060cda31a50b7e322d45ec086b40566",
+          "message": "docs(paper): 第1・2章の表現を見直す\n\n- 煙詰・全駒煙・ミニ煙の定義を冒頭に置いた。\n- 協力詰の規則は普通の将棋に準ずると書き、目標の局面を数式を使わずに説明した\n  （盤上駒数 pc は第4章で定義）。\n- 不要な限定の文を削り、図1に出典を入れ、「狼煙」が初の全駒煙であることを\n  「記録に残る限り」とした。\n- 関連研究の段落の結びを、先行研究との対比で本研究の範囲を述べる文にした。",
+          "timestamp": "2026-10-12T06:28:05Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/31dc9d715060cda31a50b7e322d45ec086b40566"
+        },
+        "date": 1791787501307,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 389,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2316,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 198,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 442,
+            "range": "± 858",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 24061,
+            "range": "± 57",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1693,
+            "range": "± 23",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4404,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1369983,
+            "range": "± 427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10977,
+            "range": "± 114",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 170,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 84,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 31,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 134,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 35,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 14,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19203241,
+            "range": "± 478317",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 28040,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3367,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17096,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 29411,
+            "range": "± 4",
             "unit": "ns/iter"
           }
         ]
