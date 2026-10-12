@@ -107,6 +107,12 @@ The final composition was also checked by an independent breadth-first implement
 提唱後しばらくは顧みられなかったが，1970年の中出慶一氏の新作発表をきっかけに広まり，直後に発表された加藤徹氏の作品によって長編の可能性も認識され，1971年には同誌に「ばか詰教室」が開設された\cite{kanna}．
 1975年には加藤徹氏作の「寿限無」19447手が発表されている\cite{kanna}．
 
+協力詰では，解がただ一つであることが重視される．
+普通詰将棋では，煙詰を含め，成・不成の選択や飛角香を打つ地点が一つに定まらない非限定は，余詰とは区別されて許容範囲とされることが多い\cite{sumaho,komai2025}．
+フェアリー詰将棋でも以前は多少の非限定が許容されていたが，現代では唯一解を基本とすることが多く\cite{komai2025}，WFP作品展のルールも，注釈がない限り唯一解を協力詰などの完全作の条件としている\cite{wfprule}．
+本稿の一意性もこの意味であり，成・不成や打つ地点だけが異なる手順も別の解として数える．
+「狼煙」の最短解はこの意味で一意である（\ref{sec:verify}節）．
+
 本稿の対象は，双方の玉を盤上に置く双玉の煙詰である．
 初形で標準の駒一組（玉2，飛2，角2，金4，銀4，桂4，香4，歩18）をすべて使用し，詰上がりの盤上駒数を3枚とする．
 この条件は，すべての煙詰に共通する定義ではなく，本研究の創作目標である．
@@ -405,6 +411,7 @@ $s$ 自身も含め，教師値を
 \end{table*}
 
 \subsection{検証が保証する範囲}
+\label{sec:verify}
 作品化の過程では，神無次郎氏による独立の検討ソフトfmも用いて一意性を確認した\cite{fm}．
 最終図については，本稿の再確認としてpython-shogi 1.1.1の合法手生成\cite{pythonshogi}を用いた独立の幅優先探索を実装し，最短距離と最短解数を求めた．
 この探索も1解113手を返し，手順はfmrsの結果と一致した．
@@ -481,6 +488,9 @@ $s$ 自身も含め，教師値を
 \bibitem{wfp186} たくぼん：緩募！ナンマイダ～コンテスト，Web Fairy Paradise，No.186，p.78（2023）．\weburl{tsume-springs.com/web-fairy-paradise/WFP186.pdf}．
 \bibitem{wfp218} 神無七郎：第182回WFP作品展結果，Web Fairy Paradise，No.218，pp.28--34（2026）．\weburl{tsume-springs.com/web-fairy-paradise/WFP218.pdf}．
 \bibitem{kanna} 神無七郎：神無一族の氾濫，第19回（2003）．\weburl{k7ro.sakura.ne.jp/overflow/hr19.htm}（参照2026-10-12）．
+\bibitem{sumaho} スマホ詰パラ：詰将棋のルール．\weburl{aws.tumepara.com/tsp/webs/rule}（参照2026-10-12）．
+\bibitem{komai2025} 駒井めい：フェアリー詰将棋の細かなあれこれ，note（2025）．\weburl{note.com/meikomai_tsume/n/n33ff86cfbe6b}（参照2026-10-12）．
+\bibitem{wfprule} 神無七郎：WFP作品展登場ルール一覧，Web Fairy Paradise（2026）．\weburl{tsume-springs.com/web-fairy-paradise/wfprule.pdf}（参照2026-10-12）．
 \bibitem{hirose1998} 広瀬正幸，伊藤琢巳，松原仁：逆算法による詰め将棋の自動創作，人工知能学会誌，Vol.13，No.3，pp.452--460（1998）．
 \bibitem{hoshi2002} 星由雄，野下浩平，柳井啓司：反復深化探索に基く協力詰将棋の解法，情報処理学会論文誌，Vol.43，No.1，pp.11--19（2002）．
 \bibitem{hirose2026} 広瀬稔，馬屋原剛：独自の評価関数に基づいた煙詰の自動生成，情報処理学会研究報告，Vol.2026-GI-57，No.4，pp.1--8（2026）．
