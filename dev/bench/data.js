@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791777804177,
+  "lastUpdate": 1791780387949,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -51286,6 +51286,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434260125,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "d9664b0b2b427038146547b118ddecb7d909ebc2",
+          "message": "docs(paper): 資料の見直しで判明した記述の修正と、飾り駒・選別比較などの追記\n\n- 全幅探索の22枚は、歩60%・7筋の制約で詰みから49手まで行った結果であり、\n  768GBの限界で止まったのではないため、§3.3と表3の記述を改めた。\n- 表3の35枚は乱択込みの構成、37枚は局面が保存されていないため36枚に改め、\n  38枚の行を中間局面からの全幅探索と明記した。\n- 詰上がりは双玉の候補すべてから逆算し、目視で収束を選んだことを明記した。\n- 教師値改良の順位相関、選別方式の比較、全幅探索の構造の観察、検証コストの\n  内訳、最終実行の使用メモリ、d=34起点の追加実行の局数、広瀬らとの対比を追記した。\n- 2618候補のうち42局と115手の67局には飾り駒がないことを追記した\n  （判定の記録は scratch/kazari/）。\n- 論文と食い違う古い講演原稿 scratch/zenkoma_talk_script.md を削除した。",
+          "timestamp": "2026-10-12T04:29:55Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/d9664b0b2b427038146547b118ddecb7d909ebc2"
+        },
+        "date": 1791780384688,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
             "unit": "Instructions"
           }
         ]
