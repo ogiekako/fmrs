@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792202374689,
+  "lastUpdate": 1792202378215,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -47703,6 +47703,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 24798,
             "range": "± 12",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "563caa5adb5a9f6ee1ad32bbec8d77c9a43b7438",
+          "message": "docs(paper): 3人の批評役による第3・4回の査読を反映\n\n- 38枚の行の位置付けを書いた：3.2節の人手で選んだ中間局面からの全幅探索で、\n  起点の手数・駒数と制約は記録に残っていない。表3は38枚の行を除き時系列順とした。\n- 表3の40枚の行を「3系列の共通局面から再始動」とし、36枚の行は駒数ごとの枠の併用を明記した。\n- 系列B・Cは39枚の初形各1局で、全幅探索の起点は合流点ではなく解手順上の27枚前後の局面とした。\n  2618候補が詰みから82手で25〜26枚であり、系列A〜Cの局面を通らないことを加えた\n  （確認は scratch/confluence_d82/）。\n- 学習評価の限定を加えた：T の選び方、評価を適用する候補が幅の16倍までであること、\n  T=15 の選択と無作為な選択の差や学習評価・教師値の寄与は分けていないこと。\n- 選別方式の比較で比べた3方式を明記し、駒数ごとの枠を比較の外とした。\n- 交差検証の分け方、金類の正規化の手続き、109手・113手の件数の検証段階、\n  作品選択の基準（馬・龍の枚数）、余詰の定義、豆腐図式の節の役割を書き直した。\n- 図3の破線矢印を文字から離した。8ページに収めるため重複する文を削った。\n- 変更箇所の PDF（ea890a2 から）を更新した。",
+          "timestamp": "2026-10-17T01:43:07Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/563caa5adb5a9f6ee1ad32bbec8d77c9a43b7438"
+        },
+        "date": 1792202377182,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 353,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2476,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 167,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 361,
+            "range": "± 490",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 23860,
+            "range": "± 357",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1518,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4714,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1177888,
+            "range": "± 830",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 9847,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 152,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 95,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 41,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 126,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 34,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 13,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 17539368,
+            "range": "± 149506",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 24004,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2853,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14925,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 27526,
+            "range": "± 18",
             "unit": "ns/iter"
           }
         ]
