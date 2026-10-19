@@ -4,11 +4,12 @@
 
 - [本文PDF（8ページ）](gpw2026_cooperative_mate.pdf)
 - [前版（ea890a2）からの変更箇所](review/diff_since_ea890a2.pdf)（削除は灰色の取り消し線、追加は青。`../tools/tex_linediff.py` で生成）
+- [GPW優秀論文賞（2021〜2025年）の分析と本稿への反映](review/gpw_award_analysis.md)
 - [LaTeXソース](gpw2026_cooperative_mate.tex)
 - [検証結果と再現手順](verification/README.md)
 - [投稿用 extended abstract](../extended-abstract/)
 
-本文・PDFは2026年10月12日更新のレビュー稿です（初版は10月9日）。最終提出版ではありません。
+本文・PDFは2026年10月19日更新のレビュー稿です（初版は10月9日）。最終提出版ではありません。
 
 ## 構成
 
