@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792378566265,
+  "lastUpdate": 1792380809700,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -52614,6 +52614,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/f5d7441eed80b1d20fadd209bc033e3ae46c7086"
         },
         "date": 1792378560287,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124107,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "2ecd5b39a411025eb1b4b986bcb2f8ed243ec2a2",
+          "message": "docs(paper): 順位相関の参考値の文を、否定から入らない形に改める",
+          "timestamp": "2026-10-19T03:16:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/2ecd5b39a411025eb1b4b986bcb2f8ed243ec2a2"
+        },
+        "date": 1792380805870,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
