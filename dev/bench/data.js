@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792378563444,
+  "lastUpdate": 1792378566265,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -47845,6 +47845,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 27526,
             "range": "± 18",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f5d7441eed80b1d20fadd209bc033e3ae46c7086",
+          "message": "docs(paper): GPW優秀論文賞（2021〜2025年）の傾向に合わせて概要などを改める\n\n受賞論文5本を読み、共通する特徴（従来の記録と比べた数値の結論、決め手の明示、\n信頼性の担保、適用範囲の議論など）を review/gpw_award_analysis.md にまとめた。\n\n- 概要と Abstract を「背景と従来の記録 → 結果 → 方法 → 決め手 → 検証」の順に書き直し、\n  単玉31枚・22枚／49手・438個／82手・42手の局面・2618個を数値で入れた。\n  40枚には再始動点とビーム幅の両方を変えたことを明記した。\n- はじめにの末尾を章ごとの案内にした。\n- 4.3節に、玉の周囲を表す上位特徴が広瀬・馬屋原の評価関数の「玉の可動域」と同種であることを\n  書いた（採録時の査読コメントへの回答）。\n- 7.1節に、再始動点と候補の絞り込みは事後に規則として書けたこと、創作支援への展開を書いた。\n- 8ページに収めるため重複する文を削った。変更箇所の PDF を更新した。",
+          "timestamp": "2026-10-19T02:41:30Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f5d7441eed80b1d20fadd209bc033e3ae46c7086"
+        },
+        "date": 1792378565593,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 210,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1123,
+            "range": "± 43",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 98,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 219,
+            "range": "± 676",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10087,
+            "range": "± 174",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 939,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2570,
+            "range": "± 48",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 692881,
+            "range": "± 1232",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6319,
+            "range": "± 196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 98,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 59,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 72,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 9097120,
+            "range": "± 692432",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 17248,
+            "range": "± 1163",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1906,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 10328,
+            "range": "± 750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 15168,
+            "range": "± 904",
             "unit": "ns/iter"
           }
         ]
