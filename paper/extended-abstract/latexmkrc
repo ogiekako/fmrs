@@ -1,0 +1,3 @@
+# 拡張概要は ltjsarticle (LuaTeX-ja) を使うため LuaLaTeX でビルドする（../Makefile と同じエンジン）。
+# VS Code の LaTeX Workshop も latexmk 経由でここを読む（.vscode/settings.json）。
+$pdf_mode = 4;

@@ -21,7 +21,7 @@ extended-abstract/extended-abstract.pdf: \
 	@pdfinfo $@ | grep '^Pages:' || true
 
 clean:
-	rm -f */*.aux */*.log */*.out */*.toc */*.fdb_latexmk */*.fls */*.synctex.gz
+	rm -f */*.aux */*.log */*.out */*.toc */*.fdb_latexmk */*.fls */*.synctex.gz */*.xdv
 
 distclean: clean
 	rm -f */*.pdf

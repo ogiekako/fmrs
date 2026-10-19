@@ -1,0 +1,3 @@
+# 本論文は xeCJK を使うため XeLaTeX でビルドする（build.sh と同じエンジン）。
+# VS Code の LaTeX Workshop も latexmk 経由でここを読む（.vscode/settings.json）。
+$pdf_mode = 5;

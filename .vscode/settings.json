@@ -5,9 +5,17 @@
     "[typescriptreact]": {
         "editor.tabSize": 2
     },
-    // paper/ の原稿は ltjsarticle (LuaTeX-ja) を使うため LuaLaTeX 必須。
-    // LaTeX Workshop 既定の pdflatex レシピでは
-    // "Package luatexja-core Error: This package requires Lua(HB)(La)TeX." で失敗する。
+    // paper/ の原稿はエンジンが原稿ごとに違う:
+    //   paper/extended-abstract … ltjsarticle (LuaTeX-ja) なので LuaLaTeX
+    //   paper/main             … xeCJK なので XeLaTeX
+    // そこで latexmk にはエンジンを渡さず、各ディレクトリの latexmkrc
+    // ($pdf_mode = 4 / 5) に決めさせる（LaTeX Workshop は原稿のディレクトリで
+    // latexmk を起動するので、そこの latexmkrc が読まれる）。ここで -lualatex を
+    // 固定すると paper/main が "The xeCJK package requires XeTeX" で失敗し、
+    // 壊れた PDF でコミット済みの PDF を上書きしてしまう。
+    //
+    // "FONTCONFIG_FILE" は XeLaTeX が Latin Modern と Noto CJK を名前で見つける
+    // ためのもの（paper/main/README.md 参照）。
     //
     // "env.PATH" を明示しているのは別の理由もある: この環境は code serve-web
     // 経由で動いており、拡張機能ホストは systemd --user から直接起動されるため
@@ -17,10 +25,9 @@
     // ここで PATH を明示することで、起動元の環境に依存せず動くようにしている。
     "latex-workshop.latex.tools": [
         {
-            "name": "latexmk-lualatex",
+            "name": "latexmk",
             "command": "latexmk",
             "args": [
-                "-lualatex",
                 "-synctex=1",
                 "-interaction=nonstopmode",
                 "-file-line-error",
@@ -28,7 +35,8 @@
                 "%DOC%"
             ],
             "env": {
-                "PATH": "/usr/local/texlive/2025/bin/x86_64-linux:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                "PATH": "/usr/local/texlive/2025/bin/x86_64-linux:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "FONTCONFIG_FILE": "/home/ogiekako/scratch/fonts/fonts.conf"
             }
         },
         {
@@ -47,9 +55,9 @@
     ],
     "latex-workshop.latex.recipes": [
         {
-            "name": "latexmk (lualatex)",
+            "name": "latexmk (エンジンは latexmkrc)",
             "tools": [
-                "latexmk-lualatex"
+                "latexmk"
             ]
         },
         {
@@ -68,6 +76,7 @@
         "*.log",
         "*.out",
         "*.synctex.gz",
-        "*.toc"
+        "*.toc",
+        "*.xdv"
     ]
 }
