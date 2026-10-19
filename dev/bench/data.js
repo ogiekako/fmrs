@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792202378215,
+  "lastUpdate": 1792378563444,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -52420,6 +52420,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/563caa5adb5a9f6ee1ad32bbec8d77c9a43b7438"
         },
         "date": 1792202370358,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124107,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f5d7441eed80b1d20fadd209bc033e3ae46c7086",
+          "message": "docs(paper): GPW優秀論文賞（2021〜2025年）の傾向に合わせて概要などを改める\n\n受賞論文5本を読み、共通する特徴（従来の記録と比べた数値の結論、決め手の明示、\n信頼性の担保、適用範囲の議論など）を review/gpw_award_analysis.md にまとめた。\n\n- 概要と Abstract を「背景と従来の記録 → 結果 → 方法 → 決め手 → 検証」の順に書き直し、\n  単玉31枚・22枚／49手・438個／82手・42手の局面・2618個を数値で入れた。\n  40枚には再始動点とビーム幅の両方を変えたことを明記した。\n- はじめにの末尾を章ごとの案内にした。\n- 4.3節に、玉の周囲を表す上位特徴が広瀬・馬屋原の評価関数の「玉の可動域」と同種であることを\n  書いた（採録時の査読コメントへの回答）。\n- 7.1節に、再始動点と候補の絞り込みは事後に規則として書けたこと、創作支援への展開を書いた。\n- 8ページに収めるため重複する文を削った。変更箇所の PDF を更新した。",
+          "timestamp": "2026-10-19T02:41:30Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f5d7441eed80b1d20fadd209bc033e3ae46c7086"
+        },
+        "date": 1792378560287,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
