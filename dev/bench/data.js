@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792397372987,
+  "lastUpdate": 1792397376032,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48271,6 +48271,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 28977,
             "range": "± 8",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "4541334c9b5b8e9d7bda53946b17cce4bfa22992",
+          "message": "docs(paper): 金類の正規化を、局面表のメモリを減らす手段として位置づけ直す\n\n- 局面表がメモリ使用量の大部分を占めることを要求として先に書き、\n  6.3節の探索の終盤の実測値（局面表 約93億項目、RSS 約290GiB）を添えた。\n- 金類の駒種だけが違う局面が多数生じることを述べたあと、それらを同じ局面と\n  みなすことを「局面表の項目を減らす手段の一つ」として書き、実装、代償の順に続けた。\n- 「金類」を、と金を含む5種の総称として先に定義した。\n- 金類の段落を局面表の段落の直後に移し、制約・ビームと三段階の確認を別の段落にした。\n\nPDF と変更箇所の PDF、SHA256SUMS を更新した。",
+          "timestamp": "2026-10-19T07:54:07Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4541334c9b5b8e9d7bda53946b17cce4bfa22992"
+        },
+        "date": 1792397375247,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 303,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2358,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 141,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 307,
+            "range": "± 394",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 23257,
+            "range": "± 40",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1397,
+            "range": "± 36",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4227,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1065973,
+            "range": "± 76",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 8981,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 134,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 83,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 109,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 16105569,
+            "range": "± 99529",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 23445,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2761,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14462,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 24690,
+            "range": "± 2",
             "unit": "ns/iter"
           }
         ]
