@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792380813018,
+  "lastUpdate": 1792395790027,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -52808,6 +52808,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/2ecd5b39a411025eb1b4b986bcb2f8ed243ec2a2"
         },
         "date": 1792380805870,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124107,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "d8f58f2e1b3d2d1cd14a1d2a7a166f4170f69460",
+          "message": "docs(paper): 金類の正規化の段落を、目的を先に、代償を原因とともに書く形に改める\n\n- 駒取りを戻すとき金類が5通りに復元され、動きが同じ局面が多数生じることを先に書いた。\n- 減るのはフロンティアではなく局面表の項目であることを明記した。\n- 判定が変わりうるのは受方の持駒打ちが関わる場合だけであることと、\n  二歩で歩を合駒できない地点に正規化後は銀を合駒できる例を書いた。\n- 根拠の記録がない「稀に」を削り、誤判定の二つの向き（一意な局面を捨てる、\n  一意でない局面を残す）とそれぞれの扱いを分けて書いた。\n\nPDF と変更箇所の PDF、SHA256SUMS を更新した。",
+          "timestamp": "2026-10-19T07:26:11Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/d8f58f2e1b3d2d1cd14a1d2a7a166f4170f69460"
+        },
+        "date": 1792395787295,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
