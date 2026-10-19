@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792395790027,
+  "lastUpdate": 1792395793146,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48129,6 +48129,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 31991,
             "range": "± 67",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "d8f58f2e1b3d2d1cd14a1d2a7a166f4170f69460",
+          "message": "docs(paper): 金類の正規化の段落を、目的を先に、代償を原因とともに書く形に改める\n\n- 駒取りを戻すとき金類が5通りに復元され、動きが同じ局面が多数生じることを先に書いた。\n- 減るのはフロンティアではなく局面表の項目であることを明記した。\n- 判定が変わりうるのは受方の持駒打ちが関わる場合だけであることと、\n  二歩で歩を合駒できない地点に正規化後は銀を合駒できる例を書いた。\n- 根拠の記録がない「稀に」を削り、誤判定の二つの向き（一意な局面を捨てる、\n  一意でない局面を残す）とそれぞれの扱いを分けて書いた。\n\nPDF と変更箇所の PDF、SHA256SUMS を更新した。",
+          "timestamp": "2026-10-19T07:26:11Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/d8f58f2e1b3d2d1cd14a1d2a7a166f4170f69460"
+        },
+        "date": 1792395792317,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 383,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2698,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 182,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 392,
+            "range": "± 583",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 26033,
+            "range": "± 566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1604,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5045,
+            "range": "± 15",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1306117,
+            "range": "± 274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10650,
+            "range": "± 46",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 165,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 103,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 45,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 137,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 36,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 14,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 19230968,
+            "range": "± 444937",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27777,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3322,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 17162,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 28977,
+            "range": "± 8",
             "unit": "ns/iter"
           }
         ]
