@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792395793146,
+  "lastUpdate": 1792397372987,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -53002,6 +53002,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/d8f58f2e1b3d2d1cd14a1d2a7a166f4170f69460"
         },
         "date": 1792395787295,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124107,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "4541334c9b5b8e9d7bda53946b17cce4bfa22992",
+          "message": "docs(paper): 金類の正規化を、局面表のメモリを減らす手段として位置づけ直す\n\n- 局面表がメモリ使用量の大部分を占めることを要求として先に書き、\n  6.3節の探索の終盤の実測値（局面表 約93億項目、RSS 約290GiB）を添えた。\n- 金類の駒種だけが違う局面が多数生じることを述べたあと、それらを同じ局面と\n  みなすことを「局面表の項目を減らす手段の一つ」として書き、実装、代償の順に続けた。\n- 「金類」を、と金を含む5種の総称として先に定義した。\n- 金類の段落を局面表の段落の直後に移し、制約・ビームと三段階の確認を別の段落にした。\n\nPDF と変更箇所の PDF、SHA256SUMS を更新した。",
+          "timestamp": "2026-10-19T07:54:07Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4541334c9b5b8e9d7bda53946b17cce4bfa22992"
+        },
+        "date": 1792397370038,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
