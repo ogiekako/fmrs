@@ -51,7 +51,11 @@
 
 \vspace{2mm}
 \textbf{Abstract}\quad
-TODO: update.
+In a smoke problem, pieces vanish one by one until three remain; for helpmates, one with all pieces of a set on the board was thought impossible.
+We obtained Noroshi, a two-king helpmate starting with all 40 pieces on the board, with a unique shortest solution of 113 plies.
+Candidates from backward search from the mate are verified by exhaustive search for shortest-solution uniqueness.
+A beam search guided by an evaluation learned from search histories reached 39 pieces; restarting from a position shared by all known 39-piece solutions with a wider beam reached 40.
+An independent implementation confirmed the uniqueness. We also found the maximum size of smoke helpmates with only kings, pawns, and promoted pawns.
 \end{minipage}
 \vspace{5mm}
 }]
@@ -72,7 +76,7 @@ TODO: update.
 \section{はじめに}
 煙詰は，多数の駒が配置された初期状態から，手順の進行とともに駒が次々に消えていき，必要最低限の枚数（通常は玉を含めて3枚）で詰め上がる詰将棋の総称である．
 狭義には，攻方の玉も盤上に置く双玉では40枚，受方の玉だけを置く単玉では39枚の駒すべてを盤上に置いた初形から始まるもの（全駒煙）を指す．
-全駒煙以外の煙詰はミニ煙と呼ばれる\cite{wfp218}． ←TODO:ミニ煙の出典をもっとcanonicalっぽいものにして。
+初形の盤上の駒がそれより少なく，玉を含めて3枚で詰め上がるものはミニ煙と呼ばれる\cite{wikikemuri,wfp218}．
 煙詰の一号局は，1755年の伊藤看寿『将棋図巧』第99番である\cite{zuko}．
 2作目の黒川一郎「落花」が現れるまでの約200年間，煙詰はこの1局だけであった\cite{toybox56}が，その後は多くの作品が作られ，都煙・小駒煙・貧乏煙などを含めて2015年の時点で338作が数えられている\cite{tetsu2015}．
 一方，攻方と受方が協力して詰みに向かう協力詰では，盤上の駒を増やすほど，狙った長い手順を保ちながら別解を排除することが難しくなることから，
@@ -85,10 +89,9 @@ TODO: update.
 本稿の主題は，この作品の発見に至った探索設計である．
 探索では，詰上がりから1手ずつ局面をさかのぼり（逆算），各局面について最短の詰手順が一意かを調べる．
 候補の局面は手数とともに急増するので，残す局面を選ぶための評価が要る．
-本研究では，その評価を探索の記録から学習することで初形39枚に達し（第4章），さらに得られた解手順の合流構造を分析して探索の起点を選び直し，ビームサーチの幅を広げて再探索を行うことで初形40枚に達した（第5章）．
-得られた候補の検証と作品化（第6章）に加え，同じ逆算と検証を局面を間引かずに適用して最大枚数を確かめた豆腐図式の煙詰（\ref{sec:tofu}節）も報告する．
+本研究では，その評価を探索の記録から学習することで初形39枚に達し（\ref{sec:learn}節），さらに得られた解手順の合流構造を分析して探索の起点を選び直し，ビームサーチの幅を広げて再探索を行うことで初形40枚に達した（\ref{sec:redesign}節）．
+得られた候補の検証と作品化（\ref{sec:result}節）に加え，同じ逆算と検証を局面を間引かずに適用して最大枚数を確かめた豆腐図式の煙詰（\ref{sec:tofu}節）も報告する．
 各節の到達駒数は，発見に至った順序での記録として報告する．
-←TODO:第４章とか、数値を直接埋め込むんじゃなくて、refとか使って。あと、章じゃなくて、節？
 
 \begin{figure}[t]
 \centering
@@ -173,7 +176,6 @@ fmrsでは，残り深さに関する情報を持つ局面表と深さ制限DFS�
 例えば受方の持駒に歩があれば，盤上の攻方の成香はと金になり，受方の持駒の歩1枚が香1枚に替わる．
 正規化した局面は一意性の判定と局面表の検索にだけ使い，フロンティアには元の駒種のまま残す．
 この同一視で判定が変わりうるのは，受方が持駒を打つ手が関わる場合である．
-例えば，二歩のため歩を合駒できない地点に，正規化後は銀を合駒できることがある．
 このため，一意な局面を一意でないと判定して捨てることがあり，その分だけ逆算の網羅性は下がる．
 逆に一意でない局面を残すこともあるので，最終候補は駒種と持駒を元のまま扱うソルバーで改めて検証する．
 
@@ -221,6 +223,7 @@ fmrsでは，残り深さに関する情報を持つ局面表と深さ制限DFS�
 手の順序の改善で短縮できる余地は小さいので，40枚まで延ばすため，検証を速くする代わりに，全幅探索からビーム探索へ移り，展開する局面を選んだ．
 
 \section{探索履歴から学ぶビーム評価}
+\label{sec:learn}
 \subsection{最大到達駒数を教師値とする}
 全幅探索から，各層で無作為に選んだ $10^5$ 局面だけを残すビーム探索へ移ると，初形30枚の煙詰まで到達した．
 さらに，有望な局面を多く残すため，ある局面から逆算を続けたときに到達できる最大駒数を予測する評価関数を学習した．
@@ -336,6 +339,7 @@ $T$ は5，15，40などを試し，到達駒数を見て15を選んだ（数値
 どの特徴が40枚の発見に不可欠だったかを知るには，特徴を除いて再学習し，再探索して比べる必要がある．
 
 \section{39枚から40枚への探索の再設計}
+\label{sec:redesign}
 \subsection{到達駒数の推移}
 探索構成を変更した際の到達点を表\ref{tab:milestones}にまとめる．
 学習を導入する前には，\ref{sec:start}節で述べた人手で選んだ中間局面を起点に全幅で探索し，38枚を得ていた（起点の手数と駒数，探索制約は記録に残っていない）．
@@ -421,6 +425,7 @@ $T=15$では同じ設定でも実行ごとに最大到達駒数が3〜6枚程度
 2618個の解手順は，詰みから82手の時点でいずれも盤上25枚または26枚であり，系列Aの合流点（27枚）も，系列B，Cの同じ手数の局面（いずれも29枚）も通らない．
 
 \section{得られた作品と検証}
+\label{sec:result}
 \subsection{近縁な候補から作品を選ぶ}
 2618個の候補は終盤の手順を広く共有しており，手順に基づく分類では169類にまとまる（\ref{sec:later}節）．
 成駒の種類を置き換えたものや，初形側の配置だけが異なる近縁な候補も多い．
@@ -526,6 +531,7 @@ $T=15$では同じ設定でも実行ごとに最大到達駒数が3〜6枚程度
 
 \begin{thebibliography}{99}
 \raggedright
+\bibitem{wikikemuri} ウィキペディア日本語版：煙詰，版109577244（2026-05-18）．\weburl{ja.wikipedia.org/w/index.php?oldid=109577244}（参照2026-10-19）．
 \bibitem{zuko} 伊藤看寿：将棋図巧，第99番（1755）．
 \bibitem{toybox56} TETSU：記録展示室 No.56，詰将棋おもちゃ箱．\weburl{www.ne.jp/asahi/tetsu/toybox/challenge/ct056.htm}（参照2026-10-12）．
 \bibitem{tetsu2015} TETSU：看寿賞作品の煙詰率，詰将棋メモ（2015）．\weburl{toybox.tea-nifty.com/memo/2015/07/post-9f8e.html}．
