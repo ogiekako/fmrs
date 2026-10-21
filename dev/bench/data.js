@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792397376032,
+  "lastUpdate": 1792576134056,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -53196,6 +53196,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/4541334c9b5b8e9d7bda53946b17cce4bfa22992"
         },
         "date": 1792397370038,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124107,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "58744ea510f529356a5df0e0920865dd3ab8dd13",
+          "message": "docs(paper): 本文中の TODO を解消する\n\n- 英文 Abstract を、日本語の概要に1文ずつ対応させて書いた。\n- ミニ煙の定義の出典に Wikipedia「煙詰」（版109577244）を加え、本文をその定義\n  （初形の盤上の駒が全駒より少なく、玉を含めて3枚で詰め上がるもの）に合わせた。\n  WFP218 は使用例として残した。印刷物の用語集のような定番の出典は見つからず、\n  資料によって定義も揺れている。\n- はじめにの「第4章」などを \\ref と「節」に置き換え、4〜6節にラベルを付けた。\n- 8ページに収めるため、金類の正規化の段落から二歩の例の1文を削った。\n\nPDF と変更箇所の PDF、SHA256SUMS を更新した。",
+          "timestamp": "2026-10-21T09:33:19Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/58744ea510f529356a5df0e0920865dd3ab8dd13"
+        },
+        "date": 1792576130735,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
