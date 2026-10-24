@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792843930911,
+  "lastUpdate": 1792843934409,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48555,6 +48555,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 25809,
             "range": "± 629",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "ac94b8904069091c4136febafba0d08fbd6fbe82",
+          "message": "docs(paper): 概要・第3章などを改め、豆腐煙の初形図を加え、表記と誤字を直す\n\n著者の編集:\n- 表題の著者表記を英字のみにした。\n- 概要と英文 Abstract を書き直した。\n- 3.1節を「逆算探索と検証」とし、逆算探索は網羅性を保証しない発見的探索、\n  検証は完全探索という対比で書き直した。三段階の確認のまとめを整理した。\n- 3.3節の全幅探索の限界の記述を短くし、一意性検証のノード内訳の段落を削った。\n- 豆腐煙の初形3図（単玉11枚・双玉16枚・双玉都詰12枚）を generate_figures.py で\n  生成して6.4節に加え、README を更新した。\n- 図・表の説明文や解手順の概略など、重複する説明を削った。\n\n表記と誤字（査読コメントへの対応）:\n- 本文で引用していない python-shogi を参考文献から削除した。\n- 英文 Abstract の「113 steps」を「113 moves」にした。\n- 「ビームサーチ」を「ビーム探索」「ビーム幅」にそろえ、「ビーム幅に残す」を\n  「ビームに残す」にした。「おける枚数」を「置ける枚数」に直した。\n- 「記録に残っていない」などの断り書きを削った（T の試行値、予測値の開き、\n  木の学習標本数、表1の日付、40枚実行のビーム幅上限と実行時間）。\n\nPDF と変更箇所の PDF、SHA256SUMS（豆腐煙の図3点を追加）を更新した。",
+          "timestamp": "2026-10-24T11:57:58Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/ac94b8904069091c4136febafba0d08fbd6fbe82"
+        },
+        "date": 1792843933382,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 210,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1117,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 99,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 219,
+            "range": "± 658",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10304,
+            "range": "± 158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 970,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2583,
+            "range": "± 44",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 624721,
+            "range": "± 84",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6433,
+            "range": "± 130",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 99,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 59,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 72,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 8935389,
+            "range": "± 187290",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 14937,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1650,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 8772,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 15231,
+            "range": "± 2",
             "unit": "ns/iter"
           }
         ]
