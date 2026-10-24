@@ -12,6 +12,15 @@ def board(sfen,path,*opts):
  path.write_text(out)
 board(r['sfen'],OUT/'noroshi_initial.tex','--coords')
 board(s['final_sfen'],OUT/'noroshi_final.tex','--coords','--gote-hand','残り全部')
+# 豆腐煙の最大初形．scratch/tofu_smoke/verify_independent*.jsonl で
+# 盤上枚数（11，16，12），最短手数（29，53，27），最短解数1を確認済み．
+tofu_initials={
+ 'tofu_single_king_initial': '9/9/9/+P8/9/P+P7/+P8/9/1PPPPPk1+P b 2r2b4g4s4n4l8p 1',
+ 'tofu_two_kings_initial': '4+P3+P/6K1p/4P3+p/5+P1+pk/5P3/6PP+P/6+PpP/9/9 b 2r2b4g4s4n4l4p 1',
+ 'tofu_two_kings_center_initial': '9/9/4K4/9/4+P4/9/+P3+P4/4P4/PPPP1Pk1+P b 2r2b4g4s4n4l8p 1',
+}
+for name,sfen in tofu_initials.items():
+ board(sfen,OUT/(name+'.tex'),'--coords','--gote-hand','残り全部')
 m=[]
 for line in r['kif'].splitlines():
  p=re.match(r'\s+([0-9]+)\s+(\S+)',line)

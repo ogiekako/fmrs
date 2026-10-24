@@ -13,7 +13,7 @@
 
 ## 構成
 
-- `figures/`：SFENと検証済み113手から生成した初形・詰上がり・着手表
+- `figures/`：「狼煙」の初形・詰上がり・着手表と，豆腐煙の初形3図
 - `generate_figures.py`：図と着手表の再生成（Python標準ライブラリのみ。盤面図は `../tools/sfen2tikz.py` を呼ぶ）
 - `build.sh`：XeLaTeXによる本文PDFのビルド
 - `verification/`：発表形「狼煙」、保存候補2,618局、169類の分類、保存GBDTの構造的特徴指標の再検証資料
@@ -56,6 +56,7 @@ python3 generate_figures.py
 盤面図は extended abstract と同じ `../tools/sfen2tikz.py` で生成します（マス5.2mm×5.6mm、詰上がり図の受方持駒は「残り全部」と表示）。
 入力は `verification/noroshi_fmrs_verification.json` と
 `verification/noroshi_independent_replay.json` です。
+豆腐煙の初形3図は `generate_figures.py` 内の検証済みSFENを使います（検証記録は `../../scratch/tofu_smoke/verify_independent*.jsonl`）。
 図を変更するときは、手で駒文字を動かさず、入力SFENと検証結果をそろえてください。
 
 ## 検証の範囲
