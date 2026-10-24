@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792576137335,
+  "lastUpdate": 1792843930911,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -53420,6 +53420,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "ac94b8904069091c4136febafba0d08fbd6fbe82",
+          "message": "docs(paper): 概要・第3章などを改め、豆腐煙の初形図を加え、表記と誤字を直す\n\n著者の編集:\n- 表題の著者表記を英字のみにした。\n- 概要と英文 Abstract を書き直した。\n- 3.1節を「逆算探索と検証」とし、逆算探索は網羅性を保証しない発見的探索、\n  検証は完全探索という対比で書き直した。三段階の確認のまとめを整理した。\n- 3.3節の全幅探索の限界の記述を短くし、一意性検証のノード内訳の段落を削った。\n- 豆腐煙の初形3図（単玉11枚・双玉16枚・双玉都詰12枚）を generate_figures.py で\n  生成して6.4節に加え、README を更新した。\n- 図・表の説明文や解手順の概略など、重複する説明を削った。\n\n表記と誤字（査読コメントへの対応）:\n- 本文で引用していない python-shogi を参考文献から削除した。\n- 英文 Abstract の「113 steps」を「113 moves」にした。\n- 「ビームサーチ」を「ビーム探索」「ビーム幅」にそろえ、「ビーム幅に残す」を\n  「ビームに残す」にした。「おける枚数」を「置ける枚数」に直した。\n- 「記録に残っていない」などの断り書きを削った（T の試行値、予測値の開き、\n  木の学習標本数、表1の日付、40枚実行のビーム幅上限と実行時間）。\n\nPDF と変更箇所の PDF、SHA256SUMS（豆腐煙の図3点を追加）を更新した。",
+          "timestamp": "2026-10-24T11:57:58Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/ac94b8904069091c4136febafba0d08fbd6fbe82"
+        },
+        "date": 1792843927568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
             "unit": "Instructions"
           }
         ]
