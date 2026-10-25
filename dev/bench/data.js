@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792915103055,
+  "lastUpdate": 1792915106310,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -48839,6 +48839,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 24390,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "id": "3db5c0dccec5623ac84606d4d8386257f17abe57",
+          "message": "docs(paper): 概要の脱字を修正してPDFを再生成\n\n「すべてに共通局面」を「すべてに共通する局面」に修正し、本文PDFとチェックサムを更新。\nXeLaTeXで2回ビルド。全8ページを照合し、文章と表示の差分が概要の該当箇所だけであることを確認。",
+          "timestamp": "2026-10-25T07:42:46Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3db5c0dccec5623ac84606d4d8386257f17abe57"
+        },
+        "date": 1792915105316,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 303,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2363,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 141,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 308,
+            "range": "± 391",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22193,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1415,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4302,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1110419,
+            "range": "± 637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 8963,
+            "range": "± 98",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 134,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 83,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 108,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 11,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 15811059,
+            "range": "± 68714",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 24096,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2655,
+            "range": "± 19",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14231,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 24691,
+            "range": "± 1",
             "unit": "ns/iter"
           }
         ]
