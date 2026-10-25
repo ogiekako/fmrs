@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792843934409,
+  "lastUpdate": 1792905303396,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -53584,6 +53584,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/ac94b8904069091c4136febafba0d08fbd6fbe82"
         },
         "date": 1792843927568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "id": "7fb9f98ad102f461a757e3407ab180acfed164f9",
+          "message": "docs(paper): 候補判定と厳密検証を区別し抽出重みの説明を明確化\n\n- 3.1節で探索中の正規化付きDFSと最終候補の正規化しない幅優先探索を区別\n- 4.2節でGumbel乱択を逐次非復元抽出として説明し、倍率を抽出重みの比と明記\n- 所属のGoogle表記を維持し、本文PDFとチェックサム、READMEを更新\n\n確認: XeLaTeXで2回ビルド、全8ページの表示確認、全フォント埋め込み、警告・未解決参照・はみ出しなし。",
+          "timestamp": "2026-10-25T04:59:25Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/7fb9f98ad102f461a757e3407ab180acfed164f9"
+        },
+        "date": 1792905300658,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
