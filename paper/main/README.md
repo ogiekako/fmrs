@@ -3,13 +3,14 @@
 岡 圭吾「協力詰における全駒煙詰の発見：探索手法の段階的な設計と改良による計算機支援創作」の著者レビュー用原稿です。
 
 - [本文PDF（8ページ）](gpw2026_cooperative_mate.pdf)
-- [前版（ea890a2）からの変更箇所](review/diff_since_ea890a2.pdf)（削除は灰色の取り消し線、追加は青。`../tools/tex_linediff.py` で生成）
+- [前版（ea890a2）から2026年10月24日版までの変更箇所](review/diff_since_ea890a2.pdf)（削除は灰色の取り消し線、追加は青。`../tools/tex_linediff.py` で生成）
 - [GPW優秀論文賞（2021〜2025年）の分析と本稿への反映](review/gpw_award_analysis.md)
 - [LaTeXソース](gpw2026_cooperative_mate.tex)
 - [検証結果と再現手順](verification/README.md)
 - [投稿用 extended abstract](../extended-abstract/)
 
-本文・PDFは2026年10月19日更新のレビュー稿です（初版は10月9日）。最終提出版ではありません。
+本文・PDFは2026年10月25日更新の原稿です（初版は10月9日）。
+3.1節で探索中の候補判定と最終候補の厳密検証を区別し、4.2節でGumbel乱択の抽出重みの説明を明確にしました。
 
 ## 構成
 
