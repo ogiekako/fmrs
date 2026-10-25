@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792905306160,
+  "lastUpdate": 1792915103055,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -53778,6 +53778,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/7fb9f98ad102f461a757e3407ab180acfed164f9"
         },
         "date": 1792905300658,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260135,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@users.noreply.github.com"
+          },
+          "id": "3db5c0dccec5623ac84606d4d8386257f17abe57",
+          "message": "docs(paper): 概要の脱字を修正してPDFを再生成\n\n「すべてに共通局面」を「すべてに共通する局面」に修正し、本文PDFとチェックサムを更新。\nXeLaTeXで2回ビルド。全8ページを照合し、文章と表示の差分が概要の該当箇所だけであることを確認。",
+          "timestamp": "2026-10-25T07:42:46Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3db5c0dccec5623ac84606d4d8386257f17abe57"
+        },
+        "date": 1792915098982,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
