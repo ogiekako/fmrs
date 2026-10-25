@@ -1,67 +1,10 @@
-# paper
+# 協力詰における全駒煙詰の発見
 
-協力詰の全駒煙詰（盤上40枚・持駒なし・詰上がり3枚）に関する原稿。
+論文PDF・LaTeX・要旨・図生成ツール・再検証資料は、[ogiekako/papers の smoke-helpmate/](https://github.com/ogiekako/papers/tree/main/smoke-helpmate) に移管しました。
 
-## 構成
+- [本文PDF（8ページ）](https://github.com/ogiekako/papers/blob/main/smoke-helpmate/main/gpw2026_cooperative_mate.pdf)
+- [LaTeXソース](https://github.com/ogiekako/papers/blob/main/smoke-helpmate/main/gpw2026_cooperative_mate.tex)
+- [ビルド方法・再検証資料](https://github.com/ogiekako/papers/tree/main/smoke-helpmate/main)
+- [投稿用 extended abstract](https://github.com/ogiekako/papers/tree/main/smoke-helpmate/extended-abstract)
 
-| ディレクトリ | 内容 |
-|---|---|
-| `extended-abstract/` | ゲームプログラミングワークショップ (GPW) 2026 投稿用の **extended abstract**（A4縦・2ページ以内） |
-| `tools/` | 原稿共通のツール |
-| [`main/`](main/) | GPW 2026 本論文の著者レビュー用原稿（8ページ）・LaTeX・再検証資料 |
-
-`extended-abstract/` はあくまで投稿用の要旨であり、本論文とは別稿。
-GPW 2026 の投稿規定は A4縦2ページ以内・フォント10pt以上・PDF・EasyChair (GPW-26) 経由。
-
-## ビルド
-
-本論文のPDFと再現手順は [`main/README.md`](main/README.md) を参照してください。
-本論文は XeLaTeX、以下の extended abstract は LuaLaTeX を使用します。
-
-```
-make -C paper abstract     # extended-abstract/extended-abstract.pdf
-```
-
-TeX Live の LuaLaTeX（`ltjsarticle`）と Python 3 が必要。
-
-VSCode の LaTeX Workshop から `Ctrl+Alt+B` でもビルドできる（レシピは
-`.vscode/settings.json` で LuaLaTeX に設定済み）。**pdflatex では通らない**ので、
-既定のレシピのままだと `luatexja-core Error: This package requires Lua(HB)(La)TeX.`
-で失敗する。ただし LaTeX Workshop は盤面図 `noroshi_board.tex` を生成しないので、
-SFEN を変えたときは `make` を通すこと。
-
-## 盤面図
-
-盤面は `tools/sfen2tikz.py` が SFEN から TikZ を生成する（`make` が自動で実行）。
-手で書き写さないこと。図面の体裁は詰将棋界で標準的な寸法（マス 4.8mm×5.2mm、
-外枠 0.4mm）に倣い、後手駒は180度回転、持駒は盤の左右に縦書きする。
-
-```
-python3 tools/sfen2tikz.py '<sfen>' [マス幅mm マス高mm] [--gote-hand 残り全部] > board.tex
-```
-
-`--gote-hand` は受方の持駒欄に SFEN の代わりに指定文字列を縦書きする（詰上がり図で受方持駒が多いとき用）。
-本論文（`main/`）の盤面図も同じツールで生成している（`main/generate_figures.py`）。
-
-生成側では `\koma` と `\mochi` の2つのコマンドを定義しておく（`extended-abstract.tex` を参照）。
-
-## 変更箇所の確認
-
-`tools/tex_linediff.py` は、1文1行で書いた原稿の新旧を文単位で比べ、削除を灰色の取り消し線、
-追加を青で示した LaTeX を出力する（XeLaTeX + xeCJK 用。latexdiff は和文を1文字ずつ比べるため使わない）。
-
-```
-python3 tools/tex_linediff.py old.tex new.tex > diff.tex
-```
-
-## 一号局「狼煙」
-
-```
-8+P/6K1p/4S3+P/3+Pp+PP+pn/2BpPP1p1/3Bk+p+p1P/1RRs+lgLNG/2SPNlNPG/G+pL4S1 b - 1
-```
-
-協力詰113手・盤上40枚・持駒なし・解が一意。`cargo run -r solve standard '<sfen>'` で再検証できる。
-『詰将棋パラダイス』2026年8月号に特別懸賞出題（ogiekako 名義）。
-
-探索の技術的経緯は [`../scratch/zenkoma_smoke_journey.md`](../scratch/zenkoma_smoke_journey.md) に記録がある。
-
+ソルバー本体と探索ログは引き続きこのfmrsリポジトリで管理します。

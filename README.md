@@ -76,3 +76,9 @@ Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/) and run
 ### Cloud Run
 
 GitHub Pages から重い解図だけ Cloud Run に逃がす構成をサポートしています。構成と手順は [CLOUD_RUN.md](CLOUD_RUN.md) を参照してください。
+
+## 論文
+
+「協力詰における全駒煙詰の発見」の原稿・PDF・再検証資料は、[ogiekako/papers の smoke-helpmate/](https://github.com/ogiekako/papers/tree/main/smoke-helpmate) で管理しています。
+
+[本文PDF（8ページ）](https://github.com/ogiekako/papers/blob/main/smoke-helpmate/main/gpw2026_cooperative_mate.pdf) · [ビルド方法・再検証資料](https://github.com/ogiekako/papers/tree/main/smoke-helpmate/main)
