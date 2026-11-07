@@ -21,7 +21,15 @@ use url::Url;
 
 pub(crate) fn parse_to_sfen(sfen_or_file_or_url: &str) -> anyhow::Result<String> {
     Ok(match sfen_or_file_or_url {
-        x if x.ends_with(".sfen") => std::fs::read_to_string(x)?,
+        x if x.ends_with(".sfen") => {
+            let content = std::fs::read_to_string(x)?;
+            content
+                .lines()
+                .map(str::trim)
+                .find(|line| !line.is_empty() && !line.starts_with('#'))
+                .unwrap_or_else(|| content.trim())
+                .to_string()
+        }
         x if x.starts_with("http") => {
             let url = Url::parse(x)?;
             // path 形式: /fmrs/<sfen> (空白を _ で表現)

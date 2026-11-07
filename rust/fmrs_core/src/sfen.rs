@@ -125,6 +125,11 @@ pub fn encode_position(board: &PositionAux) -> String {
 
 // Ingore optional move count if any.
 pub fn decode_position(sfen: &str) -> anyhow::Result<PositionAux> {
+    let sfen = sfen
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty() && !line.starts_with('#'))
+        .unwrap_or_else(|| sfen.trim());
     let v: Vec<&str> = sfen.split(' ').collect();
     if v.len() < 3 {
         bail!("Insufficient number of fields");
@@ -335,6 +340,15 @@ fn test_decode() {
         &encode_position(
             &decode_position("3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1")
                 .expect("Failed to decode")
+        )
+    );
+    assert_eq!(
+        "3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1",
+        &encode_position(
+            &decode_position(
+                "# 作者: 荻絵香木\n# ルール: 協力詰\n3sks3/9/4+P4/9/7B1/9/9/9/9 b S2rb4gs4n4l17p 1\n"
+            )
+            .expect("Failed to decode with metadata comments")
         )
     );
 }
