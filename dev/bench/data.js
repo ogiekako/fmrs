@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794036986812,
+  "lastUpdate": 1794036990477,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -49123,6 +49123,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 28168,
             "range": "± 0",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "3ababd537c586a29e4efe2dc006e888926e7bc85",
+          "message": "chore: paper配下のLaTeXビルド生成物とipsj.clsを.gitignoreに追加",
+          "timestamp": "2026-11-07T07:05:28Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/3ababd537c586a29e4efe2dc006e888926e7bc85"
+        },
+        "date": 1794036989658,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 388,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2662,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 183,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 524,
+            "range": "± 401",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 25558,
+            "range": "± 95",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1593,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5056,
+            "range": "± 22",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1306184,
+            "range": "± 112",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 10702,
+            "range": "± 41",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 168,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 103,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 45,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 155,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 18,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 18987441,
+            "range": "± 209770",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 27391,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 3172,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 16553,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 29074,
+            "range": "± 5",
             "unit": "ns/iter"
           }
         ]
