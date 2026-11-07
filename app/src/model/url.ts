@@ -24,11 +24,28 @@ function namedPosition(): string | null {
   return NAMED_POSITIONS[name] ?? null;
 }
 
+export function ogiekakoPagePath(): string {
+  return basePath() + "ogiekako";
+}
+
+export function isOgiekakoPageUrl(): boolean {
+  const base = basePath();
+  const path = window.location.pathname;
+  if (!path.startsWith(base)) {
+    return false;
+  }
+  const name = path.slice(base.length).replace(/\/$/, "").toLowerCase();
+  return name === "ogiekako";
+}
+
 export function isNamedPositionUrl(): boolean {
   return namedPosition() !== null;
 }
 
 export function sfenFromUrl(): string | null {
+  if (isOgiekakoPageUrl()) {
+    return null;
+  }
   const named = namedPosition();
   if (named) {
     return named;

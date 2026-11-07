@@ -1,4 +1,5 @@
 import * as model from "../model";
+import { getPrecomputedSolveResponseBySfen } from "../ogiekako_problems";
 import { ServerUnavailableError, solveServer } from "./server_solver";
 import { solveWasm } from "./wasm_solver";
 
@@ -69,6 +70,12 @@ export async function solve(
   onFallback?: () => void
 ): Promise<Response | undefined> {
   const sfen = model.encodeSfen(position);
+  if (n >= 1) {
+    const precomputed = getPrecomputedSolveResponseBySfen(sfen);
+    if (precomputed) {
+      return precomputed;
+    }
+  }
   const requireServer = isLocalDevServerBackedPage();
   const deadline =
     Date.now() +

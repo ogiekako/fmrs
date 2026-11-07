@@ -11,4 +11,6 @@ export {
   sfenToPath,
   isOldFormatUrl,
   isNamedPositionUrl,
+  ogiekakoPagePath,
+  isOgiekakoPageUrl,
 } from "./url";
