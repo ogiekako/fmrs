@@ -46,3 +46,5 @@ export class Solver {
 export function check_one_way_mate(sfen: string): OneWayMateResult | undefined;
 
 export function is_white_in_check(sfen: string): boolean;
+
+export function moves_to_kif(sfen: string, moves_sfen: string): string | undefined;

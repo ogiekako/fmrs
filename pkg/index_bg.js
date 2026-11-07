@@ -266,6 +266,39 @@ export function is_white_in_check(sfen) {
     const ret = wasm.is_white_in_check(ptr0, len0);
     return ret !== 0;
 }
+
+/**
+ * @param {string} sfen
+ * @param {string} moves_sfen
+ * @returns {string | undefined}
+ */
+export function moves_to_kif(sfen, moves_sfen) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+        let ptr0, len0, ptr1, len1;
+        try {
+            ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            len0 = WASM_VECTOR_LEN;
+            ptr1 = passStringToWasm0(moves_sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            len1 = WASM_VECTOR_LEN;
+        } catch (e) {
+            if (ptr1) { wasm.__wbindgen_export(ptr1, len1 * 1, 1); }
+            if (ptr0) { wasm.__wbindgen_export(ptr0, len0 * 1, 1); }
+            throw e;
+        }
+        wasm.moves_to_kif(retptr, ptr0, len0, ptr1, len1);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        let v3;
+        if (r0 !== 0) {
+            v3 = getStringFromWasm0(r0, r1);
+            wasm.__wbindgen_export(r0, r1 * 1, 1);
+        }
+        return v3;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
 export function __wbg___wbindgen_throw_4c88d8bf264fd984(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
