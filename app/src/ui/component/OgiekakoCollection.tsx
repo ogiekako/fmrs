@@ -1,5 +1,16 @@
 import React, { useMemo, useState } from "react";
-import { Badge, Button, ButtonGroup, Card, Form, InputGroup, Table } from "react-bootstrap";
+import {
+  Badge,
+  Button,
+  ButtonGroup,
+  Card,
+  Col,
+  Form,
+  InputGroup,
+  Row,
+  Table,
+} from "react-bootstrap";
+import * as model from "../../model";
 import { OGIEKAKO_PROBLEMS, OgiekakoProblem } from "../../ogiekako_problems";
 
 type FilterCategory =
@@ -12,6 +23,114 @@ type FilterCategory =
   | "hand_limit";
 
 type SortKey = "date_asc" | "date_desc" | "moves_asc" | "moves_desc";
+type ViewMode = "cards" | "table";
+
+const PIECE_LABELS: { [K in model.Kind]: [string, string] } = {
+  P: ["歩", "と"],
+  L: ["香", "杏"],
+  N: ["桂", "圭"],
+  S: ["銀", "全"],
+  G: ["金", ""],
+  B: ["角", "馬"],
+  R: ["飛", "龍"],
+  K: ["玉", ""],
+};
+
+const HAND_ORDER: model.Kind[] = ["R", "B", "G", "S", "N", "L", "P"];
+
+function formatHands(hands: model.Hands): string {
+  const parts: string[] = [];
+  for (const k of HAND_ORDER) {
+    const n = hands[k];
+    if (n > 0) {
+      parts.push(n > 1 ? `${PIECE_LABELS[k][0]}${n}` : PIECE_LABELS[k][0]);
+    }
+  }
+  return parts.length > 0 ? parts.join(" ") : "なし";
+}
+
+function BoardThumbnail(props: { sfen: string; compact?: boolean }) {
+  const position = useMemo(() => model.decodeSfen(props.sfen), [props.sfen]);
+  const cellW = props.compact ? 14 : 17;
+  const cellH = props.compact ? 15 : 19;
+  const fontSize = props.compact ? "9.5px" : "11.5px";
+
+  const rows = [];
+  for (let row = 0; row < 9; row++) {
+    const cells = [];
+    for (let col = 8; col >= 0; col--) {
+      const p = position.board[row][col];
+      let content: React.ReactNode = null;
+      if (p) {
+        const color = p === "O" ? "black" : p.color;
+        const letter =
+          p === "O" ? "⬤" : PIECE_LABELS[p.kind][p.promoted ? 1 : 0];
+        content = (
+          <div
+            style={{
+              transform: color === "black" ? "rotate(0)" : "rotate(180deg)",
+              textAlign: "center",
+              lineHeight: 1,
+              userSelect: "none",
+            }}
+          >
+            {letter}
+          </div>
+        );
+      }
+      cells.push(
+        <td
+          key={col}
+          style={{
+            width: cellW,
+            height: cellH,
+            padding: 0,
+            border: "1px solid #888",
+            backgroundColor: "#fffdf7",
+            fontSize,
+            verticalAlign: "middle",
+          }}
+        >
+          {content}
+        </td>
+      );
+    }
+    rows.push(<tr key={row}>{cells}</tr>);
+  }
+
+  const blackHandText = formatHands(position.hands.black);
+
+  return (
+    <div
+      style={{
+        display: "inline-block",
+        width: cellW * 9 + 2,
+      }}
+    >
+      <table
+        style={{
+          borderCollapse: "collapse",
+          border: "1.5px solid #222",
+          margin: "0 auto",
+        }}
+      >
+        <tbody>{rows}</tbody>
+      </table>
+      <div
+        className="text-dark mt-1 text-truncate"
+        title={`持駒：${blackHandText}`}
+        style={{
+          fontSize: props.compact ? "10px" : "11px",
+          lineHeight: 1.2,
+          textAlign: "left",
+        }}
+      >
+        <span className="text-muted">持駒：</span>
+        {blackHandText}
+      </div>
+    </div>
+  );
+}
 
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
@@ -19,6 +138,7 @@ export default function OgiekakoCollection(props: {
 }) {
   const [filter, setFilter] = useState<FilterCategory>("all");
   const [sortKey, setSortKey] = useState<SortKey>("date_asc");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [query, setQuery] = useState("");
 
   const filteredProblems = useMemo(() => {
@@ -28,7 +148,8 @@ export default function OgiekakoCollection(props: {
       if (filter === "short" && p.moves >= 100) return false;
       if (filter === "long" && (p.moves < 100 || p.moves >= 1000)) return false;
       if (filter === "ultralong" && p.moves < 1000) return false;
-      if (filter === "smoke" && !(p.notes?.includes("煙") ?? false)) return false;
+      if (filter === "smoke" && !(p.notes?.includes("煙") ?? false))
+        return false;
       if (filter === "hand_limit" && !p.defenderHand) return false;
 
       if (!q) return true;
@@ -77,7 +198,8 @@ export default function OgiekakoCollection(props: {
             ogiekako（荻江香木 / 荻絵香木）協力詰作品集
           </h2>
           <div className="text-muted" style={{ fontSize: "0.9em" }}>
-            純粋な協力詰・ばか詰 全{OGIEKAKO_PROBLEMS.length}局（2005年〜2026年・全作一意解検証済み）。作品をクリックすると解図済み状態（手順再生可能）でソルバーを開きます。
+            純粋な協力詰・ばか詰 全{OGIEKAKO_PROBLEMS.length}
+            局（2005年〜2026年・全作一意解検証済み）。作品をクリックすると解図済み状態（手順再生可能）でソルバーを開きます。
           </div>
         </div>
         <Button variant="outline-secondary" onClick={props.onBackToSolver}>
@@ -136,7 +258,7 @@ export default function OgiekakoCollection(props: {
             </ButtonGroup>
 
             <div className="d-flex gap-2 align-items-center flex-wrap">
-              <InputGroup size="sm" style={{ width: "220px" }}>
+              <InputGroup size="sm" style={{ width: "210px" }}>
                 <Form.Control
                   type="text"
                   placeholder="作品名・出典・解説で検索..."
@@ -155,7 +277,7 @@ export default function OgiekakoCollection(props: {
 
               <Form.Select
                 size="sm"
-                style={{ width: "175px" }}
+                style={{ width: "170px" }}
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
               >
@@ -164,115 +286,273 @@ export default function OgiekakoCollection(props: {
                 <option value="moves_asc">手数（短い順）</option>
                 <option value="moves_desc">手数（長い順）</option>
               </Form.Select>
+
+              <ButtonGroup size="sm">
+                <Button
+                  variant={
+                    viewMode === "cards" ? "secondary" : "outline-secondary"
+                  }
+                  onClick={() => setViewMode("cards")}
+                >
+                  カード
+                </Button>
+                <Button
+                  variant={
+                    viewMode === "table" ? "secondary" : "outline-secondary"
+                  }
+                  onClick={() => setViewMode("table")}
+                >
+                  一覧表
+                </Button>
+              </ButtonGroup>
             </div>
           </div>
         </Card.Body>
       </Card>
 
-      <div className="table-responsive">
-        <Table hover bordered className="align-middle" style={{ fontSize: "0.92em" }}>
-          <thead className="table-light">
-            <tr>
-              <th style={{ width: "45px" }} className="text-center">#</th>
-              <th style={{ width: "90px" }}>発表年月</th>
-              <th style={{ width: "130px" }}>作品名 / 名義</th>
-              <th style={{ width: "95px" }} className="text-end">手数</th>
-              <th style={{ width: "135px" }}>ルール</th>
-              <th>出典・備考・受賞</th>
-              <th style={{ width: "195px" }} className="text-center">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredProblems.map((p) => {
-              const origIndex = OGIEKAKO_PROBLEMS.indexOf(p) + 1;
-              return (
-                <tr
-                  key={p.id}
+      {viewMode === "cards" ? (
+        <Row className="row-cols-1 row-cols-lg-2 g-3">
+          {filteredProblems.map((p) => {
+            const origIndex = OGIEKAKO_PROBLEMS.indexOf(p) + 1;
+            return (
+              <Col key={p.id}>
+                <Card
+                  className="h-100 shadow-sm"
                   style={{ cursor: "pointer" }}
                   onClick={() => props.onSelectProblem(p, true)}
                 >
-                  <td className="text-center text-muted">{origIndex}</td>
-                  <td className="text-nowrap">{p.publishedAt}</td>
-                  <td>
-                    {p.title ? (
-                      <div className="fw-bold">『{p.title}』</div>
-                    ) : null}
-                    <div className="text-muted" style={{ fontSize: "0.88em" }}>
-                      {p.author}
-                    </div>
-                  </td>
-                  <td className="text-end fw-bold text-nowrap">
-                    {p.moves.toLocaleString()}手
-                  </td>
-                  <td>
-                    <div>{p.rule}</div>
-                    {p.defenderHand && (
-                      <Badge bg="secondary" className="fw-normal mt-1">
-                        受方持駒：{p.defenderHand}
-                      </Badge>
-                    )}
-                  </td>
-                  <td>
-                    <div className="mb-1">
-                      <span className="fw-semibold">{p.source}</span>
-                      {p.url && (
-                        <a
-                          href={p.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ms-2 text-decoration-none"
+                  <Card.Body className="p-3">
+                    <div className="d-flex gap-3 align-items-start">
+                      <div className="flex-shrink-0">
+                        <BoardThumbnail sfen={p.sfen} />
+                      </div>
+                      <div className="flex-grow-1 min-w-0 d-flex flex-column justify-content-between h-100">
+                        <div>
+                          <div className="d-flex justify-content-between align-items-start gap-1 mb-1">
+                            <div>
+                              <span className="text-muted me-2">
+                                #{origIndex}
+                              </span>
+                              {p.title ? (
+                                <span className="fw-bold fs-6 me-2">
+                                  『{p.title}』
+                                </span>
+                              ) : null}
+                              <span
+                                className="text-muted"
+                                style={{ fontSize: "0.88em" }}
+                              >
+                                {p.author}（{p.publishedAt}）
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mb-2">
+                            <Badge bg="primary" className="me-1">
+                              {p.rule} {p.moves.toLocaleString()}手
+                            </Badge>
+                            {p.defenderHand && (
+                              <Badge bg="secondary" className="me-1">
+                                受方持駒：{p.defenderHand}
+                              </Badge>
+                            )}
+                            {p.awards.map((award) => (
+                              <Badge
+                                key={award}
+                                bg="warning"
+                                text="dark"
+                                className="me-1"
+                              >
+                                {award}
+                              </Badge>
+                            ))}
+                          </div>
+
+                          <div
+                            className="mb-1"
+                            style={{ fontSize: "0.88em" }}
+                          >
+                            <span className="fw-semibold">{p.source}</span>
+                            {p.url && (
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ms-2 text-decoration-none"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                [出典↗]
+                              </a>
+                            )}
+                          </div>
+
+                          {p.notes && (
+                            <div
+                              className="text-muted mb-2"
+                              style={{ fontSize: "0.86em" }}
+                            >
+                              {p.notes}
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className="mt-2 pt-1"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          [出典↗]
-                        </a>
-                      )}
-                    </div>
-                    {p.awards.length > 0 && (
-                      <div className="mb-1">
-                        {p.awards.map((award) => (
-                          <Badge
-                            key={award}
-                            bg="warning"
-                            text="dark"
-                            className="me-1"
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            className="me-2"
+                            onClick={() => props.onSelectProblem(p, true)}
                           >
-                            {award}
-                          </Badge>
-                        ))}
+                            解図済みで開く
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-secondary"
+                            onClick={() => props.onSelectProblem(p, false)}
+                          >
+                            初形のみ
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                    {p.notes && (
-                      <div className="text-muted" style={{ fontSize: "0.9em" }}>
-                        {p.notes}
-                      </div>
-                    )}
-                  </td>
-                  <td
-                    className="text-center text-nowrap"
-                    onClick={(e) => e.stopPropagation()}
+                    </div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            );
+          })}
+        </Row>
+      ) : (
+        <div className="table-responsive">
+          <Table
+            hover
+            bordered
+            className="align-middle"
+            style={{ fontSize: "0.92em" }}
+          >
+            <thead className="table-light">
+              <tr>
+                <th style={{ width: "45px" }} className="text-center">
+                  #
+                </th>
+                <th style={{ width: "140px" }} className="text-center">
+                  盤面
+                </th>
+                <th style={{ width: "90px" }}>発表年月</th>
+                <th style={{ width: "130px" }}>作品名 / 名義</th>
+                <th style={{ width: "95px" }} className="text-end">
+                  手数
+                </th>
+                <th style={{ width: "135px" }}>ルール</th>
+                <th>出典・備考・受賞</th>
+                <th style={{ width: "195px" }} className="text-center">
+                  操作
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProblems.map((p) => {
+                const origIndex = OGIEKAKO_PROBLEMS.indexOf(p) + 1;
+                return (
+                  <tr
+                    key={p.id}
+                    style={{ cursor: "pointer" }}
+                    onClick={() => props.onSelectProblem(p, true)}
                   >
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      className="me-1"
-                      onClick={() => props.onSelectProblem(p, true)}
+                    <td className="text-center text-muted">{origIndex}</td>
+                    <td className="text-center py-2">
+                      <BoardThumbnail sfen={p.sfen} compact />
+                    </td>
+                    <td className="text-nowrap">{p.publishedAt}</td>
+                    <td>
+                      {p.title ? (
+                        <div className="fw-bold">『{p.title}』</div>
+                      ) : null}
+                      <div
+                        className="text-muted"
+                        style={{ fontSize: "0.88em" }}
+                      >
+                        {p.author}
+                      </div>
+                    </td>
+                    <td className="text-end fw-bold text-nowrap">
+                      {p.moves.toLocaleString()}手
+                    </td>
+                    <td>
+                      <div>{p.rule}</div>
+                      {p.defenderHand && (
+                        <Badge bg="secondary" className="fw-normal mt-1">
+                          受方持駒：{p.defenderHand}
+                        </Badge>
+                      )}
+                    </td>
+                    <td>
+                      <div className="mb-1">
+                        <span className="fw-semibold">{p.source}</span>
+                        {p.url && (
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="ms-2 text-decoration-none"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            [出典↗]
+                          </a>
+                        )}
+                      </div>
+                      {p.awards.length > 0 && (
+                        <div className="mb-1">
+                          {p.awards.map((award) => (
+                            <Badge
+                              key={award}
+                              bg="warning"
+                              text="dark"
+                              className="me-1"
+                            >
+                              {award}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {p.notes && (
+                        <div
+                          className="text-muted"
+                          style={{ fontSize: "0.9em" }}
+                        >
+                          {p.notes}
+                        </div>
+                      )}
+                    </td>
+                    <td
+                      className="text-center text-nowrap"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      解図済みで開く
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline-secondary"
-                      onClick={() => props.onSelectProblem(p, false)}
-                    >
-                      初形のみ
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      </div>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        className="me-1"
+                        onClick={() => props.onSelectProblem(p, true)}
+                      >
+                        解図済みで開く
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={() => props.onSelectProblem(p, false)}
+                      >
+                        初形のみ
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
