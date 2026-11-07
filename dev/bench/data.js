@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794043911460,
+  "lastUpdate": 1794048951742,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -54554,6 +54554,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/4d99a88979be81189abf7ba8451416e52a6e8853"
         },
         "date": 1794043905327,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "18e002fbdc1fc48970167e9ef8fbf61ea16bb275",
+          "message": "feat(app): ogiekako 作品集ページに盤面サムネイルとカード表示モードを追加",
+          "timestamp": "2026-11-07T10:21:39Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/18e002fbdc1fc48970167e9ef8fbf61ea16bb275"
+        },
+        "date": 1794048947412,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
