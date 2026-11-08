@@ -163,6 +163,13 @@ function hasTextSelection(): boolean {
   return (window.getSelection()?.toString().length ?? 0) > 0;
 }
 
+function formatProblemTitle(title: string, withTrailingSpace = false): string {
+  if (title === "寿限無の完全限定化案の改案") {
+    return withTrailingSpace ? `${title} ` : title;
+  }
+  return `『${title}』`;
+}
+
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
   onBackToSolver: () => void;
@@ -393,7 +400,7 @@ export default function OgiekakoCollection(props: {
                               </span>
                               <span className="fw-bold fs-6 me-2">
                                 {p.title
-                                  ? `『${p.title}』${p.moves.toLocaleString()}手`
+                                  ? `${formatProblemTitle(p.title, true)}${p.moves.toLocaleString()}手`
                                   : `${p.moves.toLocaleString()}手`}
                               </span>
                               <span
@@ -549,7 +556,7 @@ export default function OgiekakoCollection(props: {
                     <td className="text-nowrap">{p.publishedAt}</td>
                     <td>
                       {p.title ? (
-                        <div className="fw-bold">『{p.title}』</div>
+                        <div className="fw-bold">{formatProblemTitle(p.title)}</div>
                       ) : (
                         <span className="text-muted">—</span>
                       )}
