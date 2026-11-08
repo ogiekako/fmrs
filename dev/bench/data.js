@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794124652215,
+  "lastUpdate": 1794125090713,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -56688,6 +56688,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/7c1e393da494cb6b6a67801094379cf31da4732f"
         },
         "date": 1794124646371,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f27eea67738e4b3af2a873ccc586669a8c12eaa7",
+          "message": "作品集の配色を要素別・非ベタ塗りのモダンテーマ（GitHub/Shadcn/Lichess/M3）に対応",
+          "timestamp": "2026-11-08T08:02:55Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f27eea67738e4b3af2a873ccc586669a8c12eaa7"
+        },
+        "date": 1794125087213,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
