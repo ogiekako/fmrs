@@ -127,7 +127,7 @@ export function Editor(props: {}) {
         <h1 className="mb-0">Shogi Helpmate Solver</h1>
         <a
           href={ogiekakoPagePath()}
-          className="text-secondary text-decoration-none"
+          className="text-secondary text-decoration-none ms-auto"
           style={{ fontSize: "0.95rem" }}
           onClick={(e) => {
             e.preventDefault();
