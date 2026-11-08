@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794129776672,
+  "lastUpdate": 1794129780313,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -53099,6 +53099,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 15152,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "719673f82a0eeda792a8537ad878cf32fa7c4fc6",
+          "message": "スマホ表示での「図面に反映」ボタンの盤面重なり防止および画面遷移時のスクロールアニメーション無効化",
+          "timestamp": "2026-11-08T09:17:37Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/719673f82a0eeda792a8537ad878cf32fa7c4fc6"
+        },
+        "date": 1794129779090,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 221,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1156,
+            "range": "± 108",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 101,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 314,
+            "range": "± 445",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10499,
+            "range": "± 388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1008,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2658,
+            "range": "± 52",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 739738,
+            "range": "± 2235",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6374,
+            "range": "± 92",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 99,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 61,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 30,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 75,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 19,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 9219281,
+            "range": "± 182491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 17348,
+            "range": "± 1087",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1901,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 10587,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 15152,
+            "range": "± 23",
             "unit": "ns/iter"
           }
         ]
