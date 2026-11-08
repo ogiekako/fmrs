@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794132119341,
+  "lastUpdate": 1794132248273,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -60762,6 +60762,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/638ab57b3ed50cb0264d6e8c5dae51fec9e0ed9e"
         },
         "date": 1794132111614,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "638ab57b3ed50cb0264d6e8c5dae51fec9e0ed9e",
+          "message": "フィルターバーから「受方持駒制限あり」を削除",
+          "timestamp": "2026-11-08T09:45:48Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/638ab57b3ed50cb0264d6e8c5dae51fec9e0ed9e"
+        },
+        "date": 1794132245177,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
