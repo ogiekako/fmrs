@@ -40,7 +40,9 @@ export function newState(): types.State {
   const initialPosition = sfen ? model.decodeSfen(sfen) : position.create();
   let solveResponse: types.SolveResponse | undefined = undefined;
   if (sfen && model.isSolvedFromUrl()) {
-    const precomputed = getPrecomputedSolveResponseBySfen(sfen);
+    const precomputed = getPrecomputedSolveResponseBySfen(
+      model.encodeSfen(initialPosition)
+    );
     if (precomputed) {
       solveResponse = {
         ty: "solved",

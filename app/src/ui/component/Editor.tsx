@@ -86,11 +86,16 @@ export function Editor(props: {}) {
   }, [showOgiekako, sfen, isSolvedOgiekako]);
 
   useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
     const onPopState = () => {
       if (isOgiekakoPageUrl()) {
         setShowOgiekako(true);
         return;
       }
+      const solved = isSolvedFromUrl();
+      scrollToSolutionOnLoad.current = solved;
       setShowOgiekako(false);
       const urlSfen = sfenFromUrl();
       if (urlSfen) {
@@ -99,20 +104,26 @@ export function Editor(props: {}) {
           ty: "set-position",
           position: pos,
         });
-        if (isSolvedFromUrl()) {
-          const response = getPrecomputedSolveResponseBySfen(urlSfen);
-          if (response) {
-            scrollToSolutionOnLoad.current = true;
-            dispatch({
-              ty: "set-solve-response",
-              response: {
-                ty: "solved",
-                response,
-                stone: positionStone(pos),
-                millis: 0,
-              },
-            });
-          }
+        if (solved) {
+          const response = getPrecomputedSolveResponseBySfen(
+            encodeSfen(pos)
+          );
+          dispatch({
+            ty: "set-solve-response",
+            response: response
+              ? {
+                  ty: "solved",
+                  response,
+                  stone: positionStone(pos),
+                  millis: 0,
+                }
+              : undefined,
+          });
+        } else {
+          dispatch({
+            ty: "set-solve-response",
+            response: undefined,
+          });
         }
       }
     };
@@ -221,17 +232,21 @@ export function Editor(props: {}) {
             return;
           }
           scrollToSolutionOnLoad.current = false;
-          const boardEl =
-            (container.querySelector(
-              ".kifuforjs-board"
-            ) as HTMLElement | null) ?? container;
-          const rect = boardEl.getBoundingClientRect();
-          const targetY =
-            window.scrollY +
-            rect.top +
-            rect.height / 2 -
-            window.innerHeight / 2;
-          window.scrollTo(0, Math.max(0, Math.round(targetY)));
+          const centerBoard = () => {
+            const boardEl =
+              (container.querySelector(
+                ".kifuforjs-board"
+              ) as HTMLElement | null) ?? container;
+            const rect = boardEl.getBoundingClientRect();
+            const targetY =
+              window.scrollY +
+              rect.top +
+              rect.height / 2 -
+              window.innerHeight / 2;
+            window.scrollTo(0, Math.max(0, Math.round(targetY)));
+          };
+          centerBoard();
+          requestAnimationFrame(centerBoard);
         }}
       />
       <div className="py-3 d-md-none">
