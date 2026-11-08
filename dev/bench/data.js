@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794126443012,
+  "lastUpdate": 1794126577923,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -57852,6 +57852,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a7c24f9d5adab0c9b6fcdca73cb08fbcd9321755"
         },
         "date": 1794126437446,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "14046a2a0c8461cbd7e9cb8decf49ff9a8f8de9e",
+          "message": "jugemu_gentei_kai_36607.sfenの出典表記の36511手を36,511手に修正",
+          "timestamp": "2026-11-08T08:28:53Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/14046a2a0c8461cbd7e9cb8decf49ff9a8f8de9e"
+        },
+        "date": 1794126574431,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
