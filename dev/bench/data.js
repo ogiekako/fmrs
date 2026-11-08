@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794126946425,
+  "lastUpdate": 1794126949752,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -52247,6 +52247,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 15179,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f8d14466bf2aa016bb8f506378797be0394509c6",
+          "message": "盤面サムネイル下の「協力詰 X手」表記を中央寄せに変更",
+          "timestamp": "2026-11-08T08:30:41Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f8d14466bf2aa016bb8f506378797be0394509c6"
+        },
+        "date": 1794126948797,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 303,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2350,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 145,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 423,
+            "range": "± 557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 22853,
+            "range": "± 87",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1404,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4264,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1083947,
+            "range": "± 259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 8987,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 135,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 83,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 109,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 15996228,
+            "range": "± 296269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 24390,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2775,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14963,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 24806,
+            "range": "± 11",
             "unit": "ns/iter"
           }
         ]
