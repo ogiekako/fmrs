@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794125816490,
+  "lastUpdate": 1794125819418,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -51395,6 +51395,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 32788,
             "range": "± 10",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "4b695d48aa9977abb3e9b17b727d69d3d63a874d",
+          "message": "「寿限無の完全限定化案の改案」の表示から二重鉤括弧『』を削除",
+          "timestamp": "2026-11-08T08:14:38Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4b695d48aa9977abb3e9b17b727d69d3d63a874d"
+        },
+        "date": 1794125818688,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 209,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1100,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 99,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 305,
+            "range": "± 426",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10134,
+            "range": "± 26",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 940,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2579,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 615080,
+            "range": "± 204",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6200,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 98,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 59,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 29,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 72,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 7,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 9090214,
+            "range": "± 9383",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 13609,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1511,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 8305,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 13957,
+            "range": "± 5",
             "unit": "ns/iter"
           }
         ]
