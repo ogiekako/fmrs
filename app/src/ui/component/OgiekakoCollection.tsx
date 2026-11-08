@@ -159,6 +159,10 @@ function BoardThumbnail(props: {
 
 const SELECTED_COUNT = OGIEKAKO_PROBLEMS.filter((p) => p.selected).length;
 
+function hasTextSelection(): boolean {
+  return (window.getSelection()?.toString().length ?? 0) > 0;
+}
+
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
   onBackToSolver: () => void;
@@ -360,7 +364,10 @@ export default function OgiekakoCollection(props: {
                 <Card
                   className="h-100 shadow-sm overflow-hidden"
                   style={{ cursor: "pointer" }}
-                  onClick={() => props.onSelectProblem(p, true)}
+                  onClick={() => {
+                    if (hasTextSelection()) return;
+                    props.onSelectProblem(p, true);
+                  }}
                 >
                   <Card.Body className="p-2 p-sm-3">
                     <div className="d-flex gap-2 gap-sm-3 align-items-start">
@@ -432,17 +439,30 @@ export default function OgiekakoCollection(props: {
                             className="mb-1"
                             style={{ fontSize: "0.88em" }}
                           >
-                            <span className="fw-semibold">{p.source}</span>
-                            {p.url && (
+                            {p.url ? (
                               <a
                                 href={p.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="ms-2 text-decoration-none text-nowrap"
-                                onClick={(e) => e.stopPropagation()}
+                                draggable={false}
+                                className="text-decoration-none text-reset"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (hasTextSelection()) {
+                                    e.preventDefault();
+                                  }
+                                }}
                               >
-                                [出典↗]
+                                <span className="fw-semibold">{p.source}</span>
+                                <span
+                                  className="ms-2 text-nowrap"
+                                  style={{ color: "var(--bs-link-color)" }}
+                                >
+                                  [出典↗]
+                                </span>
                               </a>
+                            ) : (
+                              <span className="fw-semibold">{p.source}</span>
                             )}
                           </div>
 
@@ -518,7 +538,10 @@ export default function OgiekakoCollection(props: {
                   <tr
                     key={p.id}
                     style={{ cursor: "pointer" }}
-                    onClick={() => props.onSelectProblem(p, true)}
+                    onClick={() => {
+                      if (hasTextSelection()) return;
+                      props.onSelectProblem(p, true);
+                    }}
                   >
                     <td className="text-center text-muted">{origIndex}</td>
                     <td className="text-center py-2">
@@ -549,17 +572,30 @@ export default function OgiekakoCollection(props: {
                     </td>
                     <td>
                       <div className="mb-1">
-                        <span className="fw-semibold">{p.source}</span>
-                        {p.url && (
+                        {p.url ? (
                           <a
                             href={p.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="ms-2 text-decoration-none"
-                            onClick={(e) => e.stopPropagation()}
+                            draggable={false}
+                            className="text-decoration-none text-reset"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasTextSelection()) {
+                                e.preventDefault();
+                              }
+                            }}
                           >
-                            [出典↗]
+                            <span className="fw-semibold">{p.source}</span>
+                            <span
+                              className="ms-2 text-nowrap"
+                              style={{ color: "var(--bs-link-color)" }}
+                            >
+                              [出典↗]
+                            </span>
                           </a>
+                        ) : (
+                          <span className="fw-semibold">{p.source}</span>
                         )}
                       </div>
                       {p.awards.length > 0 && (
