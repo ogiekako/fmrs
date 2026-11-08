@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from "react";
 import { newState, reduce } from "../state/state";
 import Info from "./Info";
 import Position from "./Position";
@@ -27,8 +27,17 @@ export function Editor(props: {}) {
   const [showOgiekako, setShowOgiekako] = useState<boolean>(() =>
     isOgiekakoPageUrl()
   );
+  const ogiekakoScrollY = useRef<number>(0);
 
   const sfen = encodeSfen(state.position);
+
+  useLayoutEffect(() => {
+    if (showOgiekako) {
+      window.scrollTo(0, ogiekakoScrollY.current);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [showOgiekako]);
 
   useEffect(() => {
     document.title = showOgiekako
@@ -108,15 +117,18 @@ export function Editor(props: {}) {
         response: undefined,
       });
     }
+    ogiekakoScrollY.current = window.scrollY;
     setShowOgiekako(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (showOgiekako) {
     return (
       <OgiekakoCollection
         onSelectProblem={handleSelectOgiekakoProblem}
-        onBackToSolver={() => setShowOgiekako(false)}
+        onBackToSolver={() => {
+          ogiekakoScrollY.current = window.scrollY;
+          setShowOgiekako(false);
+        }}
       />
     );
   }

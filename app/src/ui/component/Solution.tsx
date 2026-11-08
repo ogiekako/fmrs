@@ -49,25 +49,32 @@ export default function Solution(props: {
       }
     };
   }, [props.kif, props.stone, outer, id]);
+  const applyToDiagram = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    const position = extractPosition(props.fromWhite, props.stone);
+    if (position) {
+      props.dispatch({
+        ty: "set-position",
+        position: position!,
+      });
+    }
+  };
+
   return (
     <div className="position-relative mb-2">
+      <div className="d-flex justify-content-end mb-1 d-sm-none">
+        <Button className="btn-secondary btn-sm" onClick={applyToDiagram}>
+          図面に反映
+        </Button>
+      </div>
       <div ref={outer} style={{ maxWidth: "100%", overflowX: "auto" }}></div>
       <div
-        className="position-absolute top-0"
+        className="d-none d-sm-block position-absolute top-0"
         style={{ width: "100%", maxWidth: "570px" }}
       >
         <Button
           className="btn-secondary position-absolute end-0"
-          onClick={(e) => {
-            e.preventDefault();
-            const position = extractPosition(props.fromWhite, props.stone);
-            if (position) {
-              props.dispatch({
-                ty: "set-position",
-                position: position!,
-              });
-            }
-          }}
+          onClick={applyToDiagram}
         >
           図面に反映
         </Button>
