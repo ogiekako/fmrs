@@ -163,6 +163,145 @@ function hasTextSelection(): boolean {
   return (window.getSelection()?.toString().length ?? 0) > 0;
 }
 
+interface ThemePreset {
+  id: string;
+  label: string;
+  hex: string;
+  tonal?: {
+    bg: string;
+    hoverBg: string;
+    text: string;
+    border: string;
+  };
+}
+
+const THEME_PRESETS: ThemePreset[] = [
+  { id: "1e88e5", label: "Material Blue 600 (#1e88e5)", hex: "#1e88e5" },
+  { id: "2196f3", label: "Material Blue 500 (#2196f3)", hex: "#2196f3" },
+  { id: "42a5f5", label: "Material Blue 400 (#42a5f5 薄め)", hex: "#42a5f5" },
+  { id: "0ea5e9", label: "Tailwind Sky 500 (#0ea5e9)", hex: "#0ea5e9" },
+  { id: "3b82f6", label: "Tailwind Blue 500 (#3b82f6)", hex: "#3b82f6" },
+  { id: "4a7c9b", label: "Slate Blue (#4a7c9b 彩度低め)", hex: "#4a7c9b" },
+  {
+    id: "m3-tonal",
+    label: "M3 Tonal (淡青背景 #d3e3fd + 濃青文字)",
+    hex: "#0b57d0",
+    tonal: {
+      bg: "#d3e3fd",
+      hoverBg: "#b8d2fc",
+      text: "#0b57d0",
+      border: "#a8c7fa",
+    },
+  },
+  {
+    id: "m3-soft",
+    label: "M3 Soft (極淡青 #e8f0fe + 青文字 #1967d2)",
+    hex: "#1967d2",
+    tonal: {
+      bg: "#e8f0fe",
+      hoverBg: "#d2e3fc",
+      text: "#1967d2",
+      border: "#aecbfa",
+    },
+  },
+  { id: "0d6efd", label: "Bootstrap 標準 (#0d6efd)", hex: "#0d6efd" },
+];
+
+function hexToRgb(hex: string): [number, number, number] {
+  const clean = hex.replace(/^#/, "");
+  const num = parseInt(clean, 16);
+  if (Number.isNaN(num) || clean.length !== 6) return [30, 136, 229];
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function darkenHex(hex: string, factor: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+  const toHex = (n: number) => clamp(n).toString(16).padStart(2, "0");
+  return `#${toHex(r * factor)}${toHex(g * factor)}${toHex(b * factor)}`;
+}
+
+function buildDynamicThemeCss(themeId: string): string {
+  const preset = THEME_PRESETS.find((t) => t.id === themeId);
+  if (preset?.tonal) {
+    const { bg, hoverBg, text, border } = preset.tonal;
+    const [r, g, b] = hexToRgb(text);
+    return `
+      :root {
+        --bs-primary: ${text};
+        --bs-primary-rgb: ${r}, ${g}, ${b};
+        --bs-link-color: ${text};
+        --bs-link-color-rgb: ${r}, ${g}, ${b};
+      }
+      .btn-primary {
+        --bs-btn-color: ${text};
+        --bs-btn-bg: ${bg};
+        --bs-btn-border-color: ${border};
+        --bs-btn-hover-color: ${text};
+        --bs-btn-hover-bg: ${hoverBg};
+        --bs-btn-hover-border-color: ${border};
+        --bs-btn-active-color: ${text};
+        --bs-btn-active-bg: ${hoverBg};
+        --bs-btn-active-border-color: ${text};
+        font-weight: 600;
+      }
+      .btn-outline-primary {
+        --bs-btn-color: ${text};
+        --bs-btn-border-color: ${border};
+        --bs-btn-hover-color: ${text};
+        --bs-btn-hover-bg: ${bg};
+        --bs-btn-hover-border-color: ${text};
+        --bs-btn-active-color: ${text};
+        --bs-btn-active-bg: ${hoverBg};
+        --bs-btn-active-border-color: ${text};
+      }
+      .badge.bg-primary {
+        background-color: ${bg} !important;
+        color: ${text} !important;
+        border: 1px solid ${border};
+      }
+    `;
+  }
+
+  const hex = preset ? preset.hex : `#${themeId.replace(/^#/, "")}`;
+  const [r, g, b] = hexToRgb(hex);
+  const hover = darkenHex(hex, 0.88);
+  const active = darkenHex(hex, 0.78);
+  return `
+    :root {
+      --bs-primary: ${hex};
+      --bs-primary-rgb: ${r}, ${g}, ${b};
+      --bs-link-color: ${hex};
+      --bs-link-color-rgb: ${r}, ${g}, ${b};
+      --bs-link-hover-color: ${active};
+    }
+    .btn-primary {
+      --bs-btn-color: #fff;
+      --bs-btn-bg: ${hex};
+      --bs-btn-border-color: ${hex};
+      --bs-btn-hover-bg: ${hover};
+      --bs-btn-hover-border-color: ${hover};
+      --bs-btn-focus-shadow-rgb: ${r}, ${g}, ${b};
+      --bs-btn-active-bg: ${active};
+      --bs-btn-active-border-color: ${active};
+    }
+    .btn-outline-primary {
+      --bs-btn-color: ${hex};
+      --bs-btn-border-color: ${hex};
+      --bs-btn-hover-bg: ${hex};
+      --bs-btn-hover-border-color: ${hex};
+      --bs-btn-focus-shadow-rgb: ${r}, ${g}, ${b};
+      --bs-btn-active-bg: ${hover};
+      --bs-btn-active-border-color: ${hover};
+    }
+    .badge.bg-primary {
+      background-color: ${hex} !important;
+      color: #fff !important;
+      border: none;
+    }
+  `;
+}
+
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
   onBackToSolver: () => void;
@@ -171,6 +310,12 @@ export default function OgiekakoCollection(props: {
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [query, setQuery] = useState("");
+  const [previewTheme, setPreviewTheme] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("color")) return params.get("color")!;
+    if (params.get("preview")) return "1e88e5";
+    return null;
+  });
 
   const filteredProblems = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -223,6 +368,70 @@ export default function OgiekakoCollection(props: {
 
   return (
     <div className="my-3">
+      {previewTheme && (
+        <>
+          <style>{buildDynamicThemeCss(previewTheme)}</style>
+          <Card className="mb-3 border-secondary bg-light">
+            <Card.Body className="py-2 px-3">
+              <div className="d-flex flex-wrap align-items-center gap-2">
+                <span className="fw-bold" style={{ fontSize: "0.85em" }}>
+                  🎨 カラーテーマ比較プレビュー:
+                </span>
+                {THEME_PRESETS.map((t) => (
+                  <Button
+                    key={t.id}
+                    size="sm"
+                    variant={
+                      previewTheme === t.id ? "dark" : "outline-secondary"
+                    }
+                    onClick={() => {
+                      setPreviewTheme(t.id);
+                      const url = new URL(window.location.href);
+                      url.searchParams.set("color", t.id);
+                      window.history.replaceState({}, "", url.toString());
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 10,
+                        borderRadius: "50%",
+                        backgroundColor: t.tonal ? t.tonal.bg : t.hex,
+                        border: `1px solid ${t.tonal ? t.tonal.text : t.hex}`,
+                        marginRight: 5,
+                      }}
+                    />
+                    {t.label}
+                  </Button>
+                ))}
+                <label
+                  className="d-inline-flex align-items-center gap-1 ms-1"
+                  style={{ fontSize: "0.85em", cursor: "pointer" }}
+                >
+                  カスタム:
+                  <input
+                    type="color"
+                    value={
+                      previewTheme.startsWith("m3-")
+                        ? "#1e88e5"
+                        : `#${previewTheme.replace(/^#/, "")}`
+                    }
+                    onChange={(e) => {
+                      const hex = e.target.value.replace(/^#/, "");
+                      setPreviewTheme(hex);
+                      const url = new URL(window.location.href);
+                      url.searchParams.set("color", hex);
+                      window.history.replaceState({}, "", url.toString());
+                    }}
+                  />
+                  <code>#{previewTheme.replace(/^#/, "")}</code>
+                </label>
+              </div>
+            </Card.Body>
+          </Card>
+        </>
+      )}
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
           <h1 className="mb-1">ogiekako 協力詰作品集</h1>

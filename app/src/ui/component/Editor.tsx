@@ -41,7 +41,11 @@ export function Editor(props: {}) {
     if (showOgiekako) {
       const target = ogiekakoPagePath();
       if (url.pathname.replace(/\/$/, "") !== target.replace(/\/$/, "")) {
-        window.history.pushState({}, "", window.location.origin + target);
+        window.history.pushState(
+          {},
+          "",
+          window.location.origin + target + url.search
+        );
       }
       return;
     }
