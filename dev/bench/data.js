@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794122405430,
+  "lastUpdate": 1794123057431,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -55524,6 +55524,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/7ad005e3e63c253402b2fcc60dbe1dc93686c121"
         },
         "date": 1794122397782,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "70c37aa2e37fe260e8f26b8515cd103ca3536d18",
+          "message": "作品集ページのX (Twitter) 大型OGPカード (summary_large_image) と静的エントリポイントを追加",
+          "timestamp": "2026-11-08T07:24:40Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/70c37aa2e37fe260e8f26b8515cd103ca3536d18"
+        },
+        "date": 1794123053596,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
