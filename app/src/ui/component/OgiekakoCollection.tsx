@@ -336,7 +336,7 @@ export default function OgiekakoCollection(props: {
               >
                 <Form.Control
                   type="text"
-                  placeholder="作品名・出典・解説で検索..."
+                  placeholder="作品名・出典で検索..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                 />
