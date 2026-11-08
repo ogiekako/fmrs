@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794128609630,
+  "lastUpdate": 1794129403540,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -59404,6 +59404,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/9b5a8e25b3519e1bd8d4178656cb0b79476f6e09"
         },
         "date": 1794128604458,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "977dc1f8718a67afd9930b21ea22404ea29a9da2",
+          "message": "盤面サムネイルおよびOGP画像の盤面背景色を完全な白(#ffffff)に統一",
+          "timestamp": "2026-11-08T09:14:49Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/977dc1f8718a67afd9930b21ea22404ea29a9da2"
+        },
+        "date": 1794129400329,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
