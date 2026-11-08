@@ -15,10 +15,13 @@ import {
   isNamedPositionUrl,
   ogiekakoPagePath,
   isOgiekakoPageUrl,
+  isSolvedFromUrl,
 } from "../../model";
 import { positionStone } from "../../model/position";
 import {
   buildPrecomputedSolveResponse,
+  findOgiekakoProblemBySfen,
+  getPrecomputedSolveResponseBySfen,
   OgiekakoProblem,
 } from "../../ogiekako_problems";
 
@@ -28,9 +31,15 @@ export function Editor(props: {}) {
     isOgiekakoPageUrl()
   );
   const ogiekakoScrollY = useRef<number>(0);
-  const scrollToSolutionOnLoad = useRef<boolean>(false);
+  const scrollToSolutionOnLoad = useRef<boolean>(
+    !isOgiekakoPageUrl() && isSolvedFromUrl()
+  );
 
   const sfen = encodeSfen(state.position);
+  const isSolvedOgiekako =
+    state.solveResponse?.ty === "solved" &&
+    state.solveResponse.response.solutions > 0 &&
+    !!findOgiekakoProblemBySfen(sfen);
 
   useLayoutEffect(() => {
     if (showOgiekako) {
@@ -50,26 +59,31 @@ export function Editor(props: {}) {
     const url = new URL(window.location.href);
     if (showOgiekako) {
       const target = ogiekakoPagePath();
-      if (url.pathname.replace(/\/$/, "") !== target.replace(/\/$/, "")) {
-        window.history.pushState(
-          {},
-          "",
-          window.location.origin + target + url.search
-        );
+      if (
+        url.pathname.replace(/\/$/, "") !== target.replace(/\/$/, "") ||
+        url.search
+      ) {
+        window.history.pushState({}, "", window.location.origin + target);
       }
       return;
     }
 
     const targetPath = sfenToPath(sfen);
-    if (url.pathname !== targetPath || url.search) {
-      const newHref = window.location.origin + targetPath + window.location.hash;
-      if (isOldFormatUrl() || isNamedPositionUrl()) {
+    const targetSearch = isSolvedOgiekako ? "?solved=1" : "";
+    if (url.pathname !== targetPath || url.search !== targetSearch) {
+      const newHref =
+        window.location.origin + targetPath + targetSearch + window.location.hash;
+      if (
+        isOldFormatUrl() ||
+        isNamedPositionUrl() ||
+        url.pathname === targetPath
+      ) {
         window.history.replaceState({}, "", newHref);
       } else {
         window.history.pushState({}, "", newHref);
       }
     }
-  }, [showOgiekako, sfen]);
+  }, [showOgiekako, sfen, isSolvedOgiekako]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -80,10 +94,26 @@ export function Editor(props: {}) {
       setShowOgiekako(false);
       const urlSfen = sfenFromUrl();
       if (urlSfen) {
+        const pos = decodeSfen(urlSfen);
         dispatch({
           ty: "set-position",
-          position: decodeSfen(urlSfen),
+          position: pos,
         });
+        if (isSolvedFromUrl()) {
+          const response = getPrecomputedSolveResponseBySfen(urlSfen);
+          if (response) {
+            scrollToSolutionOnLoad.current = true;
+            dispatch({
+              ty: "set-solve-response",
+              response: {
+                ty: "solved",
+                response,
+                stone: positionStone(pos),
+                millis: 0,
+              },
+            });
+          }
+        }
       }
     };
     window.addEventListener("popstate", onPopState);

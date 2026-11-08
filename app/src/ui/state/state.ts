@@ -4,7 +4,8 @@ import * as position from "./position";
 import * as model from "../../model";
 import { KINDS } from "../../model";
 import { PRESET_PROBLEMS } from "../../problem";
-import { positionPieceBox } from "../../model/position";
+import { positionPieceBox, positionStone } from "../../model/position";
+import { getPrecomputedSolveResponseBySfen } from "../../ogiekako_problems";
 
 const SAVED_POSITIONS_KEY = "fmrs_saved_positions";
 const MAX_SAVED_POSITIONS = 20;
@@ -37,6 +38,18 @@ export function newState(): types.State {
   const sfen = model.sfenFromUrl();
 
   const initialPosition = sfen ? model.decodeSfen(sfen) : position.create();
+  let solveResponse: types.SolveResponse | undefined = undefined;
+  if (sfen && model.isSolvedFromUrl()) {
+    const precomputed = getPrecomputedSolveResponseBySfen(sfen);
+    if (precomputed) {
+      solveResponse = {
+        ty: "solved",
+        response: precomputed,
+        stone: positionStone(initialPosition),
+        millis: 0,
+      };
+    }
+  }
   return {
     position: initialPosition,
     selected: {
@@ -47,7 +60,7 @@ export function newState(): types.State {
     },
     solving: undefined,
     problems: loadSavedProblems(),
-    solveResponse: undefined,
+    solveResponse,
     solutionLimit: 5,
     oneWayMateMode: false,
   };

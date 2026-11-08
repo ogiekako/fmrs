@@ -13,4 +13,5 @@ export {
   isNamedPositionUrl,
   ogiekakoPagePath,
   isOgiekakoPageUrl,
+  isSolvedFromUrl,
 } from "./url";

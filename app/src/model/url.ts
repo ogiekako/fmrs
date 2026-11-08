@@ -75,3 +75,9 @@ export function isOldFormatUrl(): boolean {
   }
   return false;
 }
+
+export function isSolvedFromUrl(): boolean {
+  const url = new URL(window.location.href);
+  const param = url.searchParams.get("solved");
+  return param === "1" || param === "true" || url.hash === "#solved";
+}
