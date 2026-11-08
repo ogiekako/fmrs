@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794132251036,
+  "lastUpdate": 1794137525933,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -60956,6 +60956,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/638ab57b3ed50cb0264d6e8c5dae51fec9e0ed9e"
         },
         "date": 1794132245177,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "e577157586ad900c4e77ecef2d5e72bccff470d9",
+          "message": "スマホ幅での解図再生盤 (kifu-for-js) を縦並びレイアウトにし盤面全体が収まるよう修正",
+          "timestamp": "2026-11-08T11:16:55Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/e577157586ad900c4e77ecef2d5e72bccff470d9"
+        },
+        "date": 1794137522135,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
