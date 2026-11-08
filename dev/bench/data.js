@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794143277927,
+  "lastUpdate": 1794143281276,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -55087,6 +55087,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 29851,
             "range": "± 2",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "4dbbc39cddf0ee4f44aa0258862003e0e0a7dd86",
+          "message": "作品#12(チェイン)のキャプションを追加",
+          "timestamp": "2026-11-08T13:07:26Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4dbbc39cddf0ee4f44aa0258862003e0e0a7dd86"
+        },
+        "date": 1794143280276,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 303,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2346,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 144,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 421,
+            "range": "± 529",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 21504,
+            "range": "± 34",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1412,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4264,
+            "range": "± 16",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1084731,
+            "range": "± 143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 8975,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 135,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 83,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 110,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 15536597,
+            "range": "± 58735",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 23809,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2737,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14706,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 24810,
+            "range": "± 12",
             "unit": "ns/iter"
           }
         ]
