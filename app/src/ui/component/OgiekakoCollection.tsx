@@ -266,7 +266,7 @@ export default function OgiekakoCollection(props: {
   }, [filter, sortKey, query]);
 
   return (
-    <div className="my-3">
+    <div className="my-3 ogk-collection">
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
           <h1 className="mb-1">ogiekako 協力詰作品集</h1>

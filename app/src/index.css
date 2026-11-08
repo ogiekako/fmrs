@@ -1,12 +1,3 @@
-:root {
-  --bs-primary: #1967d2;
-  --bs-primary-rgb: 25, 103, 210;
-  --bs-link-color: #1967d2;
-  --bs-link-color-rgb: 25, 103, 210;
-  --bs-link-hover-color: #174ea6;
-  --bs-link-hover-color-rgb: 23, 78, 166;
-}
-
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
@@ -21,8 +12,15 @@ code {
     monospace;
 }
 
-/* Google Material 3 Tonal スタイル */
-.btn-primary {
+/* 作品集ページ (OgiekakoCollection): Google Material 3 Tonal スタイル */
+.ogk-collection {
+  --bs-link-color: #1967d2;
+  --bs-link-color-rgb: 25, 103, 210;
+  --bs-link-hover-color: #174ea6;
+  --bs-link-hover-color-rgb: 23, 78, 166;
+}
+
+.ogk-filter-bar .btn-primary {
   --bs-btn-color: #0b57d0;
   --bs-btn-bg: #d3e3fd;
   --bs-btn-border-color: #a8c7fa;
@@ -33,24 +31,7 @@ code {
   --bs-btn-active-color: #0842a0;
   --bs-btn-active-bg: #aecbfa;
   --bs-btn-active-border-color: #669df6;
-  --bs-btn-disabled-color: #0b57d0;
-  --bs-btn-disabled-bg: #e8f0fe;
-  --bs-btn-disabled-border-color: #d2e3fc;
   font-weight: 600;
-}
-
-.btn-outline-primary {
-  --bs-btn-color: #1967d2;
-  --bs-btn-border-color: #c4c7c5;
-  --bs-btn-hover-color: #0b57d0;
-  --bs-btn-hover-bg: #e8f0fe;
-  --bs-btn-hover-border-color: #a8c7fa;
-  --bs-btn-focus-shadow-rgb: 25, 103, 210;
-  --bs-btn-active-color: #0842a0;
-  --bs-btn-active-bg: #d3e3fd;
-  --bs-btn-active-border-color: #8ab4f8;
-  --bs-btn-disabled-color: #1967d2;
-  --bs-btn-disabled-border-color: #dadce0;
 }
 
 .ogk-filter-bar .btn-outline-primary {
@@ -75,42 +56,31 @@ code {
   --bs-btn-active-color: #174ea6;
   --bs-btn-active-bg: #aecbfa;
   --bs-btn-active-border-color: #8ab4f8;
+  font-weight: 600;
 }
 
-.badge.bg-primary {
+.ogk-collection .badge.bg-primary {
   background-color: #e0f2fe !important;
   color: #0369a1 !important;
   border: 1px solid #bae6fd !important;
   font-weight: 600 !important;
 }
 
-.badge.bg-secondary {
+.ogk-collection .badge.bg-secondary {
   background-color: #f1f5f9 !important;
   color: #475569 !important;
   border: 1px solid #cbd5e1 !important;
   font-weight: 500 !important;
 }
 
-.badge.bg-warning {
+.ogk-collection .badge.bg-warning {
   background-color: #fef3c7 !important;
   color: #b45309 !important;
   border: 1px solid #fde68a !important;
   font-weight: 600 !important;
 }
 
-a .badge.bg-warning:hover {
+.ogk-collection a .badge.bg-warning:hover {
   background-color: #fde68a !important;
   border-color: #fcd34d !important;
-}
-
-.form-check-input:checked {
-  background-color: #1967d2;
-  border-color: #1967d2;
-}
-
-.form-control:focus,
-.form-select:focus,
-.form-check-input:focus {
-  border-color: #8ab4f8;
-  box-shadow: 0 0 0 0.2rem rgba(25, 103, 210, 0.18);
 }
