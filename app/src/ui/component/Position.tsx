@@ -33,7 +33,10 @@ export default function Position(props: {
     <div
       style={{ outline: "none" }}
       tabIndex={0}
-      className={props.disabled ? "text-muted" : ""}
+      className={`position-editor user-select-none${
+        props.disabled ? " text-muted" : ""
+      }`}
+      onContextMenu={(e) => e.preventDefault()}
       onKeyDown={(e) => {
         e.preventDefault();
         if (e.key === ".") {

@@ -17,6 +17,14 @@ code {
     monospace;
 }
 
+/* 盤面編集領域での長押し等による文字選択・コールアウトを防止 */
+.position-editor,
+.position-editor * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+}
+
 /* 作品集ページ (OgiekakoCollection): Google Material 3 Tonal スタイル */
 .ogk-collection {
   --bs-link-color: #1967d2;
