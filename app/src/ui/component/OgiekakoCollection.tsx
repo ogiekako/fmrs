@@ -166,140 +166,305 @@ function hasTextSelection(): boolean {
 interface ThemePreset {
   id: string;
   label: string;
-  hex: string;
-  tonal?: {
-    bg: string;
-    hoverBg: string;
-    text: string;
-    border: string;
-  };
+  dotColor: string;
+  dotBorder: string;
+  css: string;
 }
 
 const THEME_PRESETS: ThemePreset[] = [
-  { id: "1e88e5", label: "Material Blue 600 (#1e88e5)", hex: "#1e88e5" },
-  { id: "2196f3", label: "Material Blue 500 (#2196f3)", hex: "#2196f3" },
-  { id: "42a5f5", label: "Material Blue 400 (#42a5f5 薄め)", hex: "#42a5f5" },
-  { id: "0ea5e9", label: "Tailwind Sky 500 (#0ea5e9)", hex: "#0ea5e9" },
-  { id: "3b82f6", label: "Tailwind Blue 500 (#3b82f6)", hex: "#3b82f6" },
-  { id: "4a7c9b", label: "Slate Blue (#4a7c9b 彩度低め)", hex: "#4a7c9b" },
+  {
+    id: "github",
+    label: "1. GitHub Primer風 (淡色タグ＋控えめボタン)",
+    dotColor: "#ddf4ff",
+    dotBorder: "#0969da",
+    css: `
+      :root {
+        --bs-link-color: #0969da;
+        --bs-link-hover-color: #0550ae;
+      }
+      /* フィルターボタン: 非選択は淡グレー枠、選択中はダーク */
+      .ogk-filter-bar .btn-primary {
+        background-color: #24292f !important;
+        border-color: #24292f !important;
+        color: #ffffff !important;
+      }
+      .ogk-filter-bar .btn-outline-primary {
+        background-color: #f6f8fa !important;
+        border-color: #d0d7de !important;
+        color: #24292f !important;
+      }
+      .ogk-filter-bar .btn-outline-primary:hover {
+        background-color: #eaeef2 !important;
+        border-color: #afb8c1 !important;
+      }
+      /* 手数バッジ: GitHub トピックタグ風 (淡青背景 + 青文字) */
+      .badge.bg-primary {
+        background-color: #ddf4ff !important;
+        color: #0969da !important;
+        border: 1px solid rgba(84, 174, 255, 0.4) !important;
+        font-weight: 600 !important;
+      }
+      /* 受方持駒バッジ: 淡グレー */
+      .badge.bg-secondary {
+        background-color: #f6f8fa !important;
+        color: #57606a !important;
+        border: 1px solid #d0d7de !important;
+        font-weight: 500 !important;
+      }
+      /* 受賞バッジ: ソフトアンバー */
+      .badge.bg-warning {
+        background-color: #fff8c5 !important;
+        color: #9a6700 !important;
+        border: 1px solid rgba(212, 167, 44, 0.4) !important;
+        font-weight: 600 !important;
+      }
+      /* カード内の「解図済みで開く」ボタン: 控えめなソフトブルー枠ボタン */
+      .ogk-actions .btn-primary {
+        background-color: #f6f8fa !important;
+        border-color: #d0d7de !important;
+        color: #0969da !important;
+        font-weight: 600;
+      }
+      .ogk-actions .btn-primary:hover {
+        background-color: #ddf4ff !important;
+        border-color: #54aeff !important;
+        color: #0969da !important;
+      }
+      .ogk-actions .btn-outline-secondary {
+        background-color: #ffffff !important;
+        border-color: #d0d7de !important;
+        color: #57606a !important;
+      }
+      .ogk-actions .btn-outline-secondary:hover {
+        background-color: #f6f8fa !important;
+        color: #24292f !important;
+      }
+    `,
+  },
+  {
+    id: "shadcn",
+    label: "2. Shadcn / Zenn風 (モノトーン＋青リンクのみ)",
+    dotColor: "#f1f5f9",
+    dotBorder: "#0f172a",
+    css: `
+      :root {
+        --bs-link-color: #2563eb;
+        --bs-link-hover-color: #1d4ed8;
+      }
+      .ogk-filter-bar .btn-primary {
+        background-color: #0f172a !important;
+        border-color: #0f172a !important;
+        color: #f8fafc !important;
+      }
+      .ogk-filter-bar .btn-outline-primary {
+        background-color: #ffffff !important;
+        border-color: #e2e8f0 !important;
+        color: #475569 !important;
+      }
+      .ogk-filter-bar .btn-outline-primary:hover {
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+      }
+      /* 手数バッジ: スレートピル */
+      .badge.bg-primary {
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600 !important;
+      }
+      .badge.bg-secondary {
+        background-color: #f8fafc !important;
+        color: #475569 !important;
+        border: 1px solid #e2e8f0 !important;
+        font-weight: 500 !important;
+      }
+      .badge.bg-warning {
+        background-color: #fef3c7 !important;
+        color: #92400e !important;
+        border: 1px solid #fde68a !important;
+        font-weight: 600 !important;
+      }
+      .ogk-actions .btn-primary {
+        background-color: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        color: #0f172a !important;
+        font-weight: 600;
+      }
+      .ogk-actions .btn-primary:hover {
+        background-color: #f1f5f9 !important;
+        border-color: #94a3b8 !important;
+      }
+      .ogk-actions .btn-outline-secondary {
+        border-color: #e2e8f0 !important;
+        color: #64748b !important;
+      }
+    `,
+  },
+  {
+    id: "lichess",
+    label: "3. Lichess / 将棋盤調和風 (亜麻色手数＋藍色ボタン)",
+    dotColor: "#f5ebe0",
+    dotBorder: "#2b4c6f",
+    css: `
+      :root {
+        --bs-link-color: #2b4c6f;
+        --bs-link-hover-color: #1a365d;
+      }
+      .ogk-filter-bar .btn-primary {
+        background-color: #2b4c6f !important;
+        border-color: #2b4c6f !important;
+        color: #ffffff !important;
+      }
+      .ogk-filter-bar .btn-outline-primary {
+        background-color: #ffffff !important;
+        border-color: #cbd5e1 !important;
+        color: #334e68 !important;
+      }
+      .ogk-filter-bar .btn-outline-primary:hover {
+        background-color: #f0f4f8 !important;
+      }
+      /* 手数バッジ: 将棋盤と調和する亜麻色ウォームピル */
+      .badge.bg-primary {
+        background-color: #f5ebe0 !important;
+        color: #5c3d2e !important;
+        border: 1px solid #dfccb8 !important;
+        font-weight: 600 !important;
+      }
+      .badge.bg-secondary {
+        background-color: #f4f1ea !important;
+        color: #57534e !important;
+        border: 1px solid #d6d3cd !important;
+        font-weight: 500 !important;
+      }
+      .badge.bg-warning {
+        background-color: #fdf6e2 !important;
+        color: #85581a !important;
+        border: 1px solid #e6cf9c !important;
+        font-weight: 600 !important;
+      }
+      .ogk-actions .btn-primary {
+        background-color: #f0f4f8 !important;
+        border-color: #bcccdc !important;
+        color: #2b4c6f !important;
+        font-weight: 600;
+      }
+      .ogk-actions .btn-primary:hover {
+        background-color: #d9e2ec !important;
+        border-color: #9fb3c8 !important;
+      }
+    `,
+  },
   {
     id: "m3-tonal",
-    label: "M3 Tonal (淡青背景 #d3e3fd + 濃青文字)",
-    hex: "#0b57d0",
-    tonal: {
-      bg: "#d3e3fd",
-      hoverBg: "#b8d2fc",
-      text: "#0b57d0",
-      border: "#a8c7fa",
-    },
+    label: "4. Google M3 Tonal風 (淡パステル色分け・ベタ塗りなし)",
+    dotColor: "#e8f0fe",
+    dotBorder: "#1967d2",
+    css: `
+      :root {
+        --bs-link-color: #1967d2;
+        --bs-link-hover-color: #174ea6;
+      }
+      .ogk-filter-bar .btn-primary {
+        background-color: #d3e3fd !important;
+        border-color: #a8c7fa !important;
+        color: #0b57d0 !important;
+        font-weight: 600;
+      }
+      .ogk-filter-bar .btn-outline-primary {
+        background-color: #ffffff !important;
+        border-color: #dadce0 !important;
+        color: #3c4043 !important;
+      }
+      .ogk-filter-bar .btn-outline-primary:hover {
+        background-color: #f1f3f4 !important;
+      }
+      /* 手数バッジ: ティール系パステルでボタンと色分け */
+      .badge.bg-primary {
+        background-color: #e0f2fe !important;
+        color: #0369a1 !important;
+        border: 1px solid #bae6fd !important;
+        font-weight: 600 !important;
+      }
+      .badge.bg-secondary {
+        background-color: #f1f5f9 !important;
+        color: #475569 !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 500 !important;
+      }
+      .badge.bg-warning {
+        background-color: #fef3c7 !important;
+        color: #b45309 !important;
+        border: 1px solid #fde68a !important;
+        font-weight: 600 !important;
+      }
+      .ogk-actions .btn-primary {
+        background-color: #e8f0fe !important;
+        border-color: #d2e3fc !important;
+        color: #1967d2 !important;
+        font-weight: 600;
+      }
+      .ogk-actions .btn-primary:hover {
+        background-color: #d2e3fc !important;
+        border-color: #aecbfa !important;
+      }
+    `,
   },
   {
-    id: "m3-soft",
-    label: "M3 Soft (極淡青 #e8f0fe + 青文字 #1967d2)",
-    hex: "#1967d2",
-    tonal: {
-      bg: "#e8f0fe",
-      hoverBg: "#d2e3fc",
-      text: "#1967d2",
-      border: "#aecbfa",
-    },
+    id: "outline",
+    label: "5. クリーンアウトライン (背景白＋細枠のみ)",
+    dotColor: "#ffffff",
+    dotBorder: "#1e88e5",
+    css: `
+      :root {
+        --bs-link-color: #1976d2;
+      }
+      .ogk-filter-bar .btn-primary {
+        background-color: #e3f2fd !important;
+        border-color: #1976d2 !important;
+        color: #1565c0 !important;
+        font-weight: 600;
+      }
+      .ogk-filter-bar .btn-outline-primary {
+        background-color: #ffffff !important;
+        border-color: #dee2e6 !important;
+        color: #495057 !important;
+      }
+      .badge.bg-primary {
+        background-color: #ffffff !important;
+        color: #334155 !important;
+        border: 1px solid #cbd5e1 !important;
+        font-weight: 600 !important;
+      }
+      .badge.bg-secondary {
+        background-color: #ffffff !important;
+        color: #64748b !important;
+        border: 1px solid #e2e8f0 !important;
+        font-weight: 500 !important;
+      }
+      .badge.bg-warning {
+        background-color: #fffbeb !important;
+        color: #b45309 !important;
+        border: 1px solid #fcd34d !important;
+        font-weight: 600 !important;
+      }
+      .ogk-actions .btn-primary {
+        background-color: #ffffff !important;
+        border-color: #90caf9 !important;
+        color: #1976d2 !important;
+        font-weight: 600;
+      }
+      .ogk-actions .btn-primary:hover {
+        background-color: #e3f2fd !important;
+        border-color: #1976d2 !important;
+      }
+    `,
   },
-  { id: "0d6efd", label: "Bootstrap 標準 (#0d6efd)", hex: "#0d6efd" },
 ];
-
-function hexToRgb(hex: string): [number, number, number] {
-  const clean = hex.replace(/^#/, "");
-  const num = parseInt(clean, 16);
-  if (Number.isNaN(num) || clean.length !== 6) return [30, 136, 229];
-  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
-}
-
-function darkenHex(hex: string, factor: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
-  const toHex = (n: number) => clamp(n).toString(16).padStart(2, "0");
-  return `#${toHex(r * factor)}${toHex(g * factor)}${toHex(b * factor)}`;
-}
 
 function buildDynamicThemeCss(themeId: string): string {
   const preset = THEME_PRESETS.find((t) => t.id === themeId);
-  if (preset?.tonal) {
-    const { bg, hoverBg, text, border } = preset.tonal;
-    const [r, g, b] = hexToRgb(text);
-    return `
-      :root {
-        --bs-primary: ${text};
-        --bs-primary-rgb: ${r}, ${g}, ${b};
-        --bs-link-color: ${text};
-        --bs-link-color-rgb: ${r}, ${g}, ${b};
-      }
-      .btn-primary {
-        --bs-btn-color: ${text};
-        --bs-btn-bg: ${bg};
-        --bs-btn-border-color: ${border};
-        --bs-btn-hover-color: ${text};
-        --bs-btn-hover-bg: ${hoverBg};
-        --bs-btn-hover-border-color: ${border};
-        --bs-btn-active-color: ${text};
-        --bs-btn-active-bg: ${hoverBg};
-        --bs-btn-active-border-color: ${text};
-        font-weight: 600;
-      }
-      .btn-outline-primary {
-        --bs-btn-color: ${text};
-        --bs-btn-border-color: ${border};
-        --bs-btn-hover-color: ${text};
-        --bs-btn-hover-bg: ${bg};
-        --bs-btn-hover-border-color: ${text};
-        --bs-btn-active-color: ${text};
-        --bs-btn-active-bg: ${hoverBg};
-        --bs-btn-active-border-color: ${text};
-      }
-      .badge.bg-primary {
-        background-color: ${bg} !important;
-        color: ${text} !important;
-        border: 1px solid ${border};
-      }
-    `;
-  }
-
-  const hex = preset ? preset.hex : `#${themeId.replace(/^#/, "")}`;
-  const [r, g, b] = hexToRgb(hex);
-  const hover = darkenHex(hex, 0.88);
-  const active = darkenHex(hex, 0.78);
-  return `
-    :root {
-      --bs-primary: ${hex};
-      --bs-primary-rgb: ${r}, ${g}, ${b};
-      --bs-link-color: ${hex};
-      --bs-link-color-rgb: ${r}, ${g}, ${b};
-      --bs-link-hover-color: ${active};
-    }
-    .btn-primary {
-      --bs-btn-color: #fff;
-      --bs-btn-bg: ${hex};
-      --bs-btn-border-color: ${hex};
-      --bs-btn-hover-bg: ${hover};
-      --bs-btn-hover-border-color: ${hover};
-      --bs-btn-focus-shadow-rgb: ${r}, ${g}, ${b};
-      --bs-btn-active-bg: ${active};
-      --bs-btn-active-border-color: ${active};
-    }
-    .btn-outline-primary {
-      --bs-btn-color: ${hex};
-      --bs-btn-border-color: ${hex};
-      --bs-btn-hover-bg: ${hex};
-      --bs-btn-hover-border-color: ${hex};
-      --bs-btn-focus-shadow-rgb: ${r}, ${g}, ${b};
-      --bs-btn-active-bg: ${hover};
-      --bs-btn-active-border-color: ${hover};
-    }
-    .badge.bg-primary {
-      background-color: ${hex} !important;
-      color: #fff !important;
-      border: none;
-    }
-  `;
+  if (preset) return preset.css;
+  return THEME_PRESETS[0].css;
 }
 
 export default function OgiekakoCollection(props: {
@@ -313,7 +478,7 @@ export default function OgiekakoCollection(props: {
   const [previewTheme, setPreviewTheme] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("color")) return params.get("color")!;
-    if (params.get("preview")) return "1e88e5";
+    if (params.get("preview")) return "github";
     return null;
   });
 
@@ -368,10 +533,9 @@ export default function OgiekakoCollection(props: {
 
   return (
     <div className="my-3">
+      <style>{buildDynamicThemeCss(previewTheme ?? "github")}</style>
       {previewTheme && (
-        <>
-          <style>{buildDynamicThemeCss(previewTheme)}</style>
-          <Card className="mb-3 border-secondary bg-light">
+        <Card className="mb-3 border-secondary bg-light">
             <Card.Body className="py-2 px-3">
               <div className="d-flex flex-wrap align-items-center gap-2">
                 <span className="fw-bold" style={{ fontSize: "0.85em" }}>
@@ -397,40 +561,17 @@ export default function OgiekakoCollection(props: {
                         width: 10,
                         height: 10,
                         borderRadius: "50%",
-                        backgroundColor: t.tonal ? t.tonal.bg : t.hex,
-                        border: `1px solid ${t.tonal ? t.tonal.text : t.hex}`,
+                        backgroundColor: t.dotColor,
+                        border: `1.5px solid ${t.dotBorder}`,
                         marginRight: 5,
                       }}
                     />
                     {t.label}
                   </Button>
                 ))}
-                <label
-                  className="d-inline-flex align-items-center gap-1 ms-1"
-                  style={{ fontSize: "0.85em", cursor: "pointer" }}
-                >
-                  カスタム:
-                  <input
-                    type="color"
-                    value={
-                      previewTheme.startsWith("m3-")
-                        ? "#1e88e5"
-                        : `#${previewTheme.replace(/^#/, "")}`
-                    }
-                    onChange={(e) => {
-                      const hex = e.target.value.replace(/^#/, "");
-                      setPreviewTheme(hex);
-                      const url = new URL(window.location.href);
-                      url.searchParams.set("color", hex);
-                      window.history.replaceState({}, "", url.toString());
-                    }}
-                  />
-                  <code>#{previewTheme.replace(/^#/, "")}</code>
-                </label>
               </div>
             </Card.Body>
           </Card>
-        </>
       )}
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
@@ -447,7 +588,7 @@ export default function OgiekakoCollection(props: {
       <Card className="mb-3">
         <Card.Body className="py-2 px-2 px-sm-3">
           <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between">
-            <div className="d-flex flex-wrap gap-1">
+            <div className="d-flex flex-wrap gap-1 ogk-filter-bar">
               <Button
                 size="sm"
                 variant={filter === "selected" ? "primary" : "outline-primary"}
@@ -686,7 +827,7 @@ export default function OgiekakoCollection(props: {
                         </div>
 
                         <div
-                          className="mt-2 pt-1 d-flex flex-wrap gap-1"
+                          className="mt-2 pt-1 d-flex flex-wrap gap-1 ogk-actions"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Button
@@ -831,7 +972,7 @@ export default function OgiekakoCollection(props: {
                       )}
                     </td>
                     <td
-                      className="text-center text-nowrap"
+                      className="text-center text-nowrap ogk-actions"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Button
