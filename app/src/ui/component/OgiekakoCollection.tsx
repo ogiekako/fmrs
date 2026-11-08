@@ -53,6 +53,7 @@ function formatHands(hands: model.Hands): string {
 function BoardThumbnail(props: {
   sfen: string;
   showWhiteHand?: boolean;
+  ruleAndMoves?: string;
   compact?: boolean;
 }) {
   const position = useMemo(() => model.decodeSfen(props.sfen), [props.sfen]);
@@ -153,6 +154,19 @@ function BoardThumbnail(props: {
         <span className="text-muted">持駒：</span>
         {blackHandText}
       </div>
+      {props.ruleAndMoves && (
+        <div
+          className="text-dark fw-semibold"
+          style={{
+            fontSize: props.compact ? "10px" : "11.5px",
+            lineHeight: 1.3,
+            textAlign: "left",
+            marginTop: "2px",
+          }}
+        >
+          {props.ruleAndMoves}
+        </div>
+      )}
     </div>
   );
 }
@@ -405,6 +419,7 @@ export default function OgiekakoCollection(props: {
                         <BoardThumbnail
                           sfen={p.sfen}
                           showWhiteHand={Boolean(p.defenderHand)}
+                          ruleAndMoves={`${p.rule} ${p.moves.toLocaleString()}手`}
                         />
                       </div>
                       <div
@@ -421,11 +436,11 @@ export default function OgiekakoCollection(props: {
                               <span className="text-muted me-2">
                                 #{origIndex}
                               </span>
-                              <span className="fw-bold fs-6 me-2">
-                                {p.title
-                                  ? `${formatProblemTitle(p.title, true)}${p.moves.toLocaleString()}手`
-                                  : `${p.moves.toLocaleString()}手`}
-                              </span>
+                              {p.title && (
+                                <span className="fw-bold fs-6 me-2">
+                                  {formatProblemTitle(p.title)}
+                                </span>
+                              )}
                               <span
                                 className="text-muted"
                                 style={{ fontSize: "0.88em" }}
