@@ -92,7 +92,7 @@ function BoardThumbnail(props: {
             height: cellH,
             padding: 0,
             border: "1px solid #888",
-            backgroundColor: "#fffdf7",
+            backgroundColor: "#fffefc",
             fontSize,
             verticalAlign: "middle",
           }}
