@@ -164,7 +164,7 @@ export default function OgiekakoCollection(props: {
   onBackToSolver: () => void;
 }) {
   const [filter, setFilter] = useState<FilterCategory>("selected");
-  const [sortKey, setSortKey] = useState<SortKey>("date_asc");
+  const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [query, setQuery] = useState("");
 
@@ -322,8 +322,8 @@ export default function OgiekakoCollection(props: {
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
               >
-                <option value="date_asc">発表年月（古い順）</option>
                 <option value="date_desc">発表年月（新しい順）</option>
+                <option value="date_asc">発表年月（古い順）</option>
                 <option value="moves_asc">手数（短い順）</option>
                 <option value="moves_desc">手数（長い順）</option>
               </Form.Select>

@@ -116,11 +116,10 @@ fn test_problems_sfen_files_and_metadata() {
             meta.moves,
             file_name
         );
-        assert!(
-            meta.rule == "協力詰" || meta.rule == "ばか詰",
+        assert_eq!(
+            meta.rule, "協力詰",
             "Unexpected rule {} in {}",
-            meta.rule,
-            file_name
+            meta.rule, file_name
         );
 
         let pos_from_file = decode_position(&raw_content)
