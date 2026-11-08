@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");
@@ -48,6 +49,24 @@ module.exports = (env, argv) => {
         template: "./app/public/index.html",
         filename: "404.html",
       }),
+      new HtmlWebpackPlugin({
+        template: "./app/public/ogiekako.html",
+        filename: "ogiekako.html",
+      }),
+      new HtmlWebpackPlugin({
+        template: "./app/public/ogiekako.html",
+        filename: "ogiekako/index.html",
+      }),
+      {
+        apply(compiler) {
+          compiler.hooks.afterEmit.tap("CopyOgpImage", () => {
+            fs.copyFileSync(
+              path.resolve(__dirname, "app/public/ogiekako-ogp.png"),
+              path.resolve(__dirname, "docs/ogiekako-ogp.png")
+            );
+          });
+        },
+      },
       new webpack.DefinePlugin({
         FMRS_API_BASE_URL: JSON.stringify(process.env.FMRS_API_BASE_URL || ""),
         FMRS_BASE_PATH: JSON.stringify(basePath),
