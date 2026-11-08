@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794125455913,
+  "lastUpdate": 1794125496077,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -57076,6 +57076,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/cf634c576eed8e678ba9c22070e3441c63a13108"
         },
         "date": 1794125450166,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5eea554510aa4ea27858a0133319d2cf224aec43",
+          "message": "UIのカラーテーマをGoogle Material 3 Tonalスタイル(m3-tonal)に統一",
+          "timestamp": "2026-11-08T08:10:56Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5eea554510aa4ea27858a0133319d2cf224aec43"
+        },
+        "date": 1794125493261,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
