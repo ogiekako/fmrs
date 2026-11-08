@@ -170,6 +170,29 @@ function formatProblemTitle(title: string, withTrailingSpace = false): string {
   return `『${title}』`;
 }
 
+function getAwardUrl(award: string): string | undefined {
+  if (!award.includes("Fairy TOPix")) return undefined;
+  if (award.startsWith("2005年下半期")) {
+    return "http://cavesfairy.g1.xrea.com/pub/fairytopix/2005h2/2005h2.htm";
+  }
+  if (award.startsWith("2006年上半期")) {
+    return "http://cavesfairy.g1.xrea.com/pub/fairytopix/2006h1/2006h1.htm";
+  }
+  if (award.startsWith("2006年下半期")) {
+    return "http://cavesfairy.g1.xrea.com/pub/fairytopix/2006h2/2006h2.htm";
+  }
+  if (award.startsWith("2007年上半期")) {
+    return "http://cavesfairy.g1.xrea.com/pub/fairytopix/2007h1/2007h1.htm";
+  }
+  if (award.startsWith("2008年")) {
+    return "https://tsume-springs.com/web-fairy-paradise/WFP8.pdf";
+  }
+  if (award.startsWith("2013年")) {
+    return "https://tsume-springs.com/web-fairy-paradise/WFP71.pdf";
+  }
+  return "https://tsume-springs.com/web-fairy-paradise/fairytopix.html";
+}
+
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
   onBackToSolver: () => void;
@@ -420,20 +443,44 @@ export default function OgiekakoCollection(props: {
                                   className="text-wrap text-start"
                                   style={{ maxWidth: "100%", lineHeight: 1.35 }}
                                 >
-                                  受方持駒：{p.defenderHand}
+                                  受方持駒制限
                                 </Badge>
                               )}
-                              {p.awards.map((award) => (
-                                <Badge
-                                  key={award}
-                                  bg="warning"
-                                  text="dark"
-                                  className="text-wrap text-start"
-                                  style={{ maxWidth: "100%", lineHeight: 1.35 }}
-                                >
-                                  {award}
-                                </Badge>
-                              ))}
+                              {p.awards.map((award) => {
+                                const awardUrl = getAwardUrl(award);
+                                const badge = (
+                                  <Badge
+                                    key={award}
+                                    bg="warning"
+                                    text="dark"
+                                    className="text-wrap text-start"
+                                    style={{ maxWidth: "100%", lineHeight: 1.35 }}
+                                  >
+                                    {award}
+                                  </Badge>
+                                );
+                                return awardUrl ? (
+                                  <a
+                                    key={award}
+                                    href={awardUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    draggable={false}
+                                    className="text-decoration-none d-inline-flex"
+                                    style={{ maxWidth: "100%" }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (hasTextSelection()) {
+                                        e.preventDefault();
+                                      }
+                                    }}
+                                  >
+                                    {badge}
+                                  </a>
+                                ) : (
+                                  badge
+                                );
+                              })}
                             </div>
                           )}
 
@@ -568,7 +615,7 @@ export default function OgiekakoCollection(props: {
                       <div>{p.rule}</div>
                       {p.defenderHand && (
                         <Badge bg="secondary" className="fw-normal mt-1">
-                          受方持駒：{p.defenderHand}
+                          受方持駒制限
                         </Badge>
                       )}
                     </td>
@@ -602,16 +649,39 @@ export default function OgiekakoCollection(props: {
                       </div>
                       {p.awards.length > 0 && (
                         <div className="mb-1">
-                          {p.awards.map((award) => (
-                            <Badge
-                              key={award}
-                              bg="warning"
-                              text="dark"
-                              className="me-1"
-                            >
-                              {award}
-                            </Badge>
-                          ))}
+                          {p.awards.map((award) => {
+                            const awardUrl = getAwardUrl(award);
+                            const badge = (
+                              <Badge
+                                key={award}
+                                bg="warning"
+                                text="dark"
+                                className="me-1"
+                              >
+                                {award}
+                              </Badge>
+                            );
+                            return awardUrl ? (
+                              <a
+                                key={award}
+                                href={awardUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                draggable={false}
+                                className="text-decoration-none"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (hasTextSelection()) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                              >
+                                {badge}
+                              </a>
+                            ) : (
+                              badge
+                            );
+                          })}
                         </div>
                       )}
                       {p.notes && (
