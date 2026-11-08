@@ -160,7 +160,7 @@ function BoardThumbnail(props: {
           style={{
             fontSize: props.compact ? "10px" : "11.5px",
             lineHeight: 1.3,
-            textAlign: "left",
+            textAlign: "center",
             marginTop: "2px",
           }}
         >
