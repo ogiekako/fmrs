@@ -65,15 +65,10 @@ export default function Solution(props: {
   };
 
   return (
-    <div className="position-relative mb-2">
-      <div className="d-flex justify-content-end mb-1 d-sm-none">
-        <Button className="btn-secondary btn-sm" onClick={applyToDiagram}>
-          図面に反映
-        </Button>
-      </div>
+    <div className="position-relative mb-2 kifu-solution-container">
       <div ref={outer} style={{ maxWidth: "100%", overflowX: "auto" }}></div>
       <div
-        className="d-none d-sm-block position-absolute top-0"
+        className="position-absolute top-0"
         style={{ width: "100%", maxWidth: "570px" }}
       >
         <Button
