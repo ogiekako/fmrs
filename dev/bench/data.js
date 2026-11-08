@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794125498757,
+  "lastUpdate": 1794125816490,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -57270,6 +57270,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/5eea554510aa4ea27858a0133319d2cf224aec43"
         },
         "date": 1794125493261,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "4b695d48aa9977abb3e9b17b727d69d3d63a874d",
+          "message": "「寿限無の完全限定化案の改案」の表示から二重鉤括弧『』を削除",
+          "timestamp": "2026-11-08T08:14:38Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/4b695d48aa9977abb3e9b17b727d69d3d63a874d"
+        },
+        "date": 1794125813182,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
