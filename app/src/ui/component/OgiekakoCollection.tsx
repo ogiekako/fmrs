@@ -206,14 +206,34 @@ function getAwardUrl(award: string): string | undefined {
   return "https://tsume-springs.com/web-fairy-paradise/fairytopix.html";
 }
 
+let savedCollectionState: {
+  filter: FilterCategory;
+  sortKey: SortKey;
+  viewMode: ViewMode;
+  query: string;
+} = {
+  filter: "selected",
+  sortKey: "date_desc",
+  viewMode: "cards",
+  query: "",
+};
+
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
   onBackToSolver: () => void;
 }) {
-  const [filter, setFilter] = useState<FilterCategory>("selected");
-  const [sortKey, setSortKey] = useState<SortKey>("date_desc");
-  const [viewMode, setViewMode] = useState<ViewMode>("cards");
-  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<FilterCategory>(
+    () => savedCollectionState.filter
+  );
+  const [sortKey, setSortKey] = useState<SortKey>(
+    () => savedCollectionState.sortKey
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>(
+    () => savedCollectionState.viewMode
+  );
+  const [query, setQuery] = useState<string>(() => savedCollectionState.query);
+
+  savedCollectionState = { filter, sortKey, viewMode, query };
 
   const filteredProblems = useMemo(() => {
     const q = query.trim().toLowerCase();
