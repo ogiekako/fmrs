@@ -89,3 +89,89 @@ code {
   background-color: #fde68a !important;
   border-color: #fcd34d !important;
 }
+
+/* スマホ幅 (< 576px) での解図再生盤 (kifu-for-js) の縦並びレスポンシブ表示 */
+@media (max-width: 575.98px) {
+  .kifuforjs-wrapper,
+  .kifuforjs-wrapper .kifuforjs {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-columns {
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-column:first-child {
+    flex: 0 0 auto !important;
+    flex-direction: row !important;
+    min-height: 124px !important;
+    height: auto !important;
+    width: 100% !important;
+    gap: 4px !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-column:first-child > .kifuforjs-halfofcolumn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-kifulist {
+    min-height: 68px !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-column:last-child {
+    flex: 0 0 auto !important;
+    flex-direction: column !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-column:last-child .kifuforjs-info {
+    display: none !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-column:last-child .kifuforjs-hand {
+    flex: 0 0 auto !important;
+    min-height: 60px !important;
+    width: 100% !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-pieceinhand {
+    flex: 0 0 25% !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-pieceinhand--fu {
+    flex: 0 0 50% !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-board {
+    margin: 4px auto !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-control {
+    width: 100% !important;
+    gap: 2px !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-control button,
+  .kifuforjs-wrapper .kifuforjs-control input {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    width: auto !important;
+    font-size: 13px !important;
+    padding: 0 !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-control input {
+    flex: 1.3 1 0 !important;
+    width: 0 !important;
+  }
+
+  .kifuforjs-wrapper .kifuforjs-control .kifuforjs-control-tools {
+    font-size: 11px !important;
+  }
+}
