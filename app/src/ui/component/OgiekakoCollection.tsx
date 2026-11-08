@@ -391,11 +391,11 @@ export default function OgiekakoCollection(props: {
                               <span className="text-muted me-2">
                                 #{origIndex}
                               </span>
-                              {p.title ? (
-                                <span className="fw-bold fs-6 me-2">
-                                  『{p.title}』
-                                </span>
-                              ) : null}
+                              <span className="fw-bold fs-6 me-2">
+                                {p.title
+                                  ? `『${p.title}』${p.moves.toLocaleString()}手`
+                                  : `${p.moves.toLocaleString()}手`}
+                              </span>
                               <span
                                 className="text-muted"
                                 style={{ fontSize: "0.88em" }}
@@ -405,35 +405,30 @@ export default function OgiekakoCollection(props: {
                             </div>
                           </div>
 
-                          <div className="mb-2 d-flex flex-wrap gap-1">
-                            <Badge
-                              bg="primary"
-                              className="text-wrap text-start"
-                              style={{ maxWidth: "100%", lineHeight: 1.35 }}
-                            >
-                              {p.rule} {p.moves.toLocaleString()}手
-                            </Badge>
-                            {p.defenderHand && (
-                              <Badge
-                                bg="secondary"
-                                className="text-wrap text-start"
-                                style={{ maxWidth: "100%", lineHeight: 1.35 }}
-                              >
-                                受方持駒：{p.defenderHand}
-                              </Badge>
-                            )}
-                            {p.awards.map((award) => (
-                              <Badge
-                                key={award}
-                                bg="warning"
-                                text="dark"
-                                className="text-wrap text-start"
-                                style={{ maxWidth: "100%", lineHeight: 1.35 }}
-                              >
-                                {award}
-                              </Badge>
-                            ))}
-                          </div>
+                          {(p.defenderHand || p.awards.length > 0) && (
+                            <div className="mb-2 d-flex flex-wrap gap-1">
+                              {p.defenderHand && (
+                                <Badge
+                                  bg="secondary"
+                                  className="text-wrap text-start"
+                                  style={{ maxWidth: "100%", lineHeight: 1.35 }}
+                                >
+                                  受方持駒：{p.defenderHand}
+                                </Badge>
+                              )}
+                              {p.awards.map((award) => (
+                                <Badge
+                                  key={award}
+                                  bg="warning"
+                                  text="dark"
+                                  className="text-wrap text-start"
+                                  style={{ maxWidth: "100%", lineHeight: 1.35 }}
+                                >
+                                  {award}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
 
                           <div
                             className="mb-1"
