@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794048955805,
+  "lastUpdate": 1794114915205,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -54748,6 +54748,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/18e002fbdc1fc48970167e9ef8fbf61ea16bb275"
         },
         "date": 1794048947412,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 124119,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434260123,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "abc7ebc756579a3e4d404ad655ec5b2d6998fd45",
+          "message": "ogiekako作品集のメタデータ整理・セレクション機能追加・受方持駒サムネ表示・通常画面バナー削除",
+          "timestamp": "2026-11-08T04:58:16Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/abc7ebc756579a3e4d404ad655ec5b2d6998fd45"
+        },
+        "date": 1794114911821,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
