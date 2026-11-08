@@ -1,5 +1,4 @@
 import { useEffect, useReducer, useState } from "react";
-import { Badge, Button, Card } from "react-bootstrap";
 import { newState, reduce } from "../state/state";
 import Info from "./Info";
 import Position from "./Position";
@@ -20,7 +19,6 @@ import {
 import { positionStone } from "../../model/position";
 import {
   buildPrecomputedSolveResponse,
-  findOgiekakoProblemBySfen,
   OgiekakoProblem,
 } from "../../ogiekako_problems";
 
@@ -31,7 +29,6 @@ export function Editor(props: {}) {
   );
 
   const sfen = encodeSfen(state.position);
-  const matchedWork = findOgiekakoProblemBySfen(sfen);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -116,78 +113,6 @@ export function Editor(props: {}) {
 
   return (
     <div>
-      <div className="mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <Button
-          variant="outline-primary"
-          size="sm"
-          onClick={() => setShowOgiekako(true)}
-        >
-          ogiekako 協力詰作品集（全37局）を見る →
-        </Button>
-      </div>
-
-      {matchedWork && (
-        <Card className="mb-3 border-primary">
-          <Card.Body className="py-2 px-3" style={{ fontSize: "0.9em" }}>
-            <div className="d-flex justify-content-between align-items-start flex-wrap gap-2">
-              <div>
-                <span className="fw-bold me-2">
-                  {matchedWork.title
-                    ? `『${matchedWork.title}』`
-                    : matchedWork.id}
-                </span>
-                <span className="text-muted me-2">
-                  （{matchedWork.author} / {matchedWork.publishedAt}）
-                </span>
-                <Badge bg="primary" className="me-1">
-                  {matchedWork.rule} {matchedWork.moves.toLocaleString()}手
-                </Badge>
-                {matchedWork.defenderHand && (
-                  <Badge bg="secondary" className="me-1">
-                    受方持駒：{matchedWork.defenderHand}
-                  </Badge>
-                )}
-                {matchedWork.awards.map((award) => (
-                  <Badge
-                    key={award}
-                    bg="warning"
-                    text="dark"
-                    className="me-1"
-                  >
-                    {award}
-                  </Badge>
-                ))}
-              </div>
-              <Button
-                variant="link"
-                size="sm"
-                className="p-0 text-decoration-none"
-                onClick={() => setShowOgiekako(true)}
-              >
-                ← 作品集一覧へ
-              </Button>
-            </div>
-            <div className="mt-1">
-              <span className="text-muted">出典：</span>
-              {matchedWork.source}
-              {matchedWork.url && (
-                <a
-                  href={matchedWork.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="ms-2 text-decoration-none"
-                >
-                  [出典URL↗]
-                </a>
-              )}
-            </div>
-            {matchedWork.notes && (
-              <div className="text-muted mt-1">{matchedWork.notes}</div>
-            )}
-          </Card.Body>
-        </Card>
-      )}
-
       <div className="d-flex">
         <div>
           <Position

@@ -162,7 +162,7 @@ fn test_problems_metadata_and_sfen_files() {
         }
     }
 
-    assert_eq!(ogiekako_count, 37, "Expected 37 ogiekako problems");
+    assert_eq!(ogiekako_count, 33, "Expected 33 ogiekako problems");
 
     // Verify all .sfen files in rust/problems/ (except .ans.sfen) are present in metadata.json
     for entry in fs::read_dir(&problems_dir).expect("Failed to read problems directory") {

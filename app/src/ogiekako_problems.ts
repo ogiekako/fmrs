@@ -16,6 +16,7 @@ export interface OgiekakoProblem {
   awards: string[];
   url: string | null;
   notes: string | null;
+  selected: boolean;
   solutionSeq: string;
   solutionRules: string[];
 }
@@ -36,6 +37,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "awards": [],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/04.htm",
     "notes": "デビュー作。詰上りアルファベット「I」（あぶり出し）。",
+    "selected": true,
     "solutionSeq": "6g5h 4g4f 6f5g 4f4e 5g4f 4e5d 4f4e 5d6e 4e5d 6e5f 6h5g",
     "solutionRules": []
   },
@@ -56,6 +58,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/05.htm",
     "notes": "順列七種合（歩→香→桂→銀→金→角→飛）。",
+    "selected": true,
     "solutionSeq": "1d2d P*2e L*2i L*2h 2i2h N*2g 2h2g 2f3f N*2h 3f4f L*4h S*4g 4h4g 4f5e S*4f 5e6e 6i8g G*7f 8g7f 6e7f G*8g 7f8g 5i8i B*8h 8i8h 9g8h B*6e R*7f 6e7f 8g9g R*9h",
     "solutionRules": []
   },
@@ -75,7 +78,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2005年下半期 Fairy TOPix 長編部門1位"
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/05.htm",
-    "notes": "成香の往復運動（龍の活用）。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "P*1e 1d1e P*1f 1e1f @0 9c9g 1g1f P*1g 1f1e 1g1f 1e1d 1f1e 1d1c 9g9c 5e7c 1e1d 1c1d P*1e 1d1e P*1f 1e1f @0 9c9g 6f6g+ @1 9g9f 6g6f 1h1g 1f1g 9f9g 4e3g+ @1 1h1g 1f1e 9g9e 6f6e 1g1f 1e1f 9e9f 3g3f @0 9f9g 7h7g @1 1h1g 1f1e 1g1f 1e1d 1f1e 1d1c 2h2c+",
     "solutionRules": [
       "P*1g 1f1g",
@@ -96,7 +100,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "歩16",
     "awards": [],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/06.htm",
-    "notes": "受方持駒：歩16。馬の連続王手に対する歩の七連合。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "8i9i P*8h 9i8h P*7g 8h7g P*6f 7g6f P*5e 6f5e P*4d 5e4d P*3c 4d3c 2a2b 3c2b 2g2b P*1b 1a2a 1b1a+ 2a3b P*3c 3b3c P*3d 3c3d P*3e 3d2e P*2f 2e1f P*1g 1f2g 4i3h 2g2f 3h2g 2f2e P*2f 2e1e 1g1f",
     "solutionRules": []
   },
@@ -116,7 +121,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2006年上半期 Fairy TOPix 長編部門4位"
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/06.htm",
-    "notes": "杏鋸・玉鋸。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "8d9c 9b9c P*9d 9c9d P*9e 9d9e P*9f 9e9f P*9g 9f9g 8i7i 9g9f 7i6i 9f9e 6i5i 8e8f P*9f 9e9f 5i6i 8f8g P*9g 9f9g 6i7i 8g8h P*9h 9g9f 7i6i 6g7h 9h9g 9f9e 9g9f 9e9d 9f9e 9d9e 6i5i 9e9d 5i4i 4h5h P*9e 9d9e 4i5i 5h6h P*9f 9e9d 5i4i 5g5h+ 9f9e @0 5h5g @2 5g6g @3 6g6f @2 6f7f @3 7f7e @2 7e8e @3 8e8d @1 P*9e 9d8e 3i4i 8e7e 4i3i 7e7f 3i4i 7f6f 4i3i 6f6g 3i4i 6g5g 4i3i 5g5h 3i4i 3h4i 1c1h 5h6i 1h6h 6i5i G*5h",
     "solutionRules": [
       "9d9c 4i3i",
@@ -141,7 +147,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2006年上半期 Fairy TOPix 長編部門5位"
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/06.htm",
-    "notes": "持駒変換（受方持駒の歩を攻方に渡す34手サイクル×9回）。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "2e2d @33 @33 @33 @33 @32 @9 8d8e 9f8e P*9f 9e9f P*9g 9f9g P*9h 9g8h P*8i 8h7h P*7i 7h6h P*6i 6h5h P*5i 5h4h P*4i 4h3g P*3h 3g3f 3h3g 3f4g 4i4h 4g5g 5i5h 5g6g 6i6h 6g7g 7i7h 7g7f 7h7g 7f7e 7g7f 7e7d 7f7e 7d8c 9b8b 8c8b 9c9b+ 8b7b 9b8b 7b6a 5c5b",
     "solutionRules": [
       "3d4e 2d4d",
@@ -194,7 +201,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": null,
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/overflow/hr25_r.pdf",
-    "notes": "歩の斜め7連打2回。",
+    "notes": "斜め七連合2回。",
+    "selected": true,
     "solutionSeq": "3c3b P*8h 9i8h P*7g 8h7g 6e6f 7g6f P*5e 6f5e P*4d 5e4d 3d3c 4d3c P*2b N*2c 1b2c P*1b 1a1b P*1c 1b1c P*1d 1c1d P*1e 1d1e P*1f 1e1f P*1g 1f2g 3i2h 2g2h 4i3i 2h3i 5i4i 3i2i 4i3i 2i1i 3i2i 3g2i+ 7c8d+ P*8b 9a8b 7a7c 8b7c N*6d 7c6d P*5e 6d5e P*4f 5e4f P*3g 4f3g 2i2h 3g2h 1i2h L*2i 2h3g N*4i 3g4g N*3i 4g5h P*5i 5h6h P*6i 6h7h P*7i 7h8g P*8h 8g8f 8h8g 8f7e 8d8e 7e6e 4i5g 6e7f 8e8f",
     "solutionRules": []
   },
@@ -214,7 +222,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2006年下半期 Fairy TOPix 短編部門9位"
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/08.htm",
-    "notes": "受方持駒：香。7手目に詰むが1〜6手目すべて合駒（七手七合・全手逆王手）。",
+    "notes": null,
+    "selected": false,
     "solutionSeq": "L*4i 5g4g 6d5b+ 7e5e 6h5f L*5g N*5h",
     "solutionRules": []
   },
@@ -232,7 +241,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "なし",
     "awards": [],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/10.htm",
-    "notes": "受方持駒なし。限定打（遠打）と龍のスイッチバック。",
+    "notes": null,
+    "selected": false,
     "solutionSeq": "B*9h 6h9h L*6i 9h6h 6i6h 6e5f R*5e",
     "solutionRules": []
   },
@@ -252,7 +262,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2007年上半期 Fairy TOPix 長編部門6位"
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/11.htm",
-    "notes": "受方持駒：金4桂3歩14。桂跳ねによる空き王手。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "N*3h 4f3e 6a3a 3e4d 3a4a 4d5c 4a5a 5c6d 5a6a 6d7e 6a7a 7e6f 7a6a 6f5g 5i5h 5g4g 6a4a 4g3f 4a3a 3f4e 3a4a 4e3d 4a3a G*3b 3h4f 3d4e 3a4a 4e5f 5h5g 5f4g 4f5d G*4b P*4h 4g4f 4h4g 4f4e 4g4f 4e4d 4f4e 4d4c 5d4b+ 3b4b G*4d",
     "solutionRules": []
   },
@@ -270,7 +281,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": null,
     "awards": [],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/12.htm",
-    "notes": "8五龍の利き（8九玉への王手回避）を利用した2手目歩合限定。",
+    "notes": null,
+    "selected": false,
     "solutionSeq": "L*9i P*9h 9i9h 9g8g P*8h 8g7g 5i6h 7g8f S*7g",
     "solutionRules": []
   },
@@ -290,7 +302,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2008年 Fairy TOPix 長編部門1位"
     ],
     "url": "https://k7ro.sakura.ne.jp/solve/prob132.xml",
-    "notes": "銀知恵の輪と受方銀による手数延長機構。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "7i6i 2d2e 1f1e @4 2e2f P*1f @7 8e8d @2 8d7e @3 7e7d @2 7d6e @3 6e6d @2 6d5e @3 5e5d @2 5d4e @3 4e4d @2 4d3e @3 3e3d @2 3d2e P*1f 1e1d 1f1e 1d2d 9e9d 2d3e 9d9e 3e4d 9e9d 4d5e 9d9e 5e6d 9e9d 6d7e 9d9e 7e8f 6i5i 7h7g 9e9f 8f7e 9f9e 7e6d 9e9d 6d5e 9d9e 5e4d 9e9d 4d3e 9d9e 3e2d 9e9d 2d1e P*1f 2e1f 9d9e @9 @0 @10 1e2e 5i6i 2e2f 6i5i 2f3f 5i6i 3f3g 6i5i 3g4g 5i6i 4g5g 6i7i 5g4g 7i6i 4g3g 6i5i 3g3f 5i6i 3f2f 6i5i 2f2e 5i6i 2e1e 6i5i @7 @4 3e2f 9d9e @9 4f5h+ P*1e 1d1c 6i7i 5h6h 1e1d 1c1d 7i6i @0 @10 @7 @4 3e2f 9d9e 1e2d 9e9d 2d3e 9d9e 3e4d 9e9d 4d5e 9d9e 5e6d 9e9d 6d7e 9d9e 7e8f 9e9f 8f8g 5i6i 6h7h 9f9g 8g8f 9g9f 8f7e 9f9e 7e6d 9e9d 6d5e 9d9e 5e4d 9e9d 4d3e 9d9e 3e2d 9e9d 2d1e 9d9e @10 @9 @4 1f2f P*1f 1e2e 5i6i 3e3f 9d9e 2e2d 6i7i 2d1d 1f1e",
     "solutionRules": [
       "1d1e 9d9e",
@@ -320,7 +333,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "なし",
     "awards": [],
     "url": "http://www.dokidoki.ne.jp/home2/takuji/tumeyon4f.pdf",
-    "notes": "後手持駒なし。香の移動合4回。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "5f6e 4d4e @9 4c4e @9 4b4e @9 4a4e @0 4e2e 2d2e L*1f 1e2d S*3e",
     "solutionRules": [
       "4f4e 1f2e",
@@ -349,7 +363,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "なし",
     "awards": [],
     "url": "http://www.dokidoki.ne.jp/home2/takuji/tumeyon4f.pdf",
-    "notes": "後手持駒なし。桂跳ね4回。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "9d9c 9a8c 7e7d 7c7d 9c9d 7d6e 9d9e 6e5f 9e9f 5f4e 9f9e 8c7e P*4f 4e4f 9e9f 4f3g 9f9g 3g2f 9g9f 2f1g 9f9g 7e6g P*1h 1g2f 9g9f 2f3e 9f9e 3e4f 9e9f 4f5e 9f9e 5e6f 9e9f 6f7g 9f9g 7g6h 4i5i 6g5i+ 9g9h 6h5g 9h9g 5g4f P*4g 4f3f 9g9f G*4f P*3g 3f4e 4g4f 4e4d G*4e",
     "solutionRules": []
   },
@@ -369,7 +384,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2008年 Fairy TOPix 長編部門7位"
     ],
     "url": "http://www.dokidoki.ne.jp/home2/takuji/tumeyon4f.pdf",
-    "notes": "後手持駒：歩4。角・馬の活用による長編。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "B*2h 1g2h B*4f @22 @22 @22 @22 @7 B*4f 5d4f @8 P*4g 4f4e 4g4f 4e5d N*6f 5d6e 6g7f 6e7f P*7g 7f7g P*7h 7g8h P*8i 8h8g 8i8h 8g8f 8h8g 8f8e 8g8f 8e8d 8f8e 8d8c 8e8d 8c7b 5f6d 7b6a S*6b",
     "solutionRules": [
       "B*3g 4f3g",
@@ -413,7 +429,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2008年 Fairy TOPix 長編部門5位"
     ],
     "url": "http://cavesfairy.g1.xrea.com/pub/qgfairy/15.htm",
-    "notes": "七連合（3二〜3八）＋玉の盤面周辺1周巡り（還元玉）。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "7a5c L*8a 9a8a P*7a 8a7a P*6a 7a6a P*5a 6a5a P*4a 5a4a P*3a 4a3a 2b2a 3a2a 1a2a L*2b 2a3a 2b2a+ 3a4a 2a3a 4a5a 7b6a+ 5a6a P*6b 6a7a 6b6a+ 7a8a 6a7a 8a9a 7a8a 9a8a 5c6c 8a7a P*7b 7a8a 7b7a+ 8a9a 7a8a 9a9b 8a8b 9b9c 8b9b 2i9b 9e9d 9c9d P*9e 9d9e P*9f 9e9f P*9g 9f9g P*9h 9g9h P*9i 9h8i 7h7i 8i7i 7g7h 7i6i 7h7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2i 1i1h 2i1h 4e4d 1f2g P*1i 1h1g 1i1h 1g1f 1h1g 1f1e 1g1f 1e2d 4d3d 2d1c 3d2d 1c2b 2d2c 2b1a S*2b",
     "solutionRules": []
   },
@@ -433,7 +450,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2008年 Fairy TOPix 中編部門3位"
     ],
     "url": "https://www.ne.jp/asahi/tetsu/toybox/kapitan/kpt021.htm",
-    "notes": "七種移動合の短手数・最少駒数記録（12枚）。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "4b4h 3d3h P*1i 1h1g 4h4g 2e3g+ 1i1h 1g1f 4g4f 3c3f 1h1g 1f1e 4f4e 2d2e 1g1f 1e1d 4e4d 2c3d 1f1e 1d1c 4d4c 2b2c 1e1d 1c2b 1d1c+ 2b1a 4c4a 1b2a L*1b",
     "solutionRules": []
   },
@@ -451,7 +469,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "なし",
     "awards": [],
     "url": "http://www.dokidoki.ne.jp/home2/takuji/WFP3.pdf",
-    "notes": "受方持駒なし。規定の13枚構成による握り詰作図企画（香2桂1歩7玉2飛1）。",
+    "notes": "規定の13枚構成による握り詰作図企画（香2桂1歩7玉2飛1）。",
+    "selected": true,
     "solutionSeq": "P*5i 5h5g 5i5h 5g4f P*4g 4f3g 3i3h 3g3f 3h3g 3f3e 3g3f 3e2d 2g2f P*2e 2f2e 2d3d 3f3e 3d4e 4g4f 4e5f 5h5g 5f6f P*6g 6f7g P*7h 7g8f 8i8h 8f7e N*8g 7e8f 8g7e 8f7f 7h7g 7f6e 6g6f 6e6d 7e6c+ 6d7d 6c6d 7d7e 6d6e",
     "solutionRules": []
   },
@@ -472,6 +491,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     ],
     "url": "https://k7ro.sakura.ne.jp/solve/prob139.xml",
     "notes": "作図競争「紛れ最多の5手協力詰」首位作（解析局面数43,734,179局面）。",
+    "selected": true,
     "solutionSeq": "N*2i 3i2i S*3h 3g4h G*4i",
     "solutionRules": []
   },
@@ -490,6 +510,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "awards": [],
     "url": "http://cavesfairy.g1.xrea.com/pub/kpub/shin-taizen/shin-taizen-excerpt.pdf",
     "notes": "『新約・神詰大全』描き下ろし新作。",
+    "selected": true,
     "solutionSeq": "G*2h 3h4h 2h3h 4h5h 3h4h 5h6h 4h5h 6h7h 5h6h 7h8h 6h7h 8h9g 7h8h 9g9f P*9g 9h9g 8h9g 9f9e P*9f 8e9f 9g9f 9e9f G*9e @38 @33 2c8c 7d8d @28 @38 @23 8c7c 6d7d @24 @28 @38 7c6c 5d6d @35 @36 @21 6c5c 4d5d @22 @35 @36 5c4c 3d4d @37 @34 4c3c 2d3d @31 @37 @29 3c2c 1d2c 1g1f 2e2d 1f1e 2d3e 1e2e 3e4e @37 @19 P*1g 1h1g @20 @30 @31 @37 @16 2h1h 3h2h 1h1i 2h2i 1i2i G*1i 2i3h 1i2i 3h2g 2i3h 2g1h P*1i 1h2i 3h3i 2i1i G*2i",
     "solutionRules": [
       "9f9g 9e9f",
@@ -547,7 +568,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "歩4",
     "awards": [],
     "url": "http://cavesfairy.g1.xrea.com/pub/kpub/shin-taizen/shin-taizen-excerpt.pdf",
-    "notes": "受方持駒：歩4。『新約・神詰大全』描き下ろし新作。",
+    "notes": "『新約・神詰大全』描き下ろし新作。",
+    "selected": true,
     "solutionSeq": "9g1g P*1f 1g1f 1d2e @3 @45 @4 1f1h @46 @41 @12 8g9h 1g1h 8i8h P*9i 9h9g 1h1g 8h8g @42 8g7h P*9i @46 @45 1f1g 7h7g @42 7g6h P*9i @46 4g4h P*4i 4h3h 1g1h 3h4g 1h1g @45 1f1g 6h6g @42 6g5h P*9i 9h9g 1h1g 5h5g @42 5g4h P*9i @21 @5 4g5f G*5g",
     "solutionRules": [
       "1f1e 2e3f",
@@ -615,7 +637,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2013年 Fairy TOPix 長編部門4位"
     ],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp56-12.xml",
-    "notes": "歩の持駒変換サイクルを用いた超長編。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "9d9c+ 8b9c P*9d 9c9d P*9e 9d8e P*8f 8e7f P*7g 7f6g P*6h 6g5f P*5g 5f5e 1d1e 5e4d 1e1d 4d3e @13 @15 @14 @25 6h7g @39 7g8f @47 @42 8h8g 8f9e P*9f 9e8e @48 @42 @47 @42 8h8g 8f9f P*9g 9f8e @48 @42 @47 @40 @36 @28 @14 @9 1d1e 3e4d 1h1g P*3e 1e1d @20 5g4h P*4i 4h4g 4i4h 4g3f @4 3e3f @7 @15 @9 1h1g @2 4e5f 5h5g @16 @21 6h7g 7i7h 7g8f 8h8g 8f9e 9g9f 9e9d 9f9e 9d9c 9e9d 9c8b 6a7b+ 8b7b 1e1b 6c6b 1g1h 7b8b 9d9c+ 8b9c P*9d 9c9d P*9e 9d8e @48 @37 @23 5f5e 5g5f 5e4d 1b1d 4d3e P*3f @2 S*3e 3f3e 4e4d S*4e",
     "solutionRules": [
       "4e4d 1e1d",
@@ -683,7 +706,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": null,
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp56-12.xml",
-    "notes": "56-12（2571手）の手数延長改案。",
+    "notes": null,
+    "selected": false,
     "solutionSeq": "9d9c+ 8b9c P*9d 9c9d P*9e 9d8e @42 @32 6i6h 6g5g 5i5h 5g5f 5h5g 5f5e 1c1e 5e4d 1e1d 4d3e @13 @15 @14 @25 6h7g @39 @48 @41 @49 8f9e P*9f 9e8e @42 @41 @48 @41 @49 8f9f P*9g 9f8e @42 @41 @48 @40 @37 @28 @14 @7 1d1e 3e4d 1h1g P*3e 1e1d @21 5g4h P*4i 4h4g 4i4h 4g3f @3 1g1h 3e3f @11 @15 @7 @9 1d1e 4e5f 5h5g @16 @18 6h7g 7i7h @49 8f9e 9g9f 9e9d 9f9e 9d9c 9e9d 9c8b 6b7b 8b7b 1e1b 6c6b 1g1h 7b8b 9d9c+ 8b9c P*9d 9c9d P*9e 9d8e @42 @32 @23 5f5e 5g5f 5e4d 1h1g 4d4e @10 1b1e @5 @15 @15 @7 1h1g @2 4e5f @17 @18 6h7g P*7h @43 8f9e P*9f 9e9d 9f9e 9d9c 9e9d 9c8b 9d9c+ 8b7b 1g1h 6b6c 1e1b 5a6b 9c8c 7b6a G*5b",
     "solutionRules": [
       "4e4d 1e1d",
@@ -754,7 +778,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
       "2013年 Fairy TOPix 長編部門6位"
     ],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp56-13.xml",
-    "notes": "2進カウンタ機構による超長編。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "1h1g 1f2g @37 @25 @7 8g9g 9i9h 9g9f @23 P*6h @62 2h1g @77 1e2e @78 2e2d @81 2d3d @78 3d3c @81 3c4c @78 4c4b @81 4b5b @73 1g1f 1e1d 1f1e 1d1e 6a5a @75 @65 @70 @63 @53 @26 @22 @12 8d9c 5b6b @21 6i6h @60 2h1g @72 3b4c @78 1e1d 5a4a 1d1e @79 @37 @25 @22 7d6b+ 9f9e G*9d",
     "solutionRules": [
       "8d9c P*8d",
@@ -855,7 +880,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": "なし",
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/overflow/hr39_r.pdf",
-    "notes": "受方持駒なし。三段目での攻方歩不成による持駒変換。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "@2 @21 P*5f 6e5f @23 P*6e 5d6e @28 P*7f 6e7f @27 @26 6d6e P*6f 5f6f 1d1e 6e6d @25 P*6e 7f6e @24 @21 P*5f 6e5f @23 1e1d 6d7e P*7f 8d7f @27 @28 1d1e 7e8d P*8e 7d8e 1e1d 8d7e @27 @28 1d1e 7e8d 1e1d 8d9e P*9f 8e9f 1d1e 9e8d 1e1d 8d7e @27 @24 @6 N*3e 3f3e 4e5e 3e3d 5e4d N*3f",
     "solutionRules": [
       "4e4d 1e1d",
@@ -890,133 +916,6 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     ]
   },
   {
-    "id": "wfp-68-unpromote-1_53",
-    "file": "wfp-68-unpromote-1_53.sfen",
-    "sfen": "l2SSGGS1/B1PPLPP1L/K6Rr/7gn/1p6s/1N2P2+pg/4L4/9/1N1N1kb2 b 11p 1",
-    "title": null,
-    "author": "荻絵香木",
-    "source": "Web Fairy Paradise 第68号「記録に挑戦！1. 攻方連続不成回数」①",
-    "publishedAt": "2014-02",
-    "resultPublishedAt": "2014-02",
-    "moves": 53,
-    "rule": "協力詰",
-    "defenderHand": null,
-    "awards": [],
-    "url": "http://www.dokidoki.ne.jp/home2/takuji/WFP68.pdf",
-    "notes": "2014年2月13日投稿。攻方連続不成22回。",
-    "solutionSeq": "2c4c 4i3h 4c3c 3h4g 3c4c 4g3f 4c3c 3f4e 3c4c 4e5d 4c5c 5d6d 5c6c 6d7e 6c7c 7e6f 7c6c 6f7f 6c7c 7f6g 7c6c 6g7h 6c7c 7h6i 7c6c 6i7h 6c7c 7h6g 7c6c 6g7f 6c7c 7f6f 7c6c 6f7e 6c7c 7e6d 7c6c 6d5d 6c5c 5d4e 5c4c 4e3f 4c3c 3f4g 5f5e N*8c 3c4c 4g3f 4c3c 2d3d 3c3d 3f2e G*3e",
-    "solutionRules": []
-  },
-  {
-    "id": "wfp-68-unpromote-2_147",
-    "file": "wfp-68-unpromote-2_147.sfen",
-    "sfen": "pSS5G/PPPG2ng1/2kLbssPL/9/1Rp1l4/1Kn+rN1g2/3b5/5N2L/9 b 12p 1",
-    "title": null,
-    "author": "荻絵香木",
-    "source": "Web Fairy Paradise 第68号「記録に挑戦！1. 攻方連続不成回数」②",
-    "publishedAt": "2014-02",
-    "resultPublishedAt": "2014-02",
-    "moves": 147,
-    "rule": "協力詰",
-    "defenderHand": null,
-    "awards": [],
-    "url": "http://www.dokidoki.ne.jp/home2/takuji/WFP68.pdf",
-    "notes": "2014年2月13日投稿。攻方連続不成49回。",
-    "solutionSeq": "8e8c @15 @15 @15 7c7d 8c8e+ 7d6e 8e7f 6g7f N*5g 6f5g P*6f 6e6f P*6g 6f6g P*6h 6g5h P*5i 5h4h P*4i 4h4g 4i4h 4g4f 4h4g 4f4e 4g4f 4e3d P*3e 3d2c P*2d 2c2d P*2e 2d2e P*2f 2e2f P*2g 2f2g P*2h 2g1h P*1i 1h1g 1i1h 1g1f 1h1g 1f1e 1g1f 1e1d 1f1e 1d1c 1a1b 1c2c 1b2b 2c1c G*2c",
-    "solutionRules": [
-      "7c7d 8c7c",
-      "@0 7d8d",
-      "@1 7c7d",
-      "@2 8d9c",
-      "@3 7d7c",
-      "@4 P*8c",
-      "@5 7c8c",
-      "@6 9c9d",
-      "@7 8c9c",
-      "@8 9d8d",
-      "@9 9c9d",
-      "@10 8d7c",
-      "@11 9d9c",
-      "@12 P*8c",
-      "@13 9c8c",
-      "@14 @14"
-    ]
-  },
-  {
-    "id": "wfp-68-unpromote-3_187",
-    "file": "wfp-68-unpromote-3_187.sfen",
-    "sfen": "4pS1p+N/bg1GPPPPP/PSbL2k2/s2n2N2/3g1RL+p+p/2r1lK3/1s7/4+N1l2/6g2 b 8p 1",
-    "title": null,
-    "author": "荻絵香木",
-    "source": "Web Fairy Paradise 第68号「記録に挑戦！1. 攻方連続不成回数」③",
-    "publishedAt": "2014-02",
-    "resultPublishedAt": "2014-02",
-    "moves": 187,
-    "rule": "協力詰",
-    "defenderHand": null,
-    "awards": [],
-    "url": "http://www.dokidoki.ne.jp/home2/takuji/WFP68.pdf",
-    "notes": "2014年2月14日投稿。攻方連続不成78回。",
-    "solutionSeq": "4e4c @17 @17 @17 @17 @9 4c4e+ 5d5c 4e5f 6d5f L*5e 5c6d 8c7d+ 6d7d P*7e 7d8c P*8d 8c9c 8d8c+ 9d8c P*9d 9c9d P*9e 9d9e P*9f 9e9f P*9g 9f9g P*9h 9g8h P*8i 8h7g 5h6g 7g8f 6g7f 8f9f R*9g",
-    "solutionRules": [
-      "3c2d 4c2c",
-      "@0 2d1d",
-      "@1 2c1c",
-      "@2 1d2d",
-      "@3 1c1d",
-      "@4 2d3c",
-      "@5 1d1c",
-      "@6 3c4d",
-      "@7 1c4c",
-      "@8 4d5d",
-      "@9 4c5c",
-      "@10 5d4d",
-      "@11 5c5d",
-      "@12 4d3c",
-      "@13 5d5c",
-      "@14 P*4c",
-      "@15 5c4c",
-      "@16 @16"
-    ]
-  },
-  {
-    "id": "wfp-68-unpromote-4_205",
-    "file": "wfp-68-unpromote-4_205.sfen",
-    "sfen": "4pS1pG/sn1GPPLPP/2bL2k2/s2n2N2/5RL+p+p/2r1lK3/1s2N4/3bG1p2/6g2 b 9p 1",
-    "title": null,
-    "author": "荻絵香木",
-    "source": "Web Fairy Paradise 第68号「記録に挑戦！1. 攻方連続不成回数」④",
-    "publishedAt": "2014-02",
-    "resultPublishedAt": "2014-02",
-    "moves": 205,
-    "rule": "協力詰",
-    "defenderHand": null,
-    "awards": [],
-    "url": "http://www.dokidoki.ne.jp/home2/takuji/WFP68.pdf",
-    "notes": "2014年2月14日投稿。攻方連続不成87回。",
-    "solutionSeq": "4e4c @17 @17 @17 @17 @16 @9 4c4e+ 5d5c 4e5f 6d5f L*5e 5c6d P*6e 6d7d P*7e 7d8c P*8d 8c9c 8d8c+ 9d8c P*9d 9c9d P*9e 9d9e P*9f 9e9f P*9g 9f9g P*9h 9g8h P*8i 8h7g 5h6g 7g8f 6g7f 8f9f R*9g",
-    "solutionRules": [
-      "3c2d 4c2c",
-      "@0 2d1d",
-      "@1 2c1c",
-      "@2 1d2d",
-      "@3 1c1d",
-      "@4 2d3c",
-      "@5 1d1c",
-      "@6 3c4d",
-      "@7 1c4c",
-      "@8 4d5d",
-      "@9 4c5c",
-      "@10 5d4d",
-      "@11 5c5d",
-      "@12 4d3c",
-      "@13 5d5c",
-      "@14 P*4c",
-      "@15 5c4c",
-      "@16 @16"
-    ]
-  },
-  {
     "id": "wfp-68-unpromote-5_233",
     "file": "wfp-68-unpromote-5_233.sfen",
     "sfen": "n3p1g1G/gbLGPP1PP/3L2k2/ss1r1RN2/6Ppp/2n2K3/1s2N1L2/5S3/2b3L2 b 10p 1",
@@ -1031,6 +930,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "awards": [],
     "url": "http://www.dokidoki.ne.jp/home2/takuji/WFP68.pdf",
     "notes": "2014年2月15日投稿。攻方連続不成96回（同企画最終記録作）。",
+    "selected": true,
     "solutionSeq": "4d4c @17 @17 @17 @17 @17 @9 4c4e+ 5d5c 4e5e 6d5d 5e6d 5c6d P*6e 6d7c P*7d 7c8c 7d7c+ 8d7c P*8d 8c9c 8d8c+ 9d8c P*9d 9c9d P*9e 9d9e P*9f 9e9f P*9g 9f9g P*9h 9g8h P*8i 8h7g P*7h 7g6h 4h5i 6h6g 5i6h 6g7h 6h7i 7h7g B*5i R*6h 7i6h 7g7h R*7i",
     "solutionRules": [
       "3c2d 4c2c",
@@ -1059,15 +959,16 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "sfen": "1K1R1r1S1/L2+Pl1L+NB/3+P+ng1N1/1nps2g1P/1gbl1g1P1/1kP1s1P2/3P1P3/4+p4/P1s1P4 b P5p 1",
     "title": "寿限無の完全限定化案（改案）",
     "author": "ogiekako",
-    "source": "GitHub (fmrs) / 774作『寿限無の完全限定化案』改案",
+    "source": "未発表（森茂・橋本孝治・浦壁和彦「寿限無」完全限定化案 36511手の改案）",
     "publishedAt": "2024-06",
     "resultPublishedAt": "2024-06",
     "moves": 36607,
     "rule": "協力詰",
     "defenderHand": null,
     "awards": [],
-    "url": "https://github.com/ogiekako/fmrs",
-    "notes": "774作『寿限無の完全限定化案』（36511手）の冒頭にあった非限定箇所を解消し、初手から最終手まで完全一本道化した改案。",
+    "url": null,
+    "notes": null,
+    "selected": true,
     "solutionSeq": "P*8g 8f9g 9i9h @35 @16 6c7c 8c7c @0 @18 @83 8g7f P*7g 7f8f @31 @28 @83 8g7g @33 @28 @83 @37 P*6h 6g5g @68 4g3f @78 3f2e @90 2e1d P*1e 1d2d @91 @82 @90 2e1e P*1f 1e2d @91 @82 @90 2e1d 1f1e 1d1c 1e1d 1c2b 1d1c+ 2b1c P*1d 1c2d @91 @79 @69 @50 @33 @13 9d8c @2 N*7b 8b7b 7c6c 7b7c 6d7c N*5e 6c6b 7a5a+ 6b5a 5e4c 5a6a G*7b",
     "solutionRules": [
       "6b7b 7c8c",
@@ -1179,6 +1080,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp182-7.xml",
     "notes": "単玉・歩なし煙詰（21枚→3枚）。182-7の原投稿図。",
+    "selected": false,
     "solutionSeq": "4f4h 5g4h 6f4h 3g4h R*3i 4i3i 5i4h 3i4h L*4i 4h5h L*5i 5h6i 8i7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2i 4i3i 2i1i 1g1h 1i1h 2g1g 1h1g 2f2g 1g1h 3i2i 1h2g 2i1h 2g3g 1h2g 3g3h 2g3g 3h2h 3g2g 2h2g 4e3f 2g1f 3f2e 1f1e G*1f",
     "solutionRules": []
   },
@@ -1197,6 +1099,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp182-7.xml",
     "notes": "単玉・歩なし煙詰（21枚→3枚）。",
+    "selected": true,
     "solutionSeq": "3e2e 4e2e 3f2e 1d2e R*1d 2e1d 3b3e 1d2e 3e2e 1e1d S*1e 1f1e 2e1e 1d1e S*1f 1e1f 2h1g 1f1e 1g1f 1e1f 3i1g 1f1g 3g2h 1g1f 2h1g 1f1g 4f2h 1g2h 4h3h 2h1h 3h2h 1h1i 2h2i 1i2i S*1h 2i2h 1h1g 2h2g 1g1f 2g2f 1f1e 2f2e 1e1d 2e2d 1d1c 2d1c 2b1b 1c1b N*2d 1b1a G*1b",
     "solutionRules": []
   },
@@ -1215,6 +1118,7 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp182-8.xml",
     "notes": "単玉・貧乏煙詰（金銀なし31枚→3枚、単玉協力詰煙詰の最大枚数記録）。",
+    "selected": true,
     "solutionSeq": "1g1h 1i1h 1f1g 1h1g 1e1f 2f1f 3f1f 2d1f P*1h 1g1h 5d2g 1h2g 2e2f 2g1g 2f2g 3g2g 6a1f 1g1h 1f2g 1h2i 2g1h 2i1h P*1i 1h1g 1i1h 1g2g N*1i 2g3g 5i4h 4g4h N*2i 3g4g 4i4h 4g4h L*4i 4h5h L*5i 5h6g 6i6h 6g6h P*6i 6h7i 9i8i 7i6i 8i7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2h 4i3i 2h1h 3i2h 1h1i 2h1h 1i2i 1h1i 2i3h 1i2h 3h4g 2h3g 4g5f 3g4f 5f6e 6c6d 6e6d 4f5e 6d5c 5e6d 5c6b 6d7c 6b7a 7c7b",
     "solutionRules": []
   },
@@ -1232,7 +1136,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": null,
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp183-6.xml",
-    "notes": "『BATACO』（4247手）の改良・手数延長版。全着手完全限定の一本道協力詰。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "5c6c 7c8c 6c7c 8c9d @10 @20 5i5h 5g4g 4i4h 4g4h P*4i 4h3g 3i3h 3g2g 2i2h 2g2f 2h2g 2f1e 1g1f 2d1f 4a5a 1e2e 2g2f 2e3f @54 @43 @27 @11 5a6a @3 @12 @4 @10 @38 @50 4h3g @61 3g2f @75 5b4b @76 5a6a 4b4c @77 @64 @75 4c3c @76 5a6a 3c3d @77 @64 @75 3b3c @76 @77 @54 @43 @27 @11 8c9c 9d8d 9c9d 8d7c 9d8c 7c7d 5a4a 6b6c 8c7c 7d6d 4a3a 5d5c 7c7d 6d5d 3a2a 5c4c R*5b",
     "solutionRules": [
       "P*8c 9b9c",
@@ -1326,10 +1231,11 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "resultPublishedAt": "2026-10",
     "moves": 113,
     "rule": "協力詰",
-    "defenderHand": "なし",
+    "defenderHand": null,
     "awards": [],
     "url": null,
     "notes": "史上初の協力詰双玉全駒煙（40枚→3枚）。",
+    "selected": true,
     "solutionSeq": "7h6g 5g6g S*5g 6g5g 7g5g 4g5g 8g5g 4f5g G*6g 5f4g 6g5g 4g3g 5g4g 3f4g 6f4h 4g4h 7e4h 3g4h L*4i 4h5h L*5i 5h6h P*6i 6h6g 6i6h 6g6f 6d6e 6f6e 5c6d+ 6e6d 4d5d 6d6e 5d6d 6e6f 6h6g 6f6g P*6h 6g6h P*6i 6h7i 9i8i 7i6i 8i7i 6i5i 7i6i 5i4i 6i5i 4i3i 5i4i 3i2i 1h1i 2i1i 1g1h 1i2i 4i3i 2i1h 3i2i 1h1g 2i1h 1g1f 1h1g 1f1g P*1h 1g2h P*2i 2h2g 2i2h 2g1f 1h1g 1f1e 1c1d 1e1d N*2f 2e2f 3h2f 1d1e 1g1f 1e2f 2h2g 2f2e 2g2f 2e1d 1f1e 1d1c 1e1d 2d1d 1a1b 1c2d 2f2e 2d3d P*3e 3d4e P*4f 4e4d 4f4e 4d5e 6d5d 5e4e 5d4d 4e3e 4d3d 3e2e 3d2d 2e1e 2d1d 1e1d 1b1c 1d1c P*1d 1c1b 1d1c+ 1b1a 1c2b",
     "solutionRules": []
   },
@@ -1347,7 +1253,8 @@ export const OGIEKAKO_PROBLEMS: OgiekakoProblem[] = [
     "defenderHand": null,
     "awards": [],
     "url": "https://k7ro.sakura.ne.jp/wfp/wfp184-1.xml",
-    "notes": "全着手完全限定の一本道協力詰（10453手）。",
+    "notes": null,
+    "selected": true,
     "solutionSeq": "N*1h 2f2e 1c2d+ 2e1f 2d2e @4 @12 1f2f 3f4e 2f2g 4e4f 2g2h 4g3g P*4g @28 @35 @21 1g2g 3g4h 2g2f @45 5g4g @37 @38 4h5h P*5i 6h5i @58 6g7f @72 7f8e @85 P*9e 9d9c 9e9d 9c8b 6c7c 8b7c 6b6c 7c8d @86 @85 P*9e 9d8d @86 @83 8e9e P*9f 9e8d @86 @85 9f9e 9d9c 9e9d 9c8b 6c7c 5a7c 9d9c+ 8b9c P*9d 9c8d @84 @73 @61 @39 2f2e L*3f @25 @10 L*2f",
     "solutionRules": [
       "2f3g 2h1g",

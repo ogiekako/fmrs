@@ -14,6 +14,7 @@ import * as model from "../../model";
 import { OGIEKAKO_PROBLEMS, OgiekakoProblem } from "../../ogiekako_problems";
 
 type FilterCategory =
+  | "selected"
   | "all"
   | "award"
   | "short"
@@ -49,7 +50,11 @@ function formatHands(hands: model.Hands): string {
   return parts.length > 0 ? parts.join(" ") : "なし";
 }
 
-function BoardThumbnail(props: { sfen: string; compact?: boolean }) {
+function BoardThumbnail(props: {
+  sfen: string;
+  showWhiteHand?: boolean;
+  compact?: boolean;
+}) {
   const position = useMemo(() => model.decodeSfen(props.sfen), [props.sfen]);
   const cellW = props.compact ? 14 : 17;
   const cellH = props.compact ? 15 : 19;
@@ -98,6 +103,9 @@ function BoardThumbnail(props: { sfen: string; compact?: boolean }) {
     rows.push(<tr key={row}>{cells}</tr>);
   }
 
+  const whiteHandText = props.showWhiteHand
+    ? formatHands(position.hands.white)
+    : null;
   const blackHandText = formatHands(position.hands.black);
 
   return (
@@ -107,6 +115,20 @@ function BoardThumbnail(props: { sfen: string; compact?: boolean }) {
         width: cellW * 9 + 2,
       }}
     >
+      {whiteHandText !== null && (
+        <div
+          className="text-dark mb-1 text-truncate"
+          title={`持駒：${whiteHandText}`}
+          style={{
+            fontSize: props.compact ? "10px" : "11px",
+            lineHeight: 1.2,
+            textAlign: "left",
+          }}
+        >
+          <span className="text-muted">持駒：</span>
+          {whiteHandText}
+        </div>
+      )}
       <table
         style={{
           borderCollapse: "collapse",
@@ -132,11 +154,13 @@ function BoardThumbnail(props: { sfen: string; compact?: boolean }) {
   );
 }
 
+const SELECTED_COUNT = OGIEKAKO_PROBLEMS.filter((p) => p.selected).length;
+
 export default function OgiekakoCollection(props: {
   onSelectProblem: (problem: OgiekakoProblem, preSolved: boolean) => void;
   onBackToSolver: () => void;
 }) {
-  const [filter, setFilter] = useState<FilterCategory>("all");
+  const [filter, setFilter] = useState<FilterCategory>("selected");
   const [sortKey, setSortKey] = useState<SortKey>("date_asc");
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [query, setQuery] = useState("");
@@ -144,6 +168,7 @@ export default function OgiekakoCollection(props: {
   const filteredProblems = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = OGIEKAKO_PROBLEMS.filter((p) => {
+      if (filter === "selected" && !p.selected) return false;
       if (filter === "award" && p.awards.length === 0) return false;
       if (filter === "short" && p.moves >= 100) return false;
       if (filter === "long" && (p.moves < 100 || p.moves >= 1000)) return false;
@@ -156,7 +181,6 @@ export default function OgiekakoCollection(props: {
       const haystack = [
         p.id,
         p.title ?? "",
-        p.author,
         p.source,
         p.publishedAt,
         String(p.moves),
@@ -194,12 +218,9 @@ export default function OgiekakoCollection(props: {
     <div className="my-3">
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-          <h2 className="h4 mb-1">
-            ogiekako（荻江香木 / 荻絵香木）協力詰作品集
-          </h2>
+          <h2 className="h4 mb-1">ogiekako 協力詰作品集</h2>
           <div className="text-muted" style={{ fontSize: "0.9em" }}>
-            純粋な協力詰・ばか詰 全{OGIEKAKO_PROBLEMS.length}
-            局（2005年〜2026年・全作一意解検証済み）。作品をクリックすると解図済み状態（手順再生可能）でソルバーを開きます。
+            純粋な協力詰（全作一意解検証済み）。作品をクリックすると解図済み状態（手順再生可能）でソルバーを開きます。
           </div>
         </div>
         <Button variant="outline-secondary" onClick={props.onBackToSolver}>
@@ -211,6 +232,12 @@ export default function OgiekakoCollection(props: {
         <Card.Body className="py-2 px-3">
           <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between">
             <ButtonGroup size="sm" className="flex-wrap">
+              <Button
+                variant={filter === "selected" ? "primary" : "outline-primary"}
+                onClick={() => setFilter("selected")}
+              >
+                セレクション ({SELECTED_COUNT})
+              </Button>
               <Button
                 variant={filter === "all" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("all")}
@@ -324,7 +351,10 @@ export default function OgiekakoCollection(props: {
                   <Card.Body className="p-3">
                     <div className="d-flex gap-3 align-items-start">
                       <div className="flex-shrink-0">
-                        <BoardThumbnail sfen={p.sfen} />
+                        <BoardThumbnail
+                          sfen={p.sfen}
+                          showWhiteHand={Boolean(p.defenderHand)}
+                        />
                       </div>
                       <div className="flex-grow-1 min-w-0 d-flex flex-column justify-content-between h-100">
                         <div>
@@ -342,7 +372,7 @@ export default function OgiekakoCollection(props: {
                                 className="text-muted"
                                 style={{ fontSize: "0.88em" }}
                               >
-                                {p.author}（{p.publishedAt}）
+                                （{p.publishedAt}）
                               </span>
                             </div>
                           </div>
@@ -441,7 +471,7 @@ export default function OgiekakoCollection(props: {
                   盤面
                 </th>
                 <th style={{ width: "90px" }}>発表年月</th>
-                <th style={{ width: "130px" }}>作品名 / 名義</th>
+                <th style={{ width: "130px" }}>作品名</th>
                 <th style={{ width: "95px" }} className="text-end">
                   手数
                 </th>
@@ -463,19 +493,19 @@ export default function OgiekakoCollection(props: {
                   >
                     <td className="text-center text-muted">{origIndex}</td>
                     <td className="text-center py-2">
-                      <BoardThumbnail sfen={p.sfen} compact />
+                      <BoardThumbnail
+                        sfen={p.sfen}
+                        showWhiteHand={Boolean(p.defenderHand)}
+                        compact
+                      />
                     </td>
                     <td className="text-nowrap">{p.publishedAt}</td>
                     <td>
                       {p.title ? (
                         <div className="fw-bold">『{p.title}』</div>
-                      ) : null}
-                      <div
-                        className="text-muted"
-                        style={{ fontSize: "0.88em" }}
-                      >
-                        {p.author}
-                      </div>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
                     </td>
                     <td className="text-end fw-bold text-nowrap">
                       {p.moves.toLocaleString()}手
