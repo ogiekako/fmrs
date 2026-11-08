@@ -1,58 +1,23 @@
 # 協力詰・ばか詰 問題コレクション (`rust/problems`)
 
-本ディレクトリには、ogiekako の純粋な協力詰・ばか詰作品（全33局）およびベンチマーク用の長手数協力詰作品を収録しています。
-すべての `.sfen` ファイルには KIF 互換の `# キー: 値` 形式のメタデータヘッダが付与されており、機械可読な一覧は [`metadata.json`](./metadata.json) にまとめられています。
+本ディレクトリには、ogiekako（荻江香木・荻絵香木）の純粋な協力詰・ばか詰作品（全34局）およびベンチマーク用の協力詰作品を `.sfen` ファイルとして一元管理しています。
 
-## ogiekako 協力詰作品集（全33局・全作一意解検証済み）
+Web フロントエンドの作品集ページ（`/fmrs/ogiekako`）および Rust のテスト・ソルバーは、いずれも本ディレクトリの `.sfen` ファイルを直接パースしてメタデータと盤面を読み込みます。
 
-| # | 発表年月 | 作品名 | 手数 | ルール / 受方持駒 | 発表誌・出典 | 備考・受賞 | ファイル |
-|---:|:---:|:---|---:|:---|:---|:---|:---|
-| 1 | 2005-04 | — | 11手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第4回 04-5](http://cavesfairy.g1.xrea.com/pub/qgfairy/04.htm) | デビュー作。詰上りアルファベット「I」（あぶり出し）。 | [`forest-04-05_11.sfen`](./forest-04-05_11.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/9/4N4/4n4/3SNN3/3S1k3/3S5/9_b_2r2b4g1s4l18p_1)) |
-| 2 | 2005-10 | — | 31手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第5回 05-10](http://cavesfairy.g1.xrea.com/pub/qgfairy/05.htm) | **2005年下半期 Fairy TOPix 中編部門2位** 順列七種合（歩→香→桂→銀→金→角→飛）。 | [`forest-05-10_31.sfen`](./forest-05-10_31.sfen) ([fmrs](https://ogiekako.github.io/fmrs/4K4/9/9/s1GLppGlR/1+pP1GPP1b/1+p1+pNS1k1/s1pgP1N1p/3pL1p2/s2BRN3_b_nl5p_1)) |
-| 3 | 2005-10 | — | 57手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第5回 05-13](http://cavesfairy.g1.xrea.com/pub/qgfairy/05.htm) | **2005年下半期 Fairy TOPix 長編部門1位** | [`forest-05-13_57.sfen`](./forest-05-13_57.sfen) ([fmrs](https://ogiekako.github.io/fmrs/ggssn2p1/lgssn3l/+R8/5N2k/4bn3/3l5/9/2g4L1/KBr3PP1_b_11P4p_1)) |
-| 4 | 2006-01 | — | 37手 | 協力詰（受方持駒：歩16） | [九州G作品展フェアリー別館 (Fairy of the Forest) 第6回 06-05](http://cavesfairy.g1.xrea.com/pub/qgfairy/06.htm) | — | [`forest-06-05_37.sfen`](./forest-06-05_37.sfen) ([fmrs](https://ogiekako.github.io/fmrs/6+p+pk/5L3/5L2K/9/9/9/5L1r1/9/1+B3S3_b_16p_1)) |
-| 5 | 2006-01 | — | 97手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第6回 06-10](http://cavesfairy.g1.xrea.com/pub/qgfairy/06.htm) | **2006年上半期 Fairy TOPix 長編部門4位** | [`forest-06-10_97.sfen`](./forest-06-10_97.sfen) ([fmrs](https://ogiekako.github.io/fmrs/s2B5/kL1S5/1PPPPL2R/1+L5N1/1p5N1/7N1/3gl2N1/5gg2/K+B5r1_b_13Pg2s_1)) |
-| 6 | 2006-01 | — | 361手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第6回 06-12](http://cavesfairy.g1.xrea.com/pub/qgfairy/06.htm) | **2006年上半期 Fairy TOPix 長編部門5位** | [`forest-06-12_361.sfen`](./forest-06-12_361.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/G2s4G/LLpNGNpPP/4L1k2/2N3NR1/sg1bpb1ss/1pL3R2/1PPP5/8K_b_9p_1)) |
-| 7 | 2006-06 | — | 75手 | ばか詰 | [『詰将棋パラダイス』2006年6月号 第25回「神無一族の氾濫」3番（結果稿：2006年9月号） / 『新約・神詰大全』荻絵香木集 2-2](https://k7ro.sakura.ne.jp/overflow/hr25_r.pdf) | 斜め七連合2回。 | [`hanran-25-03_75.sfen`](./hanran-25-03_75.sfen) ([fmrs](https://ogiekako.github.io/fmrs/+B1l1gS1rk/4gS2g/2S3K2/4L1+nl1/3+p1Srg1/4L1PP1/3p2n2/6N1p/+B3+P+P+PN1_b_P9p_1)) |
-| 8 | 2006-07 | — | 7手 | 協力詰（受方持駒：香） | [九州G作品展フェアリー別館 (Fairy of the Forest) 第8回 08-06](http://cavesfairy.g1.xrea.com/pub/qgfairy/08.htm) | **2006年下半期 Fairy TOPix 短編部門9位** | [`forest-08-06_7.sfen`](./forest-08-06_7.sfen) ([fmrs](https://ogiekako.github.io/fmrs/4l4/9/2B+p5/3N1n3/2+r2+p+p2/5k+p2/2+pSg1+p2/2+pN5/2B1K1r2_b_NLl_1)) |
-| 9 | 2007-01 | — | 7手 | 協力詰（受方持駒：なし） | [九州G作品展フェアリー別館 (Fairy of the Forest) 第10回 10-04](http://cavesfairy.g1.xrea.com/pub/qgfairy/10.htm) | — | [`forest-10-04_7.sfen`](./forest-10-04_7.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/3b5/2n1+P4/3k5/6K2/9/3+r5/9_b_BL_1)) |
-| 10 | 2007-04 | — | 43手 | 協力詰（受方持駒：金4桂3歩14） | [九州G作品展フェアリー別館 (Fairy of the Forest) 第11回 11-04](http://cavesfairy.g1.xrea.com/pub/qgfairy/11.htm) | **2007年上半期 Fairy TOPix 長編部門6位** | [`forest-11-04_43.sfen`](./forest-11-04_43.sfen) ([fmrs](https://ogiekako.github.io/fmrs/1K1+R3r1/9/7p1/4pP3/9/5k3/9/9/4P4_b_N4g3n14p_1)) |
-| 11 | 2007-07 | — | 9手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第12回 12-03](http://cavesfairy.g1.xrea.com/pub/qgfairy/12.htm) | — | [`forest-12-03_9.sfen`](./forest-12-03_9.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/9/9/1+rn6/9/kP7/3s5/1K2G4_b_Lr2b3g3s3n3l17p_1)) |
-| 12 | 2008-02 | 『チェイン』 | 207手 | ばか詰 | [Onsite Fairy Mate (OFM) 第132回 / 『新約・神詰大全』荻絵香木集 2-1](https://k7ro.sakura.ne.jp/solve/solution27.html#132) | **2008年 Fairy TOPix 長編部門1位** | [`chain_207.sfen`](./chain_207.sfen) ([fmrs](https://ogiekako.github.io/fmrs/8l/l1SS1PGP1/1PPNP1Pp1/4b2sk/Rg7/2s1gn2P/3nN4/1lg3l2/K1+B3r2_b_10P_1)) |
-| 13 | 2008-03 | — | 45手 | ばか詰（受方持駒：なし） | [第4回詰四会フェアリー作品展 7番](http://www.dokidoki.ne.jp/home2/takuji/tumeyon4f.pdf) | — | [`tsumeyon-04-07_45.sfen`](./tsumeyon-04-07_45.sfen) ([fmrs](https://ogiekako.github.io/fmrs/5l3/5l3/5lsss/2b2l1pp/8k/4+RR2s/5K1+p+p/6N2/9_b_-_1)) |
-| 14 | 2008-03 | — | 51手 | ばか詰（受方持駒：なし） | [第4回詰四会フェアリー作品展 8番](http://www.dokidoki.ne.jp/home2/takuji/tumeyon4f.pdf) | — | [`tsumeyon-04-08_51.sfen`](./tsumeyon-04-08_51.sfen) ([fmrs](https://ogiekako.github.io/fmrs/n8/llPGG1SS1/2kPPNNPN/+R1+p+p5/2+P6/9/9/5lpp1/K4G1r1_b_3P_1)) |
-| 15 | 2008-03 | — | 139手 | ばか詰（受方持駒：歩4） | [第4回詰四会フェアリー作品展 9番](http://www.dokidoki.ne.jp/home2/takuji/tumeyon4f.pdf) | **2008年 Fairy TOPix 長編部門7位** | [`tsumeyon-04-09_139.sfen`](./tsumeyon-04-09_139.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/3Pr1GSG/3snLP1P/4l4/4N2N1/3GP2Pk/1L2l1p2/5KN1r_b_2B4p_1)) |
-| 16 | 2008-04 | — | 87手 | 協力詰 | [九州G作品展フェアリー別館 (Fairy of the Forest) 第15回 15-09](http://cavesfairy.g1.xrea.com/pub/qgfairy/15.htm) | **2008年 Fairy TOPix 長編部門5位** | [`forest-15-09_87.sfen`](./forest-15-09_87.sfen) ([fmrs](https://ogiekako.github.io/fmrs/+R1+B5k/1pS1nnn+pp/2K2r1s1/5+p3/P+pg2G1p1/1P5L+p/1LG3S2/1LGN1P1P1/4P1P+bS_b_l5p_1)) |
-| 17 | 2008-07 | — | 29手 | 協力詰 | [おもちゃ箱 カピタン展示室 No.21（Web Fairy Paradise 第2号再録）](https://www.ne.jp/asahi/tetsu/toybox/kapitan/kpt021.htm) | **2008年 Fairy TOPix 中編部門3位** | [`kapitan-21_29.sfen`](./kapitan-21_29.sfen) ([fmrs](https://ogiekako.github.io/fmrs/5l3/5+R+pgs/6lb1/6rp1/7n1/9/9/8k/5K3_b_Pb3g3s3n2l15p_1)) |
-| 18 | 2008-07 | — | 41手 | 協力詰（受方持駒：なし） | [JIGSAW BOX #03 A-3（Web Fairy Paradise 第1号出題 / 第3号結果発表）](https://tsume-springs.com/web-fairy-paradise/WFP3.pdf) | 規定の13枚構成による握り詰作図企画（香2桂1歩7玉2飛1）。 | [`jigsaw-03-a3_41.sfen`](./jigsaw-03-a3_41.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/l8/R8/K6P1/P8/7p1/7L1/1+n2k4/1L4P2_b_2P_1)) |
-| 19 | 2008-09 | — | 5手 | 協力詰 | [Onsite Fairy Mate (OFM) 第139回](https://k7ro.sakura.ne.jp/solve/solution28.html#139) | **2008年 Fairy TOPix 短編部門1位** 作図競争「紛れ最多の5手協力詰」首位作（解析局面数43,734,179局面）。 | [`ofm-139_5.sfen`](./ofm-139_5.sfen) ([fmrs](https://ogiekako.github.io/fmrs/B+l+pn1+pR+p1/+lR7/3+p+p+pB+p1/2+p1+p4/3+p1+p1+p+l/2n1+p2+p1/3+p+p1k1g/7s1/3gs1+p2_b_GSNgsnlp_1)) |
-| 20 | 2011-03 | — | 395手 | 協力詰 | [『新約・神詰大全』荻絵香木集 2-3](http://cavesfairy.g1.xrea.com/pub/kpub/shin-taizen/shin-taizen-excerpt.pdf) | 『新約・神詰大全』描き下ろし新作。 | [`shin-taizen-2-3_395.sfen`](./shin-taizen-2-3_395.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/6+P2/K6+Rr/2+p+p+p+p+p+pb/1g6+p/1Nsslp1N1/1PsslllP1/+p5k1+p/N+p+p+p+pbggN_b_GP_1)) |
-| 21 | 2011-03 | — | 241手 | 協力詰（受方持駒：歩4） | [『新約・神詰大全』荻絵香木集 2-4](http://cavesfairy.g1.xrea.com/pub/kpub/shin-taizen/shin-taizen-excerpt.pdf) | 『新約・神詰大全』描き下ろし新作。 | [`shin-taizen-2-4_241.sfen`](./shin-taizen-2-4_241.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/6Spr/3SSGLPk/GPNPNL3/L8/R8/p8/PgPNP3K_b_4p_1)) |
-| 22 | 2013-09 | — | 2571手 | 協力詰 | [Web Fairy Paradise 第63号 第56回WFP作品展 56-12（結果稿：第65号）](https://tsume-springs.com/web-fairy-paradise/WFP65.pdf) | **2013年 Fairy TOPix 長編部門4位** | [`wfp-56-12_2571.sfen`](./wfp-56-12_2571.sfen) ([fmrs](https://ogiekako.github.io/fmrs/gpnS+P2nl/pk+p6/1lpgsp1G1/Pb1l4+R/2gl5/3s1N2K/9/5PNP+B/6s1r_b_7P2p_1)) |
-| 23 | 2013-11 | — | 2683手 | 協力詰 | [Web Fairy Paradise 第56回WFP作品展 56-12 改案](https://tsume-springs.com/web-fairy-paradise/WFP65.pdf) | — | [`wfp-56-12a_2683.sfen`](./wfp-56-12a_2683.sfen) ([fmrs](https://ogiekako.github.io/fmrs/lgn1s2gl/pk+p+P5/1gp+psp1G+R/Ps1l5/2bl5/3n1N2K/1P7/2P2PNP+B/3PP1s1r_b_3P2p_1)) |
-| 24 | 2013-09 | 『BATACO』 | 4247手 | 協力詰 | [Web Fairy Paradise 第63号 第56回WFP作品展 56-13（結果稿：第65号）](https://tsume-springs.com/web-fairy-paradise/WFP65.pdf) | **2013年 Fairy TOPix 長編部門6位** | [`bataco_4247.sfen`](./bataco_4247.sfen) ([fmrs](https://ogiekako.github.io/fmrs/r3+B1K2/SG4b2/1L2N3l/1GNGLp3/2rNp1n1g/1ss4lk/5P3/3PP1P1P/PPP3sP1_b_7p_1)) |
-| 25 | 2013-12 | — | 327手 | ばか詰（受方持駒：なし） | [『詰将棋パラダイス』2013年12月号 第39回「神無一族の氾濫」5番（結果稿：2014年3月号）](https://k7ro.sakura.ne.jp/overflow/hr39_r.pdf) | — | [`hanran-39-05_327.sfen`](./hanran-39-05_327.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/1+P+P+P+P+P+P2/pLLL1P2l/1nb1s3+R/N2gPk3/5NP1K/9/7p+B/8r_b_-_1)) |
-| 26 | 2014-02 | — | 233手 | 協力詰 | [Web Fairy Paradise 第68号「記録に挑戦！1. 攻方連続不成回数」⑤](https://tsume-springs.com/web-fairy-paradise/WFP68.pdf) | 2014年2月15日投稿。攻方連続不成96回（同企画最終記録作）。 | [`wfp-68-unpromote-5_233.sfen`](./wfp-68-unpromote-5_233.sfen) ([fmrs](https://ogiekako.github.io/fmrs/n3p1g1G/gbLGPP1PP/3L2k2/ss1r1RN2/6Ppp/2n2K3/1s2N1L2/5S3/2b3L2_b_10p_1)) |
-| 27 | 2024-06 | 『寿限無の完全限定化案（改案）』 | 36607手 | 協力詰 | 未発表（森茂・橋本孝治・浦壁和彦「寿限無」完全限定化案 36511手の改案） | — | [`jugemu_gentei_kai_36607.sfen`](./jugemu_gentei_kai_36607.sfen) ([fmrs](https://ogiekako.github.io/fmrs/1K1R1r1S1/L2+Pl1L+NB/3+P+ng1N1/1nps2g1P/1gbl1g1P1/1kP1s1P2/3P1P3/4+p4/P1s1P4_b_P5p_1)) |
-| 28 | 2026-05 | — | 43手 | 協力詰 | [Web Fairy Paradise 第218号 第182回WFP作品展 182-7 解説内参考図（原投稿図）](https://tsume-springs.com/web-fairy-paradise/WFP218.pdf) | 単玉・歩なし煙詰（21枚→3枚）。182-7の原投稿図。 | [`ogiekako-no-pawn-smoke-43.sfen`](./ogiekako-no-pawn-smoke-43.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/9/9/5S1gN/3+B1+R1GN/4+r1+lG+S/4LlNN1/1G1LSk1SB_b_18p_1)) |
-| 29 | 2026-05 | — | 51手 | 協力詰 | [Web Fairy Paradise 第215号 第182回WFP作品展 182-7（結果稿：第218号）](https://tsume-springs.com/web-fairy-paradise/WFP218.pdf) | 単玉・歩なし煙詰（21枚→3枚）。 | [`wfp-182-07_51.sfen`](./wfp-182-07_51.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/6RGg/8n/7Ls/5r+L1k/5B+NL+s/6SL1/5G1GN/6+BsN_b_18p_1)) |
-| 30 | 2026-05 | — | 75手 | 協力詰 | [Web Fairy Paradise 第215号 第182回WFP作品展 182-8（結果稿：第218号）](https://tsume-springs.com/web-fairy-paradise/WFP218.pdf) | 単玉・貧乏煙詰（金銀なし31枚→3枚、単玉協力詰煙詰の最大枚数記録）。 | [`wfp-182-08_75.sfen`](./wfp-182-08_75.sfen) ([fmrs](https://ogiekako.github.io/fmrs/2+P+B5/3+P5/3+PP4/4B2n1/3+P3+P+P/6R+p+P/5+l+pn+P/2L+pL+lNN1/+P1PP+PRPPk_b_4g4s_1)) |
-| 31 | 2026-07 | 『BATACO2』 | 6557手 | 協力詰 | [Web Fairy Paradise 第217号 第183回WFP作品展 183-6（結果稿：第219号）](https://tsume-springs.com/web-fairy-paradise/WFP219.pdf) | — | [`bataco2_6557.sfen`](./bataco2_6557.sfen) ([fmrs](https://ogiekako.github.io/fmrs/g1K2+B1r1/GL1lg1+bl1/2k1+P2n1/4gn1nl/1nrppss2/P1p2s3/8P/3P5/1PPsPPPP1_b_5P_1)) |
-| 32 | 2026-08 | 『狼煙』 | 113手 | 協力詰 | 『詰将棋パラダイス』2026年8月号 特別出題 | 史上初の協力詰双玉全駒煙（40枚→3枚）。 | [`noroshi_113.sfen`](./noroshi_113.sfen) ([fmrs](https://ogiekako.github.io/fmrs/8+P/6K1p/4S3+P/3+Pp+PP+pn/2BpPP1p1/3Bk+p+p1P/1RRs+lgLNG/2SPNlNPG/G+pL4S1_b_-_1)) |
-| 33 | 2026-08 | 『万里の馬』 | 10453手 | 協力詰 | [Web Fairy Paradise 第218号 第184回WFP作品展 184-1（結果稿：第220号）](https://tsume-springs.com/web-fairy-paradise/WFP220.pdf) | — | [`banri_no_uma_10453.sfen`](./banri_no_uma_10453.sfen) ([fmrs](https://ogiekako.github.io/fmrs/+PS2b2+P+P/S1L+L3PP/1N1+PNG1KB/2ppgS3/1P1gLPP1p/2P1p1pk1/3PP+p3/3g2l2/5srrN_b_N_1)) |
+## `.sfen` ファイルのフォーマット
 
-## その他の収録作品（ベンチマーク・参考作品）
+各 `.sfen` ファイルは、先頭に `# キー: 値` 形式のメタデータヘッダを持ち、非コメント行に SFEN 文字列を1行記述します（`fmrs_core::sfen::decode_position` および `fmrs_core::sfen::parse_problem_sfen`、フロントエンドの `decodeSfen` / `parseProblemSfen` が対応）。
 
-| 発表年月 | 作品名 | 作者 | 手数 | 発表誌・出典 | ファイル |
-|:---:|:---|:---|---:|:---|:---|
-| 2007-02 | 『シェエラザード』 | 七郎 | 1001手 | [妖精都市 森茂追悼作品展 C1](https://k7ro.sakura.ne.jp/k7works/cf/cf.html#cf006) | [`shichiro_1001.sfen`](./shichiro_1001.sfen) ([fmrs](https://ogiekako.github.io/fmrs/r2GSG3/3SPS3/+B1N1N1Lg1/1Ppp3ps/K2NL3P/2Pk5/BgN3p2/r1l3l2/3P2P+p1_b_6Pp_1)) |
-| 2002-12 | — | 森茂 | 1461手 | [『詰将棋パラダイス』2002年12月号「神無一族の氾濫」](https://k7ro.sakura.ne.jp/overflow/hr15_r.htm) | [`morishige_1461.sfen`](./morishige_1461.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/6GGr/S1ssggN1b/pL+p+p5/1+p4P1K/4L1+P2/+p+Ppllppp+B/+p4P3/+pk+n1+n1+nsr_b_3P_1)) |
-| 2003-12 | — | 森茂 | 1965手 | [『詰将棋パラダイス』2003年12月号「神無一族の氾濫」](https://k7ro.sakura.ne.jp/overflow/hr18_r.htm) | [`morishige_1965.sfen`](./morishige_1965.sfen) ([fmrs](https://ogiekako.github.io/fmrs/4GS2l/4SPBp1/3N1N1N1/ssg1gp2+R/2+pglk3/1+pp+np+p2K/1PPP2+p1b/1+p+p+p+p+pl1r/5L3_b_P_1)) |
-| 2013-05 | 『寿限無』 | 774 | 19447手 | [Web Fairy Paradise 第59号 第52回WFP作品展 52-9](https://tsume-springs.com/web-fairy-paradise/WFP61.pdf) | [`jugemu_19447.sfen`](./jugemu_19447.sfen) ([fmrs](https://ogiekako.github.io/fmrs/l6ss/1KB1r2bL/1GL3ss1/k1l3p1P/1nnn1p1P1/Pn2p1P2/2PP1P3/1P2P4/9_b_r3g6p_1)) |
-| 2014-12 | 『龍の顎』 | 774 | 12555手 | [『詰将棋パラダイス』2014年12月号 第41回「神無一族の氾濫」6番](https://k7ro.sakura.ne.jp/overflow/hr41_r.pdf) | [`ryu_no_agito_12555.sfen`](./ryu_no_agito_12555.sfen) ([fmrs](https://ogiekako.github.io/fmrs/5bllb/SGG1g1+R+RP/1Lns1sK1s/1pp1p+p2g/3p1+p3/5k2+p/1P4n2/P3+pp+plN/2P1P+p2+p_b_NP_1)) |
-| 2015-08 | 『寿限無の完全限定化案』 | 森茂・橋本孝治・浦壁和彦 | 36511手 | [Web Fairy Paradise 第86号](https://tsume-springs.com/web-fairy-paradise/WFP86.pdf) | [`jugemu_gentei_36511.sfen`](./jugemu_gentei_36511.sfen) ([fmrs](https://ogiekako.github.io/fmrs/1K1R1r1S1/L1+P1l1L+NB/4lg1N1/1nbs2g1P/1gpn1g1P1/1Pk1s1P2/3P1P3/4+p4/P1s1P4_b_2P5p_1)) |
-| 2015-09 | 『寿限無3』 | 774 | 49909手 | [Web Fairy Paradise 第87号 第79回WFP作品展 79-21](https://tsume-springs.com/web-fairy-paradise/WFP89.pdf) | [`jugemu3_49909.sfen`](./jugemu3_49909.sfen) ([fmrs](https://ogiekako.github.io/fmrs/rBKp1r1ss/GL3p1bL/L3klpp1/2G2n2P/1gnnng1P1/P1s1s1P2/1P1P1P3/2P1P4/9_b_5p_1)) |
-| 2017-05 | 『ダイヤモンド』 | 774 | 55手 | [Web Fairy Paradise 第107号 第100回WFP作品展 100-9](https://tsume-springs.com/web-fairy-paradise/WFP109.pdf) | [`diamond.sfen`](./diamond.sfen) ([fmrs](https://ogiekako.github.io/fmrs/4lk3/5nP2/S2Pp4/1SG2pL1G/2SL4S/1N1p1l1B1/B4NR2/3g1K1p1/PNP1P3P_b_Prg7p_1)) |
-| 2017-12 | — | 加藤徹 | 9029手 | [Web Fairy Paradise 第114号 第107回WFP作品展 107-14 解説内参考図A](https://tsume-springs.com/web-fairy-paradise/WFP116.pdf) | [`kato-107a_9029.sfen`](./kato-107a_9029.sfen) ([fmrs](https://ogiekako.github.io/fmrs/S1S1B1B2/1S1G1L1GG/S1NNpppNN/rL7/k8/9/8P/1R1p1l1l+p/K1P1+p1+p1g_b_9p_1)) |
-| 2017-12 | — | 加藤徹 | 4197手 | [Web Fairy Paradise 第114号 第107回WFP作品展 107-14 解説内参考図B](https://tsume-springs.com/web-fairy-paradise/WFP116.pdf) | [`kato-107b_4197.sfen`](./kato-107b_4197.sfen) ([fmrs](https://ogiekako.github.io/fmrs/2S6/1S1S1G1GG/S1LpNNpNN/rL7/R1PP5/3k5/8P/2l1pp1l+p/K2b2b1g_b_3P7p_1)) |
-| 2023-09 | — | 加藤徹 | 7181手 | [Web Fairy Paradise 第195号 第162回WFP作品展 162-12 解説内修正図](https://tsume-springs.com/web-fairy-paradise/WFP197.pdf) | [`kato-162a_7181.sfen`](./kato-162a_7181.sfen) ([fmrs](https://ogiekako.github.io/fmrs/9/9/S1gg1S1pp/rL2L1L1P/1P1P3P1/k4nP2/1R6+p/2l1pPp1+p/K7g_b_2P4p_1)) |
+```text
+# 作品名: ミトコンドリア
+# 作者: ogiekako
+# 発表誌: 『詰将棋パラダイス』2026年6月号 第64回「神無一族の氾濫」（結果稿：2026年9月号）
+# 発表年月: 2026-06
+# 手数: 3933
+# ルール: 協力詰（受方持駒：歩6）
+# 受賞: ...（任意、複数ある場合は ` / ` 区切り）
+# 出典URL: ...（任意）
+# 備考: 単玉協力詰の最長手数記録（3933手）。（任意）
+# セレクション: true（任意、作品集のデフォルト表示対象）
+G+p2GSGSG/1p2S1S1P/1l1L1N1N+R/k1+P3PP1/+r1b3N2/3b4N/1P6+p/2P6/3PPLL2 b P6p 1
+```

@@ -425,6 +425,106 @@ pub fn encode_move(m: &Movement) -> String {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProblemMetadata {
+    pub title: Option<String>,
+    pub author: String,
+    pub source: String,
+    pub published_at: String,
+    pub moves: usize,
+    pub rule: String,
+    pub defender_hand: Option<String>,
+    pub awards: Vec<String>,
+    pub url: Option<String>,
+    pub notes: Option<String>,
+    pub selected: bool,
+    pub sfen: String,
+}
+
+pub fn parse_problem_sfen(content: &str) -> anyhow::Result<(ProblemMetadata, PositionAux)> {
+    let mut title = None;
+    let mut author = None;
+    let mut source = None;
+    let mut published_at = None;
+    let mut moves = None;
+    let mut rule = None;
+    let mut defender_hand = None;
+    let mut awards = Vec::new();
+    let mut url = None;
+    let mut notes = None;
+    let mut selected = false;
+    let mut sfen_line = None;
+
+    for raw_line in content.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        if let Some(rest) = line.strip_prefix('#') {
+            if let Some((k, v)) = rest.split_once(':') {
+                let key = k.trim();
+                let val = v.trim();
+                match key {
+                    "作品名" => title = Some(val.to_string()),
+                    "作者" => author = Some(val.to_string()),
+                    "発表誌" => source = Some(val.to_string()),
+                    "発表年月" => published_at = Some(val.to_string()),
+                    "手数" => {
+                        moves = Some(
+                            val.parse::<usize>()
+                                .map_err(|e| anyhow::anyhow!("Invalid 手数 '{val}': {e}"))?,
+                        )
+                    }
+                    "ルール" => {
+                        if let Some((r, dh)) = val.split_once("（受方持駒：") {
+                            rule = Some(r.trim().to_string());
+                            defender_hand = Some(dh.trim_end_matches('）').trim().to_string());
+                        } else {
+                            rule = Some(val.to_string());
+                        }
+                    }
+                    "受賞" => {
+                        for a in val.split(" / ") {
+                            let trimmed = a.trim();
+                            if !trimmed.is_empty() {
+                                awards.push(trimmed.to_string());
+                            }
+                        }
+                    }
+                    "出典URL" => url = Some(val.to_string()),
+                    "備考" => notes = Some(val.to_string()),
+                    "セレクション" => selected = val == "true",
+                    _ => bail!("Unknown header key '{key}'"),
+                }
+            }
+        } else if sfen_line.is_none() {
+            sfen_line = Some(line.to_string());
+        } else {
+            bail!("Multiple SFEN lines found in problem file");
+        }
+    }
+
+    let sfen = sfen_line.ok_or_else(|| anyhow::anyhow!("Missing SFEN line"))?;
+    let pos = decode_position(&sfen)?;
+
+    let meta = ProblemMetadata {
+        title,
+        author: author.ok_or_else(|| anyhow::anyhow!("Missing 作者 header"))?,
+        source: source.ok_or_else(|| anyhow::anyhow!("Missing 発表誌 header"))?,
+        published_at: published_at.ok_or_else(|| anyhow::anyhow!("Missing 発表年月 header"))?,
+        moves: moves.ok_or_else(|| anyhow::anyhow!("Missing 手数 header"))?,
+        rule: rule.ok_or_else(|| anyhow::anyhow!("Missing ルール header"))?,
+        defender_hand,
+        awards,
+        url,
+        notes,
+        selected,
+        sfen,
+    };
+
+    Ok((meta, pos))
+}
+
 #[cfg(test)]
 pub mod tests {
     use crate::{piece::Kind, position::Movement, position::Square};

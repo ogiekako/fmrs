@@ -113,16 +113,18 @@ function BoardThumbnail(props: {
       style={{
         display: "inline-block",
         width: cellW * 9 + 2,
+        maxWidth: "100%",
       }}
     >
       {whiteHandText !== null && (
         <div
-          className="text-dark mb-1 text-truncate"
+          className="text-dark mb-1"
           title={`持駒：${whiteHandText}`}
           style={{
             fontSize: props.compact ? "10px" : "11px",
-            lineHeight: 1.2,
+            lineHeight: 1.25,
             textAlign: "left",
+            overflowWrap: "anywhere",
           }}
         >
           <span className="text-muted">持駒：</span>
@@ -139,12 +141,13 @@ function BoardThumbnail(props: {
         <tbody>{rows}</tbody>
       </table>
       <div
-        className="text-dark mt-1 text-truncate"
+        className="text-dark mt-1"
         title={`持駒：${blackHandText}`}
         style={{
           fontSize: props.compact ? "10px" : "11px",
-          lineHeight: 1.2,
+          lineHeight: 1.25,
           textAlign: "left",
+          overflowWrap: "anywhere",
         }}
       >
         <span className="text-muted">持駒：</span>
@@ -229,52 +232,60 @@ export default function OgiekakoCollection(props: {
       </div>
 
       <Card className="mb-3">
-        <Card.Body className="py-2 px-3">
+        <Card.Body className="py-2 px-2 px-sm-3">
           <div className="d-flex flex-wrap gap-2 align-items-center justify-content-between">
-            <ButtonGroup size="sm" className="flex-wrap">
+            <div className="d-flex flex-wrap gap-1">
               <Button
+                size="sm"
                 variant={filter === "selected" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("selected")}
               >
                 セレクション ({SELECTED_COUNT})
               </Button>
               <Button
+                size="sm"
                 variant={filter === "all" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("all")}
               >
                 すべて ({OGIEKAKO_PROBLEMS.length})
               </Button>
               <Button
+                size="sm"
                 variant={filter === "award" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("award")}
               >
                 Fairy TOPix 入賞
               </Button>
               <Button
+                size="sm"
                 variant={filter === "short" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("short")}
               >
                 短・中編 (〜99手)
               </Button>
               <Button
+                size="sm"
                 variant={filter === "long" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("long")}
               >
                 長編 (100〜999手)
               </Button>
               <Button
+                size="sm"
                 variant={filter === "ultralong" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("ultralong")}
               >
                 超長編 (1000手〜)
               </Button>
               <Button
+                size="sm"
                 variant={filter === "smoke" ? "primary" : "outline-primary"}
                 onClick={() => setFilter("smoke")}
               >
                 煙詰
               </Button>
               <Button
+                size="sm"
                 variant={
                   filter === "hand_limit" ? "primary" : "outline-primary"
                 }
@@ -282,10 +293,13 @@ export default function OgiekakoCollection(props: {
               >
                 受方持駒制限あり
               </Button>
-            </ButtonGroup>
+            </div>
 
-            <div className="d-flex gap-2 align-items-center flex-wrap">
-              <InputGroup size="sm" style={{ width: "210px" }}>
+            <div className="d-flex gap-2 align-items-center flex-wrap mw-100">
+              <InputGroup
+                size="sm"
+                style={{ width: "210px", maxWidth: "100%" }}
+              >
                 <Form.Control
                   type="text"
                   placeholder="作品名・出典・解説で検索..."
@@ -304,7 +318,7 @@ export default function OgiekakoCollection(props: {
 
               <Form.Select
                 size="sm"
-                style={{ width: "170px" }}
+                style={{ width: "170px", maxWidth: "100%" }}
                 value={sortKey}
                 onChange={(e) => setSortKey(e.target.value as SortKey)}
               >
@@ -342,24 +356,31 @@ export default function OgiekakoCollection(props: {
           {filteredProblems.map((p) => {
             const origIndex = OGIEKAKO_PROBLEMS.indexOf(p) + 1;
             return (
-              <Col key={p.id}>
+              <Col key={p.id} style={{ minWidth: 0 }}>
                 <Card
-                  className="h-100 shadow-sm"
+                  className="h-100 shadow-sm overflow-hidden"
                   style={{ cursor: "pointer" }}
                   onClick={() => props.onSelectProblem(p, true)}
                 >
-                  <Card.Body className="p-3">
-                    <div className="d-flex gap-3 align-items-start">
+                  <Card.Body className="p-2 p-sm-3">
+                    <div className="d-flex gap-2 gap-sm-3 align-items-start">
                       <div className="flex-shrink-0">
                         <BoardThumbnail
                           sfen={p.sfen}
                           showWhiteHand={Boolean(p.defenderHand)}
                         />
                       </div>
-                      <div className="flex-grow-1 min-w-0 d-flex flex-column justify-content-between h-100">
-                        <div>
+                      <div
+                        className="flex-grow-1 min-w-0 d-flex flex-column justify-content-between h-100"
+                        style={{
+                          minWidth: 0,
+                          overflowWrap: "anywhere",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
                           <div className="d-flex justify-content-between align-items-start gap-1 mb-1">
-                            <div>
+                            <div style={{ minWidth: 0 }}>
                               <span className="text-muted me-2">
                                 #{origIndex}
                               </span>
@@ -377,12 +398,20 @@ export default function OgiekakoCollection(props: {
                             </div>
                           </div>
 
-                          <div className="mb-2">
-                            <Badge bg="primary" className="me-1">
+                          <div className="mb-2 d-flex flex-wrap gap-1">
+                            <Badge
+                              bg="primary"
+                              className="text-wrap text-start"
+                              style={{ maxWidth: "100%", lineHeight: 1.35 }}
+                            >
                               {p.rule} {p.moves.toLocaleString()}手
                             </Badge>
                             {p.defenderHand && (
-                              <Badge bg="secondary" className="me-1">
+                              <Badge
+                                bg="secondary"
+                                className="text-wrap text-start"
+                                style={{ maxWidth: "100%", lineHeight: 1.35 }}
+                              >
                                 受方持駒：{p.defenderHand}
                               </Badge>
                             )}
@@ -391,7 +420,8 @@ export default function OgiekakoCollection(props: {
                                 key={award}
                                 bg="warning"
                                 text="dark"
-                                className="me-1"
+                                className="text-wrap text-start"
+                                style={{ maxWidth: "100%", lineHeight: 1.35 }}
                               >
                                 {award}
                               </Badge>
@@ -408,7 +438,7 @@ export default function OgiekakoCollection(props: {
                                 href={p.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="ms-2 text-decoration-none"
+                                className="ms-2 text-decoration-none text-nowrap"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 [出典↗]
@@ -427,13 +457,12 @@ export default function OgiekakoCollection(props: {
                         </div>
 
                         <div
-                          className="mt-2 pt-1"
+                          className="mt-2 pt-1 d-flex flex-wrap gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Button
                             size="sm"
                             variant="primary"
-                            className="me-2"
                             onClick={() => props.onSelectProblem(p, true)}
                           >
                             解図済みで開く

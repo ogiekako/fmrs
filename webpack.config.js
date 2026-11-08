@@ -34,6 +34,10 @@ module.exports = (env, argv) => {
           test: /\.css$/,
           use: ["style-loader", "css-loader"],
         },
+        {
+          test: /\.sfen$/,
+          type: "asset/source",
+        },
       ],
     },
     plugins: [

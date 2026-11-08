@@ -1,7 +1,130 @@
 import { Board, emptyHands, Hands, Kind, Piece, Position } from "..";
 
+export function extractSfenLine(sfenOrFileContent: string): string {
+  for (const rawLine of sfenOrFileContent.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.length > 0 && !line.startsWith("#")) {
+      return line;
+    }
+  }
+  return sfenOrFileContent.trim();
+}
+
+export interface ParsedProblemSfen {
+  id: string;
+  file: string;
+  sfen: string;
+  title: string | null;
+  author: string;
+  source: string;
+  publishedAt: string;
+  moves: number;
+  rule: string;
+  defenderHand: string | null;
+  awards: string[];
+  url: string | null;
+  notes: string | null;
+  selected: boolean;
+}
+
+export function parseProblemSfen(
+  id: string,
+  file: string,
+  content: string
+): ParsedProblemSfen {
+  let title: string | null = null;
+  let author = "";
+  let source = "";
+  let publishedAt = "";
+  let moves = 0;
+  let rule = "協力詰";
+  let defenderHand: string | null = null;
+  const awards: string[] = [];
+  let url: string | null = null;
+  let notes: string | null = null;
+  let selected = false;
+  let sfen = "";
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    if (line.startsWith("#")) {
+      const rest = line.slice(1);
+      const colonIdx = rest.indexOf(":");
+      if (colonIdx === -1) continue;
+      const key = rest.slice(0, colonIdx).trim();
+      const val = rest.slice(colonIdx + 1).trim();
+      switch (key) {
+        case "作品名":
+          title = val;
+          break;
+        case "作者":
+          author = val;
+          break;
+        case "発表誌":
+          source = val;
+          break;
+        case "発表年月":
+          publishedAt = val;
+          break;
+        case "手数":
+          moves = parseInt(val, 10);
+          break;
+        case "ルール": {
+          const marker = "（受方持駒：";
+          const mIdx = val.indexOf(marker);
+          if (mIdx !== -1) {
+            rule = val.slice(0, mIdx).trim();
+            defenderHand = val
+              .slice(mIdx + marker.length)
+              .replace(/）$/, "")
+              .trim();
+          } else {
+            rule = val;
+          }
+          break;
+        }
+        case "受賞":
+          for (const a of val.split(" / ")) {
+            if (a.trim()) awards.push(a.trim());
+          }
+          break;
+        case "出典URL":
+          url = val;
+          break;
+        case "備考":
+          notes = val;
+          break;
+        case "セレクション":
+          selected = val === "true";
+          break;
+      }
+    } else if (!sfen) {
+      sfen = line;
+    }
+  }
+
+  return {
+    id,
+    file,
+    sfen,
+    title,
+    author,
+    source,
+    publishedAt,
+    moves,
+    rule,
+    defenderHand,
+    awards,
+    url,
+    notes,
+    selected,
+  };
+}
+
 export function decodeSfen(sfen: string): Position {
-  const [boardStr, , handsStr] = sfen.split(" ");
+  const cleanSfen = extractSfenLine(sfen);
+  const [boardStr, , handsStr] = cleanSfen.split(" ");
   const board = decodeBoard(boardStr);
   const hands = decodeHands(handsStr);
 
