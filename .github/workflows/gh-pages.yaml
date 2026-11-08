@@ -15,10 +15,20 @@ jobs:
         uses: actions/setup-node@v7
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Cache wasm-pack
+        id: cache-wasm-pack
+        uses: actions/cache@v6
+        with:
+          path: ~/.cargo/bin/wasm-pack
+          key: ${{ runner.os }}-wasm-pack-v0.14.0
       - name: Install wasm-pack
+        if: steps.cache-wasm-pack.outputs.cache-hit != 'true'
         run: |
-          curl -sSfL https://github.com/rustwasm/wasm-pack/releases/download/v0.14.0/wasm-pack-v0.14.0-x86_64-unknown-linux-musl.tar.gz | tar xz
-          sudo mv wasm-pack-v0.14.0-x86_64-unknown-linux-musl/wasm-pack /usr/local/bin/wasm-pack
+          if curl --retry 3 --retry-all-errors -sSfL https://github.com/drager/wasm-pack/releases/download/v0.14.0/wasm-pack-v0.14.0-x86_64-unknown-linux-musl.tar.gz | tar xz; then
+            mv wasm-pack-v0.14.0-x86_64-unknown-linux-musl/wasm-pack ~/.cargo/bin/wasm-pack
+          else
+            cargo install wasm-pack --version 0.14.0 --locked
+          fi
       - name: Install & Build
         env:
           FMRS_API_BASE_URL: https://fmrs-api-1045417562870.asia-northeast1.run.app
