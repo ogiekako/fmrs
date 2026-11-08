@@ -60,6 +60,7 @@ export type Response = {
   kif: string;
   sfen: string;
   fromWhite: boolean;
+  knownProblem?: boolean;
 };
 
 export async function solve(

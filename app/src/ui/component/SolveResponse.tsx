@@ -32,9 +32,16 @@ export default function SolveResponse(props: {
     </div>
   ) : null;
 
+  const isKnownProblem =
+    props.solveResponse.ty === "solved" &&
+    props.solveResponse.response.knownProblem;
+  const statusDetail = isKnownProblem
+    ? "known problem"
+    : `${(props.solveResponse.millis / 1000).toFixed(1)}s`;
+
   const text = message ? (
     <div>
-      {message} ({(props.solveResponse.millis / 1000).toFixed(1)}s)
+      {message} ({statusDetail})
       {oneWayMessage}
       {fallbackMessage}
     </div>

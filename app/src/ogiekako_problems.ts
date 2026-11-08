@@ -979,6 +979,7 @@ export function buildPrecomputedSolveResponse(
     kif,
     sfen: problem.sfen,
     fromWhite: false,
+    knownProblem: true,
   };
 }
 
