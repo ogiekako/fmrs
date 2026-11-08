@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794140966553,
+  "lastUpdate": 1794140969671,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -54661,6 +54661,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 29717,
             "range": "± 99",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "ed55c04b851ec39e2099edb26c100592911d043a",
+          "message": "solved=1でのリロード・履歴遷移時に再現盤面が確実に画面中央に表示されるよう改善",
+          "timestamp": "2026-11-08T12:24:35Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/ed55c04b851ec39e2099edb26c100592911d043a"
+        },
+        "date": 1794140968831,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 244,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1605,
+            "range": "± 73",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 109,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 343,
+            "range": "± 377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 15502,
+            "range": "± 464",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1166,
+            "range": "± 86",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3236,
+            "range": "± 97",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 930152,
+            "range": "± 78",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6983,
+            "range": "± 249",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 116,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 63,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 28,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 91,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 22,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 10,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 12922022,
+            "range": "± 587187",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 22957,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2574,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 14698,
+            "range": "± 33",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 21876,
+            "range": "± 10",
             "unit": "ns/iter"
           }
         ]
