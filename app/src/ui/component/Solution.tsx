@@ -8,6 +8,7 @@ export default function Solution(props: {
   stone: boolean[][];
   fromWhite: boolean;
   dispatch: types.Dispatcher;
+  onLoaded?: (container: HTMLElement) => void;
 }) {
   const outer = useRef<HTMLDivElement>(null);
   const id = generateId(props.kif);
@@ -38,8 +39,11 @@ export default function Solution(props: {
       KifuForJS.loadString(props.kif, id).then(() => {
         tweakKifForJs(url, props.stone, props.fromWhite);
         inner.style.visibility = "";
+        if (outer.current) {
+          props.onLoaded?.(outer.current);
+        }
       });
-    }, 200);
+    }, 0);
 
     return () => {
       clearTimeout(update);

@@ -7,6 +7,7 @@ export default function SolveResponse(props: {
   solutionLimit: number;
   oneWayMateMode: boolean;
   dispatch: types.Dispatcher;
+  onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
   const message = getMessage(props.solveResponse, props.solutionLimit);
 
@@ -52,6 +53,7 @@ export default function SolveResponse(props: {
         stone={props.solveResponse.stone}
         fromWhite={props.solveResponse.response.fromWhite}
         dispatch={props.dispatch}
+        onLoaded={props.onSolutionLoaded}
       />
     </div>
   ) : (

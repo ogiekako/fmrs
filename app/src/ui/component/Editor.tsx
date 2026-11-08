@@ -28,13 +28,14 @@ export function Editor(props: {}) {
     isOgiekakoPageUrl()
   );
   const ogiekakoScrollY = useRef<number>(0);
+  const scrollToSolutionOnLoad = useRef<boolean>(false);
 
   const sfen = encodeSfen(state.position);
 
   useLayoutEffect(() => {
     if (showOgiekako) {
       window.scrollTo(0, ogiekakoScrollY.current);
-    } else {
+    } else if (!scrollToSolutionOnLoad.current) {
       window.scrollTo(0, 0);
     }
   }, [showOgiekako]);
@@ -118,6 +119,7 @@ export function Editor(props: {}) {
       });
     }
     ogiekakoScrollY.current = window.scrollY;
+    scrollToSolutionOnLoad.current = preSolved;
     setShowOgiekako(false);
   };
 
@@ -184,6 +186,23 @@ export function Editor(props: {}) {
         solutionLimit={state.solutionLimit}
         oneWayMateMode={state.oneWayMateMode}
         dispatch={dispatch}
+        onSolutionLoaded={(container) => {
+          if (!scrollToSolutionOnLoad.current) {
+            return;
+          }
+          scrollToSolutionOnLoad.current = false;
+          const boardEl =
+            (container.querySelector(
+              ".kifuforjs-board"
+            ) as HTMLElement | null) ?? container;
+          const rect = boardEl.getBoundingClientRect();
+          const targetY =
+            window.scrollY +
+            rect.top +
+            rect.height / 2 -
+            window.innerHeight / 2;
+          window.scrollTo(0, Math.max(0, Math.round(targetY)));
+        }}
       />
       <div className="py-3 d-md-none">
         <Problems

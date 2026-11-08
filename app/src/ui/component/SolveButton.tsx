@@ -13,6 +13,7 @@ export default function SolveButton(props: {
   solutionLimit: number;
   oneWayMateMode: boolean;
   dispatch: types.Dispatcher;
+  onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
   const buttonText = props.solving ? "Cancel" : "Solve";
   const buttonVariant = props.solving ? "danger" : "primary";
@@ -179,6 +180,7 @@ export default function SolveButton(props: {
           solutionLimit={props.solutionLimit}
           oneWayMateMode={props.oneWayMateMode}
           dispatch={props.dispatch}
+          onSolutionLoaded={props.onSolutionLoaded}
         />
       ) : (
         <></>
