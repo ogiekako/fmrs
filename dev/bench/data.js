@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794171125342,
+  "lastUpdate": 1794174850203,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -62896,6 +62896,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/16a8565384b8c09c172683888fe563d5931ef3ce"
         },
         "date": 1794171116491,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a1dc6befec59665e703d1376580aef0dcf1ffaee",
+          "message": "diamond.sfenのメタデータ修正と作品集から戻った際のフィルター状態保持に対応",
+          "timestamp": "2026-11-08T21:39:15Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a1dc6befec59665e703d1376580aef0dcf1ffaee"
+        },
+        "date": 1794174846842,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
