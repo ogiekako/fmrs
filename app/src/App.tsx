@@ -5,7 +5,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 function App() {
   return (
     <div className="container">
-      <h1>Shogi Helpmate Solver</h1>
       <Editor />
     </div>
   );

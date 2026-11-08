@@ -31,6 +31,12 @@ export function Editor(props: {}) {
   const sfen = encodeSfen(state.position);
 
   useEffect(() => {
+    document.title = showOgiekako
+      ? "ogiekako 協力詰作品集"
+      : "Shogi Helpmate Solver";
+  }, [showOgiekako]);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     if (showOgiekako) {
       const target = ogiekakoPagePath();
@@ -113,6 +119,7 @@ export function Editor(props: {}) {
 
   return (
     <div>
+      <h1>Shogi Helpmate Solver</h1>
       <div className="d-flex">
         <div>
           <Position

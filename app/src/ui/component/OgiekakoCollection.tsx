@@ -221,7 +221,7 @@ export default function OgiekakoCollection(props: {
     <div className="my-3">
       <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
         <div>
-          <h2 className="h4 mb-1">ogiekako 協力詰作品集</h2>
+          <h1 className="mb-1">ogiekako 協力詰作品集</h1>
           <div className="text-muted" style={{ fontSize: "0.9em" }}>
             純粋な協力詰（全作一意解検証済み）。作品をクリックすると解図済み状態（手順再生可能）でソルバーを開きます。
           </div>
