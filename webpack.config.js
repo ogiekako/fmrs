@@ -52,10 +52,20 @@ module.exports = (env, argv) => {
       new HtmlWebpackPlugin({
         template: "./app/public/ogiekako.html",
         filename: "ogiekako.html",
+        minify: {
+          collapseWhitespace: true,
+          removeAttributeQuotes: false,
+          keepClosingSlash: true,
+        },
       }),
       new HtmlWebpackPlugin({
         template: "./app/public/ogiekako.html",
         filename: "ogiekako/index.html",
+        minify: {
+          collapseWhitespace: true,
+          removeAttributeQuotes: false,
+          keepClosingSlash: true,
+        },
       }),
       {
         apply(compiler) {
