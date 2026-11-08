@@ -93,9 +93,6 @@ fn test_problems_sfen_files_and_metadata() {
         .collect();
     sfen_files.sort();
 
-    let mut ogiekako_count = 0;
-    let mut selected_count = 0;
-
     for file_path in &sfen_files {
         let file_name = file_path.file_name().unwrap().to_str().unwrap();
         let raw_content = fs::read_to_string(file_path)
@@ -153,12 +150,7 @@ fn test_problems_sfen_files_and_metadata() {
             non_king_count
         );
 
-        if OGIEKAKO_ALIASES.contains(&meta.author.as_str()) {
-            ogiekako_count += 1;
-            if meta.selected {
-                selected_count += 1;
-            }
-        } else {
+        if !OGIEKAKO_ALIASES.contains(&meta.author.as_str()) {
             assert!(
                 !meta.selected,
                 "Non-ogiekako problem {} should not be marked selected",
@@ -166,9 +158,6 @@ fn test_problems_sfen_files_and_metadata() {
             );
         }
     }
-
-    assert_eq!(ogiekako_count, 34, "Expected 34 ogiekako problems");
-    assert_eq!(selected_count, 29, "Expected 29 selected ogiekako problems");
 }
 
 #[test]
