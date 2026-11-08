@@ -20,8 +20,7 @@ type FilterCategory =
   | "short"
   | "long"
   | "ultralong"
-  | "smoke"
-  | "hand_limit";
+  | "smoke";
 
 type SortKey = "date_asc" | "date_desc" | "moves_asc" | "moves_desc";
 type ViewMode = "cards" | "table";
@@ -226,7 +225,6 @@ export default function OgiekakoCollection(props: {
       if (filter === "ultralong" && p.moves < 1000) return false;
       if (filter === "smoke" && !(p.notes?.includes("煙") ?? false))
         return false;
-      if (filter === "hand_limit" && !p.defenderHand) return false;
 
       if (!q) return true;
       const haystack = [
@@ -331,15 +329,6 @@ export default function OgiekakoCollection(props: {
                 onClick={() => setFilter("smoke")}
               >
                 煙詰
-              </Button>
-              <Button
-                size="sm"
-                variant={
-                  filter === "hand_limit" ? "primary" : "outline-primary"
-                }
-                onClick={() => setFilter("hand_limit")}
-              >
-                受方持駒制限あり
               </Button>
             </div>
 
