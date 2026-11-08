@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794174917238,
+  "lastUpdate": 1794181006269,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -63090,6 +63090,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a1dc6befec59665e703d1376580aef0dcf1ffaee"
         },
         "date": 1794174846842,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5c61a60984c76074d8bbfd03106fe210cdab089c",
+          "message": "diamond.sfenのルール表記を協力詰に戻しテストの固定問題数検証を削除",
+          "timestamp": "2026-11-08T23:21:14Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5c61a60984c76074d8bbfd03106fe210cdab089c"
+        },
+        "date": 1794181002500,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
