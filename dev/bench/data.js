@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794129406301,
+  "lastUpdate": 1794129776672,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -59598,6 +59598,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/977dc1f8718a67afd9930b21ea22404ea29a9da2"
         },
         "date": 1794129400329,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "719673f82a0eeda792a8537ad878cf32fa7c4fc6",
+          "message": "スマホ表示での「図面に反映」ボタンの盤面重なり防止および画面遷移時のスクロールアニメーション無効化",
+          "timestamp": "2026-11-08T09:17:37Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/719673f82a0eeda792a8537ad878cf32fa7c4fc6"
+        },
+        "date": 1794129772838,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
