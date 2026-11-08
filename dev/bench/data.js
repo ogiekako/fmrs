@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794125094046,
+  "lastUpdate": 1794125453079,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -56882,6 +56882,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/f27eea67738e4b3af2a873ccc586669a8c12eaa7"
         },
         "date": 1794125087213,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "cf634c576eed8e678ba9c22070e3441c63a13108",
+          "message": "本番ビルド時にOGPメタタグの属性引用符が削除されないよう修正",
+          "timestamp": "2026-11-08T08:05:13Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/cf634c576eed8e678ba9c22070e3441c63a13108"
+        },
+        "date": 1794125450166,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
