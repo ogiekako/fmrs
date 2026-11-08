@@ -119,24 +119,41 @@ export function Editor(props: {}) {
 
   return (
     <div>
-      <h1>Shogi Helpmate Solver</h1>
-      <div className="d-flex">
-        <div>
-          <Position
-            position={state.position}
-            selected={state.selected}
-            dispatch={dispatch}
-            disabled={!!state.solving}
-          />
+      <div className="d-flex justify-content-between align-items-baseline flex-wrap gap-2 my-2">
+        <h1 className="mb-0">Shogi Helpmate Solver</h1>
+        <a
+          href={ogiekakoPagePath()}
+          className="text-secondary text-decoration-none"
+          style={{ fontSize: "0.95rem" }}
+          onClick={(e) => {
+            e.preventDefault();
+            setShowOgiekako(true);
+          }}
+        >
+          ogiekako 協力詰作品集 →
+        </a>
+      </div>
+      <div className="d-flex flex-wrap">
+        <div className="d-flex">
+          <div className="ps-4 ps-sm-0">
+            <Position
+              position={state.position}
+              selected={state.selected}
+              dispatch={dispatch}
+              disabled={!!state.solving}
+            />
+          </div>
+          <Info />
         </div>
-        <Info />
-        <div className="p-3">
-          <Problems
-            position={state.position}
-            problems={state.problems}
-            dispatch={dispatch}
-            disabled={!!state.solving}
-          />
+        <div className="p-3 d-none d-md-block position-relative">
+          <div style={{ position: "absolute", top: "1rem", left: "1rem" }}>
+            <Problems
+              position={state.position}
+              problems={state.problems}
+              dispatch={dispatch}
+              disabled={!!state.solving}
+            />
+          </div>
         </div>
       </div>
       <Sfen
@@ -152,6 +169,14 @@ export function Editor(props: {}) {
         oneWayMateMode={state.oneWayMateMode}
         dispatch={dispatch}
       />
+      <div className="py-3 d-md-none">
+        <Problems
+          position={state.position}
+          problems={state.problems}
+          dispatch={dispatch}
+          disabled={!!state.solving}
+        />
+      </div>
     </div>
   );
 }

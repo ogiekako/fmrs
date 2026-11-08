@@ -51,10 +51,10 @@ export default function Solution(props: {
   }, [props.kif, props.stone, outer, id]);
   return (
     <div className="position-relative mb-2">
-      <div ref={outer}></div>
+      <div ref={outer} style={{ maxWidth: "100%", overflowX: "auto" }}></div>
       <div
         className="position-absolute top-0"
-        style={{ maxWidth: "570px", minWidth: "570px" }}
+        style={{ width: "100%", maxWidth: "570px" }}
       >
         <Button
           className="btn-secondary position-absolute end-0"

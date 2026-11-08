@@ -42,7 +42,11 @@ export default function Problems(props: {
   }
 
   return (
-    <DropdownMenu show>
+    <DropdownMenu
+      show
+      className="position-static"
+      style={{ maxWidth: "100%", overflowX: "auto" }}
+    >
       <Dropdown.Header>
         Saved positions{" "}
         {!adding && (
