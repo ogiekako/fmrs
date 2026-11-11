@@ -25,6 +25,34 @@ impl Algorithm {
     }
 }
 
+/// 進捗の受け手 (HTTP クライアント) が切断したため解図を打ち切ったことを表す。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProgressReceiverDropped;
+
+impl std::fmt::Display for ProgressReceiverDropped {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "progress receiver dropped (client disconnected)")
+    }
+}
+
+impl std::error::Error for ProgressReceiverDropped {}
+
+/// 進捗を送る。受け手がいなくなっていたら ProgressReceiverDropped で打ち切る。
+/// 続けても結果を届ける先がなく、サーバーでは CPU とメモリを次の解図と
+/// 取り合うだけになる (Cloud Run はレスポンス終了時点でインスタンスが空いた
+/// とみなして次のリクエストを送ってくる)。
+fn report_progress(
+    progress: Option<&futures::channel::mpsc::UnboundedSender<usize>>,
+    step: usize,
+) -> anyhow::Result<()> {
+    if let Some(progress) = progress {
+        if progress.unbounded_send(step).is_err() {
+            return Err(ProgressReceiverDropped.into());
+        }
+    }
+    Ok(())
+}
+
 pub fn solve(
     board: PositionAux,
     solution_upto: Option<usize>,
@@ -69,9 +97,7 @@ fn solve_impl(
             loop {
                 match solver.advance()? {
                     SolverStatus::Intermediate(step) => {
-                        if let Some(progress) = progress.as_ref() {
-                            let _ = progress.unbounded_send(step as usize);
-                        }
+                        report_progress(progress.as_ref(), step as usize)?;
                     }
                     SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
                     SolverStatus::NoSolution => return Ok(vec![]),
@@ -83,9 +109,7 @@ fn solve_impl(
             loop {
                 match solver.advance()? {
                     SolverStatus::Intermediate(step) => {
-                        if let Some(progress) = progress.as_ref() {
-                            let _ = progress.unbounded_send(step as usize);
-                        }
+                        report_progress(progress.as_ref(), step as usize)?;
                     }
                     SolverStatus::Mate(reconstructor) => return Ok(reconstructor.solutions()),
                     SolverStatus::NoSolution => return Ok(vec![]),
@@ -235,6 +259,24 @@ mod tests {
                 let want: Vec<Vec<Movement>> = vec![];
                 assert_eq!(got, want);
             }
+        }
+    }
+
+    #[test]
+    fn stops_when_progress_receiver_dropped() {
+        // 5 手詰。途中で Intermediate を返すので進捗送信が起きる。
+        let sfen = "9/9/9/3bkb3/9/3+R1+R3/9/9/9 b 4g4s4n4l18p 1";
+        for algorithm in Algorithm::iter() {
+            let board = sfen::decode_position(sfen).unwrap();
+            let (tx, rx) = futures::channel::mpsc::unbounded::<usize>();
+            drop(rx);
+            let err = solve::solve_with_progress(tx, board, None, algorithm, None).unwrap_err();
+            assert!(
+                err.is::<solve::ProgressReceiverDropped>(),
+                "{:?}: {}",
+                algorithm,
+                err
+            );
         }
     }
 

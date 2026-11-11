@@ -6,7 +6,7 @@ use fmrs_core::{
 use futures::StreamExt;
 use serde::Serialize;
 
-use crate::solver::Algorithm;
+use crate::solver::{Algorithm, ProgressReceiverDropped};
 
 pub async fn server(port: u16) -> anyhow::Result<()> {
     let bind_host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
@@ -127,11 +127,17 @@ async fn solve(query: web::Query<SolveQuery>, body_sfen: String) -> HttpResponse
                     }
                 }
             }
+            Err(e) if e.is::<ProgressReceiverDropped>() => {
+                // クライアントが切断した (キャンセル・タブを閉じた等)。返す先はない。
+                eprintln!("solve aborted: client disconnected");
+                return;
+            }
             Err(e) => SolveResponse::Error {
                 message: e.to_string(),
             },
         };
-        res_tx.unbounded_send(res).unwrap();
+        // 最後の手の直後に切断された場合は受け手がいないが、それで構わない。
+        let _ = res_tx.unbounded_send(res);
     });
 
     let stream = step_rx

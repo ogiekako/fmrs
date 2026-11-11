@@ -59,7 +59,7 @@ gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregi
 ./rust/scripts/deploy-cloud-run.sh
 ```
 
-既定では `CPU=2`, `MEMORY=8Gi` です。必要なら環境変数で調整できます。
+既定では `CPU=2`, `MEMORY=8Gi`, `MAX_INSTANCES=3` です。必要なら環境変数で調整できます。
 
 ```bash
 SERVICE_NAME=fmrs-api \
@@ -68,6 +68,7 @@ ALLOWED_ORIGINS=https://ogiekako.github.io \
 MEMORY=8Gi \
 CPU=2 \
 TIMEOUT=3600 \
+MAX_INSTANCES=3 \
 ./rust/scripts/deploy-cloud-run.sh
 ```
 
@@ -84,9 +85,15 @@ FMRS_API_BASE_URL=https://fmrs-api-xxxxx-an.a.run.app npm run build
 ## 推奨設定
 
 - `concurrency=1`
-  - 重い探索同士を 1 インスタンスに同居させない
-- `max-instances=1`
-  - 課金の暴走を防ぐ
+  - 重い探索同士を 1 インスタンスに同居させない (1 件で 8Gi を使い切ることがあり、
+    同居させると両方メモリ不足で落ちる)
+- `max-instances=3`
+  - 1 件の長い解図 (最大 60 分) が唯一のインスタンスを占有して、他の利用者が
+    全員 wasm に回されるのを避ける
+  - 課金の上限はインスタンス数に比例する。2 vCPU / 8Gi はリクエスト課金で
+    約 $0.245/時間/インスタンスなので、休みなく叩かれ続けた最悪でも 3 台で月 $540 程度。
+    実利用 (2026-11 時点で月 100 件弱・合計数分) は無料枠に収まる。
+    認証なしの公開 API なので Cloud Billing の予算アラートを併用する
 - `timeout=3600`
   - Cloud Run の上限まで使う
 - `memory=8Gi`
@@ -97,6 +104,10 @@ FMRS_API_BASE_URL=https://fmrs-api-xxxxx-an.a.run.app npm run build
 ## 制約
 
 - Cloud Run の HTTP リクエストは最大 60 分
-- `max-instances=1` のままだと同時実行は直列化される
+- 4 件目以降の同時リクエストはインスタンスの空き待ちになり、待ちきれないと 429 になる
+  (フロントは wasm にフォールバックする)
+- クライアントが切断 (キャンセル・タブを閉じる) すると解図を打ち切る。ただし切断に
+  気づくのは進捗の書き込みが失敗したとき (切断後 2〜3 手目) なので、1 手が重い局面
+  では十数秒遅れる
 - 重い問題ではメモリ不足の可能性がある
 - GitHub Pages にはリバースプロキシ機能がないため、API の絶対 URL をビルド時に埋め込む必要があります

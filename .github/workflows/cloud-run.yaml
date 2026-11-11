@@ -37,4 +37,5 @@ jobs:
           MEMORY: 8Gi
           CPU: 2
           TIMEOUT: 3600
+          MAX_INSTANCES: 3
         run: ./rust/scripts/deploy-cloud-run.sh

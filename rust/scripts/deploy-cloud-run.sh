@@ -8,6 +8,7 @@ MEMORY="${MEMORY:-8Gi}"
 CPU="${CPU:-2}"
 TIMEOUT="${TIMEOUT:-3600}"
 CONCURRENCY="${CONCURRENCY:-1}"
+MAX_INSTANCES="${MAX_INSTANCES:-3}"
 
 if ! command -v gcloud >/dev/null 2>&1; then
   echo "gcloud が見つかりません。https://cloud.google.com/sdk/docs/install を参照してください。" >&2
@@ -32,5 +33,5 @@ gcloud run deploy "${SERVICE_NAME}" \
   --concurrency "${CONCURRENCY}" \
   --timeout "${TIMEOUT}" \
   --min-instances 0 \
-  --max-instances 1 \
+  --max-instances "${MAX_INSTANCES}" \
   --set-env-vars "FMRS_ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
