@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794419254926,
+  "lastUpdate": 1794419262978,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -55797,6 +55797,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 24390,
             "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f1afef10cb7534fa34897545f32012b93f2e4b8b",
+          "message": "Cloud Runのmax-instancesを3にし、クライアント切断時にサーバーの解図を打ち切る\n\nmax-instances=1 では 1 件の長い解図 (最大 60 分) が唯一のインスタンスを\n占有し、その間の他の利用者は全員 wasm に回されていた。concurrency は 1 の\nまま (1 件で 8Gi を使い切ることがあるため) インスタンス数を 3 にする。\nデプロイスクリプトで MAX_INSTANCES を指定できるようにした。\n\nまた /solve はクライアントが切断しても進捗送信の失敗を無視して解図を最後まで\n続けていた。Cloud Run はレスポンス終了時点でインスタンスが空いたとみなして\n次のリクエストを送るため、取り残された解図と次の解図が CPU と 8Gi を取り\n合っていた。進捗を送れなくなったら打ち切る。",
+          "timestamp": "2026-11-11T17:31:34Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f1afef10cb7534fa34897545f32012b93f2e4b8b"
+        },
+        "date": 1794419261923,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 303,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 2368,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 144,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 423,
+            "range": "± 539",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 21997,
+            "range": "± 380",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1410,
+            "range": "± 14",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 4265,
+            "range": "± 201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1105594,
+            "range": "± 639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 8965,
+            "range": "± 27",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 135,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 83,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 109,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 30,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 12,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 15651926,
+            "range": "± 110388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 24461,
+            "range": "± 60",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 2779,
+            "range": "± 51",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 15230,
+            "range": "± 11",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 25693,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
