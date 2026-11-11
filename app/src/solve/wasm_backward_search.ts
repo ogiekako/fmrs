@@ -1,8 +1,25 @@
 import { CancellationToken } from ".";
 import { BackwardSearch, check_one_way_mate } from "../wasm_api";
 
+/** 自動逆算が途中で失敗したことを表す。lastSfen はそれまでに到達した先手番局面。 */
+export class BackwardSearchError extends Error {
+  constructor(
+    readonly lastSfen: string,
+    readonly original: unknown
+  ) {
+    super(
+      "自動逆算中にエラーが発生しました" +
+        (original instanceof Error && original.message
+          ? `: ${original.message}`
+          : "。")
+    );
+    this.name = "BackwardSearchError";
+  }
+}
+
 /**
  * @returns solutions or undefined if solution is not found.
+ * @throws BackwardSearchError if the search fails midway.
  */
 export async function backwardSearchWasm(
   sfen: string,
@@ -23,8 +40,9 @@ export async function backwardSearchWasm(
 
   const bs = new BackwardSearch(sfen, oneWayMateMode);
 
+  let lastBlackSfen = sfen;
   try {
-    let lastBlackSfen = bs.sfen();
+    lastBlackSfen = bs.sfen();
     let lastReportedStep: number | undefined;
     while (bs.advance()) {
       if (cancel.isCanceled()) {
@@ -42,7 +60,16 @@ export async function backwardSearchWasm(
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
     return lastBlackSfen;
+  } catch (e) {
+    throw new BackwardSearchError(lastBlackSfen, e);
   } finally {
-    bs.free();
+    // Rust 側が panic して trap すると借用フラグが立ったまま残り、free() も
+    // "attempted to take ownership of Rust value while it was borrowed" で
+    // 失敗する。それで元のエラーが隠れないよう、free の失敗は警告に留める。
+    try {
+      bs.free();
+    } catch (e) {
+      console.warn("failed to free backward search", e);
+    }
   }
 }

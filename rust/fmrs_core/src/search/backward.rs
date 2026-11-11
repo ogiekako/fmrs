@@ -138,6 +138,17 @@ const MAX_SOLUTIONS_DFS_MATE_IN: u16 = 250;
 /// 候補ごとフル解図 (並列) が引き受ける。
 const DEEP_PEEL_CAP: u16 = 128;
 
+/// トレース有効時だけ計測を開始する。wasm32-unknown-unknown では
+/// `Instant::now()` が panic するため、Web から通る経路 (advance_upto →
+/// verify_deep_pending) で無条件に時刻を取ってはいけない。
+fn trace_timer(trace: bool) -> Option<std::time::Instant> {
+    trace.then(std::time::Instant::now)
+}
+
+fn trace_elapsed(t0: Option<std::time::Instant>) -> std::time::Duration {
+    t0.map(|t| t.elapsed()).unwrap_or_default()
+}
+
 /// advance_upto の deep 検証で呼び出し内に貯める候補。
 /// (verify_deep_pending でステップ単位に一括検証する)
 struct DeepPending {
@@ -2355,14 +2366,14 @@ impl BackwardSearch {
         while !alive.is_empty() {
             let union = union_of(&alive);
             let union_len = union.len();
-            let t0 = std::time::Instant::now();
+            let t0 = trace_timer(trace);
             let first_mate = shallowest_mate_within(union, peel_cap, false)?;
             if trace {
                 eprintln!(
                     "deep: peel alive={} union={} sweep={:?} first_mate={:?}",
                     alive.len(),
                     union_len,
-                    t0.elapsed(),
+                    trace_elapsed(t0),
                     first_mate
                 );
             }
@@ -2397,21 +2408,21 @@ impl BackwardSearch {
         if !alive.is_empty() {
             let union = union_of(&alive);
             let union_len = union.len();
-            let t0 = std::time::Instant::now();
+            let t0 = trace_timer(trace);
             let first_mate = shallowest_mate_within(union, cap, false)?;
             if trace {
                 eprintln!(
                     "deep: full alive={} union={} sweep={:?} first_mate={:?}",
                     alive.len(),
                     union_len,
-                    t0.elapsed(),
+                    trace_elapsed(t0),
                     first_mate
                 );
             }
             if first_mate.is_none() {
                 accepted.append(&mut alive);
             } else {
-                let t0 = std::time::Instant::now();
+                let t0 = trace_timer(trace);
                 let stone = self.stone;
                 let verdicts: Vec<bool> = run_in(self.pool.as_ref(), || {
                     let verify = |&i: &usize| {
@@ -2433,7 +2444,7 @@ impl BackwardSearch {
                     eprintln!(
                         "deep: solve-each alive={} elapsed={:?}",
                         alive.len(),
-                        t0.elapsed()
+                        trace_elapsed(t0)
                     );
                 }
                 let mut it = verdicts.iter();

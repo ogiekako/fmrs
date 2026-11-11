@@ -5,6 +5,8 @@ use fmrs_core::{
 };
 use wasm_bindgen::prelude::*;
 
+use crate::utils::set_panic_hook;
+
 // UI のキャンセル応答性を保ちつつ、JS 側のタイマー・再描画コストが
 // 探索本体を上回らない程度の局面数を一度に処理する。
 const ADVANCE_BATCH_SIZE: usize = 1_000;
@@ -18,6 +20,8 @@ pub struct BackwardSearch {
 impl BackwardSearch {
     #[wasm_bindgen(constructor)]
     pub fn new(sfen: String, one_way_mate_mode: bool) -> Self {
+        // Solver を経ずに呼ばれても panic 内容がコンソールに出るようにする。
+        set_panic_hook();
         let mut position = PositionAux::from_sfen(&sfen).unwrap();
         if position.checked_slow(Color::WHITE) {
             position.set_turn(Color::WHITE);
