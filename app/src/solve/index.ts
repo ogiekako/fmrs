@@ -5,12 +5,30 @@ import { solveWasm } from "./wasm_solver";
 
 export class CancellationToken {
   private canceled = false;
+  private listeners: Array<() => void> = [];
   constructor() {}
   cancel() {
+    if (this.canceled) {
+      return;
+    }
     this.canceled = true;
+    for (const listener of this.listeners.splice(0)) {
+      listener();
+    }
   }
   isCanceled(): boolean {
     return this.canceled;
+  }
+  /** キャンセル時に一度だけ呼ばれる。返り値の関数で登録を解除する。 */
+  onCancel(listener: () => void): () => void {
+    if (this.canceled) {
+      listener();
+      return () => {};
+    }
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter((l) => l !== listener);
+    };
   }
 }
 

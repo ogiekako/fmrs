@@ -1,5 +1,21 @@
 import { CancellationToken } from ".";
-import { BackwardSearch, check_one_way_mate } from "../wasm_api";
+
+export type BackwardSearchRequest = {
+  sfen: string;
+  oneWayMateMode: boolean;
+};
+
+export type BackwardSearchMessage =
+  | {
+      ty: "step";
+      step: number;
+      /** 現在の局面 (後手番のこともある) */
+      sfen: string;
+      /** これまでに到達した先手番局面 */
+      lastBlackSfen: string;
+    }
+  | { ty: "done"; sfen: string | undefined }
+  | { ty: "error"; message: string };
 
 /** 自動逆算が途中で失敗したことを表す。lastSfen はそれまでに到達した先手番局面。 */
 export class BackwardSearchError extends Error {
@@ -18,7 +34,10 @@ export class BackwardSearchError extends Error {
 }
 
 /**
- * @returns solutions or undefined if solution is not found.
+ * 自動逆算を Web Worker で実行する (backward_search_worker.ts)。
+ * キャンセルされたらその時点で Worker を止め、到達済みの先手番局面を返す。
+ *
+ * @returns 到達した先手番局面。一本道モードで一本道でなければ undefined。
  * @throws BackwardSearchError if the search fails midway.
  */
 export async function backwardSearchWasm(
@@ -27,49 +46,45 @@ export async function backwardSearchWasm(
   oneWayMateMode: boolean,
   onStep: (step: number, sfen: string) => void
 ): Promise<string | undefined> {
-  if (oneWayMateMode) {
-    const result = check_one_way_mate(sfen);
-    try {
-      if (!result?.is_one_way) {
-        return undefined;
-      }
-    } finally {
-      result?.free();
-    }
-  }
-
-  const bs = new BackwardSearch(sfen, oneWayMateMode);
-
+  const worker = new Worker(
+    new URL("./backward_search_worker.ts", import.meta.url)
+  );
   let lastBlackSfen = sfen;
+  let unsubscribe = () => {};
   try {
-    lastBlackSfen = bs.sfen();
-    let lastReportedStep: number | undefined;
-    while (bs.advance()) {
-      if (cancel.isCanceled()) {
-        break;
-      }
-      const currentStep = bs.step();
-      if (currentStep !== lastReportedStep) {
-        const currentSfen = bs.sfen();
-        if (currentStep === 0 || currentStep % 2 === 1) {
-          lastBlackSfen = currentSfen;
+    return await new Promise<string | undefined>((resolve, reject) => {
+      unsubscribe = cancel.onCancel(() => resolve(lastBlackSfen));
+      worker.onmessage = (event: MessageEvent<BackwardSearchMessage>) => {
+        const message = event.data;
+        switch (message.ty) {
+          case "step":
+            lastBlackSfen = message.lastBlackSfen;
+            onStep(message.step, message.sfen);
+            return;
+          case "done":
+            resolve(message.sfen);
+            return;
+          case "error":
+            reject(
+              new BackwardSearchError(lastBlackSfen, new Error(message.message))
+            );
+            return;
         }
-        onStep(currentStep, currentSfen);
-        lastReportedStep = currentStep;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-    return lastBlackSfen;
-  } catch (e) {
-    throw new BackwardSearchError(lastBlackSfen, e);
+      };
+      worker.onerror = (event) => {
+        event.preventDefault();
+        reject(
+          new BackwardSearchError(lastBlackSfen, new Error(event.message))
+        );
+      };
+      const request: BackwardSearchRequest = { sfen, oneWayMateMode };
+      worker.postMessage(request);
+    });
   } finally {
-    // Rust 側が panic して trap すると借用フラグが立ったまま残り、free() も
-    // "attempted to take ownership of Rust value while it was borrowed" で
-    // 失敗する。それで元のエラーが隠れないよう、free の失敗は警告に留める。
-    try {
-      bs.free();
-    } catch (e) {
-      console.warn("failed to free backward search", e);
-    }
+    unsubscribe();
+    // キャンセル後に届いた step で盤面が書き換わらないようにする。
+    worker.onmessage = null;
+    worker.onerror = null;
+    worker.terminate();
   }
 }
