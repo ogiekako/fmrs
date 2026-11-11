@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794181009231,
+  "lastUpdate": 1794419254926,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -63314,6 +63314,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434168662,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f1afef10cb7534fa34897545f32012b93f2e4b8b",
+          "message": "Cloud Runのmax-instancesを3にし、クライアント切断時にサーバーの解図を打ち切る\n\nmax-instances=1 では 1 件の長い解図 (最大 60 分) が唯一のインスタンスを\n占有し、その間の他の利用者は全員 wasm に回されていた。concurrency は 1 の\nまま (1 件で 8Gi を使い切ることがあるため) インスタンス数を 3 にする。\nデプロイスクリプトで MAX_INSTANCES を指定できるようにした。\n\nまた /solve はクライアントが切断しても進捗送信の失敗を無視して解図を最後まで\n続けていた。Cloud Run はレスポンス終了時点でインスタンスが空いたとみなして\n次のリクエストを送るため、取り残された解図と次の解図が CPU と 8Gi を取り\n合っていた。進捗を送れなくなったら打ち切る。",
+          "timestamp": "2026-11-11T17:31:34Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f1afef10cb7534fa34897545f32012b93f2e4b8b"
+        },
+        "date": 1794419249826,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168652,
             "unit": "Instructions"
           }
         ]
