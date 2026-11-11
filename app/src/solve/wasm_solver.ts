@@ -1,7 +1,16 @@
 import { CancellationToken, Response } from ".";
-import { Algorithm, Solver } from "../wasm_api";
+import { runWorkerTask } from "./worker_task";
+
+export type SolveRequest = {
+  sfen: string;
+  /** 求める解の数。n + 1 個まで数えて余詰を判定する。 */
+  n: number;
+};
 
 /**
+ * wasm の Solver を Web Worker で実行する (solve_worker.ts)。
+ * キャンセルされたらその時点で Worker を止めて undefined を返す。
+ *
  * @returns solutions or undefined if solution is not found.
  */
 export async function solveWasm(
@@ -10,63 +19,18 @@ export async function solveWasm(
   cancel: CancellationToken,
   onStep: (step: number) => void
 ): Promise<Response | undefined> {
-  let solver: Solver | undefined;
   try {
-    solver = new Solver(sfen, n + 1, Algorithm.Standard);
-    return await solveWasmInner(solver, cancel, onStep, sfen);
+    return await runWorkerTask<SolveRequest, number, Response | undefined>(
+      new Worker(new URL("./solve_worker.ts", import.meta.url)),
+      { sfen, n },
+      cancel,
+      onStep,
+      () => undefined
+    );
   } catch (e) {
     console.error(e);
     throw new Error(toJapaneseErrorMessage(e));
-  } finally {
-    if (solver) {
-      try {
-        solver.free();
-      } catch (e) {
-        console.warn("failed to free solver", e);
-      }
-    }
   }
-}
-
-async function solveWasmInner(
-  solver: Solver,
-  cancel: CancellationToken,
-  onStep: (step: number) => void,
-  sfen: string
-): Promise<Response | undefined> {
-  let step = 0;
-  let nextAwaitStep = nextAwait(step);
-  while (!cancel.isCanceled()) {
-    step = solver.advance();
-    onStep(step);
-    if (solver.no_solution()) {
-      return undefined;
-    }
-    if (solver.solutions_found()) {
-      return {
-        sfen,
-        redundant: solver.redundant(),
-        solutions: solver.solutions_count(),
-        kif: solver.solutions_kif(),
-        fromWhite: solver.is_from_white(),
-      };
-    }
-    if (step >= nextAwaitStep) {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      nextAwaitStep = nextAwait(step);
-    }
-  }
-  return undefined;
-}
-
-function nextAwait(step: number) {
-  if (step < 100) {
-    return step + 1;
-  }
-  if (step < 1000) {
-    return step + 10;
-  }
-  return step + 100;
 }
 
 function toJapaneseErrorMessage(error: unknown): string {

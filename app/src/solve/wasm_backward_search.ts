@@ -1,21 +1,18 @@
 import { CancellationToken } from ".";
+import { runWorkerTask } from "./worker_task";
 
 export type BackwardSearchRequest = {
   sfen: string;
   oneWayMateMode: boolean;
 };
 
-export type BackwardSearchMessage =
-  | {
-      ty: "step";
-      step: number;
-      /** 現在の局面 (後手番のこともある) */
-      sfen: string;
-      /** これまでに到達した先手番局面 */
-      lastBlackSfen: string;
-    }
-  | { ty: "done"; sfen: string | undefined }
-  | { ty: "error"; message: string };
+export type BackwardSearchStep = {
+  step: number;
+  /** 現在の局面 (後手番のこともある) */
+  sfen: string;
+  /** これまでに到達した先手番局面 */
+  lastBlackSfen: string;
+};
 
 /** 自動逆算が途中で失敗したことを表す。lastSfen はそれまでに到達した先手番局面。 */
 export class BackwardSearchError extends Error {
@@ -46,45 +43,23 @@ export async function backwardSearchWasm(
   oneWayMateMode: boolean,
   onStep: (step: number, sfen: string) => void
 ): Promise<string | undefined> {
-  const worker = new Worker(
-    new URL("./backward_search_worker.ts", import.meta.url)
-  );
   let lastBlackSfen = sfen;
-  let unsubscribe = () => {};
   try {
-    return await new Promise<string | undefined>((resolve, reject) => {
-      unsubscribe = cancel.onCancel(() => resolve(lastBlackSfen));
-      worker.onmessage = (event: MessageEvent<BackwardSearchMessage>) => {
-        const message = event.data;
-        switch (message.ty) {
-          case "step":
-            lastBlackSfen = message.lastBlackSfen;
-            onStep(message.step, message.sfen);
-            return;
-          case "done":
-            resolve(message.sfen);
-            return;
-          case "error":
-            reject(
-              new BackwardSearchError(lastBlackSfen, new Error(message.message))
-            );
-            return;
-        }
-      };
-      worker.onerror = (event) => {
-        event.preventDefault();
-        reject(
-          new BackwardSearchError(lastBlackSfen, new Error(event.message))
-        );
-      };
-      const request: BackwardSearchRequest = { sfen, oneWayMateMode };
-      worker.postMessage(request);
-    });
-  } finally {
-    unsubscribe();
-    // キャンセル後に届いた step で盤面が書き換わらないようにする。
-    worker.onmessage = null;
-    worker.onerror = null;
-    worker.terminate();
+    return await runWorkerTask<
+      BackwardSearchRequest,
+      BackwardSearchStep,
+      string | undefined
+    >(
+      new Worker(new URL("./backward_search_worker.ts", import.meta.url)),
+      { sfen, oneWayMateMode },
+      cancel,
+      (s) => {
+        lastBlackSfen = s.lastBlackSfen;
+        onStep(s.step, s.sfen);
+      },
+      () => lastBlackSfen
+    );
+  } catch (e) {
+    throw new BackwardSearchError(lastBlackSfen, e);
   }
 }
