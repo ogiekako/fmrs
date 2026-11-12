@@ -1,6 +1,6 @@
 import * as types from "../types";
 import Solution from "./Solution";
-import { check_one_way_mate } from "../../wasm_api";
+import { wasm } from "../../wasm_main";
 
 export default function SolveResponse(props: {
   solveResponse: types.SolveResponse;
@@ -13,7 +13,7 @@ export default function SolveResponse(props: {
 
   let oneWayMessage = null;
   if (props.oneWayMateMode && props.solveResponse.ty === "solved" && props.solveResponse.response.sfen) {
-    const result = check_one_way_mate(props.solveResponse.response.sfen);
+    const result = wasm().check_one_way_mate(props.solveResponse.response.sfen);
     if (result !== undefined) {
       if (result.is_one_way) {
         oneWayMessage = <div>一本道詰将棋です ({result.steps}手)</div>;

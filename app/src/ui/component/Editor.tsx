@@ -24,6 +24,16 @@ import {
   getPrecomputedSolveResponseBySfen,
   OgiekakoProblem,
 } from "../../ogiekako_problems";
+import { loadWasm } from "../../wasm_main";
+
+// 作品集ページは wasm の読み込みを待たずに描画している (index.tsx) ので、
+// ソルバー画面へ移る前に読み込みを待つ。通常は作品を選ぶまでに読み終わっている。
+function withWasm(f: () => void) {
+  loadWasm().then(f, (e) => {
+    console.error(e);
+    alert("読み込みに失敗しました。ページを再読み込みしてください。");
+  });
+}
 
 export function Editor(props: {}) {
   const [state, dispatch] = useReducer(reduce, undefined, newState);
@@ -94,44 +104,58 @@ export function Editor(props: {}) {
         setShowOgiekako(true);
         return;
       }
-      const solved = isSolvedFromUrl();
-      scrollToSolutionOnLoad.current = solved;
-      setShowOgiekako(false);
-      const urlSfen = sfenFromUrl();
-      if (urlSfen) {
-        const pos = decodeSfen(urlSfen);
-        dispatch({
-          ty: "set-position",
-          position: pos,
-        });
-        if (solved) {
-          const response = getPrecomputedSolveResponseBySfen(
-            encodeSfen(pos)
-          );
-          dispatch({
-            ty: "set-solve-response",
-            response: response
-              ? {
-                  ty: "solved",
-                  response,
-                  stone: positionStone(pos),
-                  millis: 0,
-                }
-              : undefined,
-          });
-        } else {
-          dispatch({
-            ty: "set-solve-response",
-            response: undefined,
-          });
+      withWasm(() => {
+        if (isOgiekakoPageUrl()) {
+          // 待っている間にさらに戻る・進むが行われた
+          return;
         }
-      }
+        const solved = isSolvedFromUrl();
+        scrollToSolutionOnLoad.current = solved;
+        setShowOgiekako(false);
+        const urlSfen = sfenFromUrl();
+        if (urlSfen) {
+          const pos = decodeSfen(urlSfen);
+          dispatch({
+            ty: "set-position",
+            position: pos,
+          });
+          if (solved) {
+            const response = getPrecomputedSolveResponseBySfen(
+              encodeSfen(pos)
+            );
+            dispatch({
+              ty: "set-solve-response",
+              response: response
+                ? {
+                    ty: "solved",
+                    response,
+                    stone: positionStone(pos),
+                    millis: 0,
+                  }
+                : undefined,
+            });
+          } else {
+            dispatch({
+              ty: "set-solve-response",
+              response: undefined,
+            });
+          }
+        }
+      });
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   const handleSelectOgiekakoProblem = (
+    problem: OgiekakoProblem,
+    preSolved: boolean
+  ) => {
+    ogiekakoScrollY.current = window.scrollY;
+    withWasm(() => openOgiekakoProblem(problem, preSolved));
+  };
+
+  const openOgiekakoProblem = (
     problem: OgiekakoProblem,
     preSolved: boolean
   ) => {
@@ -159,7 +183,6 @@ export function Editor(props: {}) {
         response: undefined,
       });
     }
-    ogiekakoScrollY.current = window.scrollY;
     scrollToSolutionOnLoad.current = preSolved;
     setShowOgiekako(false);
   };
@@ -170,7 +193,7 @@ export function Editor(props: {}) {
         onSelectProblem={handleSelectOgiekakoProblem}
         onBackToSolver={() => {
           ogiekakoScrollY.current = window.scrollY;
-          setShowOgiekako(false);
+          withWasm(() => setShowOgiekako(false));
         }}
       />
     );

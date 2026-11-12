@@ -1,4 +1,4 @@
-import { moves_to_kif } from "./wasm_api";
+import { wasm } from "./wasm_main";
 import type { Response as SolveApiResponse } from "./solve";
 import { parseProblemSfen, ParsedProblemSfen } from "./model/sfen";
 
@@ -969,7 +969,7 @@ export function buildPrecomputedSolveResponse(
   problem: OgiekakoProblem
 ): SolveApiResponse | undefined {
   const movesSfen = expandMoves(problem.solutionSeq, problem.solutionRules);
-  const kif = moves_to_kif(problem.sfen, movesSfen);
+  const kif = wasm().moves_to_kif(problem.sfen, movesSfen);
   if (!kif) {
     return undefined;
   }

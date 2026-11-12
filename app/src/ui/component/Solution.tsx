@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "react-bootstrap";
 import * as types from "../types";
 import * as model from "../../model";
+import { loadKifuForJS } from "../../kifu_for_js";
 
 export default function Solution(props: {
   kif: string;
@@ -16,8 +17,20 @@ export default function Solution(props: {
   let validurl = undefined as string | undefined;
 
   useEffect(() => {
-    const update = setTimeout(() => {
-      if (!outer.current) {
+    let canceled = false;
+    const update = setTimeout(async () => {
+      try {
+        // 通常は初回描画直後の先読み (index.tsx) で読み終わっている。
+        await loadKifuForJS();
+      } catch (e) {
+        console.error(e);
+        if (!canceled && outer.current) {
+          outer.current.textContent =
+            "解答再生盤を読み込めませんでした。ページを再読み込みしてください。";
+        }
+        return;
+      }
+      if (canceled || !outer.current) {
         return;
       }
       while (outer.current.firstChild) {
@@ -46,6 +59,7 @@ export default function Solution(props: {
     }, 0);
 
     return () => {
+      canceled = true;
       clearTimeout(update);
       if (validurl) {
         URL.revokeObjectURL(validurl);
