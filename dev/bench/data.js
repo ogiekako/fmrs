@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794477288665,
+  "lastUpdate": 1794477294764,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -56081,6 +56081,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 24693,
             "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f523879f3bb061df56a01792cb0991d275e87dd2",
+          "message": "作品集ページをwasmとkifu-for-jsの読み込みを待たずに表示しモバイルでの初期表示を速くする\n\n- wasm を静的 import していたため main.js 全体が wasm (圧縮後約 500KB) の\n  読み込み完了まで止まっていた。動的 import で裏読みし、作品集ページは\n  待たずに描画する。ソルバー画面へ移る時と直接開く時は読み込みを待つ。\n- kifu-for-js を同期 <script> で読んでいたため main.js の実行が待たされていた。\n  初回描画後に先読みし、再生盤を出す時点で待つ。",
+          "timestamp": "2026-11-12T09:40:12Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f523879f3bb061df56a01792cb0991d275e87dd2"
+        },
+        "date": 1794477293937,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 217,
+            "range": "± 12",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1179,
+            "range": "± 61",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 105,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 314,
+            "range": "± 440",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10538,
+            "range": "± 2911",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 969,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2644,
+            "range": "± 35",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 691426,
+            "range": "± 1729",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6518,
+            "range": "± 392",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 100,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 63,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 30,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 77,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 19,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 9290036,
+            "range": "± 661751",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 17733,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1872,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 10880,
+            "range": "± 67",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 15208,
+            "range": "± 3",
             "unit": "ns/iter"
           }
         ]
