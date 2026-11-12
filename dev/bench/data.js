@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794459113084,
+  "lastUpdate": 1794477288665,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -63672,6 +63672,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a125c650621f31aa471cd956516cb00718130336"
         },
         "date": 1794459105551,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168652,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "f523879f3bb061df56a01792cb0991d275e87dd2",
+          "message": "作品集ページをwasmとkifu-for-jsの読み込みを待たずに表示しモバイルでの初期表示を速くする\n\n- wasm を静的 import していたため main.js 全体が wasm (圧縮後約 500KB) の\n  読み込み完了まで止まっていた。動的 import で裏読みし、作品集ページは\n  待たずに描画する。ソルバー画面へ移る時と直接開く時は読み込みを待つ。\n- kifu-for-js を同期 <script> で読んでいたため main.js の実行が待たされていた。\n  初回描画後に先読みし、再生盤を出す時点で待つ。",
+          "timestamp": "2026-11-12T09:40:12Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/f523879f3bb061df56a01792cb0991d275e87dd2"
+        },
+        "date": 1794477285298,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
