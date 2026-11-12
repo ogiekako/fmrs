@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794419262978,
+  "lastUpdate": 1794459109485,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -63478,6 +63478,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/f1afef10cb7534fa34897545f32012b93f2e4b8b"
         },
         "date": 1794419249826,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123974,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 434168652,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a125c650621f31aa471cd956516cb00718130336",
+          "message": "CLOUD_RUN.mdを訂正: Cloud Run経由ではクライアント切断がコンテナに伝わらない",
+          "timestamp": "2026-11-12T04:36:33Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a125c650621f31aa471cd956516cb00718130336"
+        },
+        "date": 1794459105551,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
