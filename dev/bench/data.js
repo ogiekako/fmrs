@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794533969116,
+  "lastUpdate": 1794533990172,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -56223,6 +56223,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 15208,
             "range": "± 3",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5ab82e299bad0fca209042ff5b2832323dc744b8",
+          "message": "ソルバー画面もwasmを待たずに表示し、手番判定をTSに移してRust実装との一致をCIで検証する\n\n- 画面はどのページも wasm を待たずに描画する。メインスレッドで wasm を使うのは\n  解答表示の付加情報 (既知作品の KIF 生成と一本道判定) だけにし、useWasm() で\n  読み込み後に表示する。作品集からの遷移で待つ処理 (withWasm) は不要になった。\n- SFEN の手番判定 (後手玉に王手がかかっているか) を TS (model/check.ts) に移した。\n  URL・SFEN 表示・解図要求で同期的に使うため。Rust との二重管理になるので、\n  Rust 実装 (wasm の Node 向けビルド) を正解に、全駒種の利き・遮り・実在の問題・\n  ランダム局面で突き合わせるテスト (npm run test:web) を追加し、Pages のデプロイ前に\n  走らせる。\n- wasm の is_white_in_check は後手玉が無いと panic し、繰り返すとインスタンスが\n  壊れていた。後手玉が無ければ false を返す。",
+          "timestamp": "2026-11-13T01:24:25Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5ab82e299bad0fca209042ff5b2832323dc744b8"
+        },
+        "date": 1794533989478,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 224,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1178,
+            "range": "± 71",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 106,
+            "range": "± 10",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 329,
+            "range": "± 514",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 10715,
+            "range": "± 155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1015,
+            "range": "± 91",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 2750,
+            "range": "± 194",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 704537,
+            "range": "± 740",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 6674,
+            "range": "± 121",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 104,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 63,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 31,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 78,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 20,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 8,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 9639555,
+            "range": "± 484576",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 16949,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1973,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 9953,
+            "range": "± 5",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 15155,
+            "range": "± 874",
             "unit": "ns/iter"
           }
         ]
