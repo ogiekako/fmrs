@@ -18,11 +18,24 @@ pub struct OneWayMateResult {
     pub steps: u32,
 }
 
+/// アプリ本体は TS 版 (app/src/model/check.ts) を使う。これはその正解として
+/// テスト (app/test/check.test.ts) から呼ばれる。
 #[wasm_bindgen]
 pub fn is_white_in_check(sfen: &str) -> bool {
     let Ok(mut position) = fmrs_core::position::position::PositionAux::from_sfen(sfen) else {
         return false;
     };
+    // 後手玉が無いと checked_slow は panic する。wasm では panic のたびに
+    // スタックが戻らず、繰り返すとインスタンスが壊れる。
+    if position
+        .bitboard(
+            fmrs_core::piece::Color::WHITE,
+            fmrs_core::piece::Kind::King,
+        )
+        .is_empty()
+    {
+        return false;
+    }
     position.checked_slow(fmrs_core::piece::Color::WHITE)
 }
 

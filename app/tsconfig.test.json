@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "es2019",
+    "module": "commonjs",
+    "isolatedModules": false,
+    "noEmit": false,
+    "rootDir": ".",
+    "outDir": "../build/web-test",
+    "types": ["node"]
+  },
+  "include": ["test"]
+}

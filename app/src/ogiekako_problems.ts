@@ -1,4 +1,4 @@
-import { wasm } from "./wasm_main";
+import type { WasmApi } from "./wasm_main";
 import type { Response as SolveApiResponse } from "./solve";
 import { parseProblemSfen, ParsedProblemSfen } from "./model/sfen";
 
@@ -965,22 +965,31 @@ export function findOgiekakoProblemBySfen(sfen: string): OgiekakoProblem | undef
   return PROBLEM_BY_SFEN_KEY.get(normalizeSfenKey(sfen));
 }
 
+// 作品の解図結果。KIF は持たず、表示時に ogiekakoProblemKif で生成する
+// (KIF への変換に wasm が要るため。SolveResponse 参照)。
 export function buildPrecomputedSolveResponse(
   problem: OgiekakoProblem
-): SolveApiResponse | undefined {
-  const movesSfen = expandMoves(problem.solutionSeq, problem.solutionRules);
-  const kif = wasm().moves_to_kif(problem.sfen, movesSfen);
-  if (!kif) {
-    return undefined;
-  }
+): SolveApiResponse {
   return {
     redundant: false,
     solutions: 1,
-    kif,
     sfen: problem.sfen,
     fromWhite: false,
     knownProblem: true,
   };
+}
+
+// 作品の解答 KIF。圧縮された手順を展開し、wasm で KIF に変換する。
+export function ogiekakoProblemKif(
+  wasm: WasmApi,
+  sfen: string
+): string | undefined {
+  const problem = findOgiekakoProblemBySfen(sfen);
+  if (!problem) {
+    return undefined;
+  }
+  const movesSfen = expandMoves(problem.solutionSeq, problem.solutionRules);
+  return wasm.moves_to_kif(problem.sfen, movesSfen);
 }
 
 export function getPrecomputedSolveResponseBySfen(

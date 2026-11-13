@@ -29,11 +29,16 @@ jobs:
           else
             cargo install wasm-pack --version 0.14.0 --locked
           fi
-      - name: Install & Build
+      - name: Install
+        run: npm i
+      # 失敗したらデプロイしない。TS と Rust で二重に持っている手番判定
+      # (app/src/model/check.ts) が Rust 実装と一致するかを確かめる。
+      - name: Test
+        run: npm run test:web
+      - name: Build
         env:
           FMRS_API_BASE_URL: https://fmrs-api-1045417562870.asia-northeast1.run.app
         run: |
-          npm i
           npm run build
           rm ./docs/.gitignore
           rm ./docs/pkg/.gitignore

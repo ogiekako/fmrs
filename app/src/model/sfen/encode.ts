@@ -1,5 +1,5 @@
 import { Board, Color, Hands, Kind, Piece, Position } from "..";
-import { wasmIfLoaded } from "../../wasm_main";
+import { isWhiteInCheck } from "../check";
 
 export function encodeSfen(position: Position): string {
   const board = encodeBoard(position.board);
@@ -9,17 +9,8 @@ export function encodeSfen(position: Position): string {
   if (!hands) {
     hands = "-";
   }
-  const sfenBlack = [board, "b", hands].join(" ") + " 1";
-  // wasm の読み込み前 (作品集ページ表示中) は手番を判定できないので先手とする。
-  // ソルバー画面は wasm の読み込み後にしか描画しない。
-  try {
-    if (wasmIfLoaded()?.is_white_in_check(sfenBlack)) {
-      return [board, "w", hands].join(" ") + " 1";
-    }
-  } catch {
-    // wasm 側で panic しても、手番判定を諦めるだけにする。
-  }
-  return sfenBlack;
+  const turn = isWhiteInCheck(position) ? "w" : "b";
+  return [board, turn, hands].join(" ") + " 1";
 }
 
 function encodeBoard(b: Board): string {

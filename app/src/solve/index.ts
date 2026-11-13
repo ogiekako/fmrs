@@ -75,7 +75,8 @@ export async function isServerAvailable(
 export type Response = {
   redundant: boolean;
   solutions: number;
-  kif: string;
+  // 既知作品 (knownProblem) では持たず、表示時に生成する (ogiekakoProblemKif)。
+  kif?: string;
   sfen: string;
   fromWhite: boolean;
   knownProblem?: boolean;

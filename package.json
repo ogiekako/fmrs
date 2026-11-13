@@ -20,6 +20,7 @@
     "serve": "webpack serve --mode development",
     "serve-prod": "webpack serve --mode production",
     "build": "webpack --mode production",
+    "test:web": "wasm-pack build rust/wasm --release --target nodejs --out-dir ../../build/wasm-node --no-pack && tsc -p app/tsconfig.test.json && node --test build/web-test/test/check.test.js",
     "dev": "node ./rust/scripts/dev-server.js"
   },
   "eslintConfig": {
