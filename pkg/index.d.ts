@@ -45,6 +45,10 @@ export class Solver {
 
 export function check_one_way_mate(sfen: string): OneWayMateResult | undefined;
 
+/**
+ * アプリ本体は TS 版 (app/src/model/check.ts) を使う。これはその正解として
+ * テスト (app/test/check.test.ts) から呼ばれる。
+ */
 export function is_white_in_check(sfen: string): boolean;
 
 export function moves_to_kif(sfen: string, moves_sfen: string): string | undefined;

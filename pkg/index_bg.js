@@ -257,6 +257,8 @@ export function check_one_way_mate(sfen) {
 }
 
 /**
+ * アプリ本体は TS 版 (app/src/model/check.ts) を使う。これはその正解として
+ * テスト (app/test/check.test.ts) から呼ばれる。
  * @param {string} sfen
  * @returns {boolean}
  */
