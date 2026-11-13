@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794477294764,
+  "lastUpdate": 1794533969116,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -63896,6 +63896,58 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 434168652,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "5ab82e299bad0fca209042ff5b2832323dc744b8",
+          "message": "ソルバー画面もwasmを待たずに表示し、手番判定をTSに移してRust実装との一致をCIで検証する\n\n- 画面はどのページも wasm を待たずに描画する。メインスレッドで wasm を使うのは\n  解答表示の付加情報 (既知作品の KIF 生成と一本道判定) だけにし、useWasm() で\n  読み込み後に表示する。作品集からの遷移で待つ処理 (withWasm) は不要になった。\n- SFEN の手番判定 (後手玉に王手がかかっているか) を TS (model/check.ts) に移した。\n  URL・SFEN 表示・解図要求で同期的に使うため。Rust との二重管理になるので、\n  Rust 実装 (wasm の Node 向けビルド) を正解に、全駒種の利き・遮り・実在の問題・\n  ランダム局面で突き合わせるテスト (npm run test:web) を追加し、Pages のデプロイ前に\n  走らせる。\n- wasm の is_white_in_check は後手玉が無いと panic し、繰り返すとインスタンスが\n  壊れていた。後手玉が無ければ false を返す。",
+          "timestamp": "2026-11-13T01:24:25Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/5ab82e299bad0fca209042ff5b2832323dc744b8"
+        },
+        "date": 1794533966158,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50847,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 123818,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 18369,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 118024,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1996,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 433572208,
             "unit": "Instructions"
           }
         ]
