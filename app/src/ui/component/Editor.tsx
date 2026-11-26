@@ -270,6 +270,7 @@ export function Editor(props: {}) {
         solveResponse={state.solveResponse}
         solutionLimit={state.solutionLimit}
         oneWayMateMode={state.oneWayMateMode}
+        useServer={state.useServer}
         dispatch={dispatch}
         onSolutionLoaded={(container) => {
           if (!scrollToSolutionOnLoad.current) {

@@ -13,6 +13,7 @@ export default function SolveButton(props: {
   solveResponse: types.SolveResponse | undefined;
   solutionLimit: number;
   oneWayMateMode: boolean;
+  useServer: boolean;
   dispatch: types.Dispatcher;
   onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
@@ -81,7 +82,8 @@ export default function SolveButton(props: {
                 props.position,
                 cancelToken,
                 onNodes,
-                onFallback
+                onFallback,
+                props.useServer
               );
               const stone = positionStone(props.position);
               const millis = new Date().getTime() - start.getTime();
@@ -133,7 +135,8 @@ export default function SolveButton(props: {
                 props.solutionLimit,
                 cancelToken,
                 onStep,
-                onFallback
+                onFallback,
+                props.useServer
               );
               const stone = positionStone(props.position);
               const millis = new Date().getTime() - start.getTime();
@@ -232,6 +235,24 @@ export default function SolveButton(props: {
       ) : (
         <></>
       )}
+      <Form.Check
+        type="checkbox"
+        id="use-server-checkbox"
+        label={
+          isFutsuu
+            ? "サーバーで解図する（高速・最大10分）"
+            : "サーバーで解図する（最大60分）"
+        }
+        checked={props.useServer}
+        onChange={(e) => {
+          props.dispatch({
+            ty: "set-use-server",
+            useServer: e.target.checked,
+          });
+        }}
+        disabled={!!props.solving}
+        className="mb-2"
+      />
       {!isFutsuu && (
         <>
           <InputGroup className="mb-3" style={{ width: "200px" }}>

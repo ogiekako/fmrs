@@ -132,9 +132,13 @@ export async function solveFutsuu(
   position: model.Position,
   cancelToken: CancellationToken,
   onNodes: (nodes: number) => void,
-  onFallback?: () => void
+  onFallback?: () => void,
+  useServer: boolean = true
 ): Promise<FutsuuResponse | undefined> {
   const sfen = model.encodeSfen(position);
+  if (!useServer) {
+    return await solveFutsuuWasm(sfen, cancelToken, onNodes);
+  }
   const requireServer = isLocalDevServerBackedPage();
   const deadline =
     Date.now() +
@@ -174,7 +178,8 @@ export async function solve(
   n: number,
   cancelToken: CancellationToken,
   onStep: (step: number) => void,
-  onFallback?: () => void
+  onFallback?: () => void,
+  useServer: boolean = true
 ): Promise<Response | undefined> {
   const sfen = model.encodeSfen(position);
   if (n >= 1) {
@@ -182,6 +187,9 @@ export async function solve(
     if (precomputed) {
       return precomputed;
     }
+  }
+  if (!useServer) {
+    return await solveWasm(sfen, n, cancelToken, onStep);
   }
   const requireServer = isLocalDevServerBackedPage();
   const deadline =

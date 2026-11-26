@@ -11,6 +11,7 @@ export function cloneState(state: types.State): types.State {
     solveResponse: state.solveResponse && Object.freeze(state.solveResponse),
     solutionLimit: state.solutionLimit,
     oneWayMateMode: state.oneWayMateMode,
+    useServer: state.useServer,
   };
 }
 
