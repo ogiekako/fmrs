@@ -13,7 +13,6 @@ export default function SolveButton(props: {
   solveResponse: types.SolveResponse | undefined;
   solutionLimit: number;
   oneWayMateMode: boolean;
-  simpleMate: boolean;
   dispatch: types.Dispatcher;
   onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
@@ -80,7 +79,6 @@ export default function SolveButton(props: {
             if (isFutsuu) {
               const res = await solve.solveFutsuu(
                 props.position,
-                props.simpleMate,
                 cancelToken,
                 onNodes,
                 onFallback
@@ -234,22 +232,7 @@ export default function SolveButton(props: {
       ) : (
         <></>
       )}
-      {isFutsuu ? (
-        <Form.Check
-          type="checkbox"
-          id="simple-mate-checkbox"
-          label="簡易詰（無駄合・駒余りを許容）"
-          checked={props.simpleMate}
-          onChange={(e) => {
-            props.dispatch({
-              ty: "set-simple-mate",
-              simpleMate: e.target.checked,
-            });
-          }}
-          disabled={!!props.solving}
-          className="mb-3"
-        />
-      ) : (
+      {!isFutsuu && (
         <>
           <InputGroup className="mb-3" style={{ width: "200px" }}>
             <InputGroup.Text>最大検出解数</InputGroup.Text>

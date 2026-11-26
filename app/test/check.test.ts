@@ -27,7 +27,6 @@ type Oracle = {
   is_white_in_check(sfen: string): boolean;
   solve_futsuu(
     sfen: string,
-    simple_mate: boolean,
     hash_mb: number,
     on_progress?: (nodes: number) => void,
   ): FutsuuSolveResult;
@@ -255,7 +254,7 @@ test("普通詰将棋 wasm 解図 (solve_futsuu)", () => {
     ["将棋図巧 第5番 21手詰", "n+B1sS4/1R1g5/1Ls6/2k6/2n6/3L5/R8/9/9 b B2P3gs2n2l16p 1", true, 21],
   ];
   for (const [name, problemSfen, wantMate, wantSteps] of cases) {
-    const res = wasm.solve_futsuu(problemSfen, false, 32);
+    const res = wasm.solve_futsuu(problemSfen, 32);
     try {
       assert.strictEqual(res.is_mate(), wantMate, `${name}: mate`);
       assert.strictEqual(res.is_no_mate(), !wantMate, `${name}: no_mate`);
@@ -268,11 +267,11 @@ test("普通詰将棋 wasm 解図 (solve_futsuu)", () => {
     }
   }
   assert.throws(
-    () => wasm.solve_futsuu("4k4/4G4/9/9/9/9/9/9/9 b - 1", false, 16),
+    () => wasm.solve_futsuu("4k4/4G4/9/9/9/9/9/9/9 b - 1", 16),
     /受方玉にすでに王手がかかっています/,
   );
   assert.throws(
-    () => wasm.solve_futsuu("4k4/9/4O4/9/9/9/9/9/9 b G 1", false, 16),
+    () => wasm.solve_futsuu("4k4/9/4O4/9/9/9/9/9/9 b G 1", 16),
     /普通詰将棋では石/,
   );
 });

@@ -31,7 +31,6 @@ type FutsuuServerEvent =
 
 export async function solveFutsuuServer(
   sfen: string,
-  simpleMate: boolean,
   cancelToken: CancellationToken,
   onNodes: (nodes: number) => void,
   connectTimeoutMs: number
@@ -43,14 +42,11 @@ export async function solveFutsuuServer(
   );
   let response: globalThis.Response;
   try {
-    response = await fetch(
-      apiUrl(`/solve_futsuu?simple_mate=${simpleMate ? "true" : "false"}`),
-      {
-        method: "POST",
-        body: sfen,
-        signal: controller.signal,
-      }
-    );
+    response = await fetch(apiUrl("/solve_futsuu"), {
+      method: "POST",
+      body: sfen,
+      signal: controller.signal,
+    });
   } catch {
     throw new ServerUnavailableError(
       controller.signal.aborted

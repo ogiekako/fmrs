@@ -237,7 +237,7 @@ export function Editor(props: {}) {
               disabled={!!state.solving}
             />
           </div>
-          <Info />
+          <Info mode={state.mode} />
         </div>
         <div className="p-3 d-none d-md-block position-relative">
           <div style={{ position: "absolute", top: "1rem", left: "1rem" }}>
@@ -263,7 +263,6 @@ export function Editor(props: {}) {
         solveResponse={state.solveResponse}
         solutionLimit={state.solutionLimit}
         oneWayMateMode={state.oneWayMateMode}
-        simpleMate={state.simpleMate}
         dispatch={dispatch}
         onSolutionLoaded={(container) => {
           if (!scrollToSolutionOnLoad.current) {

@@ -87,7 +87,6 @@ export function newState(): types.State {
     solveResponse,
     solutionLimit: 5,
     oneWayMateMode: false,
-    simpleMate: false,
   };
 }
 
@@ -142,10 +141,6 @@ export function reduce(orig: types.State, event: types.Event): types.State {
     case "set-one-way-mate-mode":
       state = cloneState(orig);
       state.oneWayMateMode = event.oneWayMateMode;
-      return state;
-    case "set-simple-mate":
-      state = cloneState(orig);
-      state.simpleMate = event.simpleMate;
       return state;
     case "set-mode":
       state = cloneState(orig);

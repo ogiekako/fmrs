@@ -9,10 +9,10 @@ const wasm = import("../wasm_api");
 const PROGRESS_INTERVAL_MS = 50;
 
 serveWorkerTask<FutsuuSolveRequest, number, FutsuuResponse>(
-  async ({ sfen, simpleMate }, postNodes) => {
+  async ({ sfen }, postNodes) => {
     const { solve_futsuu } = await wasm;
     let lastPost = 0;
-    const res = solve_futsuu(sfen, simpleMate, 64, (nodes: number) => {
+    const res = solve_futsuu(sfen, 64, (nodes: number) => {
       const now = Date.now();
       if (now - lastPost >= PROGRESS_INTERVAL_MS) {
         postNodes(nodes);

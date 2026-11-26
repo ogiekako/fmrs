@@ -62,7 +62,6 @@ impl FutsuuSolveResult {
 
 pub fn solve_futsuu_core(
     problem_sfen: &str,
-    simple_mate: bool,
     hash_mb: usize,
     progress_cb: Option<Arc<dyn Fn(u64) + Send + Sync>>,
 ) -> Result<FutsuuSolveResult, String> {
@@ -72,7 +71,7 @@ pub fn solve_futsuu_core(
     let cfg = SearchConfig {
         hash_mb: hash_mb.clamp(8, 256),
         threads: 1,
-        simple_mate,
+        simple_mate: false,
         use_ni_cache: true,
         use_ml_ordering: true,
         ..Default::default()
@@ -129,7 +128,6 @@ unsafe impl Sync for SendSyncJsCallback {}
 #[wasm_bindgen]
 pub fn solve_futsuu(
     problem_sfen: String,
-    simple_mate: bool,
     hash_mb: u32,
     on_progress: Option<js_sys::Function>,
 ) -> Result<FutsuuSolveResult, String> {
@@ -152,7 +150,7 @@ pub fn solve_futsuu(
         None
     };
 
-    solve_futsuu_core(&problem_sfen, simple_mate, hash_mb as usize, progress_cb)
+    solve_futsuu_core(&problem_sfen, hash_mb as usize, progress_cb)
 }
 
 #[cfg(test)]
@@ -162,7 +160,7 @@ mod tests {
     #[test]
     fn test_solve_futsuu_3ply_and_kif() {
         let sfen = "3sks3/9/4S4/9/9/B8/9/9/9 b S2rb4g4n4l18p 1";
-        let res = solve_futsuu_core(sfen, false, 16, None).unwrap();
+        let res = solve_futsuu_core(sfen, 16, None).unwrap();
         assert!(res.is_mate());
         assert_eq!(res.steps(), 3);
         assert!(!res.redundant());
@@ -173,20 +171,20 @@ mod tests {
     #[test]
     fn test_solve_futsuu_no_mate_drop_pawn_mate() {
         let sfen = "9/9/5lp2/5lk2/5l3/9/5N3/7L1/9 b P2r2b4g4s3n16p 1";
-        let res = solve_futsuu_core(sfen, false, 16, None).unwrap();
+        let res = solve_futsuu_core(sfen, 16, None).unwrap();
         assert!(res.is_no_mate());
     }
 
     #[test]
     fn test_solve_futsuu_rejects_checked_white_and_stones() {
         assert_eq!(
-            solve_futsuu_core("4k4/4G4/9/9/9/9/9/9/9 b - 1", false, 16, None)
+            solve_futsuu_core("4k4/4G4/9/9/9/9/9/9/9 b - 1", 16, None)
                 .err()
                 .unwrap(),
             "受方玉にすでに王手がかかっています。"
         );
         assert_eq!(
-            solve_futsuu_core("4k4/9/4O4/9/9/9/9/9/9 b G 1", false, 16, None)
+            solve_futsuu_core("4k4/9/4O4/9/9/9/9/9/9 b G 1", 16, None)
                 .err()
                 .unwrap(),
             "普通詰将棋では石（壁駒）は使用できません。"

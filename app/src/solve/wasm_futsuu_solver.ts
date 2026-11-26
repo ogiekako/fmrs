@@ -3,7 +3,6 @@ import { runWorkerTask } from "./worker_task";
 
 export type FutsuuSolveRequest = {
   sfen: string;
-  simpleMate: boolean;
 };
 
 /**
@@ -12,7 +11,6 @@ export type FutsuuSolveRequest = {
  */
 export async function solveFutsuuWasm(
   sfen: string,
-  simpleMate: boolean,
   cancel: CancellationToken,
   onNodes: (nodes: number) => void
 ): Promise<FutsuuResponse | undefined> {
@@ -23,7 +21,7 @@ export async function solveFutsuuWasm(
       FutsuuResponse | undefined
     >(
       new Worker(new URL("./futsuu_worker.ts", import.meta.url)),
-      { sfen, simpleMate },
+      { sfen },
       cancel,
       onNodes,
       () => undefined

@@ -10,7 +10,6 @@ export type State = {
   solveResponse: SolveResponse | undefined;
   solutionLimit: number;
   oneWayMateMode: boolean;
-  simpleMate: boolean;
 };
 
 export type Problem = [Position, /* name */ string];
@@ -104,10 +103,6 @@ export type Event =
   | {
       ty: "set-one-way-mate-mode";
       oneWayMateMode: boolean;
-    }
-  | {
-      ty: "set-simple-mate";
-      simpleMate: boolean;
     }
   | {
       ty: "set-mode";

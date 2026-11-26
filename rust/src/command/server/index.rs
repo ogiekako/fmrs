@@ -186,12 +186,7 @@ struct FutsuuClientSolveResponse {
     sfen: String,
 }
 
-#[derive(serde::Deserialize)]
-struct SolveFutsuuQuery {
-    simple_mate: Option<bool>,
-}
-
-fn futsuu_server_config(simple_mate: bool) -> SearchConfig {
+fn futsuu_server_config() -> SearchConfig {
     let hash_mb = std::env::var("FMRS_FUTSUU_HASH_MB")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
@@ -209,7 +204,7 @@ fn futsuu_server_config(simple_mate: bool) -> SearchConfig {
     SearchConfig {
         hash_mb,
         threads,
-        simple_mate,
+        simple_mate: false,
         use_ni_cache: true,
         use_ml_ordering: true,
         ..Default::default()
@@ -217,12 +212,11 @@ fn futsuu_server_config(simple_mate: bool) -> SearchConfig {
 }
 
 #[post("/solve_futsuu")]
-async fn solve_futsuu(query: web::Query<SolveFutsuuQuery>, body_sfen: String) -> HttpResponse {
+async fn solve_futsuu(body_sfen: String) -> HttpResponse {
     let problem = match decode_and_validate_futsuu_position(&body_sfen) {
         Ok(problem) => problem,
         Err(message) => return HttpResponse::BadRequest().body(message),
     };
-    let simple_mate = query.simple_mate.unwrap_or(false);
 
     let (prog_tx, prog_rx) = futures::channel::mpsc::unbounded::<u64>();
     let (res_tx, res_rx) = futures::channel::mpsc::unbounded::<FutsuuSolveResponse>();
@@ -233,7 +227,7 @@ async fn solve_futsuu(query: web::Query<SolveFutsuuQuery>, body_sfen: String) ->
     std::thread::spawn(move || {
         let mut problem = problem;
         let root = FmrsPos::from_pos_aux_root(problem.clone());
-        let mut solver = FutsuuSolver::new(futsuu_server_config(simple_mate));
+        let mut solver = FutsuuSolver::new(futsuu_server_config());
         solver.set_abort_flag(Some(abort_flag));
         solver.set_progress_callback(Some(Arc::new(move |nodes: u64| {
             if prog_tx.unbounded_send(nodes).is_err() {

@@ -108,7 +108,6 @@ export type FutsuuResponse =
 
 export async function solveFutsuu(
   position: model.Position,
-  simpleMate: boolean,
   cancelToken: CancellationToken,
   onNodes: (nodes: number) => void,
   onFallback?: () => void
@@ -124,7 +123,6 @@ export async function solveFutsuu(
     try {
       return await solveFutsuuServer(
         sfen,
-        simpleMate,
         cancelToken,
         onNodes,
         deadline - Date.now()
@@ -146,7 +144,7 @@ export async function solveFutsuu(
   } else {
     onFallback?.();
   }
-  return await solveFutsuuWasm(sfen, simpleMate, cancelToken, onNodes);
+  return await solveFutsuuWasm(sfen, cancelToken, onNodes);
 }
 
 export async function solve(
