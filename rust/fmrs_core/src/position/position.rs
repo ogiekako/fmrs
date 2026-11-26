@@ -458,13 +458,13 @@ impl PositionAux {
     }
 
     #[inline(always)]
-    pub(crate) fn white_king_pos(&self) -> Square {
+    pub fn white_king_pos(&self) -> Square {
         self.white_king_pos
             .unwrap_or_else(|| (self.kind_bb(Kind::King) & self.white_bb()).singleton())
     }
 
     #[inline(always)]
-    pub(crate) fn black_king_pos(&self) -> Option<Square> {
+    pub fn black_king_pos(&self) -> Option<Square> {
         self.black_king_pos
             .unwrap_or_else(|| (self.kind_bb(Kind::King) & self.black_bb()).next())
     }
@@ -787,7 +787,7 @@ impl PositionAux {
     }
 
     #[inline(always)]
-    pub(crate) fn king_pos(&self, king_color: Color) -> Option<Square> {
+    pub fn king_pos(&self, king_color: Color) -> Option<Square> {
         if king_color.is_black() {
             self.black_king_pos()
         } else {
