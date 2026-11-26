@@ -59,7 +59,7 @@ export function Editor(props: {}) {
     document.title = showOgiekako
       ? "ogiekako 協力詰作品集"
       : state.mode === "futsuu"
-        ? "Shogi Tsume Solver"
+        ? "Tsume Shogi Solver"
         : "Shogi Helpmate Solver";
   }, [showOgiekako, state.mode]);
 
@@ -190,7 +190,7 @@ export function Editor(props: {}) {
       <div className="d-flex justify-content-between align-items-baseline flex-wrap gap-2 my-2">
         <h1 className="mb-0">
           {state.mode === "futsuu"
-            ? "Shogi Tsume Solver"
+            ? "Tsume Shogi Solver"
             : "Shogi Helpmate Solver"}
         </h1>
         <div className="d-flex gap-3 ms-auto" style={{ fontSize: "0.95rem" }}>
