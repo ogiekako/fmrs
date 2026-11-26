@@ -5,5 +5,5 @@ import { __wbg_set_wasm } from "./index_bg.js";
 __wbg_set_wasm(wasm);
 wasm.__wbindgen_start();
 export {
-    Algorithm, BackwardSearch, OneWayMateResult, Solver, check_one_way_mate, is_white_in_check, moves_to_kif
+    Algorithm, BackwardSearch, FutsuuSolveResult, OneWayMateResult, Solver, check_one_way_mate, is_white_in_check, moves_to_kif, solve_futsuu
 } from "./index_bg.js";

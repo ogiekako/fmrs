@@ -30,7 +30,7 @@ export class BackwardSearch {
      */
     constructor(sfen, one_way_mate_mode) {
         const val2 = +one_way_mate_mode;
-        const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+        const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.backwardsearch_new(ptr0, len0, val2);
         this.__wbg_ptr = ret;
@@ -53,7 +53,7 @@ export class BackwardSearch {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -65,6 +65,125 @@ export class BackwardSearch {
     }
 }
 if (Symbol.dispose) BackwardSearch.prototype[Symbol.dispose] = BackwardSearch.prototype.free;
+
+export class FutsuuSolveResult {
+    static __wrap(ptr) {
+        const obj = Object.create(FutsuuSolveResult.prototype);
+        obj.__wbg_ptr = ptr;
+        FutsuuSolveResultFinalization.register(obj, obj.__wbg_ptr, obj);
+        return obj;
+    }
+    __destroy_into_raw() {
+        const ptr = this.__wbg_ptr;
+        this.__wbg_ptr = 0;
+        FutsuuSolveResultFinalization.unregister(this);
+        return ptr;
+    }
+    free() {
+        const ptr = this.__destroy_into_raw();
+        wasm.__wbg_futsuusolveresult_free(ptr, 0);
+    }
+    /**
+     * @returns {boolean}
+     */
+    is_mate() {
+        const ret = wasm.futsuusolveresult_is_mate(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    is_no_mate() {
+        const ret = wasm.futsuusolveresult_is_no_mate(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    is_suspended() {
+        const ret = wasm.futsuusolveresult_is_suspended(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {string}
+     */
+    kif() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.futsuusolveresult_kif(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {string}
+     */
+    moves_sfen() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.futsuusolveresult_moves_sfen(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    nodes() {
+        const ret = wasm.futsuusolveresult_nodes(this.__wbg_ptr);
+        return ret;
+    }
+    /**
+     * @returns {boolean}
+     */
+    redundant() {
+        const ret = wasm.futsuusolveresult_redundant(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {string}
+     */
+    sfen() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.futsuusolveresult_sfen(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    steps() {
+        const ret = wasm.futsuusolveresult_steps(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+}
+if (Symbol.dispose) FutsuuSolveResult.prototype[Symbol.dispose] = FutsuuSolveResult.prototype.free;
 
 export class OneWayMateResult {
     static __wrap(ptr) {
@@ -159,7 +278,7 @@ export class Solver {
             const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
             const val2 = +solutions_upto;
             const val3 = +algo;
-            const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
             const len0 = WASM_VECTOR_LEN;
             wasm.solver_new(retptr, ptr0, len0, val2, val3);
             var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
@@ -219,7 +338,7 @@ export class Solver {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
         }
     }
     /**
@@ -239,7 +358,7 @@ export class Solver {
             return getStringFromWasm0(r0, r1);
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
-            wasm.__wbindgen_export(deferred1_0, deferred1_1, 1);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
         }
     }
 }
@@ -250,7 +369,7 @@ if (Symbol.dispose) Solver.prototype[Symbol.dispose] = Solver.prototype.free;
  * @returns {OneWayMateResult | undefined}
  */
 export function check_one_way_mate(sfen) {
-    const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+    const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.check_one_way_mate(ptr0, len0);
     return ret === 0 ? undefined : OneWayMateResult.__wrap(ret);
@@ -263,7 +382,7 @@ export function check_one_way_mate(sfen) {
  * @returns {boolean}
  */
 export function is_white_in_check(sfen) {
-    const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+    const ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.is_white_in_check(ptr0, len0);
     return ret !== 0;
@@ -279,13 +398,13 @@ export function moves_to_kif(sfen, moves_sfen) {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
         let ptr0, len0, ptr1, len1;
         try {
-            ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            ptr0 = passStringToWasm0(sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
             len0 = WASM_VECTOR_LEN;
-            ptr1 = passStringToWasm0(moves_sfen, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+            ptr1 = passStringToWasm0(moves_sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
             len1 = WASM_VECTOR_LEN;
         } catch (e) {
-            if (ptr1) { wasm.__wbindgen_export(ptr1, len1 * 1, 1); }
-            if (ptr0) { wasm.__wbindgen_export(ptr0, len0 * 1, 1); }
+            if (ptr1) { wasm.__wbindgen_export3(ptr1, len1 * 1, 1); }
+            if (ptr0) { wasm.__wbindgen_export3(ptr0, len0 * 1, 1); }
             throw e;
         }
         wasm.moves_to_kif(retptr, ptr0, len0, ptr1, len1);
@@ -294,9 +413,36 @@ export function moves_to_kif(sfen, moves_sfen) {
         let v3;
         if (r0 !== 0) {
             v3 = getStringFromWasm0(r0, r1);
-            wasm.__wbindgen_export(r0, r1 * 1, 1);
+            wasm.__wbindgen_export3(r0, r1 * 1, 1);
         }
         return v3;
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+    }
+}
+
+/**
+ * @param {string} problem_sfen
+ * @param {boolean} simple_mate
+ * @param {number} hash_mb
+ * @param {Function | null} [on_progress]
+ * @returns {FutsuuSolveResult}
+ */
+export function solve_futsuu(problem_sfen, simple_mate, hash_mb, on_progress) {
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+        const val2 = +simple_mate;
+        const val3 = +hash_mb;
+        const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.solve_futsuu(retptr, ptr0, len0, val2, val3, isLikeNone(on_progress) ? 0 : addToExternrefTable0(on_progress));
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
+        if (r2) {
+            throw takeFromExternrefTable0(r1);
+        }
+        return FutsuuSolveResult.__wrap(r0);
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
     }
@@ -304,6 +450,10 @@ export function moves_to_kif(sfen, moves_sfen) {
 export function __wbg___wbindgen_throw_4c88d8bf264fd984(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
+export function __wbg_call_a410eb4b59ed5965() { return handleError(function (arg0, arg1, arg2) {
+    const ret = arg0.call(arg1, arg2);
+    return ret;
+}, arguments); }
 export function __wbg_error_757e9472f8410341(arg0, arg1) {
     let deferred0_0;
     let deferred0_1;
@@ -312,7 +462,7 @@ export function __wbg_error_757e9472f8410341(arg0, arg1) {
         deferred0_1 = arg1;
         console.error(getStringFromWasm0(arg0, arg1));
     } finally {
-        wasm.__wbindgen_export(deferred0_0, deferred0_1, 1);
+        wasm.__wbindgen_export3(deferred0_0, deferred0_1, 1);
     }
 }
 export function __wbg_new_bb74001155cb8ca8() {
@@ -321,12 +471,17 @@ export function __wbg_new_bb74001155cb8ca8() {
 }
 export function __wbg_stack_575c4e0918581b9c(arg0, arg1) {
     const ret = arg1.stack;
-    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export2, wasm.__wbindgen_export3);
+    const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
     const len1 = WASM_VECTOR_LEN;
     getDataViewMemory0().setInt32((arg0 >>> 0) + 4 * 1, len1, true);
     getDataViewMemory0().setInt32((arg0 >>> 0) + 4 * 0, ptr1, true);
 }
-export function __wbindgen_generic_0000000000000001(arg0, arg1) {
+export function __wbindgen_generic_0000000000000001(arg0) {
+    // Cast intrinsic for `F64 -> Externref`.
+    const ret = arg0;
+    return ret;
+}
+export function __wbindgen_generic_0000000000000002(arg0, arg1) {
     // Cast intrinsic for `Ref(String) -> Externref`.
     const ret = getStringFromWasm0(arg0, arg1);
     return ret;
@@ -342,12 +497,21 @@ export function __wbindgen_init_externref_table() {
 const BackwardSearchFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_backwardsearch_free(ptr, 1));
+const FutsuuSolveResultFinalization = (typeof FinalizationRegistry === 'undefined')
+    ? { register: () => {}, unregister: () => {} }
+    : new FinalizationRegistry(ptr => wasm.__wbg_futsuusolveresult_free(ptr, 1));
 const OneWayMateResultFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_onewaymateresult_free(ptr, 1));
 const SolverFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_solver_free(ptr, 1));
+
+function addToExternrefTable0(obj) {
+    const idx = wasm.__wbindgen_export2();
+    wasm.__wbindgen_externrefs.set(idx, obj);
+    return idx;
+}
 
 let cachedDataViewMemory0 = null;
 function getDataViewMemory0() {
@@ -368,6 +532,19 @@ function getUint8ArrayMemory0() {
         cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
     }
     return cachedUint8ArrayMemory0;
+}
+
+function handleError(f, args) {
+    try {
+        return f.apply(this, args);
+    } catch (e) {
+        const idx = addToExternrefTable0(e);
+        wasm.__wbindgen_export(idx);
+    }
+}
+
+function isLikeNone(x) {
+    return x === undefined || x === null;
 }
 
 function passStringToWasm0(arg, malloc, realloc) {
@@ -409,7 +586,7 @@ function passStringToWasm0(arg, malloc, realloc) {
 
 function takeFromExternrefTable0(idx) {
     const value = wasm.__wbindgen_externrefs.get(idx);
-    wasm.__wbindgen_export4(idx);
+    wasm.__wbindgen_export6(idx);
     return value;
 }
 

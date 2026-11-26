@@ -15,6 +15,21 @@ export class BackwardSearch {
     step(): number;
 }
 
+export class FutsuuSolveResult {
+    private constructor();
+    free(): void;
+    [Symbol.dispose](): void;
+    is_mate(): boolean;
+    is_no_mate(): boolean;
+    is_suspended(): boolean;
+    kif(): string;
+    moves_sfen(): string;
+    nodes(): number;
+    redundant(): boolean;
+    sfen(): string;
+    steps(): number;
+}
+
 export class OneWayMateResult {
     private constructor();
     free(): void;
@@ -52,3 +67,5 @@ export function check_one_way_mate(sfen: string): OneWayMateResult | undefined;
 export function is_white_in_check(sfen: string): boolean;
 
 export function moves_to_kif(sfen: string, moves_sfen: string): string | undefined;
+
+export function solve_futsuu(problem_sfen: string, simple_mate: boolean, hash_mb: number, on_progress?: Function | null): FutsuuSolveResult;
