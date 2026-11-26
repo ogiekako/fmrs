@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795664317255,
+  "lastUpdate": 1795664767830,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -64836,6 +64836,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/f17e8aa9947c866a044cad45cdc65efc4ed35583"
         },
         "date": 1795664311540,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50824,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 48532,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 14622,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 99804,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1959,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 118478560,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "aaa8e7df5975c756ad769146f1620ff988376afd",
+          "message": "Cloud Run を 4 vCPU・最大2台・ハッシュ2048MB・上限600秒へ更新し Worker 先読みでオフライン解図に対応\n\n- Cloud Run (cloud-run.yaml / deploy-cloud-run.sh / CLOUD_RUN.md): CPU=4, MAX_INSTANCES=2 に変更（無料枠 12.5時間/月を維持しつつ 4T 並列と最悪上限抑制を両立）\n- サーバー /solve_futsuu: 既定ハッシュを 2048MB、既定タイムアウトを 600 秒 (FMRS_FUTSUU_TIME_LIMIT_SECS で変更可) に設定\n- フロントエンド: WarmWorker を導入して現在モードの WASM Worker を先読み・健全時再利用し、ページ表示後にオフラインになってもブラウザ内解図が動作するよう改善（各 Worker で明示的に free() を実行）",
+          "timestamp": "2026-11-26T03:44:03Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/aaa8e7df5975c756ad769146f1620ff988376afd"
+        },
+        "date": 1795664764256,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
