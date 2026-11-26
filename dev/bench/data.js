@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795662463599,
+  "lastUpdate": 1795662841143,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -64448,6 +64448,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/71d77905ef3d858b94b16425c00c2a76c50ce3f2"
         },
         "date": 1795662455484,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50824,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 48532,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 14622,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 99804,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1959,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 118478560,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "71d77905ef3d858b94b16425c00c2a76c50ce3f2",
+          "message": "fmrs_core: SharedTBase の shard 数テストで巨大アリーナ確保を回避",
+          "timestamp": "2026-11-26T02:59:44Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/71d77905ef3d858b94b16425c00c2a76c50ce3f2"
+        },
+        "date": 1795662837327,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
