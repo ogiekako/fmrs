@@ -1,8 +1,7 @@
-// 重い wasm 計算を Web Worker で 1 回だけ実行するための共通部品。
+// 重い wasm 計算を Web Worker で実行するための共通部品。
 // wasm の 1 呼び出しが数秒〜数十秒かかることがあり、メインスレッドで回すと
 // 画面も Cancel も止まるため。Worker 側は serveWorkerTask、メインスレッド側は
-// runWorkerTask を使う。Worker は 1 タスクごとに作って捨てるので、wasm が
-// 確保したメモリも panic 後の壊れた状態も、終了時にまとめて破棄される。
+// runWorkerTask / WarmWorker を使う。
 //
 // Worker からも import されるので、型以外の重い依存 (wasm など) を持たないこと。
 import type { CancellationToken } from ".";
@@ -10,7 +9,17 @@ import type { CancellationToken } from ".";
 export type WorkerTaskMessage<S, R> =
   | { ty: "step"; step: S }
   | { ty: "done"; result: R }
-  | { ty: "error"; message: string };
+  | { ty: "error"; message: string; fatal?: boolean };
+
+function workerErrorMessage(event: ErrorEvent): string {
+  if (event.message) {
+    return event.message;
+  }
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return "オフラインのためブラウザ内ソルバー (Worker) を起動できませんでした。";
+  }
+  return "Worker の起動に失敗しました。";
+}
 
 /**
  * メインスレッド側: worker に request を送り、結果を待つ。
@@ -46,7 +55,7 @@ export async function runWorkerTask<Req, S, R>(
       };
       worker.onerror = (event) => {
         event.preventDefault();
-        reject(new Error(event.message || "Worker の起動に失敗しました。"));
+        reject(new Error(workerErrorMessage(event)));
       };
       worker.postMessage(request);
     });
@@ -57,6 +66,119 @@ export async function runWorkerTask<Req, S, R>(
     worker.onerror = null;
     worker.terminate();
   }
+}
+
+/**
+ * Worker を 1 個だけ先読み・待機させて再利用するラッパー。
+ *
+ * - ページ表示時 (オンライン時) に warm() で Worker と内部 wasm を先読みして
+ *   おくことで、その後オフラインになってもネットワーク通信なしで解図できる。
+ * - 正常完了または入力バリデーション等の非致命エラー後は同じ Worker を再利用する。
+ * - キャンセル・onerror・WASM クラッシュ (fatal) 時は Worker を terminate して
+ *   破棄し、オンラインであれば次回用に再ウォームアップする。
+ */
+export class WarmWorker {
+  private standby: Worker | undefined;
+
+  constructor(private readonly createWorker: () => Worker) {}
+
+  warm() {
+    if (this.standby || typeof Worker === "undefined") {
+      return;
+    }
+    try {
+      const w = this.createWorker();
+      w.onerror = (event) => {
+        event.preventDefault();
+        if (this.standby === w) {
+          this.standby = undefined;
+        }
+        w.onerror = null;
+        w.terminate();
+      };
+      this.standby = w;
+    } catch {
+      this.standby = undefined;
+    }
+  }
+
+  dispose() {
+    const w = this.standby;
+    this.standby = undefined;
+    if (w) {
+      w.onmessage = null;
+      w.onerror = null;
+      w.terminate();
+    }
+  }
+
+  async run<Req, S, R>(
+    request: Req,
+    cancel: CancellationToken,
+    onStep: (step: S) => void,
+    onCanceled: () => R
+  ): Promise<R> {
+    const worker = this.standby ?? this.createWorker();
+    this.standby = undefined;
+    let keepAlive = false;
+    let unsubscribe = () => {};
+    try {
+      return await new Promise<R>((resolve, reject) => {
+        unsubscribe = cancel.onCancel(() => resolve(onCanceled()));
+        worker.onmessage = (event: MessageEvent<WorkerTaskMessage<S, R>>) => {
+          const message = event.data;
+          switch (message.ty) {
+            case "step":
+              onStep(message.step);
+              return;
+            case "done":
+              keepAlive = true;
+              resolve(message.result);
+              return;
+            case "error":
+              keepAlive = !message.fatal;
+              reject(new Error(message.message));
+              return;
+          }
+        };
+        worker.onerror = (event) => {
+          event.preventDefault();
+          keepAlive = false;
+          reject(new Error(workerErrorMessage(event)));
+        };
+        worker.postMessage(request);
+      });
+    } finally {
+      unsubscribe();
+      worker.onmessage = null;
+      if (keepAlive && !cancel.isCanceled() && !this.standby) {
+        worker.onerror = (event) => {
+          event.preventDefault();
+          if (this.standby === worker) {
+            this.standby = undefined;
+          }
+          worker.onerror = null;
+          worker.terminate();
+        };
+        this.standby = worker;
+      } else {
+        worker.onerror = null;
+        worker.terminate();
+        if (typeof navigator === "undefined" || navigator.onLine) {
+          this.warm();
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Rust の Result::Err(String) は wasm-bindgen が文字列として throw するため
+ * 非致命 (WASM インスタンスは健全)。一方 Error / WebAssembly.RuntimeError
+ * 等はパニック・OOM・import 失敗等の可能性があるため致命扱いにして破棄する。
+ */
+function isFatalWorkerError(error: unknown): boolean {
+  return typeof error !== "string";
 }
 
 /**
@@ -81,6 +203,7 @@ export function serveWorkerTask<Req, S, R>(
       scope.postMessage({
         ty: "error",
         message: e instanceof Error ? e.message : String(e),
+        fatal: isFatalWorkerError(e),
       });
     }
   };

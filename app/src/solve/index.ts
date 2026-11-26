@@ -2,8 +2,30 @@ import * as model from "../model";
 import { getPrecomputedSolveResponseBySfen } from "../ogiekako_problems";
 import { ServerUnavailableError, solveServer } from "./server_solver";
 import { solveFutsuuServer } from "./server_futsuu_solver";
-import { solveWasm } from "./wasm_solver";
-import { solveFutsuuWasm } from "./wasm_futsuu_solver";
+import {
+  disposeSolveWorker,
+  solveWasm,
+  warmSolveWorker,
+} from "./wasm_solver";
+import {
+  disposeFutsuuWorker,
+  solveFutsuuWasm,
+  warmFutsuuWorker,
+} from "./wasm_futsuu_solver";
+
+/**
+ * 現在開いているモードの WASM Worker を先読みし、もう一方の待機 Worker を解放する。
+ * ページ表示後にオフラインになってもブラウザ内解図を開始できるようにする。
+ */
+export function warmWorkerForMode(mode: model.SolverMode) {
+  if (mode === "futsuu") {
+    disposeSolveWorker();
+    warmFutsuuWorker();
+  } else {
+    disposeFutsuuWorker();
+    warmSolveWorker();
+  }
+}
 
 export class CancellationToken {
   private canceled = false;

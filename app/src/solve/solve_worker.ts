@@ -13,28 +13,31 @@ const STEP_INTERVAL_MS = 50;
 serveWorkerTask<SolveRequest, number, Response | undefined>(
   async ({ sfen, n }, postStep) => {
     const { Algorithm, Solver } = await wasm;
-    // Worker ごと破棄されるので free() はしない (panic 後は free() も失敗する)。
     const solver = new Solver(sfen, n + 1, Algorithm.Standard);
-    let lastPost = 0;
-    for (;;) {
-      const step = solver.advance();
-      if (solver.no_solution()) {
-        return undefined;
+    try {
+      let lastPost = 0;
+      for (;;) {
+        const step = solver.advance();
+        if (solver.no_solution()) {
+          return undefined;
+        }
+        if (solver.solutions_found()) {
+          return {
+            sfen,
+            redundant: solver.redundant(),
+            solutions: solver.solutions_count(),
+            kif: solver.solutions_kif(),
+            fromWhite: solver.is_from_white(),
+          };
+        }
+        const now = Date.now();
+        if (now - lastPost >= STEP_INTERVAL_MS) {
+          postStep(step);
+          lastPost = now;
+        }
       }
-      if (solver.solutions_found()) {
-        return {
-          sfen,
-          redundant: solver.redundant(),
-          solutions: solver.solutions_count(),
-          kif: solver.solutions_kif(),
-          fromWhite: solver.is_from_white(),
-        };
-      }
-      const now = Date.now();
-      if (now - lastPost >= STEP_INTERVAL_MS) {
-        postStep(step);
-        lastPost = now;
-      }
+    } finally {
+      solver.free();
     }
   }
 );

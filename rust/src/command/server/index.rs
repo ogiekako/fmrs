@@ -190,7 +190,7 @@ fn futsuu_server_config() -> SearchConfig {
     let hash_mb = std::env::var("FMRS_FUTSUU_HASH_MB")
         .ok()
         .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(512)
+        .unwrap_or(2048)
         .clamp(32, 4096);
     let default_threads = std::thread::available_parallelism()
         .map(|n| n.get())
@@ -201,9 +201,18 @@ fn futsuu_server_config() -> SearchConfig {
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(default_threads)
         .max(1);
+    let time_limit_secs = match std::env::var("FMRS_FUTSUU_TIME_LIMIT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<f64>().ok())
+    {
+        Some(secs) if secs <= 0.0 => None,
+        Some(secs) => Some(secs),
+        None => Some(600.0),
+    };
     SearchConfig {
         hash_mb,
         threads,
+        time_limit_secs,
         simple_mate: false,
         use_ni_cache: true,
         use_ml_ordering: true,

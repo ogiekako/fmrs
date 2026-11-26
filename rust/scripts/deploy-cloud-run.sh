@@ -5,10 +5,10 @@ SERVICE_NAME="${SERVICE_NAME:-fmrs-api}"
 REGION="${REGION:-asia-northeast1}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://ogiekako.github.io}"
 MEMORY="${MEMORY:-8Gi}"
-CPU="${CPU:-2}"
+CPU="${CPU:-4}"
 TIMEOUT="${TIMEOUT:-3600}"
 CONCURRENCY="${CONCURRENCY:-1}"
-MAX_INSTANCES="${MAX_INSTANCES:-3}"
+MAX_INSTANCES="${MAX_INSTANCES:-2}"
 
 if ! command -v gcloud >/dev/null 2>&1; then
   echo "gcloud が見つかりません。https://cloud.google.com/sdk/docs/install を参照してください。" >&2

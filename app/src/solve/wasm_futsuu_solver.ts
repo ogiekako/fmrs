@@ -1,9 +1,21 @@
 import { CancellationToken, FutsuuResponse } from ".";
-import { runWorkerTask } from "./worker_task";
+import { WarmWorker } from "./worker_task";
 
 export type FutsuuSolveRequest = {
   sfen: string;
 };
+
+const futsuuWorker = new WarmWorker(
+  () => new Worker(new URL("./futsuu_worker.ts", import.meta.url))
+);
+
+export function warmFutsuuWorker() {
+  futsuuWorker.warm();
+}
+
+export function disposeFutsuuWorker() {
+  futsuuWorker.dispose();
+}
 
 /**
  * wasm の普通詰将棋ソルバーを Web Worker で実行する (futsuu_worker.ts)。
@@ -15,17 +27,11 @@ export async function solveFutsuuWasm(
   onNodes: (nodes: number) => void
 ): Promise<FutsuuResponse | undefined> {
   try {
-    return await runWorkerTask<
+    return await futsuuWorker.run<
       FutsuuSolveRequest,
       number,
       FutsuuResponse | undefined
-    >(
-      new Worker(new URL("./futsuu_worker.ts", import.meta.url)),
-      { sfen },
-      cancel,
-      onNodes,
-      () => undefined
-    );
+    >({ sfen }, cancel, onNodes, () => undefined);
   } catch (e) {
     console.error(e);
     throw new Error(toJapaneseErrorMessage(e));
@@ -50,7 +56,8 @@ function toJapaneseErrorMessage(error: unknown): string {
     message.includes("受方玉にすでに王手がかかっています") ||
     message.includes("普通詰将棋では石") ||
     message.includes("初形が不正です") ||
-    message.includes("局面の読み込みに失敗しました")
+    message.includes("局面の読み込みに失敗しました") ||
+    message.includes("オフラインのため")
   ) {
     return message;
   }

@@ -35,7 +35,7 @@ jobs:
           REGION: asia-northeast1
           ALLOWED_ORIGINS: https://ogiekako.github.io
           MEMORY: 8Gi
-          CPU: 2
+          CPU: 4
           TIMEOUT: 3600
-          MAX_INSTANCES: 3
+          MAX_INSTANCES: 2
         run: ./rust/scripts/deploy-cloud-run.sh

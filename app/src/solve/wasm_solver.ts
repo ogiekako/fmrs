@@ -1,11 +1,23 @@
 import { CancellationToken, Response } from ".";
-import { runWorkerTask } from "./worker_task";
+import { WarmWorker } from "./worker_task";
 
 export type SolveRequest = {
   sfen: string;
   /** 求める解の数。n + 1 個まで数えて余詰を判定する。 */
   n: number;
 };
+
+const solveWorker = new WarmWorker(
+  () => new Worker(new URL("./solve_worker.ts", import.meta.url))
+);
+
+export function warmSolveWorker() {
+  solveWorker.warm();
+}
+
+export function disposeSolveWorker() {
+  solveWorker.dispose();
+}
 
 /**
  * wasm の Solver を Web Worker で実行する (solve_worker.ts)。
@@ -20,8 +32,7 @@ export async function solveWasm(
   onStep: (step: number) => void
 ): Promise<Response | undefined> {
   try {
-    return await runWorkerTask<SolveRequest, number, Response | undefined>(
-      new Worker(new URL("./solve_worker.ts", import.meta.url)),
+    return await solveWorker.run<SolveRequest, number, Response | undefined>(
       { sfen, n },
       cancel,
       onStep,
@@ -49,7 +60,8 @@ function toJapaneseErrorMessage(error: unknown): string {
   if (
     message.includes("両方の玉に王手がかかっています") ||
     message.includes("初形が不正です") ||
-    message.includes("局面の読み込みに失敗しました")
+    message.includes("局面の読み込みに失敗しました") ||
+    message.includes("オフラインのため")
   ) {
     return message;
   }

@@ -27,7 +27,7 @@ const futsuuInfoPopover = (
         </li>
         <li>
           <strong>探索環境</strong>:
-          サーバー接続時はサーバー側で解図し、接続できない場合はブラウザ内（WebAssembly）にフォールバックします。
+          サーバー接続時はサーバー側で解図（1 問あたり最大 10 分）し、接続できない場合はブラウザ内（WebAssembly）にフォールバックします。
         </li>
       </ul>
     </Popover.Body>

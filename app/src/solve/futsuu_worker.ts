@@ -19,25 +19,29 @@ serveWorkerTask<FutsuuSolveRequest, number, FutsuuResponse>(
         lastPost = now;
       }
     });
-    if (res.is_mate()) {
+    try {
+      if (res.is_mate()) {
+        return {
+          ty: "mate",
+          steps: res.steps(),
+          redundant: res.redundant(),
+          nodes: res.nodes(),
+          kif: res.kif(),
+          sfen: res.sfen(),
+        };
+      }
+      if (res.is_no_mate()) {
+        return {
+          ty: "no-mate",
+          nodes: res.nodes(),
+        };
+      }
       return {
-        ty: "mate",
-        steps: res.steps(),
-        redundant: res.redundant(),
-        nodes: res.nodes(),
-        kif: res.kif(),
-        sfen: res.sfen(),
-      };
-    }
-    if (res.is_no_mate()) {
-      return {
-        ty: "no-mate",
+        ty: "suspended",
         nodes: res.nodes(),
       };
+    } finally {
+      res.free();
     }
-    return {
-      ty: "suspended",
-      nodes: res.nodes(),
-    };
   }
 );

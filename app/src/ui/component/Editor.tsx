@@ -6,6 +6,7 @@ import Problems from "./Problems";
 import Sfen from "./Sfen";
 import SolveButton from "./SolveButton";
 import OgiekakoCollection from "./OgiekakoCollection";
+import * as solve from "../../solve";
 import {
   decodeSfen,
   encodeSfen,
@@ -60,6 +61,12 @@ export function Editor(props: {}) {
       : state.mode === "futsuu"
         ? "Shogi Tsume Solver"
         : "Shogi Helpmate Solver";
+  }, [showOgiekako, state.mode]);
+
+  useEffect(() => {
+    if (!showOgiekako) {
+      solve.warmWorkerForMode(state.mode);
+    }
   }, [showOgiekako, state.mode]);
 
   useEffect(() => {
