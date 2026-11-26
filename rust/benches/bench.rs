@@ -630,12 +630,19 @@ fn bench_backward_search_seed_sfen_canonicalize(c: &mut Criterion) {
     });
 }
 
+fn bench_regular() {
+    if std::env::var("FMRS_ONLY_EXTRA_BENCH").is_ok() {
+        return;
+    }
+    benches();
+}
+
 criterion_group!(
     name = benches;
     // To generate profiling data, run `cargo bench <target> -- --profile-time 5`.
     // https://bheisler.github.io/criterion.rs/book/user_guide/profiling.html#implementing-in-process-profiling-hooks
     // And it generates target/criterion/<target>/profile/profile.pb.
-    config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(4)).warm_up_time(Duration::from_secs(2));
+    config = Criterion::default().noise_threshold(0.06).with_profiler(PProfProfiler::new(100_000, Output::Protobuf)).measurement_time(Duration::from_secs(2)).warm_up_time(Duration::from_secs(1));
     targets = bench_black_advance, bench_white_advance, bench_black_pinned, bench_solve3, bench_oneway, bench_reachable, bench_pinned300, bench_solve97, bench_attacker, bench_canonicalize, bench_near_mate,
 );
 
@@ -665,4 +672,4 @@ criterion_group!(
     targets = bench_bataco, bench_backward_search_seed_sfen, bench_backward_search_seed_sfen_allowed_kinds, bench_backward_search_seed_sfen_canonicalize,
 );
 
-criterion_main!(benches, bench_extra, bench_heavy);
+criterion_main!(bench_regular, bench_extra, bench_heavy);
