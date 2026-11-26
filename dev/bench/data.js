@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795664767830,
+  "lastUpdate": 1795664770539,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -56933,6 +56933,148 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 10795,
             "range": "± 6",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "aaa8e7df5975c756ad769146f1620ff988376afd",
+          "message": "Cloud Run を 4 vCPU・最大2台・ハッシュ2048MB・上限600秒へ更新し Worker 先読みでオフライン解図に対応\n\n- Cloud Run (cloud-run.yaml / deploy-cloud-run.sh / CLOUD_RUN.md): CPU=4, MAX_INSTANCES=2 に変更（無料枠 12.5時間/月を維持しつつ 4T 並列と最悪上限抑制を両立）\n- サーバー /solve_futsuu: 既定ハッシュを 2048MB、既定タイムアウトを 600 秒 (FMRS_FUTSUU_TIME_LIMIT_SECS で変更可) に設定\n- フロントエンド: WarmWorker を導入して現在モードの WASM Worker を先読み・健全時再利用し、ページ表示後にオフラインになってもブラウザ内解図が動作するよう改善（各 Worker で明示的に free() を実行）",
+          "timestamp": "2026-11-26T03:44:03Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/aaa8e7df5975c756ad769146f1620ff988376afd"
+        },
+        "date": 1795664769855,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 257,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 728,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 113,
+            "range": "± 8",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 355,
+            "range": "± 262",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 6906,
+            "range": "± 17",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1038,
+            "range": "± 6",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 3007,
+            "range": "± 9",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 584858,
+            "range": "± 276",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 5255,
+            "range": "± 31",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 121,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 71,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 33,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 92,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 23,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 11,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 8440252,
+            "range": "± 22987",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_jugemu",
+            "value": 12451,
+            "range": "± 7",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1965",
+            "value": 1465,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_1461",
+            "value": 7326,
+            "range": "± 4",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_backward_search",
+            "value": 11111,
+            "range": "± 1",
             "unit": "ns/iter"
           }
         ]
