@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795665559213,
+  "lastUpdate": 1795665809913,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -65224,6 +65224,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/0d1ad8c63392cd2fe09096a4a86450647be63bac"
         },
         "date": 1795665551859,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50824,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 48532,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 14622,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 99804,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1959,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 118478560,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "0d1ad8c63392cd2fe09096a4a86450647be63bac",
+          "message": "futsuu: タイトルを Tsume Shogi Solver に変更",
+          "timestamp": "2026-11-26T03:52:11Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/0d1ad8c63392cd2fe09096a4a86450647be63bac"
+        },
+        "date": 1795665806959,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
