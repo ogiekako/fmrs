@@ -39,3 +39,30 @@ export const PRESET_PROBLEMS = [
   //     "ogiekako「チェイン」 207手",
   //   ],
 ] as const;
+
+export const FUTSUU_PRESET_PROBLEMS = [
+  ["4k4/9/9/9/9/9/9/9/9 b 2r2b4g4s4n4l18p 1", "単玉のみ"],
+  ["4k4/9/9/9/9/9/9/9/4K4 b 2r2b4g4s4n4l18p 1", "双玉のみ"],
+  ["3sks3/9/4S4/9/9/B8/9/9/9 b S2rb4g4n4l18p 1", "サンプル 3手詰"],
+  ["4k4/9/PPPPPPPPP/9/9/9/9/9/9 b B4L2rb4g4s4n9p 1", "香車4枚 11手詰"],
+  [
+    "n+B1sS4/1R1g5/1Ls6/2k6/2n6/3L5/R8/9/9 b B2P3gs2n2l16p 1",
+    "将棋図巧 第5番 21手詰",
+  ],
+  [
+    "1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SPgnl11p 1",
+    "将棋図巧 第1番 69手詰",
+  ],
+  [
+    "k1+P4n1/2L+P2sL1/r4+P+P1P/+BpP+Pl1+Rg1/NP1S+PP+p1g/2L+p1g+P1+P/Ps1G1+P1N1/1sN1P4/B8 b - 1",
+    "将棋図巧 第99番「煙詰」 117手詰",
+  ],
+  [
+    "g3p3+r/3lPG3/1s4ppp/1l1B4P/L2b1kPl1/3+p3+R+p/3+p2+s1S/+NP+p1gS3/1g+p2P3 b 4P3n 1",
+    "将棋図巧 第100番「寿」 611手詰",
+  ],
+  [
+    "g1+P1k1+P+P+L/1p3P3/+R+p2pp1pl/1NNsg+p2+R/+b+nL+P1+p3/1P3ssP1/2P1+Ps2N/4+P1P1L/+B5G1g b - 1",
+    "橋本孝治「ミクロコスモス」 1525手詰",
+  ],
+] as const;

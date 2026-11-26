@@ -44,6 +44,46 @@ pub fn decode_and_validate_position(problem_sfen: &str) -> Result<PositionAux, S
     Ok(position)
 }
 
+/// Decodes and validates a normal tsume-shogi (普通詰将棋) problem SFEN.
+///
+/// Unlike helpmate, normal tsume-shogi starts on Black's turn with White's king
+/// NOT yet in check, and does not support stones (`O`).
+pub fn decode_and_validate_futsuu_position(problem_sfen: &str) -> Result<PositionAux, String> {
+    let mut position = sfen::decode_position(problem_sfen)
+        .map_err(|_| "局面の読み込みに失敗しました。".to_string())?;
+
+    if position.stone().is_some() {
+        return Err("普通詰将棋では石（壁駒）は使用できません。".to_string());
+    }
+
+    if let Some(reason) = king_count_error(&position) {
+        return Err(format!("初形が不正です: {}。", reason));
+    }
+
+    let black_checked = position.checked_slow(Color::BLACK);
+    let white_checked = position.checked_slow(Color::WHITE);
+    if black_checked && white_checked {
+        return Err("両方の玉に王手がかかっています。".to_string());
+    }
+    if white_checked {
+        return Err("受方玉にすでに王手がかかっています。".to_string());
+    }
+    position.set_turn(Color::BLACK);
+
+    let mut reasons = vec![];
+    if has_double_pawns(&position) {
+        reasons.push("二歩があります");
+    }
+    if has_unmovable_pieces(&position) {
+        reasons.push("行きどころのない駒があります");
+    }
+    if !reasons.is_empty() {
+        return Err(format!("初形が不正です: {}。", reasons.join("、")));
+    }
+
+    Ok(position)
+}
+
 fn king_count_error(position: &PositionAux) -> Option<&'static str> {
     match position.bitboard(Color::WHITE, Kind::King).count_ones() {
         1 => {}

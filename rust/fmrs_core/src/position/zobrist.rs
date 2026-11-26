@@ -3,9 +3,14 @@ use crate::piece::{Color, Kind};
 
 include!(concat!(env!("OUT_DIR"), "/zobrist_data.rs"));
 
-#[inline]
+#[inline(always)]
 pub(crate) fn zobrist(color: Color, pos: Square, kind: Kind) -> u64 {
     M[pos.index() << 5 | color.index() << 4 | kind.index()]
+}
+
+#[inline(always)]
+pub(crate) fn zobrist_raw(idx: usize) -> u64 {
+    M[idx]
 }
 
 #[inline]

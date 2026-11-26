@@ -51,7 +51,7 @@ fn decode_hand_kind(ch: char) -> anyhow::Result<(Color, Kind)> {
 
 pub fn encode_position(board: &PositionAux) -> String {
     let mut res = String::new();
-    let stone = *board.stone();
+    let stone = board.stone();
     for row in 0..9 {
         let mut count_empty = 0i32;
         for col in (0..9).rev() {

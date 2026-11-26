@@ -7,11 +7,17 @@ export { type Position, emptyPosition } from "./position";
 export { clonePosition } from "./clone";
 export { encodeSfen, decodeSfen } from "./sfen";
 export {
+  type SolverMode,
   sfenFromUrl,
   sfenToPath,
   isOldFormatUrl,
   isNamedPositionUrl,
+  helpmatePagePath,
+  futsuuPagePath,
   ogiekakoPagePath,
   isOgiekakoPageUrl,
+  isFutsuuPageUrl,
+  isRootFutsuuUrl,
+  solverModeFromUrl,
   isSolvedFromUrl,
 } from "./url";

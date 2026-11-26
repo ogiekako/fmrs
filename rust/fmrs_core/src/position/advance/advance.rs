@@ -1,3 +1,4 @@
+use crate::position::advance::attack_prevent::Attacker;
 use crate::position::advance::options::AdvanceResult;
 use crate::position::position::PositionAux;
 use crate::position::Movement;
@@ -5,7 +6,7 @@ use crate::position::Movement;
 use super::{black, white, AdvanceOptions};
 
 pub fn advance_aux(
-    position: &mut PositionAux,
+    position: &PositionAux,
     options: &AdvanceOptions,
     result: &mut Vec<Movement>,
 ) -> AdvanceResult</* is legal mate */ bool> {
@@ -15,6 +16,15 @@ pub fn advance_aux(
     } else {
         white::advance(position, options, result)
     }
+}
+
+pub fn advance_white_with_attacker(
+    position: &PositionAux,
+    options: &AdvanceOptions,
+    attacker_hint: Option<Attacker>,
+    result: &mut Vec<Movement>,
+) -> AdvanceResult</* is legal mate */ bool> {
+    white::advance_with_hint(position, options, attacker_hint, result)
 }
 
 #[cfg(test)]

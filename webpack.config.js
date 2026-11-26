@@ -59,6 +59,16 @@ module.exports = (env, argv) => {
         filename: "ogiekako/index.html",
         minify: false,
       }),
+      new HtmlWebpackPlugin({
+        template: "./app/public/futsuu.html",
+        filename: "futsuu.html",
+        minify: false,
+      }),
+      new HtmlWebpackPlugin({
+        template: "./app/public/futsuu.html",
+        filename: "futsuu/index.html",
+        minify: false,
+      }),
       {
         apply(compiler) {
           compiler.hooks.afterEmit.tap("CopyOgpImage", () => {
@@ -93,7 +103,7 @@ module.exports = (env, argv) => {
       historyApiFallback: true,
       proxy: [
         {
-          context: ["/solve", "/fmrs_alive"],
+          context: ["/solve", "/solve_futsuu", "/fmrs_alive"],
           target: "http://127.0.0.1:1234",
           onProxyReq(proxyReq) {
             proxyReq.removeHeader("accept-encoding");

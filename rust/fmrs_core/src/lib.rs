@@ -14,6 +14,7 @@ pub mod piece;
 pub mod position;
 pub mod search;
 pub mod sfen;
+pub mod shtsume;
 pub mod solve;
 pub mod validate;
 

@@ -214,7 +214,7 @@ fn bench_reachable(c: &mut Criterion) {
 fn bench_attacker(c: &mut Criterion) {
     let mut rng = SmallRng::seed_from_u64(202412251401);
     let positions = random_positions_with_filter(&mut rng, 300, |position| {
-        let mut position_aux = PositionAux::new(position.clone(), None);
+        let position_aux = PositionAux::new(position.clone(), None);
         position_aux.checked_slow(Color::WHITE)
     });
     let mut test_cases = vec![];

@@ -3,43 +3,64 @@ import * as types from "../types";
 import * as position from "./position";
 import * as model from "../../model";
 import { KINDS } from "../../model";
-import { PRESET_PROBLEMS } from "../../problem";
+import { FUTSUU_PRESET_PROBLEMS, PRESET_PROBLEMS } from "../../problem";
 import { positionPieceBox, positionStone } from "../../model/position";
 import { getPrecomputedSolveResponseBySfen } from "../../ogiekako_problems";
 
 const SAVED_POSITIONS_KEY = "fmrs_saved_positions";
+const FUTSUU_SAVED_POSITIONS_KEY = "fmrs_futsuu_saved_positions";
 const MAX_SAVED_POSITIONS = 20;
 
-export function presetProblems(): Array<types.Problem> {
-  return PRESET_PROBLEMS.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
+function savedPositionsKey(mode: model.SolverMode): string {
+  return mode === "futsuu" ? FUTSUU_SAVED_POSITIONS_KEY : SAVED_POSITIONS_KEY;
 }
 
-function loadSavedProblems(): Array<types.Problem> {
+export function presetProblems(
+  mode: model.SolverMode = "helpmate"
+): Array<types.Problem> {
+  const list = mode === "futsuu" ? FUTSUU_PRESET_PROBLEMS : PRESET_PROBLEMS;
+  return list.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
+}
+
+function loadSavedProblems(mode: model.SolverMode): Array<types.Problem> {
   try {
-    const raw = localStorage.getItem(SAVED_POSITIONS_KEY);
+    const raw = localStorage.getItem(savedPositionsKey(mode));
     if (raw) {
       const parsed: Array<[string, string]> = JSON.parse(raw);
       return parsed.map(([sfen, name]) => [model.decodeSfen(sfen), name]);
     }
   } catch {}
-  return presetProblems();
+  return presetProblems(mode);
 }
 
-function saveProblems(problems: Array<types.Problem>) {
+function saveProblems(
+  mode: model.SolverMode,
+  problems: Array<types.Problem>
+) {
   try {
     const data = problems
       .slice(0, MAX_SAVED_POSITIONS)
       .map(([pos, name]) => [model.encodeSfen(pos), name]);
-    localStorage.setItem(SAVED_POSITIONS_KEY, JSON.stringify(data));
+    localStorage.setItem(savedPositionsKey(mode), JSON.stringify(data));
   } catch {}
 }
 
+function defaultPositionForMode(mode: model.SolverMode): model.Position {
+  if (mode === "futsuu") {
+    return model.decodeSfen(FUTSUU_PRESET_PROBLEMS[2][0]);
+  }
+  return position.create();
+}
+
 export function newState(): types.State {
+  const mode = model.solverModeFromUrl();
   const sfen = model.sfenFromUrl();
 
-  const initialPosition = sfen ? model.decodeSfen(sfen) : position.create();
+  const initialPosition = sfen
+    ? model.decodeSfen(sfen)
+    : defaultPositionForMode(mode);
   let solveResponse: types.SolveResponse | undefined = undefined;
-  if (sfen && model.isSolvedFromUrl()) {
+  if (mode === "helpmate" && sfen && model.isSolvedFromUrl()) {
     const precomputed = getPrecomputedSolveResponseBySfen(
       model.encodeSfen(initialPosition)
     );
@@ -53,6 +74,7 @@ export function newState(): types.State {
     }
   }
   return {
+    mode,
     position: initialPosition,
     selected: {
       shown: false,
@@ -61,10 +83,11 @@ export function newState(): types.State {
       typed: false,
     },
     solving: undefined,
-    problems: loadSavedProblems(),
+    problems: loadSavedProblems(mode),
     solveResponse,
     solutionLimit: 5,
     oneWayMateMode: false,
+    simpleMate: false,
   };
 }
 
@@ -104,7 +127,7 @@ export function reduce(orig: types.State, event: types.Event): types.State {
     case "set-problems":
       state = cloneState(orig);
       state.problems = event.problems.slice(0, MAX_SAVED_POSITIONS);
-      saveProblems(state.problems);
+      saveProblems(state.mode, state.problems);
       return state;
     case "set-solve-response":
       state = cloneState(orig);
@@ -119,6 +142,27 @@ export function reduce(orig: types.State, event: types.Event): types.State {
     case "set-one-way-mate-mode":
       state = cloneState(orig);
       state.oneWayMateMode = event.oneWayMateMode;
+      return state;
+    case "set-simple-mate":
+      state = cloneState(orig);
+      state.simpleMate = event.simpleMate;
+      return state;
+    case "set-mode":
+      state = cloneState(orig);
+      state.mode = event.mode;
+      state.problems = loadSavedProblems(event.mode);
+      state.solveResponse = undefined;
+      if (event.position) {
+        state.position = event.position;
+      } else if (orig.mode !== event.mode) {
+        state.position = defaultPositionForMode(event.mode);
+      }
+      state.selected = {
+        shown: false,
+        ty: "board",
+        pos: [4, 4],
+        typed: false,
+      };
       return state;
     case "shift":
       return shifted(orig, event.dir);
@@ -268,7 +312,9 @@ function handleRightClick(
   maybeClearSolveResponse(state);
   const mutablePiece = state.position.board[pos[0]][pos[1]];
   if (!mutablePiece) {
-    state.position.board[pos[0]][pos[1]] = "O";
+    if (state.mode !== "futsuu") {
+      state.position.board[pos[0]][pos[1]] = "O";
+    }
     return state;
   }
   if (mutablePiece === "O") {

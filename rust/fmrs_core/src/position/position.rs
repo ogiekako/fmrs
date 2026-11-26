@@ -39,14 +39,6 @@ use super::Square;
 use super::UndoMove;
 
 impl Position {
-    /// Test-only: directly set the Zobrist digest. Lets unit tests fabricate
-    /// positions with a controlled digest distribution without going through
-    /// real board construction. Do NOT use outside of tests.
-    #[cfg(test)]
-    pub(crate) fn set_digest_for_test(&mut self, d: u64) {
-        self.digest = d;
-    }
-
     pub fn turn(&self) -> Color {
         self.hands.turn()
     }
@@ -263,10 +255,11 @@ pub struct PositionAux {
     core: Position,
     occupied: BitBoard,
     white_bb: BitBoard,
+    stone: BitBoard,
+    stone_digest: u64,
     white_king_pos: Option<Square>,
     black_king_pos: Option<Option<Square>>,
-    stone: Option<BitBoard>,
-    stone_digest: u64,
+    has_stone_flag: bool,
     /// Per-square 4-bit kind cache. Lives here (not on `Position`) so stored
     /// `Position` instances stay slim. Built lazily in `PositionAux::new`,
     /// maintained incrementally on `set`/`unset`/`change_kind`/`move_piece`.
@@ -279,10 +272,11 @@ impl Default for PositionAux {
             core: Position::default(),
             occupied: BitBoard::default(),
             white_bb: BitBoard::default(),
+            stone: BitBoard::EMPTY,
+            stone_digest: 0,
             white_king_pos: None,
             black_king_pos: None,
-            stone: None,
-            stone_digest: 0,
+            has_stone_flag: false,
             kind_at: EMPTY_KIND_CACHE,
         }
     }
@@ -290,7 +284,7 @@ impl Default for PositionAux {
 
 impl PartialEq for PositionAux {
     fn eq(&self, other: &Self) -> bool {
-        self.core == other.core && self.stone == other.stone
+        self.core == other.core && self.stone() == other.stone()
     }
 }
 
@@ -315,14 +309,18 @@ impl PositionAux {
     pub fn from_parts(core: Position, kind_at: KindCache, stone: Option<BitBoard>) -> Self {
         let occupied = core.kind_bb().occupied();
         let white_bb = occupied.and_not(core.black());
+        let king_bb = core.kind_bb().bitboard(Kind::King);
+        let white_king_pos = (king_bb & white_bb).next();
+        let black_king_pos = Some((king_bb & core.black()).next());
         let mut res = Self {
             core,
             white_bb,
             occupied,
-            white_king_pos: None,
-            black_king_pos: None,
-            stone: None,
+            stone: BitBoard::EMPTY,
             stone_digest: 0,
+            white_king_pos,
+            black_king_pos,
+            has_stone_flag: false,
             kind_at,
         };
         if let Some(stone) = stone {
@@ -340,7 +338,7 @@ impl PositionAux {
     }
 
     #[inline]
-    pub(crate) fn moved_digest(&self, movement: &Movement) -> u64 {
+    pub fn moved_digest(&self, movement: &Movement) -> u64 {
         self.core.moved_digest(movement) ^ self.stone_digest
     }
 
@@ -439,6 +437,11 @@ impl PositionAux {
         self.core.kind_bb.rookish()
     }
 
+    #[inline(always)]
+    pub(crate) fn kind_bitboard(&self) -> &KindBitBoard {
+        &self.core.kind_bb
+    }
+
     /// Promote-layer bitboard accessor; splits `bishopish() & black_bb` into
     /// raw and promoted variants without two `bitboard(BLACK, kind)` lookups.
     #[inline(always)]
@@ -450,22 +453,20 @@ impl PositionAux {
         self.core.pawn_drop()
     }
 
-    pub fn checked_slow(&mut self, king_color: Color) -> bool {
+    pub fn checked_slow(&self, king_color: Color) -> bool {
         attacker(self, king_color, true).is_some()
     }
 
-    pub(crate) fn white_king_pos(&mut self) -> Square {
-        if self.white_king_pos.is_none() {
-            self.white_king_pos = Some((self.kind_bb(Kind::King) & self.white_bb()).singleton());
-        }
-        self.white_king_pos.unwrap()
+    #[inline(always)]
+    pub(crate) fn white_king_pos(&self) -> Square {
+        self.white_king_pos
+            .unwrap_or_else(|| (self.kind_bb(Kind::King) & self.white_bb()).singleton())
     }
 
-    pub(crate) fn black_king_pos(&mut self) -> Option<Square> {
-        if self.black_king_pos.is_none() {
-            self.black_king_pos = Some((self.kind_bb(Kind::King) & self.black_bb()).next());
-        }
-        self.black_king_pos.unwrap()
+    #[inline(always)]
+    pub(crate) fn black_king_pos(&self) -> Option<Square> {
+        self.black_king_pos
+            .unwrap_or_else(|| (self.kind_bb(Kind::King) & self.black_bb()).next())
     }
 
     pub fn do_move(&mut self, movement: &Movement) {
@@ -603,8 +604,8 @@ impl PositionAux {
     }
 
     pub fn shift(&mut self, dir: Direction) {
-        if let Some(stone) = self.stone.as_mut() {
-            stone.shift(dir)
+        if self.has_stone_flag {
+            self.stone.shift(dir)
         }
         self.occupied.shift(dir);
         self.white_bb.shift(dir);
@@ -620,7 +621,8 @@ impl PositionAux {
         self.kind_at = build_kind_cache(self.core.kind_bb());
     }
 
-    pub fn must_king_pos(&mut self, king_color: Color) -> Square {
+    #[inline(always)]
+    pub fn must_king_pos(&self, king_color: Color) -> Square {
         if king_color.is_black() {
             self.black_king_pos().unwrap()
         } else {
@@ -628,7 +630,8 @@ impl PositionAux {
         }
     }
 
-    pub(crate) fn must_turn_king_pos(&mut self) -> Square {
+    #[inline(always)]
+    pub(crate) fn must_turn_king_pos(&self) -> Square {
         if self.turn().is_black() {
             self.black_king_pos().unwrap()
         } else {
@@ -636,12 +639,12 @@ impl PositionAux {
         }
     }
 
-    pub fn white_king_attack_squares(&mut self, kind: Kind) -> BitBoard {
+    pub fn white_king_attack_squares(&self, kind: Kind) -> BitBoard {
         let white_king_pos = self.white_king_pos();
         reachable_sub(self, Color::WHITE, white_king_pos, kind)
     }
 
-    pub(crate) fn core(&self) -> &Position {
+    pub fn core(&self) -> &Position {
         &self.core
     }
 
@@ -661,8 +664,9 @@ impl PositionAux {
         self.core.set_pawn_drop(pawn_drop);
     }
 
-    pub fn stone(&self) -> &Option<BitBoard> {
-        &self.stone
+    #[inline(always)]
+    pub fn stone(&self) -> Option<BitBoard> {
+        self.has_stone_flag.then_some(self.stone)
     }
 
     /// Serialize to 113 bytes: `core.to_bytes()` (96) + stone_flag (1) + stone u128 LE (16).
@@ -670,7 +674,7 @@ impl PositionAux {
     pub fn to_bytes(&self) -> [u8; 113] {
         let mut buf = [0u8; 113];
         buf[0..96].copy_from_slice(&self.core.to_bytes());
-        if let Some(s) = self.stone {
+        if let Some(s) = self.stone() {
             buf[96] = 1;
             buf[97..113].copy_from_slice(&s.u128().to_le_bytes());
         }
@@ -690,16 +694,15 @@ impl PositionAux {
         Self::new(core, stone)
     }
 
+    #[inline(always)]
     fn has_stone(&self, pos: Square) -> bool {
-        self.stone
-            .as_ref()
-            .map_or(false, |stone| stone.contains(pos))
+        self.has_stone_flag && self.stone.contains(pos)
     }
 
     pub fn undo_move(&mut self, token: &super::UndoMove) -> Movement {
         let mut core = self.core.clone();
         let res = core.undo_move(token);
-        *self = Self::new(core, self.stone);
+        *self = Self::new(core, self.stone());
         res
     }
 
@@ -714,7 +717,7 @@ impl PositionAux {
             if let Some((color, kind)) = self.get(pos) {
                 core.set(pos.flipped(), color.opposite(), kind);
             }
-            if self.stone().map_or(false, |stone| stone.contains(pos)) {
+            if self.stone().is_some_and(|stone| stone.contains(pos)) {
                 stone.set(pos.flipped());
             }
         }
@@ -730,8 +733,9 @@ impl PositionAux {
     }
 
     pub fn set_stone(&mut self, stone: BitBoard) {
-        assert_eq!(self.stone, None);
-        self.stone = Some(stone);
+        assert!(!self.has_stone_flag);
+        self.has_stone_flag = true;
+        self.stone = stone;
         self.occupied |= stone;
 
         for pos in stone {
@@ -782,7 +786,8 @@ impl PositionAux {
         false
     }
 
-    pub(crate) fn king_pos(&mut self, king_color: Color) -> Option<Square> {
+    #[inline(always)]
+    pub(crate) fn king_pos(&self, king_color: Color) -> Option<Square> {
         if king_color.is_black() {
             self.black_king_pos()
         } else {

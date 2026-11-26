@@ -13,8 +13,12 @@ import {
   sfenToPath,
   isOldFormatUrl,
   isNamedPositionUrl,
+  helpmatePagePath,
+  futsuuPagePath,
   ogiekakoPagePath,
   isOgiekakoPageUrl,
+  isRootFutsuuUrl,
+  solverModeFromUrl,
   isSolvedFromUrl,
 } from "../../model";
 import { positionStone } from "../../model/position";
@@ -37,6 +41,7 @@ export function Editor(props: {}) {
 
   const sfen = encodeSfen(state.position);
   const isSolvedOgiekako =
+    state.mode === "helpmate" &&
     state.solveResponse?.ty === "solved" &&
     state.solveResponse.response.solutions > 0 &&
     !!findOgiekakoProblemBySfen(sfen);
@@ -52,8 +57,10 @@ export function Editor(props: {}) {
   useEffect(() => {
     document.title = showOgiekako
       ? "ogiekako 協力詰作品集"
-      : "Shogi Helpmate Solver";
-  }, [showOgiekako]);
+      : state.mode === "futsuu"
+        ? "Shogi Tsume Solver"
+        : "Shogi Helpmate Solver";
+  }, [showOgiekako, state.mode]);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -68,7 +75,7 @@ export function Editor(props: {}) {
       return;
     }
 
-    const targetPath = sfenToPath(sfen);
+    const targetPath = sfenToPath(sfen, state.mode);
     const targetSearch = isSolvedOgiekako ? "?solved=1" : "";
     if (url.pathname !== targetPath || url.search !== targetSearch) {
       const newHref =
@@ -76,6 +83,7 @@ export function Editor(props: {}) {
       if (
         isOldFormatUrl() ||
         isNamedPositionUrl() ||
+        isRootFutsuuUrl() ||
         url.pathname === targetPath
       ) {
         window.history.replaceState({}, "", newHref);
@@ -83,7 +91,7 @@ export function Editor(props: {}) {
         window.history.pushState({}, "", newHref);
       }
     }
-  }, [showOgiekako, sfen, isSolvedOgiekako]);
+  }, [showOgiekako, state.mode, sfen, isSolvedOgiekako]);
 
   useEffect(() => {
     if ("scrollRestoration" in window.history) {
@@ -94,37 +102,30 @@ export function Editor(props: {}) {
         setShowOgiekako(true);
         return;
       }
-      const solved = isSolvedFromUrl();
+      const nextMode = solverModeFromUrl();
+      const solved = nextMode === "helpmate" && isSolvedFromUrl();
       scrollToSolutionOnLoad.current = solved;
       setShowOgiekako(false);
       const urlSfen = sfenFromUrl();
-      if (urlSfen) {
-        const pos = decodeSfen(urlSfen);
+      const pos = urlSfen ? decodeSfen(urlSfen) : undefined;
+      dispatch({
+        ty: "set-mode",
+        mode: nextMode,
+        position: pos,
+      });
+      if (solved && pos) {
+        const response = getPrecomputedSolveResponseBySfen(encodeSfen(pos));
         dispatch({
-          ty: "set-position",
-          position: pos,
+          ty: "set-solve-response",
+          response: response
+            ? {
+                ty: "solved",
+                response,
+                stone: positionStone(pos),
+                millis: 0,
+              }
+            : undefined,
         });
-        if (solved) {
-          const response = getPrecomputedSolveResponseBySfen(
-            encodeSfen(pos)
-          );
-          dispatch({
-            ty: "set-solve-response",
-            response: response
-              ? {
-                  ty: "solved",
-                  response,
-                  stone: positionStone(pos),
-                  millis: 0,
-                }
-              : undefined,
-          });
-        } else {
-          dispatch({
-            ty: "set-solve-response",
-            response: undefined,
-          });
-        }
       }
     };
     window.addEventListener("popstate", onPopState);
@@ -137,7 +138,8 @@ export function Editor(props: {}) {
   ) => {
     const pos = decodeSfen(problem.sfen);
     dispatch({
-      ty: "set-position",
+      ty: "set-mode",
+      mode: "helpmate",
       position: pos,
     });
     if (preSolved) {
@@ -179,18 +181,51 @@ export function Editor(props: {}) {
   return (
     <div>
       <div className="d-flex justify-content-between align-items-baseline flex-wrap gap-2 my-2">
-        <h1 className="mb-0">Shogi Helpmate Solver</h1>
-        <a
-          href={ogiekakoPagePath()}
-          className="text-secondary text-decoration-none ms-auto"
-          style={{ fontSize: "0.95rem" }}
-          onClick={(e) => {
-            e.preventDefault();
-            setShowOgiekako(true);
-          }}
-        >
-          ogiekako 協力詰作品集 →
-        </a>
+        <h1 className="mb-0">
+          {state.mode === "futsuu"
+            ? "Shogi Tsume Solver"
+            : "Shogi Helpmate Solver"}
+        </h1>
+        <div className="d-flex gap-3 ms-auto" style={{ fontSize: "0.95rem" }}>
+          {state.mode === "futsuu" ? (
+            <a
+              href={helpmatePagePath()}
+              className="text-secondary text-decoration-none"
+              onClick={(e) => {
+                e.preventDefault();
+                if (state.solving) return;
+                dispatch({ ty: "set-mode", mode: "helpmate" });
+              }}
+            >
+              ← 協力詰ソルバー
+            </a>
+          ) : (
+            <>
+              <a
+                href={futsuuPagePath()}
+                className="text-secondary text-decoration-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (state.solving) return;
+                  dispatch({ ty: "set-mode", mode: "futsuu" });
+                }}
+              >
+                普通詰将棋ソルバー →
+              </a>
+              <a
+                href={ogiekakoPagePath()}
+                className="text-secondary text-decoration-none"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (state.solving) return;
+                  setShowOgiekako(true);
+                }}
+              >
+                ogiekako 協力詰作品集 →
+              </a>
+            </>
+          )}
+        </div>
       </div>
       <div className="d-flex flex-wrap">
         <div className="d-flex">
@@ -207,6 +242,7 @@ export function Editor(props: {}) {
         <div className="p-3 d-none d-md-block position-relative">
           <div style={{ position: "absolute", top: "1rem", left: "1rem" }}>
             <Problems
+              mode={state.mode}
               position={state.position}
               problems={state.problems}
               dispatch={dispatch}
@@ -221,11 +257,13 @@ export function Editor(props: {}) {
         disabled={!!state.solving}
       />
       <SolveButton
+        mode={state.mode}
         position={state.position}
         solving={state.solving}
         solveResponse={state.solveResponse}
         solutionLimit={state.solutionLimit}
         oneWayMateMode={state.oneWayMateMode}
+        simpleMate={state.simpleMate}
         dispatch={dispatch}
         onSolutionLoaded={(container) => {
           if (!scrollToSolutionOnLoad.current) {
@@ -251,6 +289,7 @@ export function Editor(props: {}) {
       />
       <div className="py-3 d-md-none">
         <Problems
+          mode={state.mode}
           position={state.position}
           problems={state.problems}
           dispatch={dispatch}

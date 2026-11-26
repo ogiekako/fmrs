@@ -31,7 +31,7 @@ impl ParallelSolver {
 
         let mate_positions: Mutex<Vec<PositionAux>> = Mutex::new(vec![]);
 
-        let stone = *position.stone();
+        let stone = position.stone();
         let mut positions: Vec<CachedPosition> = vec![CachedPosition::from_aux(&position)];
 
         let mut step = 0;
@@ -76,7 +76,7 @@ impl ParallelSolver {
         if stones.len() > 1 {
             bail!("Multiple stone formations");
         }
-        let stone = stones.iter().next().and_then(|s| **s);
+        let stone = stones.iter().next().and_then(|s| *s);
 
         let initial_position_digests: NoHashSet64 = positions.iter().map(|p| p.digest()).collect();
 

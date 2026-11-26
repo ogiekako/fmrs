@@ -12,6 +12,7 @@ default = ["console_error_panic_hook"]
 
 [dependencies]
 fmrs_core = { path = "../fmrs_core" }
+js-sys = "0.3"
 wasm-bindgen = "*"
 getrandom = { version = "0.2.17", features = ["js"] }
 

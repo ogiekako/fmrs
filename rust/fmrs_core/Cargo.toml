@@ -25,10 +25,10 @@ quote = "*"
 rand = { version = "0.8.5" }
 rayon = "*"
 serde = { version = "*", features = ["derive"] }
+serde_json = "*"
 smallvec = "1"
 shogi-kifu-converter = "0.2"
 url = "*"
 
 [dev-dependencies]
 pretty_assertions = "*"
-serde_json = "*"

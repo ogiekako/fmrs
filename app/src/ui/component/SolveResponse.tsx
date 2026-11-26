@@ -1,17 +1,23 @@
 import { useMemo } from "react";
+import * as model from "../../model";
 import * as types from "../types";
 import Solution from "./Solution";
 import { useWasm } from "../../wasm_main";
 import { ogiekakoProblemKif } from "../../ogiekako_problems";
 
 export default function SolveResponse(props: {
+  mode: model.SolverMode;
   solveResponse: types.SolveResponse;
   solutionLimit: number;
   oneWayMateMode: boolean;
   dispatch: types.Dispatcher;
   onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
-  const message = getMessage(props.solveResponse, props.solutionLimit);
+  const message = getMessage(
+    props.solveResponse,
+    props.solutionLimit,
+    props.mode
+  );
   // 既知作品の KIF 生成と一本道判定は wasm を使うので、読み込み後に表示する。
   const wasm = useWasm();
   const response =
@@ -24,7 +30,13 @@ export default function SolveResponse(props: {
   }, [response, wasm]);
 
   let oneWayMessage = null;
-  if (wasm && props.oneWayMateMode && props.solveResponse.ty === "solved" && props.solveResponse.response.sfen) {
+  if (
+    props.mode === "helpmate" &&
+    wasm &&
+    props.oneWayMateMode &&
+    props.solveResponse.ty === "solved" &&
+    props.solveResponse.response.sfen
+  ) {
     const result = wasm.check_one_way_mate(props.solveResponse.response.sfen);
     if (result !== undefined) {
       if (result.is_one_way) {
@@ -47,9 +59,12 @@ export default function SolveResponse(props: {
   const isKnownProblem =
     props.solveResponse.ty === "solved" &&
     props.solveResponse.response.knownProblem;
+  const nodes = getNodes(props.solveResponse);
   const statusDetail = isKnownProblem
     ? "known problem"
-    : `${(props.solveResponse.millis / 1000).toFixed(1)}s`;
+    : nodes !== undefined
+      ? `${(props.solveResponse.millis / 1000).toFixed(1)}s, ${nodes.toLocaleString()} nodes`
+      : `${(props.solveResponse.millis / 1000).toFixed(1)}s`;
 
   const text = message ? (
     <div>
@@ -87,13 +102,39 @@ export default function SolveResponse(props: {
   );
 }
 
-function getMessage(r: types.SolveResponse, limit: number) {
+function getNodes(r: types.SolveResponse): number | undefined {
+  switch (r.ty) {
+    case "solved":
+      return r.response.futsuuNodes;
+    case "no-solution":
+    case "suspended":
+      return r.nodes;
+    case "error":
+      return undefined;
+  }
+}
+
+function getMessage(
+  r: types.SolveResponse,
+  limit: number,
+  mode: model.SolverMode
+) {
   switch (r.ty) {
     case "error":
       return r.message;
     case "no-solution":
-      return "No solution";
+      return mode === "futsuu" ? "不詰" : "No solution";
+    case "suspended":
+      return "探索を打ち切りました";
     case "solved":
+      if (mode === "futsuu" && r.response.futsuuSteps !== undefined) {
+        if (!r.response.solutions) {
+          return "";
+        }
+        return r.response.redundant
+          ? `${r.response.futsuuSteps}手詰 (駒余り)`
+          : `${r.response.futsuuSteps}手詰`;
+      }
       const count = r.response.solutions;
       if (!count) {
         return "";

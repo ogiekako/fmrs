@@ -74,7 +74,7 @@ pub fn solve_with_progress(
 
 fn solve_impl(
     progress: Option<futures::channel::mpsc::UnboundedSender<usize>>,
-    mut position: PositionAux,
+    position: PositionAux,
     solutions_upto: Option<usize>,
     algorithm: Algorithm,
     _start: Option<Instant>,

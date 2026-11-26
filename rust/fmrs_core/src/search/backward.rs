@@ -1326,7 +1326,7 @@ fn backward_search_single(
                 progress(
                     search.step,
                     search.positions.len(),
-                    PositionAux::new(search.positions[0].clone(), *initial_position.stone())
+                    PositionAux::new(search.positions[0].clone(), initial_position.stone())
                         .sfen_url(),
                 );
             }
@@ -1335,7 +1335,7 @@ fn backward_search_single(
                     "backward step={} count={} {}",
                     search.step,
                     search.positions.len(),
-                    PositionAux::new(search.positions[0].clone(), *initial_position.stone())
+                    PositionAux::new(search.positions[0].clone(), initial_position.stone())
                         .sfen_url()
                 );
             } else if search.step > initial_step {
@@ -1343,7 +1343,7 @@ fn backward_search_single(
                     "backward step={} count={} {}",
                     search.step,
                     search.positions.len(),
-                    PositionAux::new(search.positions[0].clone(), *initial_position.stone())
+                    PositionAux::new(search.positions[0].clone(), initial_position.stone())
                         .sfen_url()
                 );
             }
@@ -1359,7 +1359,7 @@ fn backward_search_single(
             .positions
             .iter()
             .filter(|p| !p.pawn_drop())
-            .map(|p| PositionAux::new(p.clone(), *initial_position.stone()))
+            .map(|p| PositionAux::new(p.clone(), initial_position.stone()))
             .collect::<Vec<_>>();
 
         let mut output_positions = Vec::new();
@@ -1413,7 +1413,7 @@ fn backward_search_single(
                 "best={} count={} {}",
                 best.0,
                 search.positions.len(),
-                PositionAux::new(search.positions[0].clone(), *initial_position.stone()).sfen_url()
+                PositionAux::new(search.positions[0].clone(), initial_position.stone()).sfen_url()
             );
         }
         for p in output_positions {
@@ -1608,7 +1608,7 @@ impl BackwardSearch {
             prev_positions: vec![],
             memo,
             prev_memo,
-            stone: *initial_position.stone(),
+            stone: initial_position.stone(),
             step,
             one_way,
             no_black_goldish,
@@ -1644,7 +1644,7 @@ impl BackwardSearch {
         if seeds.is_empty() {
             bail!("new_canonical_group: empty seed list");
         }
-        let stone = *seeds[0].stone();
+        let stone = seeds[0].stone();
 
         let mut positions = Vec::with_capacity(seeds.len());
         let mut group_step: Option<u16> = None;
@@ -1830,7 +1830,7 @@ impl BackwardSearch {
             prev_positions: vec![],
             memo: Memo::new(),
             prev_memo: Memo::new(),
-            stone: *initial_position.stone(),
+            stone: initial_position.stone(),
             step: state.step,
             one_way: state.one_way,
             no_black_goldish: state.no_black_goldish,
@@ -1928,7 +1928,7 @@ impl BackwardSearch {
             prev_positions: vec![],
             memo: Memo::new(),
             prev_memo: Memo::new(),
-            stone: *initial_position.stone(),
+            stone: initial_position.stone(),
             step: state.step,
             one_way: state.one_way,
             no_black_goldish: state.no_black_goldish,
@@ -5224,8 +5224,8 @@ mod tests {
         for sfen in other_sfens {
             let other = PositionAux::from_sfen(sfen).unwrap();
             assert_eq!(
-                *other.stone(),
-                *seed.stone(),
+                other.stone(),
+                seed.stone(),
                 "test setup: stones must match for {sfen}"
             );
             let direct = other.digest();

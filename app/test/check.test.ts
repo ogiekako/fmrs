@@ -9,9 +9,29 @@ import assert from "node:assert";
 import * as fs from "fs";
 import * as path from "path";
 import { decodeSfen, encodeSfen, Position, Piece, Kind } from "../src/model";
-import { PRESET_PROBLEMS } from "../src/problem";
+import { FUTSUU_PRESET_PROBLEMS, PRESET_PROBLEMS } from "../src/problem";
 
-type Oracle = { is_white_in_check(sfen: string): boolean };
+type FutsuuSolveResult = {
+  is_mate(): boolean;
+  is_no_mate(): boolean;
+  is_suspended(): boolean;
+  steps(): number;
+  redundant(): boolean;
+  nodes(): number;
+  kif(): string;
+  sfen(): string;
+  moves_sfen(): string;
+  free(): void;
+};
+type Oracle = {
+  is_white_in_check(sfen: string): boolean;
+  solve_futsuu(
+    sfen: string,
+    simple_mate: boolean,
+    hash_mb: number,
+    on_progress?: (nodes: number) => void,
+  ): FutsuuSolveResult;
+};
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const wasm: Oracle = require(
   process.env.FMRS_WASM_NODE ?? path.resolve("build/wasm-node/wasm.js"),
@@ -126,6 +146,7 @@ test("実在の問題の初形", () => {
   const positions = [
     ...files.map((f) => decodeSfen(fs.readFileSync(f, "utf8"))),
     ...PRESET_PROBLEMS.map(([s]) => decodeSfen(s)),
+    ...FUTSUU_PRESET_PROBLEMS.map(([s]) => decodeSfen(s)),
   ];
   assert.ok(positions.length >= 40, `問題数 ${positions.length}`);
   assertAgree("実在の問題", positions);
@@ -224,4 +245,34 @@ test("ランダム局面 (駒の多い局面・玉の周りに寄せた局面・
     }
   }
   assertAgree("ランダム局面", gen());
+});
+
+test("普通詰将棋 wasm 解図 (solve_futsuu)", () => {
+  const cases: [string, string, boolean, number][] = [
+    ["3手詰", "3sks3/9/4S4/9/9/B8/9/9/9 b S2rb4g4n4l18p 1", true, 3],
+    ["打ち歩詰め不詰", "9/9/5lp2/5lk2/5l3/9/5N3/7L1/9 b P2r2b4g4s3n16p 1", false, 0],
+    ["香車4枚 11手詰", "4k4/9/PPPPPPPPP/9/9/9/9/9/9 b B4L2rb4g4s4n9p 1", true, 11],
+    ["将棋図巧 第5番 21手詰", "n+B1sS4/1R1g5/1Ls6/2k6/2n6/3L5/R8/9/9 b B2P3gs2n2l16p 1", true, 21],
+  ];
+  for (const [name, problemSfen, wantMate, wantSteps] of cases) {
+    const res = wasm.solve_futsuu(problemSfen, false, 32);
+    try {
+      assert.strictEqual(res.is_mate(), wantMate, `${name}: mate`);
+      assert.strictEqual(res.is_no_mate(), !wantMate, `${name}: no_mate`);
+      assert.strictEqual(res.steps(), wantSteps, `${name}: steps`);
+      if (wantMate) {
+        assert.ok(res.kif().includes("手数----指手"), `${name}: kif`);
+      }
+    } finally {
+      res.free();
+    }
+  }
+  assert.throws(
+    () => wasm.solve_futsuu("4k4/4G4/9/9/9/9/9/9/9 b - 1", false, 16),
+    /受方玉にすでに王手がかかっています/,
+  );
+  assert.throws(
+    () => wasm.solve_futsuu("4k4/9/4O4/9/9/9/9/9/9 b G 1", false, 16),
+    /普通詰将棋では石/,
+  );
 });

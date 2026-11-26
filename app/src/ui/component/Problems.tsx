@@ -7,6 +7,7 @@ import * as types from "../types";
 import { presetProblems } from "../state/state";
 
 export default function Problems(props: {
+  mode: model.SolverMode;
   position: model.Position;
   problems: Array<types.Problem>;
   dispatch: types.Dispatcher;
@@ -37,7 +38,7 @@ export default function Problems(props: {
   }
 
   function confirmReset() {
-    props.dispatch({ ty: "set-problems", problems: presetProblems() });
+    props.dispatch({ ty: "set-problems", problems: presetProblems(props.mode) });
     setConfirmingReset(false);
   }
 

@@ -12,11 +12,11 @@ use crate::{
 
 /// Squares strictly between `a` and `b` on a rook line (same row or column).
 /// Returns empty for pairs not on a rook line. Indexed by [a.index()][b.index()].
-const ROOK_BETWEEN: [[BitBoard; 81]; 81] = build_rook_between();
+static ROOK_BETWEEN: [[BitBoard; 81]; 81] = build_rook_between();
 
 /// Squares strictly between `a` and `b` on a bishop line (same diagonal).
 /// Returns empty for pairs not on a bishop diagonal. Indexed by [a.index()][b.index()].
-const BISHOP_BETWEEN: [[BitBoard; 81]; 81] = build_bishop_between();
+static BISHOP_BETWEEN: [[BitBoard; 81]; 81] = build_bishop_between();
 
 const fn build_rook_between() -> [[BitBoard; 81]; 81] {
     let mut res = [[BitBoard::const_default(); 81]; 81];
@@ -146,7 +146,7 @@ impl Pinned {
     }
 }
 
-pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Color) -> Pinned {
+pub fn pinned(position: &PositionAux, king_color: Color, blocker_color: Color) -> Pinned {
     let mut res = Pinned::default();
     pinned_into(position, king_color, blocker_color, &mut res);
     res
@@ -156,7 +156,7 @@ pub fn pinned(position: &mut PositionAux, king_color: Color, blocker_color: Colo
 /// return-by-value move (~96 bytes copy with PINNED_INLINE_CAP=2 SmallVec)
 /// at hot call sites that own a `Pinned` slot inline.
 pub fn pinned_into(
-    position: &mut PositionAux,
+    position: &PositionAux,
     king_color: Color,
     blocker_color: Color,
     res: &mut Pinned,
@@ -229,7 +229,7 @@ fn check_line_pin(
 
 #[inline]
 fn lance_pinned(
-    position: &mut PositionAux,
+    position: &PositionAux,
     king_color: Color,
     blocker_color: Color,
     res: &mut Pinned,

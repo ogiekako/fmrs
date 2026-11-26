@@ -1,7 +1,9 @@
 import * as model from "../model";
 import { getPrecomputedSolveResponseBySfen } from "../ogiekako_problems";
 import { ServerUnavailableError, solveServer } from "./server_solver";
+import { solveFutsuuServer } from "./server_futsuu_solver";
 import { solveWasm } from "./wasm_solver";
+import { solveFutsuuWasm } from "./wasm_futsuu_solver";
 
 export class CancellationToken {
   private canceled = false;
@@ -80,7 +82,72 @@ export type Response = {
   sfen: string;
   fromWhite: boolean;
   knownProblem?: boolean;
+  /** 普通詰将棋の詰手数（協力詰では undefined）。 */
+  futsuuSteps?: number;
+  /** 普通詰将棋の探索ノード数（協力詰では undefined）。 */
+  futsuuNodes?: number;
 };
+
+export type FutsuuResponse =
+  | {
+      ty: "mate";
+      steps: number;
+      redundant: boolean;
+      nodes: number;
+      kif: string;
+      sfen: string;
+    }
+  | {
+      ty: "no-mate";
+      nodes: number;
+    }
+  | {
+      ty: "suspended";
+      nodes: number;
+    };
+
+export async function solveFutsuu(
+  position: model.Position,
+  simpleMate: boolean,
+  cancelToken: CancellationToken,
+  onNodes: (nodes: number) => void,
+  onFallback?: () => void
+): Promise<FutsuuResponse | undefined> {
+  const sfen = model.encodeSfen(position);
+  const requireServer = isLocalDevServerBackedPage();
+  const deadline =
+    Date.now() +
+    (requireServer
+      ? LOCAL_SERVER_RESPONSE_BUDGET_MS
+      : SERVER_RESPONSE_BUDGET_MS);
+  if (await isServerAvailable(deadline - Date.now())) {
+    try {
+      return await solveFutsuuServer(
+        sfen,
+        simpleMate,
+        cancelToken,
+        onNodes,
+        deadline - Date.now()
+      );
+    } catch (e) {
+      if (!(e instanceof ServerUnavailableError)) {
+        throw e;
+      }
+      if (requireServer) {
+        throw e;
+      }
+      console.warn("server futsuu solve unavailable, falling back to wasm", e);
+      onFallback?.();
+    }
+  } else if (requireServer) {
+    throw new Error(
+      "ローカル解図サーバーに接続できませんでした。npm run dev を起動し直してください。"
+    );
+  } else {
+    onFallback?.();
+  }
+  return await solveFutsuuWasm(sfen, simpleMate, cancelToken, onNodes);
+}
 
 export async function solve(
   position: model.Position,

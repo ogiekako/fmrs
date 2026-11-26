@@ -27,6 +27,49 @@ const fn const_or<const N: usize>(xs: [BitBoard; N]) -> BitBoard {
     BitBoard::from_u128(res)
 }
 
+static BETWEEN_TABLE: [[BitBoard; 81]; 81] = {
+    let mut res = [[BitBoard::EMPTY; 81]; 81];
+
+    let mut ip1 = 0;
+    while ip1 < 81 {
+        ip1 += 1;
+
+        let mut jp1 = 0;
+        while jp1 < 81 {
+            jp1 += 1;
+
+            let (i, j) = (ip1 - 1, jp1 - 1);
+
+            if i == j {
+                continue;
+            }
+
+            let a = Square::from_index(i);
+            let b = Square::from_index(j);
+
+            let (dx, dy) = (
+                b.col() as i32 - a.col() as i32,
+                b.row() as i32 - a.row() as i32,
+            );
+            if dx != 0 && dy != 0 && dx.abs() != dy.abs() {
+                continue;
+            }
+            let dir = (dx.signum(), dy.signum());
+            let mut pos = (a.col() as i32, a.row() as i32);
+            let to = (b.col() as i32, b.row() as i32);
+
+            loop {
+                pos = (pos.0 + dir.0, pos.1 + dir.1);
+                if pos.0 == to.0 && pos.1 == to.1 {
+                    break;
+                }
+                res[i][j].set(Square::new(pos.0 as usize, pos.1 as usize));
+            }
+        }
+    }
+    res
+};
+
 impl BitBoard {
     pub const EMPTY: Self = Self(0);
     pub const FULL: Self = Self::from_u128((1 << 81) - 1);
@@ -61,51 +104,9 @@ impl BitBoard {
     pub const COL8: Self = Self::from_u128(0x1FF << (9 * 7));
     pub const COL9: Self = Self::from_u128(0x1FF << (9 * 8));
 
-    const BETWEEN: [[BitBoard; 81]; 81] = {
-        let mut res = [[BitBoard::EMPTY; 81]; 81];
-
-        let mut ip1 = 0;
-        while ip1 < 81 {
-            ip1 += 1;
-
-            let mut jp1 = 0;
-            while jp1 < 81 {
-                jp1 += 1;
-
-                let (i, j) = (ip1 - 1, jp1 - 1);
-
-                if i == j {
-                    continue;
-                }
-
-                let a = Square::from_index(i);
-                let b = Square::from_index(j);
-
-                let (dx, dy) = (
-                    b.col() as i32 - a.col() as i32,
-                    b.row() as i32 - a.row() as i32,
-                );
-                if dx != 0 && dy != 0 && dx.abs() != dy.abs() {
-                    continue;
-                }
-                let dir = (dx.signum(), dy.signum());
-                let mut pos = (a.col() as i32, a.row() as i32);
-                let to = (b.col() as i32, b.row() as i32);
-
-                loop {
-                    pos = (pos.0 + dir.0, pos.1 + dir.1);
-                    if pos.0 == to.0 && pos.1 == to.1 {
-                        break;
-                    }
-                    res[i][j].set(Square::new(pos.0 as usize, pos.1 as usize));
-                }
-            }
-        }
-        res
-    };
-
+    #[inline(always)]
     pub fn between(a: Square, b: Square) -> Self {
-        Self::BETWEEN[a.index()][b.index()]
+        BETWEEN_TABLE[a.index()][b.index()]
     }
 
     pub const fn is_empty(&self) -> bool {

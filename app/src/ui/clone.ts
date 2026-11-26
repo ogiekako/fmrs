@@ -3,6 +3,7 @@ import * as model from "../model";
 
 export function cloneState(state: types.State): types.State {
   return {
+    mode: state.mode,
     position: model.clonePosition(state.position),
     selected: cloneSelected(state.selected),
     solving: state.solving && Object.assign({}, state.solving),
@@ -10,6 +11,7 @@ export function cloneState(state: types.State): types.State {
     solveResponse: state.solveResponse && Object.freeze(state.solveResponse),
     solutionLimit: state.solutionLimit,
     oneWayMateMode: state.oneWayMateMode,
+    simpleMate: state.simpleMate,
   };
 }
 

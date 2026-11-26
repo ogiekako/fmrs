@@ -157,7 +157,7 @@ impl LowMemStandardSolver {
         if stones.len() > 1 {
             bail!("Multiple stone formations");
         }
-        let stone = stones.iter().next().and_then(|s| **s);
+        let stone = stones.iter().next().and_then(|s| *s);
 
         let mut mate_positions = vec![];
         let mut positions: Vec<CachedPosition> =

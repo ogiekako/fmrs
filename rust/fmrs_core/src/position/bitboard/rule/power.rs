@@ -453,7 +453,7 @@ impl ColorKind {
     }
 }
 
-const POWERS: [[BitBoard; COLOR_KIND_NUM]; 81] = construct_powers();
+static POWERS: [[BitBoard; COLOR_KIND_NUM]; 81] = construct_powers();
 
 const fn construct_pos_powers(pos: Square) -> [BitBoard; COLOR_KIND_NUM] {
     let mut res = [BitBoard::const_default(); COLOR_KIND_NUM];

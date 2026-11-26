@@ -119,7 +119,7 @@ impl Hands {
     /// Direct mutable access to the white count word, for batched count updates
     /// (e.g. canonicalize folds many `add_n`s into a single add).
     #[inline]
-    pub(crate) fn white_word_mut(&mut self) -> &mut u64 {
+    pub fn white_word_mut(&mut self) -> &mut u64 {
         &mut self.h[1]
     }
 

@@ -7,16 +7,19 @@ import { positionStone } from "../../model/position";
 import { BackwardSearchButton } from "./BackwardSearchButton";
 
 export default function SolveButton(props: {
+  mode: model.SolverMode;
   position: model.Position;
   solving: types.Solving | undefined;
   solveResponse: types.SolveResponse | undefined;
   solutionLimit: number;
   oneWayMateMode: boolean;
+  simpleMate: boolean;
   dispatch: types.Dispatcher;
   onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
   const buttonText = props.solving ? "Cancel" : "Solve";
   const buttonVariant = props.solving ? "danger" : "primary";
+  const isFutsuu = props.mode === "futsuu";
 
   const solveButtonWithProgress = (
     <div className="d-flex py-2" style={{ gap: "5px" }}>
@@ -33,12 +36,13 @@ export default function SolveButton(props: {
 
           props.dispatch({
             ty: "set-solving",
-            solving: { cancelToken, step: 0 },
+            solving: { cancelToken, step: 0, nodes: isFutsuu ? 0 : undefined },
           });
           props.dispatch({ ty: "set-solve-response", response: undefined });
 
           let nextStepUpdate = nextStepRender(0);
           let lastStep = 0;
+          let lastNodes = 0;
           let fallback = false;
           const onStep = (step: number) => {
             lastStep = step;
@@ -51,41 +55,107 @@ export default function SolveButton(props: {
               solving: { cancelToken, step, fallback },
             });
           };
+          const onNodes = (nodes: number) => {
+            lastNodes = nodes;
+            props.dispatch({
+              ty: "set-solving",
+              solving: { cancelToken, step: 0, nodes, fallback },
+            });
+          };
           const onFallback = () => {
             fallback = true;
             nextStepUpdate = nextStepRender(0);
             props.dispatch({
               ty: "set-solving",
-              solving: { cancelToken, step: lastStep, fallback },
+              solving: {
+                cancelToken,
+                step: lastStep,
+                nodes: isFutsuu ? lastNodes : undefined,
+                fallback,
+              },
             });
           };
           const start = new Date();
           try {
-            const response = await solve.solve(
-              props.position,
-              props.solutionLimit,
-              cancelToken,
-              onStep,
-              onFallback
-            );
-            const stone = positionStone(props.position);
-            const millis = new Date().getTime() - start.getTime();
-            if (response) {
-              props.dispatch({
-                ty: "set-solve-response",
-                response: {
-                  ty: "solved",
-                  response,
-                  stone,
-                  millis,
-                  fallback,
-                },
-              });
-            } else if (!cancelToken.isCanceled()) {
-              props.dispatch({
-                ty: "set-solve-response",
-                response: { ty: "no-solution", millis, fallback },
-              });
+            if (isFutsuu) {
+              const res = await solve.solveFutsuu(
+                props.position,
+                props.simpleMate,
+                cancelToken,
+                onNodes,
+                onFallback
+              );
+              const stone = positionStone(props.position);
+              const millis = new Date().getTime() - start.getTime();
+              if (!res) {
+                // Canceled
+              } else if (res.ty === "mate") {
+                props.dispatch({
+                  ty: "set-solve-response",
+                  response: {
+                    ty: "solved",
+                    response: {
+                      redundant: res.redundant,
+                      solutions: 1,
+                      kif: res.kif,
+                      sfen: res.sfen,
+                      fromWhite: false,
+                      futsuuSteps: res.steps,
+                      futsuuNodes: res.nodes,
+                    },
+                    stone,
+                    millis,
+                    fallback,
+                  },
+                });
+              } else if (res.ty === "no-mate") {
+                props.dispatch({
+                  ty: "set-solve-response",
+                  response: {
+                    ty: "no-solution",
+                    nodes: res.nodes,
+                    millis,
+                    fallback,
+                  },
+                });
+              } else {
+                props.dispatch({
+                  ty: "set-solve-response",
+                  response: {
+                    ty: "suspended",
+                    nodes: res.nodes,
+                    millis,
+                    fallback,
+                  },
+                });
+              }
+            } else {
+              const response = await solve.solve(
+                props.position,
+                props.solutionLimit,
+                cancelToken,
+                onStep,
+                onFallback
+              );
+              const stone = positionStone(props.position);
+              const millis = new Date().getTime() - start.getTime();
+              if (response) {
+                props.dispatch({
+                  ty: "set-solve-response",
+                  response: {
+                    ty: "solved",
+                    response,
+                    stone,
+                    millis,
+                    fallback,
+                  },
+                });
+              } else if (!cancelToken.isCanceled()) {
+                props.dispatch({
+                  ty: "set-solve-response",
+                  response: { ty: "no-solution", millis, fallback },
+                });
+              }
             }
           } catch (e: any) {
             const millis = new Date().getTime() - start.getTime();
@@ -112,21 +182,38 @@ export default function SolveButton(props: {
       >
         {buttonText}
       </Button>
-      <BackwardSearchButton
-        position={props.position}
-        solveResponse={props.solveResponse}
-        oneWayMateMode={props.oneWayMateMode}
-        dispatch={props.dispatch}
-      />
+      {!isFutsuu && (
+        <BackwardSearchButton
+          position={props.position}
+          solveResponse={props.solveResponse}
+          oneWayMateMode={props.oneWayMateMode}
+          dispatch={props.dispatch}
+        />
+      )}
       {props.solving ? (
         <>
-          <span style={{ fontSize: "0.8em" }}>
-            <a href={model.sfenToPath(props.solving.sfen || model.encodeSfen(props.position))} target="_blank" rel="noreferrer">
-              Step
+          {isFutsuu ? (
+            <span style={{ fontSize: "0.8em" }}>
+              Nodes
               <br />
-              {props.solving.step}
-            </a>
-          </span>
+              {(props.solving.nodes ?? 0).toLocaleString()}
+            </span>
+          ) : (
+            <span style={{ fontSize: "0.8em" }}>
+              <a
+                href={model.sfenToPath(
+                  props.solving.sfen || model.encodeSfen(props.position),
+                  props.mode
+                )}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Step
+                <br />
+                {props.solving.step}
+              </a>
+            </span>
+          )}
           <Spinner animation="border" role="status">
             <span className="visually-hidden">Solving...</span>
           </Spinner>
@@ -147,35 +234,58 @@ export default function SolveButton(props: {
       ) : (
         <></>
       )}
-      <InputGroup className="mb-3" style={{ width: "200px" }}>
-        <InputGroup.Text>最大検出解数</InputGroup.Text>
-        <Form.Control
-          type="number"
-          value={props.solutionLimit === 0 ? "" : props.solutionLimit}
-          onChange={(event) => {
-            const n = parseInt(event.target.value);
-            if (n >= 0) {
-              props.dispatch({ ty: "set-solution-limit", n });
-            } else {
-              props.dispatch({ ty: "set-solution-limit", n: 0 });
-            }
+      {isFutsuu ? (
+        <Form.Check
+          type="checkbox"
+          id="simple-mate-checkbox"
+          label="簡易詰（無駄合・駒余りを許容）"
+          checked={props.simpleMate}
+          onChange={(e) => {
+            props.dispatch({
+              ty: "set-simple-mate",
+              simpleMate: e.target.checked,
+            });
           }}
           disabled={!!props.solving}
+          className="mb-3"
         />
-      </InputGroup>
-      <Form.Check 
-        type="checkbox"
-        id="one-way-mate-mode-checkbox"
-        label="一本道詰将棋モード"
-        checked={props.oneWayMateMode}
-        onChange={(e) => {
-          props.dispatch({ ty: "set-one-way-mate-mode", oneWayMateMode: e.target.checked });
-        }}
-        disabled={!!props.solving}
-        className="mb-3"
-      />
+      ) : (
+        <>
+          <InputGroup className="mb-3" style={{ width: "200px" }}>
+            <InputGroup.Text>最大検出解数</InputGroup.Text>
+            <Form.Control
+              type="number"
+              value={props.solutionLimit === 0 ? "" : props.solutionLimit}
+              onChange={(event) => {
+                const n = parseInt(event.target.value);
+                if (n >= 0) {
+                  props.dispatch({ ty: "set-solution-limit", n });
+                } else {
+                  props.dispatch({ ty: "set-solution-limit", n: 0 });
+                }
+              }}
+              disabled={!!props.solving}
+            />
+          </InputGroup>
+          <Form.Check
+            type="checkbox"
+            id="one-way-mate-mode-checkbox"
+            label="一本道詰将棋モード"
+            checked={props.oneWayMateMode}
+            onChange={(e) => {
+              props.dispatch({
+                ty: "set-one-way-mate-mode",
+                oneWayMateMode: e.target.checked,
+              });
+            }}
+            disabled={!!props.solving}
+            className="mb-3"
+          />
+        </>
+      )}
       {props.solveResponse ? (
         <SolveResponse
+          mode={props.mode}
           solveResponse={props.solveResponse}
           solutionLimit={props.solutionLimit}
           oneWayMateMode={props.oneWayMateMode}

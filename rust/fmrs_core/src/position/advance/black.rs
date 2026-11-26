@@ -17,7 +17,7 @@ use super::pinned::{pinned_into, Pinned};
 use super::{common, AdvanceOptions};
 
 pub(super) fn advance(
-    position: &mut PositionAux,
+    position: &PositionAux,
     options: &AdvanceOptions,
     res: &mut Vec<Movement>,
 ) -> AdvanceResult<()> {
@@ -29,7 +29,7 @@ pub(super) fn advance(
 
 struct Context<'a> {
     // Immutable fields
-    position: &'a mut PositionAux,
+    position: &'a PositionAux,
     attacker: Option<Attacker>,
     /// Lazy: drops() では未使用、direct_attack/discovered_attack でのみ参照。
     /// max_allowed_branches=0 で drops() が早期 Err 返した場合 pinned 不要。
@@ -37,7 +37,6 @@ struct Context<'a> {
     /// would otherwise pay each invocation; flag tracks lazy-init.
     pinned: Pinned,
     pinned_initialized: bool,
-    pawn_mask: usize,
     options: &'a AdvanceOptions,
 
     // Mutable fields
@@ -47,7 +46,7 @@ struct Context<'a> {
 
 impl<'a> Context<'a> {
     fn new(
-        position: &'a mut PositionAux,
+        position: &'a PositionAux,
         options: &'a AdvanceOptions,
         result: &'a mut Vec<Movement>,
     ) -> AdvanceResult<Self> {
@@ -62,20 +61,11 @@ impl<'a> Context<'a> {
                 .flatten()
         };
 
-        let pawn_mask = {
-            let mut mask = Default::default();
-            for pos in position.bitboard(Color::BLACK, Kind::Pawn) {
-                mask |= 1 << pos.col()
-            }
-            mask
-        };
-
         Ok(Self {
             position,
             attacker,
             pinned: Pinned::default(),
             pinned_initialized: false,
-            pawn_mask,
             result,
             num_branches_without_pawn_drop: 0,
             options,
@@ -98,7 +88,7 @@ impl<'a> Context<'a> {
                 self.position,
                 true,
                 self.options,
-                attacker.clone().into(),
+                Some(*attacker),
                 self.result,
             )?;
             return Ok(());
@@ -115,7 +105,8 @@ impl<'a> Context<'a> {
     fn drops(&mut self) -> AdvanceResult<()> {
         let white_king_pos = self.position.white_king_pos();
         for kind in self.position.hands().kinds(Color::BLACK) {
-            if kind == Kind::Pawn && self.pawn_mask >> white_king_pos.col() & 1 != 0 {
+            if kind == Kind::Pawn && self.position.col_has_pawn(Color::BLACK, white_king_pos.col())
+            {
                 continue;
             }
 

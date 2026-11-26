@@ -1,4 +1,5 @@
 mod backward_search;
+mod futsuu;
 mod solver;
 mod utils;
 
@@ -22,7 +23,7 @@ pub struct OneWayMateResult {
 /// テスト (app/test/check.test.ts) から呼ばれる。
 #[wasm_bindgen]
 pub fn is_white_in_check(sfen: &str) -> bool {
-    let Ok(mut position) = fmrs_core::position::position::PositionAux::from_sfen(sfen) else {
+    let Ok(position) = fmrs_core::position::position::PositionAux::from_sfen(sfen) else {
         return false;
     };
     // 後手玉が無いと checked_slow は panic する。wasm では panic のたびに

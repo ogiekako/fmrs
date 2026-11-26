@@ -49,7 +49,7 @@ impl Frame {
     }
 
     pub(crate) fn matches(&self, position: &PositionAux) -> bool {
-        if position.stone() != &Some(self.room.stone()) {
+        if position.stone() != Some(self.room.stone()) {
             return false;
         }
         if (position.bitboard(Color::WHITE, Kind::Pawn) & BitBoard::ROW1)

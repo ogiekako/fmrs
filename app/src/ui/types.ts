@@ -1,7 +1,8 @@
-import { Color, Kind, Position } from "../model";
+import { Color, Kind, Position, SolverMode } from "../model";
 import * as solve from "../solve";
 
 export type State = {
+  mode: SolverMode;
   position: Position;
   selected: Selected;
   solving: Solving | undefined;
@@ -9,6 +10,7 @@ export type State = {
   solveResponse: SolveResponse | undefined;
   solutionLimit: number;
   oneWayMateMode: boolean;
+  simpleMate: boolean;
 };
 
 export type Problem = [Position, /* name */ string];
@@ -31,6 +33,7 @@ export type Selected = {
 export type Solving = {
   cancelToken: solve.CancellationToken;
   step: number;
+  nodes?: number;
   sfen?: string;
   /** サーバーが使えず wasm に切り替えた場合に true。 */
   fallback?: boolean;
@@ -44,6 +47,11 @@ export type SolveResponse = { millis: number; fallback?: boolean } & (
     }
   | {
       ty: "no-solution";
+      nodes?: number;
+    }
+  | {
+      ty: "suspended";
+      nodes?: number;
     }
   | {
       ty: "error";
@@ -96,6 +104,15 @@ export type Event =
   | {
       ty: "set-one-way-mate-mode";
       oneWayMateMode: boolean;
+    }
+  | {
+      ty: "set-simple-mate";
+      simpleMate: boolean;
+    }
+  | {
+      ty: "set-mode";
+      mode: SolverMode;
+      position?: Position;
     }
   | {
       ty: "shift";

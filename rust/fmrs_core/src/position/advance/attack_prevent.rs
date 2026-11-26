@@ -1,12 +1,12 @@
 use crate::position::{
     advance::options::{AdvanceError, AdvanceResult},
     bitboard::{
-        bishop_reachable, king_then_king_or_night_power, knight_power, lance_reachable,
-        rook_reachable,
+        bishop_power, bishop_reachable, king_then_king_or_night_power, knight_power, lance_power,
+        lance_reachable, rook_power, rook_reachable,
     },
     checked,
     position::PositionAux,
-    rule::{is_legal_drop, is_legal_move, is_movable, promotable},
+    rule::{is_legal_move, is_movable, promotable},
 };
 
 use crate::{
@@ -23,9 +23,46 @@ use super::{
     AdvanceOptions,
 };
 
+/// Squares strictly between `a` (king) and `b` (line attacker), ordered closest-to-`a` first.
+/// Layout per entry: `[len, sq_0, sq_1, ..., sq_6]`.
+static ORDERED_BETWEEN: [[[u8; 8]; 81]; 81] = {
+    let mut res = [[[0u8; 8]; 81]; 81];
+    let mut a = 0;
+    while a < 81 {
+        let ac = (a / 9) as i32;
+        let ar = (a % 9) as i32;
+        let mut b = 0;
+        while b < 81 {
+            if a != b {
+                let bc = (b / 9) as i32;
+                let br = (b % 9) as i32;
+                let dc = bc - ac;
+                let dr = br - ar;
+                if dc == 0 || dr == 0 || dc.abs() == dr.abs() {
+                    let sc = dc.signum();
+                    let sr = dr.signum();
+                    let mut c = ac + sc;
+                    let mut r = ar + sr;
+                    let mut len = 0usize;
+                    while c != bc || r != br {
+                        res[a][b][1 + len] = (c * 9 + r) as u8;
+                        len += 1;
+                        c += sc;
+                        r += sr;
+                    }
+                    res[a][b][0] = len as u8;
+                }
+            }
+            b += 1;
+        }
+        a += 1;
+    }
+    res
+};
+
 // #[inline(never)]
 pub(super) fn attack_preventing_movements<'a>(
-    position: &'a mut PositionAux,
+    position: &'a PositionAux,
     should_return_check: bool,
     options: &'a AdvanceOptions,
     attacker_hint: Option<Attacker>,
@@ -43,7 +80,7 @@ pub(super) fn attack_preventing_movements<'a>(
 }
 
 struct Context<'a> {
-    position: &'a mut PositionAux,
+    position: &'a PositionAux,
     occupied_without_king: BitBoard,
     /// Lazy: pinned は `add_movements_to` (capture/block) でしか参照されない。
     /// `king_move` が早期に脱出を見つけて Err 返すと参照されないので、
@@ -56,7 +93,6 @@ struct Context<'a> {
     /// `bitboard(turn, kind)` lookups.
     leap_state: Option<LeapState>,
     attacker: Attacker,
-    pawn_mask: Option<usize>,
     should_return_check: bool,
     // Mutable fields
     result: &'a mut Vec<Movement>,
@@ -81,7 +117,7 @@ struct LeapState {
 impl<'a> Context<'a> {
     // #[inline(never)]
     fn new(
-        position: &'a mut PositionAux,
+        position: &'a PositionAux,
         should_return_check: bool,
         options: &'a AdvanceOptions,
         attacker_hint: Option<Attacker>,
@@ -103,7 +139,6 @@ impl<'a> Context<'a> {
             pinned_initialized: false,
             leap_state: None,
             attacker,
-            pawn_mask: None, // TODO: move to PositionAux
             should_return_check,
             result,
             is_mate: true,
@@ -112,35 +147,21 @@ impl<'a> Context<'a> {
         })
     }
 
+    #[inline]
     fn leap_state(&mut self) -> LeapState {
         if let Some(s) = self.leap_state {
             return s;
         }
         let turn = self.position.turn();
-        let lance = self.position.bitboard(turn, Kind::Lance);
-        let knight = self.position.bitboard(turn, Kind::Knight);
-        let bishop = self.position.bitboard(turn, Kind::Bishop);
-        let pro_bishop = self.position.bitboard(turn, Kind::ProBishop);
-        let rook = self.position.bitboard(turn, Kind::Rook);
-        let pro_rook = self.position.bitboard(turn, Kind::ProRook);
+        let turn_bb = self.position.color_bb(turn);
         let s = LeapState {
-            lance,
-            knight,
-            bishopish: bishop | pro_bishop,
-            rookish: rook | pro_rook,
+            lance: self.position.kind_bb(Kind::Lance) & turn_bb,
+            knight: self.position.kind_bb(Kind::Knight) & turn_bb,
+            bishopish: self.position.bishopish() & turn_bb,
+            rookish: self.position.rookish() & turn_bb,
         };
         self.leap_state = Some(s);
         s
-    }
-
-    fn pawn_mask(&mut self) -> usize {
-        *self.pawn_mask.get_or_insert_with(|| {
-            let mut mask = Default::default();
-            for pos in self.position.bitboard(self.position.turn(), Kind::Pawn) {
-                mask |= 1 << pos.col()
-            }
-            mask
-        })
     }
 
     fn pinned(&mut self) -> &Pinned {
@@ -167,9 +188,11 @@ impl<'a> Context<'a> {
     // #[inline(never)]
     fn block(&mut self, attacker_pos: Square, attacker_kind: Kind) -> AdvanceResult<()> {
         if attacker_kind.is_line_piece() {
-            let blockable = self.blockable_squares(attacker_pos, attacker_kind);
-            for dest in blockable {
-                self.add_movements_to(dest, true)?;
+            let entry = &ORDERED_BETWEEN[self.position.must_turn_king_pos().index()]
+                [attacker_pos.index()];
+            let len = entry[0] as usize;
+            for i in 0..len {
+                self.add_movements_to(Square::from_index(entry[1 + i] as usize), true)?;
             }
         }
         Ok(())
@@ -253,8 +276,10 @@ impl<'a> Context<'a> {
         // Drop
         if include_drop {
             for kind in self.position.hands().kinds(turn) {
-                let pawn_mask = (kind == Kind::Pawn).then(|| self.pawn_mask()).unwrap_or(0);
-                if is_legal_drop(turn, dest, kind, pawn_mask) {
+                if kind == Kind::Pawn && self.position.col_has_pawn(turn, dest.col()) {
+                    continue;
+                }
+                if is_movable(turn, dest, kind) {
                     self.maybe_add_move(Movement::Drop(dest, kind), kind)?;
                 }
             }
@@ -285,7 +310,7 @@ impl<'a> Context<'a> {
                 if around_dest_move_is_generated_by_leap(source_pos, dest, source_kind, turn) {
                     continue;
                 }
-                for promote in [false, true] {
+                for promote in [true, false] {
                     if promote && source_kind.promote().is_none() {
                         continue;
                     }
@@ -304,59 +329,55 @@ impl<'a> Context<'a> {
             }
         }
 
-        // Leap pieces: cached `LeapState` avoids 4× repeated `bitboard(turn, kind)`
-        // calls per dest. Lance/Knight specialize on a known `source_kind` so the
-        // inner `must_get_kind` lookup disappears.
+        // Leap pieces: cached `LeapState` + direct magic/power queries without `reachable` exclude mask.
         let leap = self.leap_state();
+        let occ = self.position.occupied_bb();
         if !leap.lance.is_empty() {
-            self.add_leap_simple(dest, capture_kind, leap.lance, Kind::Lance, turn, opposite)?;
+            let sources = lance_reachable(occ, opposite, dest) & leap.lance;
+            if !sources.is_empty() {
+                self.add_leap_simple(dest, capture_kind, sources, Kind::Lance, turn)?;
+            }
         }
         if !leap.knight.is_empty() {
-            self.add_leap_simple(
-                dest,
-                capture_kind,
-                leap.knight,
-                Kind::Knight,
-                turn,
-                opposite,
-            )?;
+            let sources = knight_power(opposite, dest) & leap.knight;
+            if !sources.is_empty() {
+                self.add_leap_simple(dest, capture_kind, sources, Kind::Knight, turn)?;
+            }
         }
         if !leap.bishopish.is_empty() {
-            self.add_leap_promotable(
-                dest,
-                capture_kind,
-                leap.bishopish,
-                Kind::Bishop,
-                turn,
-                opposite,
-            )?;
+            let sources = bishop_reachable(occ, dest) & leap.bishopish;
+            if !sources.is_empty() {
+                self.add_leap_promotable(dest, capture_kind, sources, turn)?;
+            }
         }
         if !leap.rookish.is_empty() {
-            self.add_leap_promotable(dest, capture_kind, leap.rookish, Kind::Rook, turn, opposite)?;
+            let sources = rook_reachable(occ, dest) & leap.rookish;
+            if !sources.is_empty() {
+                self.add_leap_promotable(dest, capture_kind, sources, turn)?;
+            }
         }
         Ok(())
     }
 
-    /// Leap path for kinds whose promoted form is not a line piece (Lance, Knight).
-    /// `source_kind` is statically known to equal `kind`, so `must_get_kind` is
-    /// skipped. is_legal_move を per-source 関数呼び出しせず、不成り合法性は
-    /// (turn, dest, kind) にのみ依存する事実を使ってループ前に決定し、
-    /// 成り合法性は dest_promotable を事前計算した上で source 側のみ確認する。
     fn add_leap_simple(
         &mut self,
         dest: Square,
         capture_kind: Option<Kind>,
-        on_board: BitBoard,
+        sources: BitBoard,
         kind: Kind,
         turn: Color,
-        opposite: Color,
     ) -> AdvanceResult<()> {
-        let sources = bitboard::reachable(self.position, opposite, dest, kind, false) & on_board;
         let movable_unpromoted = is_movable(turn, dest, kind);
         let dest_promotable = promotable(dest, turn);
         for source_pos in sources {
             if self.pinned().is_unpin_move(source_pos, dest) {
                 continue;
+            }
+            if dest_promotable || promotable(source_pos, turn) {
+                self.maybe_add_move(
+                    Movement::move_with_hint(source_pos, kind, dest, true, capture_kind),
+                    kind,
+                )?;
             }
             if movable_unpromoted {
                 self.maybe_add_move(
@@ -364,52 +385,33 @@ impl<'a> Context<'a> {
                     kind,
                 )?;
             }
-            // Lance/Knight は can_promote == true (常に成れる)、不成りで届く
-            // ところには成りでも届くので、合法性は source/dest のいずれかが
-            // 敵陣にあるかだけで決まる。
-            if dest_promotable || promotable(source_pos, turn) {
-                self.maybe_add_move(
-                    Movement::move_with_hint(source_pos, kind, dest, true, capture_kind),
-                    kind,
-                )?;
-            }
         }
         Ok(())
     }
 
-    /// Leap path for line-piece kinds whose promoted form is also a line piece
-    /// (Bishop/ProBishop, Rook/ProRook). The actual `source_kind` must be looked
-    /// up because `on_board` mixes raw and promoted variants. Bishop/Rook 系は
-    /// is_movable が常に true (Pawn/Lance/Knight 制限を受けない) なので不成り
-    /// は無条件で合法。成りは can_promote && (source か dest が敵陣) で判定。
     fn add_leap_promotable(
         &mut self,
         dest: Square,
         capture_kind: Option<Kind>,
-        on_board: BitBoard,
-        kind: Kind,
+        sources: BitBoard,
         turn: Color,
-        opposite: Color,
     ) -> AdvanceResult<()> {
-        let sources = bitboard::reachable(self.position, opposite, dest, kind, false) & on_board;
         let dest_promotable = promotable(dest, turn);
         for source_pos in sources {
             if self.pinned().is_unpin_move(source_pos, dest) {
                 continue;
             }
             let source_kind = self.position.must_get_kind(source_pos);
-            // 不成り: 常に合法。
-            self.maybe_add_move(
-                Movement::move_with_hint(source_pos, source_kind, dest, false, capture_kind),
-                source_kind,
-            )?;
-            // 成り: 既に成った駒は can_promote == false でスキップ。
             if source_kind.can_promote() && (dest_promotable || promotable(source_pos, turn)) {
                 self.maybe_add_move(
                     Movement::move_with_hint(source_pos, source_kind, dest, true, capture_kind),
                     source_kind,
                 )?;
             }
+            self.maybe_add_move(
+                Movement::move_with_hint(source_pos, source_kind, dest, false, capture_kind),
+                source_kind,
+            )?;
         }
         Ok(())
     }
@@ -421,7 +423,7 @@ impl Context<'_> {
     fn is_return_check(&self, movement: &Movement) -> bool {
         let mut np = self.position.clone();
         np.do_move(movement);
-        checked(&mut np, self.position.turn().opposite())
+        checked(&np, self.position.turn().opposite())
     }
 
     fn maybe_add_move(&mut self, movement: Movement, kind: Kind) -> AdvanceResult<()> {
@@ -431,7 +433,7 @@ impl Context<'_> {
         if !is_king_move && self.attacker.double_check.is_some() {
             let mut np = self.position.clone();
             np.do_move(&movement);
-            if checked(&mut np, self.position.turn()) {
+            if checked(&np, self.position.turn()) {
                 return Ok(());
             }
         }
@@ -451,7 +453,7 @@ impl Context<'_> {
             {
                 let mut np = self.position.clone();
                 np.do_move(&movement);
-                !common::checked(&mut np, self.position.turn())
+                !common::checked(&np, self.position.turn())
             },
             "{:?} king checked: posision={:?} movement={:?} next={:?}",
             self.position.turn(),
@@ -467,26 +469,6 @@ impl Context<'_> {
         self.result.push(movement);
 
         Ok(())
-    }
-
-    fn blockable_squares(&mut self, attacker_pos: Square, attacker_kind: Kind) -> BitBoard {
-        let king_pos = self.position.must_turn_king_pos();
-        if king_power(king_pos).contains(attacker_pos) {
-            return BitBoard::default();
-        }
-        bitboard::reachable(
-            self.position,
-            self.position.turn(),
-            king_pos,
-            attacker_kind.maybe_unpromote(),
-            false,
-        ) & bitboard::reachable(
-            self.position,
-            self.position.turn().opposite(),
-            attacker_pos,
-            attacker_kind.maybe_unpromote(),
-            true,
-        )
     }
 }
 
@@ -511,7 +493,7 @@ fn around_dest_move_is_generated_by_leap(
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Attacker {
     pub pos: Square,
     pub kind: Kind,
@@ -529,7 +511,7 @@ impl Attacker {
 }
 
 pub fn attacker(
-    position: &mut PositionAux,
+    position: &PositionAux,
     king_color: Color,
     early_return: bool,
 ) -> Option<Attacker> {
@@ -550,42 +532,45 @@ pub fn attacker(
         }
     }
     opponent_bb = opponent_bb.and_not(king_power_area);
+    if opponent_bb.is_empty() {
+        return attacker;
+    }
 
     let occupied = position.occupied_bb();
 
-    // Lance
-    let attacking_lances = lance_reachable(occupied, king_color, king_pos) & opponent_bb;
-    if !attacking_lances.is_empty() {
-        let attacker_pos = attacking_lances.singleton();
-        let kind = position.must_get_kind(attacker_pos);
-        if matches!(kind, Kind::Lance | Kind::Rook | Kind::ProRook)
-            && update_attacker(&mut attacker, attacker_pos, kind, early_return)
-        {
-            return attacker;
+    // Lance: pre-filter by enemy lances on the forward ray before computing `lance_reachable`.
+    let lance_cands = position.kind_bb(Kind::Lance) & opponent_bb & lance_power(king_color, king_pos);
+    if !lance_cands.is_empty() {
+        let attacking_lances = lance_reachable(occupied, king_color, king_pos) & lance_cands;
+        if !attacking_lances.is_empty() {
+            let attacker_pos = attacking_lances.singleton();
+            if update_attacker(&mut attacker, attacker_pos, Kind::Lance, early_return) {
+                return attacker;
+            }
         }
-
-        opponent_bb.unset(attacker_pos);
     }
 
-    for bishop in [false, true] {
-        let mut attacker_cands = if bishop {
-            position.bishopish()
-        } else {
-            position.rookish()
-        } & opponent_bb;
+    // Rook/ProRook: pre-filter by `rook_power(king_pos)` before magic lookup.
+    let rook_cands = position.rookish() & opponent_bb & rook_power(king_pos);
+    if !rook_cands.is_empty() {
+        let attacking_rooks = rook_cands & rook_reachable(occupied, king_pos);
+        for attacker_pos in attacking_rooks {
+            if update_attacker(
+                &mut attacker,
+                attacker_pos,
+                position.must_get_kind(attacker_pos),
+                early_return,
+            ) {
+                return attacker;
+            }
+        }
+    }
 
-        if attacker_cands.is_empty() {
-            continue;
-        }
-        attacker_cands &= if bishop {
-            bishop_reachable(occupied, king_pos)
-        } else {
-            rook_reachable(occupied, king_pos)
-        };
-        if attacker_cands.is_empty() {
-            continue;
-        }
-        for attacker_pos in attacker_cands {
+    // Bishop/ProBishop: pre-filter by `bishop_power(king_pos)` before magic lookup.
+    let bishop_cands = position.bishopish() & opponent_bb & bishop_power(king_pos);
+    if !bishop_cands.is_empty() {
+        let attacking_bishops = bishop_cands & bishop_reachable(occupied, king_pos);
+        for attacker_pos in attacking_bishops {
             if update_attacker(
                 &mut attacker,
                 attacker_pos,
