@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795669024638,
+  "lastUpdate": 1795669032666,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -65810,6 +65810,58 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/ogiekako/fmrs/commit/a3b7333a1192bc131c5502acf57a413a0549cbcf"
         },
         "date": 1795669019061,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50824,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 48544,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 14622,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 99804,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1959,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 118478572,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "committer": {
+            "name": "Keigo Oka",
+            "username": "ogiekako",
+            "email": "ogiekako@gmail.com"
+          },
+          "id": "a3b7333a1192bc131c5502acf57a413a0549cbcf",
+          "message": "Optimize helpmate Rust Benchmark CI: path filtering, skip duplicate regular run, and cache iai-runner",
+          "timestamp": "2026-11-26T04:49:21Z",
+          "url": "https://github.com/ogiekako/fmrs/commit/a3b7333a1192bc131c5502acf57a413a0549cbcf"
+        },
+        "date": 1795669029104,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
