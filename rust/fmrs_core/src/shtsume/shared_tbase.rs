@@ -2606,14 +2606,19 @@ pub struct SharedTBase {
 }
 
 impl SharedTBase {
-    pub fn new(hash_mb: usize) -> Self {
-        let n_shards = if hash_mb <= 2048 {
+    #[inline]
+    pub(crate) const fn shard_count_for_hash_mb(hash_mb: usize) -> usize {
+        if hash_mb <= 2048 {
             8192usize
         } else if hash_mb <= 8192 {
             16384usize
         } else {
             32768usize
-        };
+        }
+    }
+
+    pub fn new(hash_mb: usize) -> Self {
+        let n_shards = Self::shard_count_for_hash_mb(hash_mb);
         let shard_idx_mask = n_shards - 1;
         let bytes_per_shard = (hash_mb.max(1) * 1024 * 1024) / n_shards;
         let mut buckets_len = 64usize;
@@ -3451,10 +3456,10 @@ mod tests {
             assert!(!slot.already_has_exact_unknown(&ks, td_diff, Turn::Sente));
         }
 
-        // Dynamic shard scaling check (lazy alloc_zeroed = microseconds, 0 physical RSS).
-        let tb_mid = SharedTBase::new(4096);
-        assert_eq!(tb_mid.n_shards, 16384);
-        let tb_big = SharedTBase::new(16384);
-        assert_eq!(tb_big.n_shards, 32768);
+        // Dynamic shard scaling check without allocating multi-GiB virtual arenas in CI.
+        assert_eq!(SharedTBase::shard_count_for_hash_mb(16), 8192);
+        assert_eq!(SharedTBase::shard_count_for_hash_mb(2048), 8192);
+        assert_eq!(SharedTBase::shard_count_for_hash_mb(4096), 16384);
+        assert_eq!(SharedTBase::shard_count_for_hash_mb(16384), 32768);
     }
 }
