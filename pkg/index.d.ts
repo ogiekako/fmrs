@@ -68,4 +68,4 @@ export function is_white_in_check(sfen: string): boolean;
 
 export function moves_to_kif(sfen: string, moves_sfen: string): string | undefined;
 
-export function solve_futsuu(problem_sfen: string, simple_mate: boolean, hash_mb: number, on_progress?: Function | null): FutsuuSolveResult;
+export function solve_futsuu(problem_sfen: string, hash_mb: number, on_progress?: Function | null): FutsuuSolveResult;

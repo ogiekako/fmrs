@@ -423,19 +423,17 @@ export function moves_to_kif(sfen, moves_sfen) {
 
 /**
  * @param {string} problem_sfen
- * @param {boolean} simple_mate
  * @param {number} hash_mb
  * @param {Function | null} [on_progress]
  * @returns {FutsuuSolveResult}
  */
-export function solve_futsuu(problem_sfen, simple_mate, hash_mb, on_progress) {
+export function solve_futsuu(problem_sfen, hash_mb, on_progress) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
-        const val2 = +simple_mate;
-        const val3 = +hash_mb;
+        const val2 = +hash_mb;
         const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
         const len0 = WASM_VECTOR_LEN;
-        wasm.solve_futsuu(retptr, ptr0, len0, val2, val3, isLikeNone(on_progress) ? 0 : addToExternrefTable0(on_progress));
+        wasm.solve_futsuu(retptr, ptr0, len0, val2, isLikeNone(on_progress) ? 0 : addToExternrefTable0(on_progress));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);
