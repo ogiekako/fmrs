@@ -1,7 +1,7 @@
 //! Rust port of `shtsume` (https://github.com/hkijin/shtsume) with pluggable position backends.
 //!
 //! Original C implementation: Copyright (c) 2022-2025 棋人(Hkijin), MIT License.
-//! See `src/shtsume/LICENSE` for the full license text.
+//! See `src/futsuu/LICENSE` for the full license text.
 
 pub mod backend;
 pub mod cycle_skip;

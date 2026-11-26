@@ -1,5 +1,5 @@
-use fmrs_core::shtsume::tbase::TBase;
-use fmrs_core::shtsume::{FmrsPos, Move, PositionBackend, SearchConfig, ShtsumePos, Solver};
+use fmrs_core::futsuu::tbase::TBase;
+use fmrs_core::futsuu::{FmrsPos, Move, PositionBackend, SearchConfig, ShtsumePos, Solver};
 
 fn verify_pv<P: PositionBackend>(root: &P, pv: &[Move]) {
     assert!(!pv.is_empty(), "PV should not be empty for mate");
@@ -34,7 +34,7 @@ fn verify_pv<P: PositionBackend>(root: &P, pv: &[Move]) {
     );
 }
 
-fn sorted_moves(items: &[fmrs_core::shtsume::types::MvItem]) -> Vec<String> {
+fn sorted_moves(items: &[fmrs_core::futsuu::types::MvItem]) -> Vec<String> {
     let mut out = Vec::new();
     for item in items {
         for mv in item.all_moves() {

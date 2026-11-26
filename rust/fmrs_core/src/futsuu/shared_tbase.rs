@@ -15,7 +15,7 @@ use std::sync::atomic::{fence, AtomicBool, AtomicU16, AtomicU32, AtomicU64, Orde
 
 use smallvec::SmallVec;
 
-use crate::shtsume::types::{
+use crate::futsuu::types::{
     KeyState, MKey, MKeyCmp, MvItem, TData, Turn, ALL_DEPTH, GC_DELETE_OFFSET, GC_DELETE_RATE,
     GC_TSUMI_RATE, INFINATE,
 };

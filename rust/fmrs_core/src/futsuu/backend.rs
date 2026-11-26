@@ -1,8 +1,8 @@
 //! Pluggable position / move-generation backend trait for the shtsume solver.
 
-use crate::shtsume::ni_cache::BoardPlanes;
-use crate::shtsume::tbase::TBase;
-use crate::shtsume::types::{KeyState, MKey, Move, MvItem, Turn};
+use crate::futsuu::ni_cache::BoardPlanes;
+use crate::futsuu::tbase::TBase;
+use crate::futsuu::types::{KeyState, MKey, Move, MvItem, Turn};
 
 /// Exact 1-ply checkmate witness returned by [`PositionBackend::find_1ply_mate`].
 #[derive(Copy, Clone, Debug)]

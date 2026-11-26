@@ -10,11 +10,11 @@ use crate::position::bitboard::{
 };
 use crate::position::position::PositionAux;
 use crate::position::Square;
-use crate::shtsume::backend::PositionBackend;
-use crate::shtsume::fmrs_backend::{
+use crate::futsuu::backend::PositionBackend;
+use crate::futsuu::fmrs_backend::{
     has_attack_on, has_attack_on_masked, FastBoardAttacks, FmrsPos,
 };
-use crate::shtsume::types::{
+use crate::futsuu::types::{
     KOMA_PROMOTION, MvItem, DISTANCE, GFU, GGI, GHI, GKA, GKE, GKI, GKY, GNG, GNK, GNY, GOU, GRY,
     GTO, GUM, N_SQUARE, PROMOTED, SFU, SGI, SHI, SKA, SKE, SKI, SKY, SNG, SNK, SNY, SOU, SRY, STO,
     SUM,
@@ -1457,7 +1457,7 @@ impl<'a, const DELTA: bool, const FLOOR: bool> GamV2Heuristic<'a, DELTA, FLOOR> 
     }
 }
 
-impl<'a, const DELTA: bool, const FLOOR: bool> crate::shtsume::solver::SearchHeuristic<FmrsPos>
+impl<'a, const DELTA: bool, const FLOOR: bool> crate::futsuu::solver::SearchHeuristic<FmrsPos>
     for GamV2Heuristic<'a, DELTA, FLOOR>
 {
     const HAS_EDGE_DELTA: bool = DELTA;
@@ -1585,7 +1585,7 @@ impl<'a, const DELTA: bool, const FLOOR: bool> TableNnueHeuristic<'a, DELTA, FLO
     }
 }
 
-impl<'a, const DELTA: bool, const FLOOR: bool> crate::shtsume::solver::SearchHeuristic<FmrsPos>
+impl<'a, const DELTA: bool, const FLOOR: bool> crate::futsuu::solver::SearchHeuristic<FmrsPos>
     for TableNnueHeuristic<'a, DELTA, FLOOR>
 {
     const HAS_EDGE_DELTA: bool = DELTA;
@@ -1750,7 +1750,7 @@ impl<'a, const ENABLE_OR: bool, const USE_SEE_OR: bool, const DELTA: bool>
 }
 
 impl<'a, const ENABLE_OR: bool, const USE_SEE_OR: bool, const DELTA: bool>
-    crate::shtsume::solver::SearchHeuristic<FmrsPos>
+    crate::futsuu::solver::SearchHeuristic<FmrsPos>
     for FastLutHeuristic<'a, ENABLE_OR, USE_SEE_OR, DELTA>
 {
     const HAS_EDGE_DELTA: bool = DELTA;
@@ -2084,7 +2084,7 @@ impl<
         const TACTICAL_AND: bool,
         const DELTA: bool,
         const FIRST_VISIT_OR_ONLY: bool,
-    > crate::shtsume::solver::SearchHeuristic<FmrsPos>
+    > crate::futsuu::solver::SearchHeuristic<FmrsPos>
     for FastLutV2Heuristic<'a, ENABLE_OR, USE_SEE_OR, TACTICAL_AND, DELTA, FIRST_VISIT_OR_ONLY>
 {
     const HAS_EDGE_DELTA: bool = DELTA;
@@ -2482,7 +2482,7 @@ pub fn score_fmrs_and_default(pos: &FmrsPos, list: &mut [MvItem]) {
     if list.len() <= 1 || list.iter().any(|x| x.tdata.dn == 0) || list.iter().all(|x| x.search()) {
         return;
     }
-    let w = &crate::shtsume::default_weights::DEFAULT_LUT_WEIGHTS;
+    let w = &crate::futsuu::default_weights::DEFAULT_LUT_WEIGHTS;
     let p = pos.pos_aux();
     let king_sq = pos.self_ou();
     let kz = (KING_ZONE[king_sq].min(5)) as usize;

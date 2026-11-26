@@ -3,10 +3,10 @@
 
 use smallvec::SmallVec;
 
-use crate::shtsume::backend::{HsOracle, PositionBackend};
-use crate::shtsume::shtsume_backend::bitboard::{SBitBoard, BB_EMPTY, TABLES};
-use crate::shtsume::shtsume_backend::pos::ShtsumePos;
-use crate::shtsume::types::{
+use crate::futsuu::backend::{HsOracle, PositionBackend};
+use crate::futsuu::shtsume_backend::bitboard::{SBitBoard, BB_EMPTY, TABLES};
+use crate::futsuu::shtsume_backend::pos::ShtsumePos;
+use crate::futsuu::types::{
     sq_rank, KeyState, MKey, Move, MoveChain, MvItem, Turn, DISTANCE, FU, GFU, GGI, GHI, GI, GKA,
     GKE, GKI, GKY, GRY, GUM, HI, IS_SKOMA, KA, KE, KI, KOMA_PROMOTION, KY, N_SQUARE, SFU, SGI, SHI,
     SKA, SKE, SKI, SKY, SRY, SUM,

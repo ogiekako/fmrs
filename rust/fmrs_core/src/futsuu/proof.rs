@@ -2,8 +2,8 @@
 
 use std::cmp::Ordering;
 
-use crate::shtsume::backend::PositionBackend;
-use crate::shtsume::types::{IS_SKOMA, MKey, MKeyCmp, MvItem, PROMOTED, FU, GI, HI, KA, KE, KI, KY};
+use crate::futsuu::backend::PositionBackend;
+use crate::futsuu::types::{IS_SKOMA, MKey, MKeyCmp, MvItem, PROMOTED, FU, GI, HI, KA, KE, KI, KY};
 
 /// Branchless 64-bit sort key for OR nodes (attacker / 詰方), encoding all 13 tie-breaking
 /// levels of `proof_number_comp` into a single `u64` integer comparison.
@@ -613,7 +613,7 @@ pub fn disproof_koma_and<P: PositionBackend>(pos: &P, mvlist: &mut MvItem, best_
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shtsume::types::{Move, TData, GOU, INFINATE, SOU};
+    use crate::futsuu::types::{Move, TData, GOU, INFINATE, SOU};
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
     fn ref_or_comp(a: &MvItem, b: &MvItem) -> Ordering {

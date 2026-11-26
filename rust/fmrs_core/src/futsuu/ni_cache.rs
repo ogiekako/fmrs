@@ -12,7 +12,7 @@
 
 use std::sync::atomic::{fence, AtomicBool, AtomicU32, AtomicU64, Ordering};
 
-use crate::shtsume::types::{MKey, TData, FU, GI, HI, INFINATE, KA, KE, KI, KY};
+use crate::futsuu::types::{MKey, TData, FU, GI, HI, INFINATE, KA, KE, KI, KY};
 
 /// Allocate a zero-initialized `Box<[T]>` via OS demand-zero pages (`std::alloc::alloc_zeroed`)
 /// without faulting or dirtying pages on the allocating thread.
@@ -1703,7 +1703,7 @@ impl LocalMetaTable {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shtsume::{FmrsPos, PositionBackend, SearchConfig, Solver};
+    use crate::futsuu::{FmrsPos, PositionBackend, SearchConfig, Solver};
 
     #[test]
     fn test_ni_cache_swar_tag_and_soundness() {
@@ -1849,7 +1849,7 @@ mod tests {
 
     #[test]
     fn test_white_slider_present_mask_1000_random_positions() {
-        use crate::shtsume::types::{GKA, GKY, GRY, GUM, GHI};
+        use crate::futsuu::types::{GKA, GKY, GRY, GUM, GHI};
 
         // Deterministic xorshift64 PRNG across 1,200 random boards covering every piece kind/color
         let mut rng = 0xdead_beef_cafe_babe_u64;

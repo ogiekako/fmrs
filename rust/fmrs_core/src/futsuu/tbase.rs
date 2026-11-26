@@ -6,9 +6,9 @@
 //! - Uses lazy bump allocation (`Vec::with_capacity` + free-list for GC-recycled slots)
 //!   instead of pre-zeroing and linking millions of nodes on `new()` / `clear()`.
 
-use crate::shtsume::backend::{HsOracle, PositionBackend};
-use crate::shtsume::proof::sort_and;
-use crate::shtsume::types::{
+use crate::futsuu::backend::{HsOracle, PositionBackend};
+use crate::futsuu::proof::sort_and;
+use crate::futsuu::types::{
     KeyState, MKey, MKeyCmp, MvItem, TData, Turn, ALL_DEPTH, GC_DELETE_OFFSET, GC_DELETE_RATE,
     GC_TSUMI_RATE, INFINATE, MCARDS_PER_MBYTE,
 };

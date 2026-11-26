@@ -1,0 +1,131 @@
+name: Futsuu Benchmark
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "rust/fmrs_core/src/futsuu/**"
+      - "rust/src/bin/futsuu_bench.rs"
+      - "rust/bench_futsuu/**"
+      - ".github/workflows/futsuu_bench.yaml"
+  workflow_dispatch:
+    inputs:
+      note:
+        description: "Optional label/note for this benchmark run"
+        required: false
+        default: ""
+      force_record:
+        description: "Record even if delta is below significance threshold"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: futsuu-bench
+  cancel-in-progress: false
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ !contains(github.event.head_commit.message, '[skip bench]') }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build futsuu_bench (release)
+        working-directory: rust
+        run: cargo build --release --bin futsuu_bench
+
+      - name: Run 1T deterministic suite (std, 11 problems)
+        working-directory: rust
+        run: |
+          ./target/release/futsuu_bench \
+            --suite std \
+            --threads 1 \
+            --hash-mb 256 \
+            --timeout 30 \
+            --json /tmp/futsuu_std_1t.json
+
+      - name: Run Long-Mate parallel suite (long, FmrsPos)
+        working-directory: rust
+        run: |
+          ./target/release/futsuu_bench \
+            --suite long \
+            --backend fmrs \
+            --threads 0 \
+            --hash-mb 1024 \
+            --timeout 120 \
+            --json /tmp/futsuu_long_mt.json
+
+      - name: Checkout futsuu-bench-data branch
+        run: |
+          git fetch origin futsuu-bench-data 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/futsuu-bench-data; then
+            git worktree add /tmp/futsuu-bench-data origin/futsuu-bench-data
+            git -C /tmp/futsuu-bench-data checkout -B futsuu-bench-data
+          else
+            mkdir -p /tmp/futsuu-bench-data
+            git -C /tmp/futsuu-bench-data init
+            git -C /tmp/futsuu-bench-data checkout -b futsuu-bench-data
+            git -C /tmp/futsuu-bench-data remote add origin "$(git remote get-url origin)"
+          fi
+
+      - name: Record benchmark and update dashboard
+        id: record
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          INPUT_NOTE: ${{ inputs.note }}
+          FORCE_RECORD: ${{ github.event_name == 'workflow_dispatch' && inputs.force_record == true || contains(github.event.head_commit.message, '[bench]') }}
+        run: |
+          EXTRA_ARGS="--only-if-significant"
+          if [ "$FORCE_RECORD" = "true" ]; then
+            EXTRA_ARGS="--force"
+          fi
+          python3 rust/bench_futsuu/record_bench.py \
+            --std-input /tmp/futsuu_std_1t.json \
+            --long-input /tmp/futsuu_long_mt.json \
+            --history /tmp/futsuu-bench-data/history.json \
+            --render-dir /tmp/futsuu-bench-data \
+            --commit "${GITHUB_SHA}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --message "${COMMIT_MSG}" \
+            --note "${INPUT_NOTE}" \
+            --event "${GITHUB_EVENT_NAME}" \
+            --threshold-pct 3.0 \
+            --long-threshold-pct 5.0 \
+            --summary-md "${GITHUB_STEP_SUMMARY}" \
+            --github-output "${GITHUB_OUTPUT}" \
+            $EXTRA_ARGS
+          cp rust/bench_futsuu/index.html /tmp/futsuu-bench-data/index.html
+
+      - name: Publish to futsuu-bench-data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /tmp/futsuu-bench-data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if [ -f history.json ]; then
+            git add history.json
+          fi
+          if [ -f README.md ]; then
+            git add README.md
+          fi
+          if [ -d charts ]; then
+            git add charts
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "bench: update futsuu dashboard (${GITHUB_SHA::7})"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" futsuu-bench-data
+          fi

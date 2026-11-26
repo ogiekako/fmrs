@@ -6,6 +6,7 @@ pub mod codegen;
 pub mod config;
 pub mod converter;
 pub mod direction;
+pub mod futsuu;
 pub mod jkf;
 pub mod magic;
 pub mod memo;
@@ -14,7 +15,6 @@ pub mod piece;
 pub mod position;
 pub mod search;
 pub mod sfen;
-pub mod shtsume;
 pub mod solve;
 pub mod validate;
 

@@ -6,30 +6,30 @@ use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 
-use crate::shtsume::time::Instant;
+use crate::futsuu::time::Instant;
 
-use crate::shtsume::backend::{HsOracle, PositionBackend};
-use crate::shtsume::cycle_skip::{
+use crate::futsuu::backend::{HsOracle, PositionBackend};
+use crate::futsuu::cycle_skip::{
     rollout_corridor, shift_move, shift_sq, CertEdge, CertOrNode, CovariantCert, CycleDetection,
     CycleStats, CycleTracker, SharedCorridorTable, MAX_CERT_NODES,
 };
-use crate::shtsume::ni_cache::{
+use crate::futsuu::ni_cache::{
     alloc_zeroed_slice, mkey_bound_dec_if_bounded, mkey_bound_inc, mkey_min_dec_sat,
     proof_tbase_mkey, BoardPlanes, LocalMetaTable, NiFootprint, NiHit, SharedNiCache,
     MIN_NI_INSERT_SH, MIN_NI_INSERT_WORK,
 };
-use crate::shtsume::proof::{
+use crate::futsuu::proof::{
     and_sort_key, disproof_koma, disproof_koma_and, disproof_koma_or, or_sort_key, proof_koma,
     proof_koma_and, proof_koma_and_simple, proof_koma_or, proof_koma_or_simple, reorder_first_and,
     reorder_first_and_simple, reorder_first_or, reorder_first_or_simple, sort_and, sort_and_simple,
     sort_or, sort_or_simple,
 };
-use crate::shtsume::shared_tbase::{LocalTerminalEntry, SharedTBase, LOCAL_TT_SIZE};
-use crate::shtsume::solver::{
+use crate::futsuu::shared_tbase::{LocalTerminalEntry, SharedTBase, LOCAL_TT_SIZE};
+use crate::futsuu::solver::{
     compute_spare_mask, copy_proof_fields, initial_or_pn0, sort_and_simple_ab, DefaultHeuristic,
     SearchHeuristic, SimpleDag, SimpleDagEntry, NO_CU,
 };
-use crate::shtsume::types::{
+use crate::futsuu::types::{
     sq_file, sq_rank, KeyState, MKey, Move, MoveChain, MvItem, SearchConfig, SearchResult, TData,
     Turn, DISTANCE, INFINATE, IS_SKOMA, MAKE_TREE_PN_PLUS, PRE_DISPROOF_MAX, PRE_PROOF_MAX,
     PROMOTED, PROOF_MAX, TSUME_MAX_DEPTH,
@@ -1172,7 +1172,7 @@ impl<'a, H> WorkerCtx<'a, H> {
             }
             let ev = ev_item.head_move();
             mask |= if ev.is_drop() {
-                crate::shtsume::ni_cache::upgrade_ni_mask_for_white_drop(
+                crate::futsuu::ni_cache::upgrade_ni_mask_for_white_drop(
                     child_fp.mask,
                     ev.hand_ktype(),
                     sq_file(ev.dest()),
@@ -6146,7 +6146,7 @@ impl<'a, H, F> PostTreeBuilder<'a, H, F> {
     }
 }
 
-/// Persistent multi-threaded search engine owned by [`Solver`](crate::shtsume::Solver) when `threads > 1`.
+/// Persistent multi-threaded search engine owned by [`Solver`](crate::futsuu::Solver) when `threads > 1`.
 pub struct ParallelEngine {
     pool: rayon::ThreadPool,
     tbase: SharedTBase,

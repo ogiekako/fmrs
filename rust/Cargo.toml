@@ -17,6 +17,10 @@ bench = false
 name = "fmrs"
 bench = false
 
+[[bin]]
+name = "futsuu_bench"
+bench = false
+
 [workspace]
 members = ["wasm", "fmrs_core"]
 

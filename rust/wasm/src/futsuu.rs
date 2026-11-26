@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use fmrs_core::{
-    converter, sfen,
-    shtsume::{pv_to_movements, FmrsPos, SearchConfig, Solver},
+    converter,
+    futsuu::{pv_to_movements, FmrsPos, SearchConfig, Solver},
+    sfen,
     validate::decode_and_validate_futsuu_position,
 };
 use wasm_bindgen::prelude::wasm_bindgen;

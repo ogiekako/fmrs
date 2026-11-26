@@ -16,12 +16,12 @@ use crate::position::position::PositionAux;
 use crate::position::zobrist::{zobrist, zobrist_raw};
 use crate::position::{Movement, Square};
 use crate::sfen;
-use crate::shtsume::backend::{HsOracle, OnePlyMate, PositionBackend};
-use crate::shtsume::ni_cache::{
+use crate::futsuu::backend::{HsOracle, OnePlyMate, PositionBackend};
+use crate::futsuu::ni_cache::{
     mkey_set, pack_ni_mask, pack_ni_mask_cap, req_no_w_lance_col, white_slider_mask_from_bbs,
     BoardPlanes, MAX_HAND, REQ_NO_W_BISH, REQ_NO_W_ROOK,
 };
-use crate::shtsume::types::{
+use crate::futsuu::types::{
     KeyState, MKey, Move, MoveChain, MvItem, Turn, DISTANCE, FU, GFU, GGI, GHI, GI, GKA, GKE, GKI,
     GKY, GNG, GNK, GNY, GOU, GRY, GTO, GUM, HI, KA, KE, KI, KY, N_KOMAS, N_SQUARE, SFU, SGI, SHI,
     SKA, SKE, SKI, SKY, SNG, SNK, SNY, SOU, SPC, SRY, STO, SUM,
@@ -1441,7 +1441,7 @@ impl PositionBackend for FmrsPos {
 
     #[inline(always)]
     fn default_score_and_moves(&self, list: &mut [MvItem]) {
-        crate::shtsume::ml::score_fmrs_and_default(self, list);
+        crate::futsuu::ml::score_fmrs_and_default(self, list);
     }
 
     fn generate_check_fast(&self, out: &mut Vec<MvItem>) {

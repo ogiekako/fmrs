@@ -19,9 +19,9 @@ use std::sync::atomic::{fence, AtomicU32, AtomicU64, Ordering};
 
 use smallvec::SmallVec;
 
-use crate::shtsume::backend::PositionBackend;
-use crate::shtsume::ni_cache::BoardPlanes;
-use crate::shtsume::types::{is_gote_koma, sq_file, sq_rank, MKey, Move, Turn, GOU};
+use crate::futsuu::backend::PositionBackend;
+use crate::futsuu::ni_cache::BoardPlanes;
+use crate::futsuu::types::{is_gote_koma, sq_file, sq_rank, MKey, Move, Turn, GOU};
 
 pub const MIN_CYCLE_LEN: usize = 8;
 pub const MAX_CYCLE_LEN: usize = 420;
@@ -1084,7 +1084,7 @@ pub fn rollout_corridor<P: PositionBackend>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shtsume::{FmrsPos, PositionBackend, SearchConfig, Solver};
+    use crate::futsuu::{FmrsPos, PositionBackend, SearchConfig, Solver};
 
     #[test]
     fn test_shift_move_and_corridor_tables() {
@@ -1154,7 +1154,7 @@ mod tests {
 
     #[test]
     fn test_covariant_proof_replay_superlong_type2() {
-        use crate::shtsume::tbase::TBase;
+        use crate::futsuu::tbase::TBase;
         let mut solver = Solver::new(SearchConfig {
             hash_mb: 128,
             threads: 1,
@@ -1218,7 +1218,7 @@ mod tests {
 
     #[test]
     fn test_type3_hand_conversion_and_parallel_cycle_scout() {
-        use crate::shtsume::tbase::TBase;
+        use crate::futsuu::tbase::TBase;
 
         // Meta-Shinsekai checkpoint (`ply = 830`, periodic Type III hand conversion + ray peel)
         let sfen_830 =

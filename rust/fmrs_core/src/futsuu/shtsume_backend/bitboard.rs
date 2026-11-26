@@ -1,6 +1,6 @@
 //! 3x27-bit rotated bitboard implementation ported from shtsume's `bitboard.c` & `global.c`.
 
-use crate::shtsume::types::{
+use crate::futsuu::types::{
     GFU, GGI, GHI, GKA, GKE, GKI, GKY, GNG, GNK, GNY, GOU, GRY, GTO, GUM, N_SQUARE, SFU, SGI, SHI,
     SKA, SKE, SKI, SKY, SNG, SNK, SNY, SOU, SRY, STO, SUM,
 };

@@ -6,9 +6,9 @@ use std::sync::{
 use actix_cors::Cors;
 use actix_web::{get, http::header, post, web, App, HttpRequest, HttpResponse, HttpServer};
 use fmrs_core::{
+    futsuu::{pv_to_movements, FmrsPos, SearchConfig, Solver as FutsuuSolver},
     piece::Color,
     position::position::PositionAux,
-    shtsume::{pv_to_movements, FmrsPos, SearchConfig, Solver as FutsuuSolver},
     validate::{decode_and_validate_futsuu_position, decode_and_validate_position},
 };
 use futures::StreamExt;

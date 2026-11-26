@@ -2,8 +2,8 @@
 
 use anyhow::bail;
 
-use crate::shtsume::shtsume_backend::bitboard::{lslp, rslp, SBitBoard, BB_EMPTY, TABLES};
-use crate::shtsume::types::{
+use crate::futsuu::shtsume_backend::bitboard::{lslp, rslp, SBitBoard, BB_EMPTY, TABLES};
+use crate::futsuu::types::{
     is_sente_koma, sq_file, sq_rank, KeyState, MKey, Move, Turn, FU, GFU, GGI, GHI, GI, GKA, GKE, GKI, GKY, GNG, GNK, GNY, GOU, GRY, GTO, GUM, HAND, HI, KA, KE, KI, KY, N_SQUARE,
     PROMOTED, SFU, SGI, SHI, SKA, SKE, SKI, SKY, SNG, SNK, SNY, SOU, SPC, SRY, STO, SUM,
 };
@@ -845,7 +845,7 @@ impl ShtsumePos {
         }
         // If sliding check, check if any square strictly between king and checker can be blocked
         let atk_koma = self.board[atk];
-        if crate::shtsume::types::IS_SKOMA[atk_koma as usize] {
+        if crate::futsuu::types::IS_SKOMA[atk_koma as usize] {
             return true;
         }
         let between = self.between_king_and_attacker();
