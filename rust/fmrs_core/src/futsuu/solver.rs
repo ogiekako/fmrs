@@ -684,6 +684,14 @@ impl Solver {
         self.solve_with(root, &mut h)
     }
 
+    /// Solve `root` without stopping prematurely at the `PROOF_MAX - 1` (`255`) heuristic ceiling:
+    /// runs the standard `PROOF_MAX - 1` pass first, and if undecided (`pn != 0 && dn != 0`)
+    /// without hitting `node_limit`/`time_limit`, continues in the warm `TBase` up to `INFINATE - 1`.
+    pub fn solve_unbounded_pn<P: PositionBackend>(&mut self, root: &P) -> SearchResult {
+        let mut h = DefaultHeuristic;
+        self.solve_with_pn_cap(root, &mut h, INFINATE - 1)
+    }
+
     pub fn solve_parallel_with<P, H, F>(&mut self, root: &P, make_heuristic: F) -> SearchResult
     where
         P: PositionBackend,
@@ -706,6 +714,15 @@ impl Solver {
         &mut self,
         root: &P,
         heuristic: &mut H,
+    ) -> SearchResult {
+        self.solve_with_pn_cap(root, heuristic, PROOF_MAX - 1)
+    }
+
+    fn solve_with_pn_cap<P: PositionBackend, H: SearchHeuristic<P>>(
+        &mut self,
+        root: &P,
+        heuristic: &mut H,
+        max_pn_cap: u16,
     ) -> SearchResult {
         self.tbase.clear();
         self.tbase.preserve_even_tsumi = self.config.simple_mate;
@@ -733,20 +750,38 @@ impl Solver {
         }
 
         let mut mvlist = MvItem::empty_root();
+        let max_sh = if self.config.simple_mate {
+            SIMPLE_MAX_DEPTH
+        } else {
+            TSUME_MAX_DEPTH
+        };
         let th_tdata = TData {
-            pn: PROOF_MAX - 1,
+            pn: (PROOF_MAX - 1).min(max_pn_cap),
             dn: INFINATE - 1,
-            sh: if self.config.simple_mate {
-                SIMPLE_MAX_DEPTH
-            } else {
-                TSUME_MAX_DEPTH
-            },
+            sh: max_sh,
         };
 
         if self.config.simple_mate {
             self.bn_search_or::<P, H, true>(root, th_tdata, &mut mvlist, heuristic);
         } else {
             self.bn_search_or::<P, H, false>(root, th_tdata, &mut mvlist, heuristic);
+        }
+        if max_pn_cap > PROOF_MAX - 1
+            && mvlist.tdata.pn != 0
+            && mvlist.tdata.dn != 0
+            && !self.suspend
+            && !self.error
+        {
+            let th_ext = TData {
+                pn: max_pn_cap,
+                dn: INFINATE - 1,
+                sh: max_sh,
+            };
+            if self.config.simple_mate {
+                self.bn_search_or::<P, H, true>(root, th_ext, &mut mvlist, heuristic);
+            } else {
+                self.bn_search_or::<P, H, false>(root, th_ext, &mut mvlist, heuristic);
+            }
         }
         self.last_bn_nodes = self.nodes;
         self.last_bn_secs = self.start.elapsed().as_secs_f64();

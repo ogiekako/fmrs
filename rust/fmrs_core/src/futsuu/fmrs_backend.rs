@@ -649,6 +649,18 @@ impl FmrsPos {
         self
     }
 
+    /// Return a copy of `self` with one piece of `ktype` removed from the attacker's (`Color::BLACK` / `Turn::Sente`) hand, if present.
+    #[inline]
+    pub fn without_attacker_hand_piece(&self, ktype: u8) -> Self {
+        let mut next = self.clone();
+        let kind = ktype_to_kind(ktype);
+        if next.pos.hands().count(Color::BLACK, kind) > 0 {
+            next.pos.hands_mut().remove(Color::BLACK, kind);
+            next.mkey[Turn::Sente.index()].dec(ktype);
+        }
+        next
+    }
+
     #[inline(always)]
     pub fn self_ou(&self) -> usize {
         if self.pos.turn().is_white() {
