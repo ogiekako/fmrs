@@ -84,6 +84,25 @@ export class FutsuuSolveResult {
         wasm.__wbg_futsuusolveresult_free(ptr, 0);
     }
     /**
+     * @returns {string}
+     */
+    intended_move_kif() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.futsuusolveresult_intended_move_kif(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @returns {boolean}
      */
     is_mate() {
@@ -124,6 +143,13 @@ export class FutsuuSolveResult {
         }
     }
     /**
+     * @returns {number}
+     */
+    minor_flaw_count() {
+        const ret = wasm.futsuusolveresult_minor_flaw_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * @returns {string}
      */
     moves_sfen() {
@@ -150,6 +176,25 @@ export class FutsuuSolveResult {
         return ret;
     }
     /**
+     * @returns {string}
+     */
+    perfection_status() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.futsuusolveresult_perfection_status(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
      * @returns {boolean}
      */
     redundant() {
@@ -174,6 +219,39 @@ export class FutsuuSolveResult {
             wasm.__wbindgen_add_to_stack_pointer(16);
             wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * @returns {string}
+     */
+    shortcut_move_kif() {
+        let deferred1_0;
+        let deferred1_1;
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
+            wasm.futsuusolveresult_shortcut_move_kif(retptr, this.__wbg_ptr);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            deferred1_0 = r0;
+            deferred1_1 = r1;
+            return getStringFromWasm0(r0, r1);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+            wasm.__wbindgen_export3(deferred1_0, deferred1_1, 1);
+        }
+    }
+    /**
+     * @returns {number}
+     */
+    shortcut_ply() {
+        const ret = wasm.futsuusolveresult_shortcut_ply(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {number}
+     */
+    shortcut_total_steps() {
+        const ret = wasm.futsuusolveresult_shortcut_total_steps(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
      * @returns {number}
@@ -424,16 +502,17 @@ export function moves_to_kif(sfen, moves_sfen) {
 /**
  * @param {string} problem_sfen
  * @param {number} hash_mb
+ * @param {boolean | null} [check_perfection]
  * @param {Function | null} [on_progress]
  * @returns {FutsuuSolveResult}
  */
-export function solve_futsuu(problem_sfen, hash_mb, on_progress) {
+export function solve_futsuu(problem_sfen, hash_mb, check_perfection, on_progress) {
     try {
         const retptr = wasm.__wbindgen_add_to_stack_pointer(-16) >>> 0;
         const val2 = +hash_mb;
         const ptr0 = passStringToWasm0(problem_sfen, wasm.__wbindgen_export4, wasm.__wbindgen_export5);
         const len0 = WASM_VECTOR_LEN;
-        wasm.solve_futsuu(retptr, ptr0, len0, val2, isLikeNone(on_progress) ? 0 : addToExternrefTable0(on_progress));
+        wasm.solve_futsuu(retptr, ptr0, len0, val2, isLikeNone(check_perfection) ? 0xFFFFFF : check_perfection ? 1 : 0, isLikeNone(on_progress) ? 0 : addToExternrefTable0(on_progress));
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         var r2 = getDataViewMemory0().getInt32(retptr + 4 * 2, true);

@@ -19,14 +19,20 @@ export class FutsuuSolveResult {
     private constructor();
     free(): void;
     [Symbol.dispose](): void;
+    intended_move_kif(): string;
     is_mate(): boolean;
     is_no_mate(): boolean;
     is_suspended(): boolean;
     kif(): string;
+    minor_flaw_count(): number;
     moves_sfen(): string;
     nodes(): number;
+    perfection_status(): string;
     redundant(): boolean;
     sfen(): string;
+    shortcut_move_kif(): string;
+    shortcut_ply(): number;
+    shortcut_total_steps(): number;
     steps(): number;
 }
 
@@ -68,4 +74,4 @@ export function is_white_in_check(sfen: string): boolean;
 
 export function moves_to_kif(sfen: string, moves_sfen: string): string | undefined;
 
-export function solve_futsuu(problem_sfen: string, hash_mb: number, on_progress?: Function | null): FutsuuSolveResult;
+export function solve_futsuu(problem_sfen: string, hash_mb: number, check_perfection?: boolean | null, on_progress?: Function | null): FutsuuSolveResult;
