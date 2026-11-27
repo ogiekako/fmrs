@@ -271,6 +271,7 @@ async fn solve_futsuu(
         let root = FmrsPos::from_pos_aux_root(problem.clone());
         let srv_cfg = futsuu_server_config();
         let total_time_limit = srv_cfg.time_limit_secs;
+        let verify_threads = srv_cfg.resolved_threads();
         let verify_hash_mb = (srv_cfg.hash_mb / 8).clamp(32, 128);
         let mut solver = FutsuuSolver::new(srv_cfg);
         solver.set_abort_flag(Some(Arc::clone(&abort_flag)));
@@ -344,6 +345,7 @@ async fn solve_futsuu(
                             fail_fast: true,
                             endgame_transposition_rem_sh: 5,
                         });
+                        verifier.set_threads(verify_threads);
                         verifier.set_time_limit_secs(rem_secs);
                         verifier.set_abort_flag(Some(abort_flag));
                         verifier.set_progress_callback(Some(progress_cb));

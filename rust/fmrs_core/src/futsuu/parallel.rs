@@ -6218,7 +6218,15 @@ impl ParallelEngine {
     }
 
     pub fn solve<P: PositionBackend>(&mut self, config: &SearchConfig, root: &P) -> SearchResult {
-        self.solve_with_factory(config, root, |_tid| DefaultHeuristic)
+        self.solve_with_factory_pn_cap(config, root, |_tid| DefaultHeuristic, PROOF_MAX - 1)
+    }
+
+    pub fn solve_unbounded_pn<P: PositionBackend>(
+        &mut self,
+        config: &SearchConfig,
+        root: &P,
+    ) -> SearchResult {
+        self.solve_with_factory_pn_cap(config, root, |_tid| DefaultHeuristic, INFINATE - 1)
     }
 
     pub fn solve_with_factory<P, H, F>(
@@ -6226,6 +6234,21 @@ impl ParallelEngine {
         config: &SearchConfig,
         root: &P,
         make_heuristic: F,
+    ) -> SearchResult
+    where
+        P: PositionBackend,
+        H: SearchHeuristic<P> + Clone + Send + Sync,
+        F: Fn(usize) -> H + Sync,
+    {
+        self.solve_with_factory_pn_cap(config, root, make_heuristic, PROOF_MAX - 1)
+    }
+
+    fn solve_with_factory_pn_cap<P, H, F>(
+        &mut self,
+        config: &SearchConfig,
+        root: &P,
+        make_heuristic: F,
+        max_pn_cap: u16,
     ) -> SearchResult
     where
         P: PositionBackend,
@@ -6245,7 +6268,7 @@ impl ParallelEngine {
         let symmetry = root.symmetry_check();
 
         let th_tdata = TData {
-            pn: PROOF_MAX - 1,
+            pn: (PROOF_MAX - 1).min(max_pn_cap),
             dn: INFINATE - 1,
             sh: if config.simple_mate {
                 SIMPLE_MAX_DEPTH
@@ -6337,6 +6360,61 @@ impl ParallelEngine {
                 let (raw_back, _) = w.into_raw();
                 scratches.checkin(tid, raw_back);
             });
+        }
+
+        // Unbounded-pn continuation pass in the warm SharedTBase if Pass 1 stopped at `PROOF_MAX - 1`.
+        if max_pn_cap > PROOF_MAX - 1 && !shared.suspended.load(Ordering::Acquire) {
+            let need_ext = {
+                let guard = shared.winner_root.lock().unwrap();
+                guard
+                    .as_ref()
+                    .is_none_or(|r| r.tdata.pn != 0 && r.tdata.dn != 0)
+            };
+            let ext_aborted = self
+                .abort_flag
+                .as_ref()
+                .is_some_and(|f| f.load(Ordering::Relaxed));
+            if need_ext && !ext_aborted {
+                *shared.winner_root.lock().unwrap() = None;
+                shared.abort_bn.store(false, Ordering::Release);
+                let th_ext = TData {
+                    pn: max_pn_cap,
+                    dn: INFINATE - 1,
+                    sh: th_tdata.sh,
+                };
+                let scratches = &self.scratches;
+                self.pool.broadcast(|bctx| {
+                    let tid = bctx.index();
+                    let raw = scratches.checkout(tid, epoch);
+                    let mut h = make_heuristic(tid);
+                    if H::HAS_ONLINE_LEARNING {
+                        h.reset_for_root(root);
+                    }
+                    let mut w = WorkerCtx::from_raw::<P>(tid, &shared, h, raw, None, false);
+                    let mut local_root = MvItem::empty_root();
+                    if config.simple_mate {
+                        w.bn_search_or::<P, true>(root, th_ext, &mut local_root);
+                    } else {
+                        w.bn_search_or::<P, false>(root, th_ext, &mut local_root);
+                    }
+                    w.flush_stats();
+
+                    if !w.abort
+                        && w.unwind_target.is_none()
+                        && (local_root.tdata.pn == 0
+                            || local_root.tdata.dn == 0
+                            || local_root.tdata.pn >= th_ext.pn)
+                    {
+                        let mut guard = shared.winner_root.lock().unwrap();
+                        if guard.is_none() {
+                            *guard = Some(local_root);
+                        }
+                        shared.abort_bn.store(true, Ordering::Release);
+                    }
+                    let (raw_back, _) = w.into_raw();
+                    scratches.checkin(tid, raw_back);
+                });
+            }
         }
 
         let bn_nodes = shared.global_nodes.load(Ordering::Relaxed);

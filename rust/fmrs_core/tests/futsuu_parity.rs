@@ -495,3 +495,64 @@ fn test_simple_mate_sound_problems_never_shorter_than_std() {
         }
     }
 }
+
+#[test]
+fn test_solve_unbounded_pn_multithreaded() {
+    // Regression test: `solve_unbounded_pn` with `threads > 1` must delegate to `ParallelEngine`
+    // rather than running single-threaded on the 1 MB dummy `TBase`.
+    let mut solver = Solver::new(SearchConfig {
+        hash_mb: 128,
+        threads: 4,
+        time_limit_secs: Some(15.0),
+        ..Default::default()
+    });
+    let mate_pos =
+        FmrsPos::from_sfen("1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SPgnl11p 1")
+            .unwrap();
+    let res = solver.solve_unbounded_pn(&mate_pos);
+    assert_eq!(res.mate, Some(true));
+    assert_eq!(res.gc_num, 0);
+    verify_pv(&mate_pos, &res.pv);
+
+    let nomate_pos =
+        FmrsPos::from_sfen("9/9/5lp2/5lk2/5l3/9/5N3/7L1/9 b P2r2b4g4s3n16p 1").unwrap();
+    let res_no = solver.solve_unbounded_pn(&nomate_pos);
+    assert_eq!(res_no.mate, Some(false));
+}
+
+#[test]
+fn test_perfection_verifier_parallel_parity() {
+    use fmrs_core::futsuu::perfection::{ConventionalVerifier, PerfectionConfig, PerfectionStatus};
+
+    // 21-ply Zuko #5 (clean complete composition with >= 4 OR nodes, exercising parallel verify)
+    let sfen = "n+B1sS4/1R1g5/1Ls6/2k6/2n6/3L5/R8/9/9 b B2P3gs2n2l16p 1";
+    let root = FmrsPos::from_sfen(sfen).unwrap();
+    let mut solver = Solver::new(SearchConfig {
+        hash_mb: 64,
+        threads: 1,
+        ..Default::default()
+    });
+    let solved = solver.solve_unbounded_pn(&root);
+    assert_eq!(solved.mate, Some(true));
+
+    let cfg = PerfectionConfig {
+        hash_mb: 32,
+        solve_node_limit: 500_000,
+        check_node_limit_per_move: 100_000,
+        search_level: 1,
+        fail_fast: true,
+        endgame_transposition_rem_sh: 5,
+    };
+    let mut v1 = ConventionalVerifier::new(cfg.clone());
+    v1.set_threads(1);
+    let r1 = v1.verify_solved(&root, solved.clone());
+
+    let mut v4 = ConventionalVerifier::new(cfg);
+    v4.set_threads(4);
+    let r4 = v4.verify_solved(&root, solved);
+
+    assert_eq!(r1.status, PerfectionStatus::Perfect);
+    assert_eq!(r4.status, r1.status);
+    assert_eq!(r4.mate_steps, r1.mate_steps);
+    assert_eq!(r4.minor_flaw_count, r1.minor_flaw_count);
+}

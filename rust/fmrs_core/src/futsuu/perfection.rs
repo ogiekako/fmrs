@@ -18,8 +18,12 @@
 //!   4. Shorter defender-blunder sidelines (`変化余詰` inside `< rem_sh` defender variations)
 
 use std::collections::{HashMap, HashSet};
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::atomic::{AtomicU64, AtomicUsize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Mutex;
 
 use crate::futsuu::tbase::TBase;
 use crate::futsuu::time::Instant;
@@ -2614,9 +2618,50 @@ pub fn format_futsuu_move_ja(pos_at_ply: &PositionAux, mv: Move) -> String {
     }
 }
 
+/// Exact O(1) backward-transposition refutation:
+/// If Defender has a valid King move or checker capture (`is_king_or_cap`, never `無駄合`)
+/// leading to an OR-position `q` dominated by any earlier/current PV OR-state `P_k` (`k <= ply`),
+/// then `alt` cannot be a shortest/equal-length shortcut (`>= rem_sh + 2`), or else `P_k` itself
+/// admits a strictly earlier/shorter shortcut caught at `k <= ply`.
+fn is_refuted_by_earlier_pv(
+    child_and: &FmrsPos,
+    checker_dest: usize,
+    root_tn: Turn,
+    def_tn: Turn,
+    ply: u16,
+    pv_or_dom: &HashMap<u64, Vec<(MKey, MKey, u16)>>,
+    scratch_tb: &mut TBase,
+) -> bool {
+    scratch_tb.clear();
+    let (evs, _, _) = child_and.generate_evasion(scratch_tb);
+    for ev in &evs {
+        for emv in ev.all_moves() {
+            let is_king_or_cap = !emv.is_drop()
+                && (emv.dest() == checker_dest
+                    || (child_and.board_at(emv.prev_pos as usize) & 15) == SOU);
+            if !is_king_or_cap {
+                continue;
+            }
+            let q = child_and.move_forward(emv);
+            if let Some(entries) = pv_or_dom.get(&q.zkey()) {
+                let qa = q.mkey(root_tn);
+                let qd = q.mkey(def_tn);
+                if entries
+                    .iter()
+                    .any(|&(pa, pd, p_ply)| p_ply <= ply && pa.ge_all(qa) && qd.ge_all(pd))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 pub struct ConventionalVerifier {
     cfg: PerfectionConfig,
     require_exact_disproof: bool,
+    threads: usize,
     time_limit_secs: Option<f64>,
     solve_solver: Solver,
     check_solver: Solver,
@@ -2654,6 +2699,7 @@ impl ConventionalVerifier {
         Self {
             cfg,
             require_exact_disproof: false,
+            threads: 1,
             time_limit_secs: None,
             solve_solver,
             check_solver,
@@ -2674,6 +2720,10 @@ impl ConventionalVerifier {
 
     pub fn set_require_exact_disproof(&mut self, strict: bool) {
         self.require_exact_disproof = strict;
+    }
+
+    pub fn set_threads(&mut self, threads: usize) {
+        self.threads = threads.max(1);
     }
 
     pub fn set_fail_fast(&mut self, fail_fast: bool) {
@@ -2795,7 +2845,13 @@ impl ConventionalVerifier {
             };
         }
 
-        let init_per_check_limit = self.cfg.check_node_limit_per_move.max(solve_nodes);
+        let init_per_check_limit = if self.require_exact_disproof {
+            self.cfg.check_node_limit_per_move.max(solve_nodes)
+        } else {
+            self.cfg
+                .check_node_limit_per_move
+                .max(solve_nodes.min(2_000_000))
+        };
         let warm_tb_opt = if warm_tbase {
             Some(self.solve_solver.tbase_mut())
         } else {
@@ -2836,12 +2892,20 @@ impl ConventionalVerifier {
         let mut pv_ors: Vec<(u16, FmrsPos, Move, u16)> = Vec::with_capacity(total_sh / 2 + 1);
         let mut pv_or_states: HashSet<(u64, MKey, MKey, u16)> =
             HashSet::with_capacity(total_sh / 2 + 1);
+        let mut pv_or_dom: HashMap<u64, Vec<(MKey, MKey, u16)>> =
+            HashMap::with_capacity(total_sh / 2 + 1);
         {
             let mut cur = root.clone();
             for (ply, &mv) in res.pv.iter().enumerate() {
                 let rem_sh = (total_sh - ply) as u16;
                 if ply % 2 == 0 {
-                    pv_or_states.insert((cur.zkey(), cur.mkey(root_tn), cur.mkey(def_tn), rem_sh));
+                    let am = cur.mkey(root_tn);
+                    let dm = cur.mkey(def_tn);
+                    pv_or_states.insert((cur.zkey(), am, dm, rem_sh));
+                    pv_or_dom
+                        .entry(cur.zkey())
+                        .or_default()
+                        .push((am, dm, ply as u16));
                     pv_ors.push((ply as u16, cur.clone(), mv, rem_sh));
                 }
                 cur = cur.move_forward(mv);
@@ -2857,6 +2921,336 @@ impl ConventionalVerifier {
                     check_nodes: 0,
                     shortcut_or_count: 0,
                     minor_flaw_count: 0,
+                };
+            }
+        }
+
+        let per_check_limit = if self.require_exact_disproof {
+            self.cfg.check_node_limit_per_move.max(solve_nodes)
+        } else {
+            self.cfg.check_node_limit_per_move
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        if self.threads > 1 && pv_ors.len() >= 4 {
+            let mut minor_flaw_init = 0u16;
+            let mut tasks: Vec<(usize, u16, Move, Move, u16)> = Vec::new();
+            for (or_idx, &(ply, ref or_pos, intended_mv, rem_sh)) in pv_ors.iter().enumerate() {
+                self.scratch_tb.clear();
+                let checks = or_pos.generate_check(&mut self.scratch_tb);
+                if rem_sh == 1 {
+                    for item in &checks {
+                        for mv in item.all_moves() {
+                            if mv == intended_mv {
+                                continue;
+                            }
+                            let child = or_pos.move_forward(mv);
+                            self.scratch_tb.clear();
+                            if child.generate_evasion(&mut self.scratch_tb).0.is_empty() {
+                                minor_flaw_init = minor_flaw_init.saturating_add(1);
+                            }
+                        }
+                    }
+                    continue;
+                }
+                for item in &checks {
+                    for mv in item.all_moves() {
+                        if mv == intended_mv {
+                            continue;
+                        }
+                        let child_and = or_pos.move_forward(mv);
+                        if is_refuted_by_earlier_pv(
+                            &child_and,
+                            mv.dest(),
+                            root_tn,
+                            def_tn,
+                            ply,
+                            &pv_or_dom,
+                            &mut self.scratch_tb,
+                        ) {
+                            continue;
+                        }
+                        tasks.push((or_idx, ply, mv, intended_mv, rem_sh));
+                    }
+                }
+            }
+
+            if tasks.len() > 2 {
+                let n_workers = self.threads.min(tasks.len());
+                let worker_hash_mb = (self.cfg.hash_mb / 2).clamp(16, 64);
+                let next_idx = AtomicUsize::new(0);
+                let found_ply = AtomicUsize::new(usize::MAX);
+                let timed_out = AtomicBool::new(false);
+                let total_check_nodes = AtomicU64::new(0);
+                let minor_flaw_total = AtomicU64::new(minor_flaw_init as u64);
+                let best_flaw: Mutex<Option<(u16, Move, Move, FlawKind, u16, Vec<EvSolved>)>> =
+                    Mutex::new(None);
+                let shortcut_plies: Mutex<HashSet<u16>> = Mutex::new(HashSet::new());
+
+                let cfg_ref = &self.cfg;
+                let pv_ors_ref = &pv_ors;
+                let pv_or_states_ref = &pv_or_states;
+                let tasks_ref = &tasks;
+                let req_exact = self.require_exact_disproof;
+                let time_limit = self.time_limit_secs;
+                let ext_abort = self.abort_flag.as_ref();
+                let prog_cb = self.progress_cb.as_ref();
+
+                std::thread::scope(|scope| {
+                    for _ in 0..n_workers {
+                        scope.spawn(|| {
+                            let mut check_solver = Solver::new(SearchConfig {
+                                hash_mb: worker_hash_mb,
+                                threads: 1,
+                                node_limit: Some(2_048),
+                                search_level: 0,
+                                use_ml_ordering: true,
+                                ..Default::default()
+                            });
+                            let mut sub_solver = Solver::new(SearchConfig {
+                                hash_mb: worker_hash_mb,
+                                threads: 1,
+                                node_limit: Some(per_check_limit.max(2_048)),
+                                search_level: cfg_ref.search_level.max(1),
+                                use_ml_ordering: true,
+                                ..Default::default()
+                            });
+                            let mut bounded = BoundedDfPn::new();
+                            let mut scratch_tb = TBase::new(1);
+                            if let Some(flag) = ext_abort {
+                                check_solver.set_abort_flag(Some(Arc::clone(flag)));
+                                sub_solver.set_abort_flag(Some(Arc::clone(flag)));
+                                bounded.set_abort_flag(Some(Arc::clone(flag)));
+                            }
+
+                            loop {
+                                if timed_out.load(Ordering::Acquire) {
+                                    break;
+                                }
+                                if ext_abort.is_some_and(|f| f.load(Ordering::Relaxed))
+                                    || time_limit.is_some_and(|lim| {
+                                        verify_start.elapsed().as_secs_f64() >= lim
+                                    })
+                                {
+                                    timed_out.store(true, Ordering::Release);
+                                    break;
+                                }
+                                let idx = next_idx.fetch_add(1, Ordering::Relaxed);
+                                if idx >= tasks_ref.len() {
+                                    break;
+                                }
+                                let (or_idx, ply, mv, intended_mv, rem_sh) = tasks_ref[idx];
+                                if cfg_ref.fail_fast
+                                    && (ply as usize) >= found_ply.load(Ordering::Acquire)
+                                {
+                                    break;
+                                }
+
+                                let or_pos = &pv_ors_ref[or_idx].1;
+                                let child_and = or_pos.move_forward(mv);
+
+                                let mut probe_item = single_check_item(or_pos, mv);
+                                check_solver.probe_and_after_check(
+                                    &child_and,
+                                    TSUME_MAX_DEPTH.saturating_sub(child_and.count() + 1),
+                                    &mut probe_item,
+                                );
+                                let pnodes = check_solver.nodes();
+                                let cur_tot =
+                                    total_check_nodes.fetch_add(pnodes, Ordering::Relaxed) + pnodes;
+                                if let Some(cb) = prog_cb {
+                                    cb(solve_nodes + cur_tot);
+                                }
+                                if probe_item.tdata.dn == 0 {
+                                    continue;
+                                }
+
+                                let rem_time = time_limit.map(|lim| {
+                                    (lim - verify_start.elapsed().as_secs_f64()).max(0.001)
+                                });
+                                sub_solver.set_time_limit_secs(rem_time);
+
+                                let mut local_acc = 0u64;
+                                if let Some(cb) = prog_cb {
+                                    let base =
+                                        solve_nodes + total_check_nodes.load(Ordering::Relaxed);
+                                    let cb_clone = Arc::clone(cb);
+                                    sub_solver.set_progress_callback(Some(Arc::new(
+                                        move |n: u64| {
+                                            cb_clone(base + n);
+                                        },
+                                    )));
+                                }
+                                let resolved = resolve_alt_check_sound(
+                                    &child_and,
+                                    mv.dest(),
+                                    rem_sh,
+                                    root_tn,
+                                    None,
+                                    pv_or_states_ref,
+                                    per_check_limit,
+                                    req_exact,
+                                    &mut sub_solver,
+                                    &mut bounded,
+                                    &mut scratch_tb,
+                                    &mut local_acc,
+                                );
+                                if prog_cb.is_some() {
+                                    sub_solver.set_progress_callback(None);
+                                }
+                                let cur_tot = total_check_nodes
+                                    .fetch_add(local_acc, Ordering::Relaxed)
+                                    + local_acc;
+                                if let Some(cb) = prog_cb {
+                                    cb(solve_nodes + cur_tot);
+                                }
+
+                                if ext_abort.is_some_and(|f| f.load(Ordering::Relaxed))
+                                    || time_limit.is_some_and(|lim| {
+                                        verify_start.elapsed().as_secs_f64() >= lim
+                                    })
+                                {
+                                    timed_out.store(true, Ordering::Release);
+                                    break;
+                                }
+
+                                match resolved {
+                                    Ok(AltResolved::Refuted { .. }) => continue,
+                                    Err(()) => {
+                                        timed_out.store(true, Ordering::Release);
+                                        break;
+                                    }
+                                    Ok(AltResolved::Mated {
+                                        std_steps,
+                                        non_redundant,
+                                        any_steps,
+                                        solved_evs,
+                                    }) => {
+                                        if any_steps < rem_sh || std_steps < rem_sh {
+                                            {
+                                                let mut g = best_flaw.lock().unwrap();
+                                                if g.as_ref().is_none_or(|cur| ply < cur.0) {
+                                                    *g = Some((
+                                                        ply,
+                                                        mv,
+                                                        intended_mv,
+                                                        FlawKind::EarlyShortcut,
+                                                        rem_sh,
+                                                        solved_evs,
+                                                    ));
+                                                }
+                                            }
+                                            shortcut_plies.lock().unwrap().insert(ply);
+                                            if cfg_ref.fail_fast {
+                                                found_ply.fetch_min(ply as usize, Ordering::AcqRel);
+                                            }
+                                            continue;
+                                        }
+
+                                        if std_steps == rem_sh && non_redundant {
+                                            let is_same_src_dst_prom = mv.prev_pos
+                                                == intended_mv.prev_pos
+                                                && mv.dest() == intended_mv.dest();
+                                            if is_same_src_dst_prom {
+                                                minor_flaw_total.fetch_add(1, Ordering::Relaxed);
+                                                continue;
+                                            }
+                                            if (rem_sh <= cfg_ref.endgame_transposition_rem_sh
+                                                || is_same_ray_sliding_drop(
+                                                    or_pos,
+                                                    mv,
+                                                    intended_mv,
+                                                ))
+                                                && rem_sh >= 3
+                                                && all_optimal_evasions_converge_to_pv(
+                                                    &child_and,
+                                                    &solved_evs,
+                                                    rem_sh,
+                                                    root_tn,
+                                                    pv_or_states_ref,
+                                                )
+                                            {
+                                                minor_flaw_total.fetch_add(1, Ordering::Relaxed);
+                                                continue;
+                                            }
+                                            {
+                                                let mut g = best_flaw.lock().unwrap();
+                                                if g.as_ref().is_none_or(|cur| ply < cur.0) {
+                                                    *g = Some((
+                                                        ply,
+                                                        mv,
+                                                        intended_mv,
+                                                        FlawKind::EqualLengthShortcut,
+                                                        rem_sh,
+                                                        solved_evs,
+                                                    ));
+                                                }
+                                            }
+                                            shortcut_plies.lock().unwrap().insert(ply);
+                                            if cfg_ref.fail_fast {
+                                                found_ply.fetch_min(ply as usize, Ordering::AcqRel);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                });
+
+                self.check_solver_nodes_acc = total_check_nodes.load(Ordering::Relaxed);
+                let minor_flaw_count = minor_flaw_total.load(Ordering::Relaxed).min(u16::MAX as u64) as u16;
+                let flaw_opt = best_flaw.into_inner().unwrap();
+                let shortcut_or_count = shortcut_plies.into_inner().unwrap().len() as u16;
+
+                if let Some((first_ply, alt_move, intended_move, kind, f_rem_sh, f_evs)) = flaw_opt {
+                    let shortcut_pv = build_shortcut_pv(
+                        root,
+                        &res.pv,
+                        first_ply,
+                        alt_move,
+                        kind,
+                        f_rem_sh,
+                        &f_evs,
+                        &mut self.scratch_tb,
+                    );
+                    return PerfectionReport {
+                        status: PerfectionStatus::Shortcut {
+                            first_ply,
+                            alt_move,
+                            intended_move,
+                            kind,
+                        },
+                        mate_steps: res.mate_steps,
+                        pv: res.pv,
+                        shortcut_pv,
+                        solve_nodes,
+                        check_nodes: self.check_solver_nodes_acc,
+                        shortcut_or_count: shortcut_or_count.max(1),
+                        minor_flaw_count,
+                    };
+                }
+                if timed_out.load(Ordering::Acquire) || self.is_cancelled(verify_start) {
+                    return PerfectionReport {
+                        status: PerfectionStatus::Timeout,
+                        mate_steps: res.mate_steps,
+                        pv: res.pv,
+                        shortcut_pv: Vec::new(),
+                        solve_nodes,
+                        check_nodes: self.check_solver_nodes_acc,
+                        shortcut_or_count: 0,
+                        minor_flaw_count,
+                    };
+                }
+                return PerfectionReport {
+                    status: PerfectionStatus::Perfect,
+                    mate_steps: res.mate_steps,
+                    pv: res.pv,
+                    shortcut_pv: Vec::new(),
+                    solve_nodes,
+                    check_nodes: self.check_solver_nodes_acc,
+                    shortcut_or_count: 0,
+                    minor_flaw_count,
                 };
             }
         }
@@ -2922,6 +3316,19 @@ impl ConventionalVerifier {
                     }
                     let child_and = or_pos.move_forward(mv);
 
+                    // Exact O(1) backward-transposition refutation against earlier/current PV OR-states.
+                    if is_refuted_by_earlier_pv(
+                        &child_and,
+                        mv.dest(),
+                        root_tn,
+                        def_tn,
+                        ply,
+                        &pv_or_dom,
+                        &mut self.scratch_tb,
+                    ) {
+                        continue;
+                    }
+
                     // Stage 1: Fast shared-TBase infinite-depth disproof probe (`<= 2,048` nodes).
                     // Soundly skip ONLY when `dn == 0` (never skip on `pn >= PROOF_MAX - 1`!).
                     let mut probe_item = single_check_item(or_pos, mv);
@@ -2937,7 +3344,11 @@ impl ConventionalVerifier {
                         continue;
                     }
 
-                    // Forward cumulative progress callback into `sub_solver` so long sub-solves tick live in UI!
+                    // Forward cumulative progress callback and remaining time limit into `sub_solver`.
+                    let rem_time = self
+                        .time_limit_secs
+                        .map(|lim| (lim - verify_start.elapsed().as_secs_f64()).max(0.001));
+                    self.sub_solver.set_time_limit_secs(rem_time);
                     if let Some(cb) = &self.progress_cb {
                         let base = solve_nodes + self.check_solver_nodes_acc;
                         let cb_clone = Arc::clone(cb);
@@ -2946,10 +3357,7 @@ impl ConventionalVerifier {
                         })));
                     }
 
-                    // Stage 2: Exact uncapped resolution (`Solver::solve_unbounded_pn` + `BoundedDfPn`),
-                    // scaling the per-check node limit to at least `solve_nodes` so heavy works are
-                    // audited with commensurate search depth.
-                    let per_check_limit = self.cfg.check_node_limit_per_move.max(solve_nodes);
+                    // Stage 2: Exact uncapped resolution (`Solver::solve_unbounded_pn` + `BoundedDfPn`).
                     let resolved = resolve_alt_check_sound(
                         &child_and,
                         mv.dest(),
@@ -2964,6 +3372,7 @@ impl ConventionalVerifier {
                         &mut self.scratch_tb,
                         &mut self.check_solver_nodes_acc,
                     );
+                    self.sub_solver.set_time_limit_secs(None);
                     if self.progress_cb.is_some() {
                         self.sub_solver.set_progress_callback(None);
                         self.report_progress(solve_nodes);

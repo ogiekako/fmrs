@@ -615,6 +615,10 @@ impl Solver {
         self.config.node_limit = limit;
     }
 
+    pub fn set_time_limit_secs(&mut self, secs: Option<f64>) {
+        self.config.time_limit_secs = secs;
+    }
+
     /// Probe an AND node directly (e.g. after applying an alternative Attacker check at an OR node)
     /// without clearing `self.tbase`, returning updated `(pn, dn, sh, inc)` in `mv_item`.
     pub fn probe_and_after_check<P: PositionBackend>(
@@ -688,6 +692,14 @@ impl Solver {
     /// runs the standard `PROOF_MAX - 1` pass first, and if undecided (`pn != 0 && dn != 0`)
     /// without hitting `node_limit`/`time_limit`, continues in the warm `TBase` up to `INFINATE - 1`.
     pub fn solve_unbounded_pn<P: PositionBackend>(&mut self, root: &P) -> SearchResult {
+        if let Some(par) = &mut self.parallel {
+            let res = par.solve_unbounded_pn(&self.config, root);
+            self.nodes = res.nodes;
+            self.last_bn_nodes = par.last_bn_nodes;
+            self.last_bn_secs = par.last_bn_secs;
+            self.last_make_tree_secs = par.last_make_tree_secs;
+            return res;
+        }
         let mut h = DefaultHeuristic;
         self.solve_with_pn_cap(root, &mut h, INFINATE - 1)
     }
