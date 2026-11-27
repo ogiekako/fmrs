@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795669035426,
+  "lastUpdate": 1795769696911,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -66034,6 +66034,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "bench_near_mate",
             "value": 118478572,
+            "unit": "Instructions"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "db0e90a6aef1ce633a1aeabcca849037e4345ee4",
+          "message": "Cherry-pick validated futsuu soundness fixes and safety guards from tsumegen/fmrs",
+          "timestamp": "2026-11-27T17:48:33+09:00",
+          "tree_id": "8ccb2022ee7a9587131019743ba1253a7ea61b80",
+          "url": "https://github.com/ogiekako/fmrs/commit/db0e90a6aef1ce633a1aeabcca849037e4345ee4"
+        },
+        "date": 1795769692484,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bench_black_advance",
+            "value": 50818,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_white_advance",
+            "value": 48561,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_reachable",
+            "value": 14622,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_attacker",
+            "value": 103509,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_canonicalize",
+            "value": 1959,
+            "unit": "Instructions"
+          },
+          {
+            "name": "bench_near_mate",
+            "value": 118447837,
             "unit": "Instructions"
           }
         ]
