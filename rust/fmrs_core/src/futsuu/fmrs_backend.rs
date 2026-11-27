@@ -622,6 +622,7 @@ pub struct FmrsPos {
     attack_sq: u8,
     white_ou: u8,
     black_ou: u8,
+    white_in_check: bool,
 }
 
 impl FmrsPos {
@@ -689,6 +690,7 @@ impl FmrsPos {
         } else {
             pos.board_digest()
         };
+        let white_in_check = pos.turn().is_black() && pos.checked_slow(Color::WHITE);
         Self {
             pos,
             zkey,
@@ -699,6 +701,7 @@ impl FmrsPos {
             attack_sq,
             white_ou,
             black_ou,
+            white_in_check,
         }
     }
 
@@ -835,6 +838,7 @@ impl FmrsPos {
                     attack_sq: SQ_FROM_FMRS[atk.pos.index()],
                     white_ou: self.white_ou,
                     black_ou: self.black_ou,
+                    white_in_check: false,
                 };
                 if oracle.hs_lookup(&child, Turn::Sente) {
                     return true;
@@ -1231,7 +1235,8 @@ impl PositionBackend for FmrsPos {
             next.do_move(&Movement::Drop(dest, kind));
             if next_is_white {
                 let wo = sq_to_fmrs(white_ou as usize);
-                if power(Color::BLACK, dest, kind).contains(wo)
+                if !self.white_in_check
+                    && power(Color::BLACK, dest, kind).contains(wo)
                     && (!kind.is_line_piece()
                         || (BitBoard::between(dest, wo) & next.occupied_bb()).is_empty())
                 {
@@ -1285,7 +1290,8 @@ impl PositionBackend for FmrsPos {
                 let src_aligned = source.col() == wo.col()
                     || source.row() == wo.row()
                     || source.col().abs_diff(wo.col()) == source.row().abs_diff(wo.row());
-                if !src_aligned
+                if !self.white_in_check
+                    && !src_aligned
                     && power(Color::BLACK, dest, new_kind).contains(wo)
                     && (!new_kind.is_line_piece()
                         || (BitBoard::between(dest, wo) & next.occupied_bb()).is_empty())
@@ -1352,6 +1358,7 @@ impl PositionBackend for FmrsPos {
             attack_sq,
             white_ou,
             black_ou,
+            white_in_check: false,
         }
     }
 

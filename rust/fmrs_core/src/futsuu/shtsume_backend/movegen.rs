@@ -340,13 +340,7 @@ impl PositionBackend for ShtsumePos {
         let hand = self.mkey[side];
         out.reserve(64);
 
-        // Quick no-attacker check (matches ncheck.c lines 81-85)
-        if self.occup[side].is_empty()
-            && hand.hi() == 0
-            && hand.ka() == 0
-            && hand.ke() == 0
-            && hand.ky() == 0
-        {
+        if self.occup[side].is_empty() && hand.is_empty() {
             return;
         }
 

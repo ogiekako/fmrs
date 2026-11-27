@@ -49,7 +49,7 @@ pub fn decode_and_validate_position(problem_sfen: &str) -> Result<PositionAux, S
 /// Unlike helpmate, normal tsume-shogi starts on Black's turn with White's king
 /// NOT yet in check, and does not support stones (`O`).
 pub fn decode_and_validate_futsuu_position(problem_sfen: &str) -> Result<PositionAux, String> {
-    let mut position = sfen::decode_position(problem_sfen)
+    let position = sfen::decode_position(problem_sfen)
         .map_err(|_| "局面の読み込みに失敗しました。".to_string())?;
 
     if position.stone().is_some() {
@@ -68,7 +68,9 @@ pub fn decode_and_validate_futsuu_position(problem_sfen: &str) -> Result<Positio
     if white_checked {
         return Err("受方玉にすでに王手がかかっています。".to_string());
     }
-    position.set_turn(Color::BLACK);
+    if position.turn() == Color::WHITE {
+        return Err("普通詰将棋は先手（攻方）番の局面のみ対応しています。".to_string());
+    }
 
     let mut reasons = vec![];
     if has_double_pawns(&position) {

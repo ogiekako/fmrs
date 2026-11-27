@@ -1020,7 +1020,7 @@ impl<'a, H> WorkerCtx<'a, H> {
         mvlist: &mut MvItem,
         tn: Turn,
     ) -> bool {
-        if tn != Turn::Sente || !self.shared.ni_cache.has_tag_match(rhash) {
+        if tn != Turn::Sente || pos.n_oute() != 0 || !self.shared.ni_cache.has_tag_match(rhash) {
             return false;
         }
         let att_cur = pos.mkey(Turn::Sente);
@@ -1047,7 +1047,7 @@ impl<'a, H> WorkerCtx<'a, H> {
         mvlist: &mut MvItem,
         tn: Turn,
     ) -> bool {
-        if tn != Turn::Sente {
+        if tn != Turn::Sente || pos.n_oute() != 0 {
             return false;
         }
         let rhash = pos.ni_ring_hash();
@@ -4846,6 +4846,9 @@ impl<'a, H, F> PostTreeBuilder<'a, H, F> {
         while list[0].tdata.pn != 0 && !self.suspend {
             let child_pos = pos.move_forward(list[0].head_move());
             self.probe_or::<P, false>(&child_pos, thdata, &mut list[0]);
+            if list[0].tdata.dn == 0 || list[0].tdata.pn >= INFINATE - 1 {
+                break;
+            }
             reorder_first_and(list);
         }
 

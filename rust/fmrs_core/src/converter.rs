@@ -119,12 +119,23 @@ fn update_move_format(
                 } else {
                     None
                 };
+                let in_prom_zone = match position.turn() {
+                    Color::BLACK => from.row() < 3 || to.row() < 3,
+                    Color::WHITE => from.row() >= 6 || to.row() >= 6,
+                };
+                let promote_opt = if *promote {
+                    Some(true)
+                } else if k.promote().is_some() && in_prom_zone {
+                    Some(false)
+                } else {
+                    None
+                };
                 (
                     Some(place_format(*from)),
                     place_format(*to),
                     kind(k),
                     None,
-                    if *promote { Some(true) } else { None },
+                    promote_opt,
                     capture,
                 )
             }

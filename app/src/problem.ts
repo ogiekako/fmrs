@@ -50,7 +50,7 @@ export const FUTSUU_PRESET_PROBLEMS = [
     "将棋図巧 第5番 21手詰",
   ],
   [
-    "1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SPgnl11p 1",
+    "1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SP2gn2l11p 1",
     "将棋図巧 第1番 69手詰",
   ],
   [

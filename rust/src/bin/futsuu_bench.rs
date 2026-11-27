@@ -103,7 +103,7 @@ const STD_PROBLEMS: &[Problem] = &[
     Problem {
         name: "zuko_01_69",
         note: "69手 (将棋図巧 第1番)",
-        sfen: "1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SPgnl11p 1",
+        sfen: "1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SP2gn2l11p 1",
         is_long: true,
     },
     Problem {

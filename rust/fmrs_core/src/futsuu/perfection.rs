@@ -408,8 +408,22 @@ impl BoundedDfPn {
         if !vis.insert((pos.zkey(), s_mk.0, g_mk.0, rem_checks)) {
             return;
         }
+        let require_clean = matches!(
+            self.mode,
+            BoundedMode::ProveTsume {
+                require_clean: true
+            }
+        );
         if rem_checks >= 1 {
-            if let Some(m1) = pos.find_1ply_mate_simple() {
+            let m1_opt = if require_clean {
+                pos.find_1ply_mate().filter(|m1| {
+                    (m1.mv.is_board_move() && m1.cap_koma == 0 && s_mk.is_empty())
+                        || (m1.mv.is_drop() && s_mk.total() == 1)
+                })
+            } else {
+                pos.find_1ply_mate_simple()
+            };
+            if let Some(m1) = m1_opt {
                 out.insert((pos.zkey(), pos.mkey(root_tn)), m1.mv);
                 return;
             }
@@ -434,7 +448,9 @@ impl BoundedDfPn {
                         false,
                     );
                     self.scratch_tb.clear();
-                    if c_pos.generate_evasion(&mut self.scratch_tb).0.is_empty()
+                    let leaf_ok = c_pos.generate_evasion(&mut self.scratch_tb).0.is_empty()
+                        && (!require_clean || c_pos.mkey(Turn::Sente).is_empty());
+                    if leaf_ok
                         || self
                             .bounds_tt
                             .get(&ck)
@@ -456,7 +472,9 @@ impl BoundedDfPn {
                     );
                     let c_rem = rem_checks - 1;
                     self.scratch_tb.clear();
-                    if c_pos.generate_evasion(&mut self.scratch_tb).0.is_empty()
+                    let leaf_ok = c_pos.generate_evasion(&mut self.scratch_tb).0.is_empty()
+                        && (!require_clean || c_pos.mkey(Turn::Sente).is_empty());
+                    if leaf_ok
                         || self
                             .bounds_tt
                             .get(&ck)

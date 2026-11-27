@@ -507,7 +507,7 @@ fn test_solve_unbounded_pn_multithreaded() {
         ..Default::default()
     });
     let mate_pos =
-        FmrsPos::from_sfen("1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SPgnl11p 1")
+        FmrsPos::from_sfen("1pG1B4/Gs+P6/pP7/n1ls5/3k5/nL4+r1b/1+p1p+R4/1S7/2N6 b SP2gn2l11p 1")
             .unwrap();
     let res = solver.solve_unbounded_pn(&mate_pos);
     assert_eq!(res.mate, Some(true));

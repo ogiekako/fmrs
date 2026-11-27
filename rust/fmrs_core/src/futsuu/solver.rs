@@ -504,9 +504,16 @@ pub struct Solver {
     pub last_bn_nodes: u64,
     pub last_bn_secs: f64,
     pub last_make_tree_secs: f64,
+    stack_root_sp: usize,
     abort_flag: Option<Arc<AtomicBool>>,
     progress_cb: Option<Arc<dyn Fn(u64) + Send + Sync>>,
 }
+
+const STACK_SAFE_BYTES: usize = if cfg!(target_arch = "wasm32") {
+    6 * 1024 * 1024
+} else {
+    1_300_000
+};
 
 impl Solver {
     pub fn new(config: SearchConfig) -> Self {
@@ -556,6 +563,7 @@ impl Solver {
             last_bn_nodes: 0,
             last_bn_secs: 0.0,
             last_make_tree_secs: 0.0,
+            stack_root_sp: 0,
             abort_flag: None,
             progress_cb: None,
         }
@@ -627,6 +635,8 @@ impl Solver {
         max_sh: u16,
         mv_item: &mut MvItem,
     ) {
+        let sp_anchor = 0u8;
+        self.stack_root_sp = &sp_anchor as *const u8 as usize;
         self.nodes = 0;
         self.suspend = false;
         self.error = false;
@@ -645,6 +655,8 @@ impl Solver {
 
     /// Probe an OR node directly (e.g. after a candidate Defender evasion) without clearing `self.tbase`.
     pub fn probe_or_after_evasion<P: PositionBackend>(&mut self, or_pos: &P, max_sh: u16) -> TData {
+        let sp_anchor = 0u8;
+        self.stack_root_sp = &sp_anchor as *const u8 as usize;
         self.nodes = 0;
         self.suspend = false;
         self.error = false;
@@ -736,6 +748,8 @@ impl Solver {
         heuristic: &mut H,
         max_pn_cap: u16,
     ) -> SearchResult {
+        let sp_anchor = 0u8;
+        self.stack_root_sp = &sp_anchor as *const u8 as usize;
         self.tbase.clear();
         self.tbase.preserve_even_tsumi = self.config.simple_mate;
         if let Some(ni) = &mut self.ni_cache {
@@ -1023,7 +1037,7 @@ impl Solver {
         mvlist: &mut MvItem,
         tn: crate::futsuu::types::Turn,
     ) -> bool {
-        if tn != crate::futsuu::types::Turn::Sente {
+        if tn != crate::futsuu::types::Turn::Sente || pos.n_oute() != 0 {
             return false;
         }
         let rhash = pos.ni_ring_hash();
@@ -1070,7 +1084,7 @@ impl Solver {
         mvlist: &mut MvItem,
         tn: crate::futsuu::types::Turn,
     ) -> bool {
-        if tn != crate::futsuu::types::Turn::Sente {
+        if tn != crate::futsuu::types::Turn::Sente || pos.n_oute() != 0 {
             return false;
         }
         let att_cur = pos.mkey(crate::futsuu::types::Turn::Sente);
@@ -2583,7 +2597,10 @@ impl Solver {
         } else {
             TSUME_MAX_DEPTH
         };
-        if pos.count() >= max_d - 1 {
+        let stack_exceeded = self.stack_root_sp != 0
+            && (pos.count() & 7) == 0
+            && self.stack_root_sp.saturating_sub(list as *const _ as usize) > STACK_SAFE_BYTES;
+        if pos.count() >= max_d - 1 || stack_exceeded {
             mvlist.tdata = TData {
                 pn: INFINATE - 1,
                 dn: 1,
