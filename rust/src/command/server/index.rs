@@ -6,7 +6,13 @@ use std::sync::{
 use actix_cors::Cors;
 use actix_web::{get, http::header, post, web, App, HttpRequest, HttpResponse, HttpServer};
 use fmrs_core::{
-    futsuu::{pv_to_movements, FmrsPos, SearchConfig, Solver as FutsuuSolver},
+    futsuu::{
+        perfection::{
+            format_futsuu_move_ja, ConventionalVerifier, FlawKind, PerfectionConfig,
+            PerfectionStatus,
+        },
+        pv_to_movements, FmrsPos, SearchConfig, Solver as FutsuuSolver,
+    },
     piece::Color,
     position::position::PositionAux,
     validate::{decode_and_validate_futsuu_position, decode_and_validate_position},
@@ -178,12 +184,34 @@ enum FutsuuSolveResponse {
 }
 
 #[derive(Serialize)]
+struct FutsuuPerfectionInfo {
+    status: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shortcut_ply: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shortcut_total_steps: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shortcut_move_kif: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    intended_move_kif: Option<String>,
+    minor_flaw_count: u16,
+}
+
+#[derive(Serialize)]
 struct FutsuuClientSolveResponse {
     steps: u16,
     redundant: bool,
     nodes: u64,
     kif: String,
     sfen: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    perfection: Option<FutsuuPerfectionInfo>,
+}
+
+#[derive(serde::Deserialize, Default)]
+struct SolveFutsuuQuery {
+    #[serde(default)]
+    check_perfection: bool,
 }
 
 fn futsuu_server_config() -> SearchConfig {
@@ -221,11 +249,15 @@ fn futsuu_server_config() -> SearchConfig {
 }
 
 #[post("/solve_futsuu")]
-async fn solve_futsuu(body_sfen: String) -> HttpResponse {
+async fn solve_futsuu(
+    query: web::Query<SolveFutsuuQuery>,
+    body_sfen: String,
+) -> HttpResponse {
     let problem = match decode_and_validate_futsuu_position(&body_sfen) {
         Ok(problem) => problem,
         Err(message) => return HttpResponse::BadRequest().body(message),
     };
+    let check_perfection = query.check_perfection;
 
     let (prog_tx, prog_rx) = futures::channel::mpsc::unbounded::<u64>();
     let (res_tx, res_rx) = futures::channel::mpsc::unbounded::<FutsuuSolveResponse>();
@@ -234,17 +266,26 @@ async fn solve_futsuu(body_sfen: String) -> HttpResponse {
     let abort_for_cb = Arc::clone(&abort_flag);
 
     std::thread::spawn(move || {
+        let t0 = std::time::Instant::now();
         let mut problem = problem;
         let root = FmrsPos::from_pos_aux_root(problem.clone());
-        let mut solver = FutsuuSolver::new(futsuu_server_config());
-        solver.set_abort_flag(Some(abort_flag));
-        solver.set_progress_callback(Some(Arc::new(move |nodes: u64| {
+        let srv_cfg = futsuu_server_config();
+        let total_time_limit = srv_cfg.time_limit_secs;
+        let verify_hash_mb = (srv_cfg.hash_mb / 8).clamp(32, 128);
+        let mut solver = FutsuuSolver::new(srv_cfg);
+        solver.set_abort_flag(Some(Arc::clone(&abort_flag)));
+        let progress_cb: Arc<dyn Fn(u64) + Send + Sync> = Arc::new(move |nodes: u64| {
             if prog_tx.unbounded_send(nodes).is_err() {
                 abort_for_cb.store(true, Ordering::Relaxed);
             }
-        })));
+        });
+        solver.set_progress_callback(Some(Arc::clone(&progress_cb)));
 
-        let res = solver.solve(&root);
+        let res = if check_perfection {
+            solver.solve_unbounded_pn(&root)
+        } else {
+            solver.solve(&root)
+        };
         let event = if res.error {
             FutsuuSolveResponse::Error {
                 message: "内部エラーにより探索を継続できませんでした。".to_string(),
@@ -252,19 +293,157 @@ async fn solve_futsuu(body_sfen: String) -> HttpResponse {
         } else {
             match res.mate {
                 Some(true) => {
-                    let movements = pv_to_movements(&res.pv);
-                    let kif = fmrs_core::converter::convert_to_kif(
-                        &mut problem,
-                        std::slice::from_ref(&movements),
-                    );
-                    FutsuuSolveResponse::Solved {
-                        response: FutsuuClientSolveResponse {
-                            steps: res.mate_steps,
-                            redundant: res.redundant,
-                            nodes: res.nodes,
-                            kif,
-                            sfen: problem.sfen(),
-                        },
+                    if !check_perfection {
+                        let movements = pv_to_movements(&res.pv);
+                        let kif = fmrs_core::converter::convert_to_kif(
+                            &mut problem,
+                            std::slice::from_ref(&movements),
+                        );
+                        FutsuuSolveResponse::Solved {
+                            response: FutsuuClientSolveResponse {
+                                steps: res.mate_steps,
+                                redundant: res.redundant,
+                                nodes: res.nodes,
+                                kif,
+                                sfen: problem.sfen(),
+                                perfection: None,
+                            },
+                        }
+                    } else if res.redundant {
+                        let movements = pv_to_movements(&res.pv);
+                        let kif = fmrs_core::converter::convert_to_kif(
+                            &mut problem,
+                            std::slice::from_ref(&movements),
+                        );
+                        FutsuuSolveResponse::Solved {
+                            response: FutsuuClientSolveResponse {
+                                steps: res.mate_steps,
+                                redundant: true,
+                                nodes: res.nodes,
+                                kif,
+                                sfen: problem.sfen(),
+                                perfection: Some(FutsuuPerfectionInfo {
+                                    status: "redundant",
+                                    shortcut_ply: None,
+                                    shortcut_total_steps: None,
+                                    shortcut_move_kif: None,
+                                    intended_move_kif: None,
+                                    minor_flaw_count: 0,
+                                }),
+                            },
+                        }
+                    } else {
+                        drop(solver);
+                        let rem_secs = total_time_limit
+                            .map(|lim| (lim - t0.elapsed().as_secs_f64()).max(0.5));
+                        let mut verifier = ConventionalVerifier::new(PerfectionConfig {
+                            hash_mb: verify_hash_mb,
+                            solve_node_limit: 10_000_000,
+                            check_node_limit_per_move: 500_000,
+                            search_level: 1,
+                            fail_fast: true,
+                            endgame_transposition_rem_sh: 5,
+                        });
+                        verifier.set_time_limit_secs(rem_secs);
+                        verifier.set_abort_flag(Some(abort_flag));
+                        verifier.set_progress_callback(Some(progress_cb));
+
+                        let orig_pv = res.pv.clone();
+                        let orig_steps = res.mate_steps;
+                        let rep = verifier.verify_solved(&root, res);
+                        let total_nodes = rep.solve_nodes + rep.check_nodes;
+
+                        if matches!(rep.status, PerfectionStatus::NoMate) {
+                            FutsuuSolveResponse::NoSolution { nodes: total_nodes }
+                        } else {
+                            let final_pv = if !rep.pv.is_empty() { rep.pv } else { orig_pv };
+                            let final_steps = if rep.mate_steps > 0 {
+                                rep.mate_steps
+                            } else {
+                                orig_steps
+                            };
+                            let mut final_redundant = false;
+                            let main_movements = pv_to_movements(&final_pv);
+                            let mut solutions = vec![main_movements.clone()];
+
+                            let perf_info = match rep.status {
+                                PerfectionStatus::Perfect => FutsuuPerfectionInfo {
+                                    status: "perfect",
+                                    shortcut_ply: None,
+                                    shortcut_total_steps: None,
+                                    shortcut_move_kif: None,
+                                    intended_move_kif: None,
+                                    minor_flaw_count: rep.minor_flaw_count,
+                                },
+                                PerfectionStatus::Shortcut {
+                                    first_ply,
+                                    alt_move,
+                                    intended_move,
+                                    kind,
+                                } => {
+                                    let mut pos_at_ply = problem.clone();
+                                    for m in main_movements.iter().take(first_ply as usize) {
+                                        pos_at_ply.do_move(m);
+                                    }
+                                    let sc_move_kif = format_futsuu_move_ja(&pos_at_ply, alt_move);
+                                    let int_move_kif =
+                                        format_futsuu_move_ja(&pos_at_ply, intended_move);
+                                    let sc_total = if !rep.shortcut_pv.is_empty() {
+                                        let sc_movements = pv_to_movements(&rep.shortcut_pv);
+                                        let len = sc_movements.len() as u16;
+                                        solutions.push(sc_movements);
+                                        Some(len)
+                                    } else {
+                                        None
+                                    };
+                                    FutsuuPerfectionInfo {
+                                        status: match kind {
+                                            FlawKind::EarlyShortcut => "early_shortcut",
+                                            FlawKind::EqualLengthShortcut => "equal_shortcut",
+                                        },
+                                        shortcut_ply: Some(first_ply + 1),
+                                        shortcut_total_steps: sc_total,
+                                        shortcut_move_kif: Some(sc_move_kif),
+                                        intended_move_kif: Some(int_move_kif),
+                                        minor_flaw_count: rep.minor_flaw_count,
+                                    }
+                                }
+                                PerfectionStatus::RedundantHand => {
+                                    final_redundant = true;
+                                    FutsuuPerfectionInfo {
+                                        status: "redundant",
+                                        shortcut_ply: None,
+                                        shortcut_total_steps: None,
+                                        shortcut_move_kif: None,
+                                        intended_move_kif: None,
+                                        minor_flaw_count: 0,
+                                    }
+                                }
+                                PerfectionStatus::Timeout | PerfectionStatus::NoMate => {
+                                    FutsuuPerfectionInfo {
+                                        status: "timeout",
+                                        shortcut_ply: None,
+                                        shortcut_total_steps: None,
+                                        shortcut_move_kif: None,
+                                        intended_move_kif: None,
+                                        minor_flaw_count: rep.minor_flaw_count,
+                                    }
+                                }
+                            };
+
+                            let kif =
+                                fmrs_core::converter::convert_to_kif(&mut problem, &solutions);
+                            FutsuuSolveResponse::Solved {
+                                response: FutsuuClientSolveResponse {
+                                    steps: final_steps,
+                                    redundant: final_redundant,
+                                    nodes: total_nodes,
+                                    kif,
+                                    sfen: problem.sfen(),
+                                    perfection: Some(perf_info),
+                                },
+                            }
+                        }
                     }
                 }
                 Some(false) => FutsuuSolveResponse::NoSolution { nodes: res.nodes },

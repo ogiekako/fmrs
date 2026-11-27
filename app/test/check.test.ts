@@ -21,6 +21,12 @@ type FutsuuSolveResult = {
   kif(): string;
   sfen(): string;
   moves_sfen(): string;
+  perfection_status(): string;
+  shortcut_ply(): number;
+  shortcut_total_steps(): number;
+  shortcut_move_kif(): string;
+  intended_move_kif(): string;
+  minor_flaw_count(): number;
   free(): void;
 };
 type Oracle = {
@@ -28,6 +34,7 @@ type Oracle = {
   solve_futsuu(
     sfen: string,
     hash_mb: number,
+    check_perfection?: boolean,
     on_progress?: (nodes: number) => void,
   ): FutsuuSolveResult;
 };
@@ -274,4 +281,34 @@ test("普通詰将棋 wasm 解図 (solve_futsuu)", () => {
     () => wasm.solve_futsuu("4k4/9/4O4/9/9/9/9/9/9 b G 1", 16),
     /普通詰将棋では石/,
   );
+
+  const okRes = wasm.solve_futsuu(
+    "7n1/7kP/8s/7+B1/9/9/9/9/9 b R6Prb4g3s3n4l11p 1",
+    32,
+    true,
+  );
+  try {
+    assert.strictEqual(okRes.is_mate(), true);
+    assert.strictEqual(okRes.steps(), 37);
+    assert.strictEqual(okRes.perfection_status(), "perfect");
+  } finally {
+    okRes.free();
+  }
+
+  const scRes = wasm.solve_futsuu(
+    "4p3k/4l4/7R1/5R2S/9/9/9/9/9 b P2b4g3s4n3l16p 1",
+    32,
+    true,
+  );
+  try {
+    assert.strictEqual(scRes.is_mate(), true);
+    assert.strictEqual(scRes.perfection_status(), "early_shortcut");
+    assert.strictEqual(scRes.shortcut_ply(), 1);
+    assert.ok(scRes.shortcut_total_steps() > 0);
+    assert.ok(scRes.shortcut_move_kif().length > 0);
+    assert.ok(scRes.intended_move_kif().length > 0);
+    assert.ok(scRes.kif().includes("変化：1手"), scRes.kif());
+  } finally {
+    scRes.free();
+  }
 });

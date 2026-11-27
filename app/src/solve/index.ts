@@ -96,6 +96,22 @@ export async function isServerAvailable(
   }
 }
 
+export type FutsuuPerfectionStatus =
+  | "perfect"
+  | "early_shortcut"
+  | "equal_shortcut"
+  | "redundant"
+  | "timeout";
+
+export type FutsuuPerfectionInfo = {
+  status: FutsuuPerfectionStatus;
+  shortcutPly?: number;
+  shortcutTotalSteps?: number;
+  shortcutMoveKif?: string;
+  intendedMoveKif?: string;
+  minorFlawCount: number;
+};
+
 export type Response = {
   redundant: boolean;
   solutions: number;
@@ -108,6 +124,8 @@ export type Response = {
   futsuuSteps?: number;
   /** 普通詰将棋の探索ノード数（協力詰では undefined）。 */
   futsuuNodes?: number;
+  /** 普通詰将棋の余詰・早詰検査結果（未実行時および協力詰では undefined）。 */
+  futsuuPerfection?: FutsuuPerfectionInfo;
 };
 
 export type FutsuuResponse =
@@ -118,6 +136,7 @@ export type FutsuuResponse =
       nodes: number;
       kif: string;
       sfen: string;
+      perfection?: FutsuuPerfectionInfo;
     }
   | {
       ty: "no-mate";
@@ -133,11 +152,12 @@ export async function solveFutsuu(
   cancelToken: CancellationToken,
   onNodes: (nodes: number) => void,
   onFallback?: () => void,
-  useServer: boolean = true
+  useServer: boolean = true,
+  checkPerfection: boolean = false
 ): Promise<FutsuuResponse | undefined> {
   const sfen = model.encodeSfen(position);
   if (!useServer) {
-    return await solveFutsuuWasm(sfen, cancelToken, onNodes);
+    return await solveFutsuuWasm(sfen, cancelToken, onNodes, checkPerfection);
   }
   const requireServer = isLocalDevServerBackedPage();
   const deadline =
@@ -147,12 +167,26 @@ export async function solveFutsuu(
       : SERVER_RESPONSE_BUDGET_MS);
   if (await isServerAvailable(deadline - Date.now())) {
     try {
-      return await solveFutsuuServer(
+      const srvRes = await solveFutsuuServer(
         sfen,
         cancelToken,
         onNodes,
-        deadline - Date.now()
+        deadline - Date.now(),
+        checkPerfection
       );
+      if (
+        checkPerfection &&
+        srvRes?.ty === "mate" &&
+        srvRes.perfection === undefined &&
+        !requireServer
+      ) {
+        console.warn(
+          "server did not return perfection report, falling back to wasm"
+        );
+        onFallback?.();
+      } else {
+        return srvRes;
+      }
     } catch (e) {
       if (!(e instanceof ServerUnavailableError)) {
         throw e;
@@ -170,7 +204,7 @@ export async function solveFutsuu(
   } else {
     onFallback?.();
   }
-  return await solveFutsuuWasm(sfen, cancelToken, onNodes);
+  return await solveFutsuuWasm(sfen, cancelToken, onNodes, checkPerfection);
 }
 
 export async function solve(

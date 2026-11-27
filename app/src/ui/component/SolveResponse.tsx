@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import * as model from "../../model";
+import * as solve from "../../solve";
 import * as types from "../types";
 import Solution from "./Solution";
 import { useWasm } from "../../wasm_main";
@@ -56,6 +57,16 @@ export default function SolveResponse(props: {
     </div>
   ) : null;
 
+  const perfectionMessage =
+    props.mode === "futsuu" &&
+    response?.solutions &&
+    response.futsuuPerfection ? (
+      <FutsuuPerfectionLine
+        perfection={response.futsuuPerfection}
+        hasKifFork={!!kif && kif.includes("変化：")}
+      />
+    ) : null;
+
   const isKnownProblem =
     props.solveResponse.ty === "solved" &&
     props.solveResponse.response.knownProblem;
@@ -69,11 +80,13 @@ export default function SolveResponse(props: {
   const text = message ? (
     <div>
       {message} ({statusDetail})
+      {perfectionMessage}
       {oneWayMessage}
       {fallbackMessage}
     </div>
   ) : (
     <div>
+      {perfectionMessage}
       {oneWayMessage}
       {fallbackMessage}
     </div>
@@ -148,5 +161,58 @@ function getMessage(
       } else {
         return `${count} solution found`;
       }
+  }
+}
+
+function FutsuuPerfectionLine(props: {
+  perfection: solve.FutsuuPerfectionInfo;
+  hasKifFork: boolean;
+}) {
+  const p = props.perfection;
+  const forkNote = props.hasKifFork ? "（棋譜の分岐から確認できます）" : "";
+  switch (p.status) {
+    case "perfect":
+      return (
+        <div className="text-success" style={{ fontSize: "0.9em" }}>
+          {p.minorFlawCount > 0
+            ? `余詰・早詰なし（軽微な非限定・収束手順前後 ${p.minorFlawCount}箇所）`
+            : "余詰・早詰なし"}
+        </div>
+      );
+    case "early_shortcut": {
+      const stepsText = p.shortcutTotalSteps
+        ? `（通算${p.shortcutTotalSteps}手詰）`
+        : "";
+      const intendedText = p.intendedMoveKif
+        ? ` / 作意 ${p.intendedMoveKif}`
+        : "";
+      return (
+        <div className="text-danger" style={{ fontSize: "0.9em" }}>
+          {`早詰あり: ${p.shortcutPly ?? "?"}手目 ${p.shortcutMoveKif ?? ""}${stepsText}${intendedText}${forkNote}`}
+        </div>
+      );
+    }
+    case "equal_shortcut": {
+      const intendedText = p.intendedMoveKif
+        ? ` / 作意 ${p.intendedMoveKif}`
+        : "";
+      return (
+        <div className="text-danger" style={{ fontSize: "0.9em" }}>
+          {`同手数余詰あり: ${p.shortcutPly ?? "?"}手目 ${p.shortcutMoveKif ?? ""}${intendedText}${forkNote}`}
+        </div>
+      );
+    }
+    case "redundant":
+      return (
+        <div className="text-muted" style={{ fontSize: "0.9em" }}>
+          駒余りのため余詰・早詰検査は省略しました
+        </div>
+      );
+    case "timeout":
+      return (
+        <div className="text-warning" style={{ fontSize: "0.9em" }}>
+          余詰・早詰検査を打ち切りました（制限時間またはノード上限超過）
+        </div>
+      );
   }
 }

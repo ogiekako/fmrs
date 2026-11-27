@@ -1,5 +1,20 @@
-import { apiUrl, CancellationToken, FutsuuResponse } from ".";
+import {
+  apiUrl,
+  CancellationToken,
+  FutsuuPerfectionInfo,
+  FutsuuPerfectionStatus,
+  FutsuuResponse,
+} from ".";
 import { ServerUnavailableError } from "./server_solver";
+
+type FutsuuServerPerfection = {
+  status: FutsuuPerfectionStatus;
+  shortcut_ply?: number;
+  shortcut_total_steps?: number;
+  shortcut_move_kif?: string;
+  intended_move_kif?: string;
+  minor_flaw_count: number;
+};
 
 type FutsuuServerEvent =
   | {
@@ -26,6 +41,7 @@ type FutsuuServerEvent =
         nodes: number;
         kif: string;
         sfen: string;
+        perfection?: FutsuuServerPerfection;
       };
     };
 
@@ -33,7 +49,8 @@ export async function solveFutsuuServer(
   sfen: string,
   cancelToken: CancellationToken,
   onNodes: (nodes: number) => void,
-  connectTimeoutMs: number
+  connectTimeoutMs: number,
+  checkPerfection: boolean = false
 ): Promise<FutsuuResponse | undefined> {
   const controller = new AbortController();
   const timer = setTimeout(
@@ -41,8 +58,11 @@ export async function solveFutsuuServer(
     Math.max(0, connectTimeoutMs)
   );
   let response: globalThis.Response;
+  const endpoint = checkPerfection
+    ? "/solve_futsuu?check_perfection=true"
+    : "/solve_futsuu";
   try {
-    response = await fetch(apiUrl("/solve_futsuu"), {
+    response = await fetch(apiUrl(endpoint), {
       method: "POST",
       body: sfen,
       signal: controller.signal,
@@ -148,7 +168,18 @@ function handleServerEvent(
       return { ty: "no-mate", nodes: event.nodes };
     case "suspended":
       return { ty: "suspended", nodes: event.nodes };
-    case "solved":
+    case "solved": {
+      const p = event.response.perfection;
+      const perfection: FutsuuPerfectionInfo | undefined = p
+        ? {
+            status: p.status,
+            shortcutPly: p.shortcut_ply,
+            shortcutTotalSteps: p.shortcut_total_steps,
+            shortcutMoveKif: p.shortcut_move_kif,
+            intendedMoveKif: p.intended_move_kif,
+            minorFlawCount: p.minor_flaw_count,
+          }
+        : undefined;
       return {
         ty: "mate",
         steps: event.response.steps,
@@ -156,6 +187,8 @@ function handleServerEvent(
         nodes: event.response.nodes,
         kif: event.response.kif,
         sfen: event.response.sfen,
+        perfection,
       };
+    }
   }
 }

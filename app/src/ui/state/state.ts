@@ -10,6 +10,7 @@ import { getPrecomputedSolveResponseBySfen } from "../../ogiekako_problems";
 const SAVED_POSITIONS_KEY = "fmrs_saved_positions";
 const FUTSUU_SAVED_POSITIONS_KEY = "fmrs_futsuu_saved_positions";
 const USE_SERVER_KEY = "fmrs_use_server";
+const CHECK_PERFECTION_KEY = "fmrs_futsuu_check_perfection";
 const MAX_SAVED_POSITIONS = 20;
 
 function loadUseServer(): boolean {
@@ -24,6 +25,24 @@ function loadUseServer(): boolean {
 function saveUseServer(useServer: boolean) {
   try {
     localStorage.setItem(USE_SERVER_KEY, useServer ? "true" : "false");
+  } catch {}
+}
+
+function loadCheckPerfection(): boolean {
+  try {
+    const raw = localStorage.getItem(CHECK_PERFECTION_KEY);
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+  } catch {}
+  return false;
+}
+
+function saveCheckPerfection(checkPerfection: boolean) {
+  try {
+    localStorage.setItem(
+      CHECK_PERFECTION_KEY,
+      checkPerfection ? "true" : "false"
+    );
   } catch {}
 }
 
@@ -104,6 +123,7 @@ export function newState(): types.State {
     solutionLimit: 5,
     oneWayMateMode: false,
     useServer: loadUseServer(),
+    checkPerfection: loadCheckPerfection(),
   };
 }
 
@@ -163,6 +183,11 @@ export function reduce(orig: types.State, event: types.Event): types.State {
       state = cloneState(orig);
       state.useServer = event.useServer;
       saveUseServer(event.useServer);
+      return state;
+    case "set-check-perfection":
+      state = cloneState(orig);
+      state.checkPerfection = event.checkPerfection;
+      saveCheckPerfection(event.checkPerfection);
       return state;
     case "set-mode":
       state = cloneState(orig);

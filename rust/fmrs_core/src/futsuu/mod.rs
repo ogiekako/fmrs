@@ -10,6 +10,7 @@ pub mod fmrs_backend;
 pub mod ml;
 pub mod ni_cache;
 pub mod parallel;
+pub mod perfection;
 pub mod proof;
 pub mod shared_tbase;
 pub mod shtsume_backend;

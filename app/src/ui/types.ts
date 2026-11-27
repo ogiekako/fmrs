@@ -11,6 +11,7 @@ export type State = {
   solutionLimit: number;
   oneWayMateMode: boolean;
   useServer: boolean;
+  checkPerfection: boolean;
 };
 
 export type Problem = [Position, /* name */ string];
@@ -108,6 +109,10 @@ export type Event =
   | {
       ty: "set-use-server";
       useServer: boolean;
+    }
+  | {
+      ty: "set-check-perfection";
+      checkPerfection: boolean;
     }
   | {
       ty: "set-mode";

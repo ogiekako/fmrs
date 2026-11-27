@@ -3,6 +3,7 @@ import { WarmWorker } from "./worker_task";
 
 export type FutsuuSolveRequest = {
   sfen: string;
+  checkPerfection: boolean;
 };
 
 const futsuuWorker = new WarmWorker(
@@ -24,14 +25,15 @@ export function disposeFutsuuWorker() {
 export async function solveFutsuuWasm(
   sfen: string,
   cancel: CancellationToken,
-  onNodes: (nodes: number) => void
+  onNodes: (nodes: number) => void,
+  checkPerfection: boolean = false
 ): Promise<FutsuuResponse | undefined> {
   try {
     return await futsuuWorker.run<
       FutsuuSolveRequest,
       number,
       FutsuuResponse | undefined
-    >({ sfen }, cancel, onNodes, () => undefined);
+    >({ sfen, checkPerfection }, cancel, onNodes, () => undefined);
   } catch (e) {
     console.error(e);
     throw new Error(toJapaneseErrorMessage(e));

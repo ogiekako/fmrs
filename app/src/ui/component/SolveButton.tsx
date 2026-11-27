@@ -14,6 +14,7 @@ export default function SolveButton(props: {
   solutionLimit: number;
   oneWayMateMode: boolean;
   useServer: boolean;
+  checkPerfection: boolean;
   dispatch: types.Dispatcher;
   onSolutionLoaded?: (container: HTMLElement) => void;
 }) {
@@ -83,7 +84,8 @@ export default function SolveButton(props: {
                 cancelToken,
                 onNodes,
                 onFallback,
-                props.useServer
+                props.useServer,
+                props.checkPerfection
               );
               const stone = positionStone(props.position);
               const millis = new Date().getTime() - start.getTime();
@@ -102,6 +104,7 @@ export default function SolveButton(props: {
                       fromWhite: false,
                       futsuuSteps: res.steps,
                       futsuuNodes: res.nodes,
+                      futsuuPerfection: res.perfection,
                     },
                     stone,
                     millis,
@@ -253,6 +256,22 @@ export default function SolveButton(props: {
         disabled={!!props.solving}
         className="mb-2"
       />
+      {isFutsuu && (
+        <Form.Check
+          type="checkbox"
+          id="check-perfection-checkbox"
+          label="余詰・早詰を検査する"
+          checked={props.checkPerfection}
+          onChange={(e) => {
+            props.dispatch({
+              ty: "set-check-perfection",
+              checkPerfection: e.target.checked,
+            });
+          }}
+          disabled={!!props.solving}
+          className="mb-2"
+        />
+      )}
       {!isFutsuu && (
         <>
           <InputGroup className="mb-3" style={{ width: "200px" }}>

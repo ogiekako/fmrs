@@ -12,6 +12,7 @@ export function cloneState(state: types.State): types.State {
     solutionLimit: state.solutionLimit,
     oneWayMateMode: state.oneWayMateMode,
     useServer: state.useServer,
+    checkPerfection: state.checkPerfection,
   };
 }
 
