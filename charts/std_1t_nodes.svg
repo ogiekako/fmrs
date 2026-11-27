@@ -12,28 +12,31 @@
 <line x1="74" y1="174.0" x2="848" y2="174.0" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,3"/>
 <text x="66" y="178.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">4.2M</text>
 <line x1="74" y1="132.0" x2="848" y2="132.0" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,3"/>
-<text x="66" y="136.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">6.3M</text>
+<text x="66" y="136.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">6.4M</text>
 <line x1="74" y1="90.0" x2="848" y2="90.0" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,3"/>
-<text x="66" y="94.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">8.4M</text>
+<text x="66" y="94.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">8.5M</text>
 <line x1="74" y1="48.0" x2="848" y2="48.0" stroke="#1e293b" stroke-width="1" stroke-dasharray="3,3"/>
-<text x="66" y="52.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">10.5M</text>
+<text x="66" y="52.0" text-anchor="end" fill="#94a3b8" font-family="monospace" font-size="11">10.6M</text>
 <text x="16" y="153.0" fill="#94a3b8" font-family="sans-serif" font-size="11" text-anchor="middle" transform="rotate(-90 16 153.0)">Nodes</text>
 <text x="74.0" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">a6831d6</text>
-<text x="332.0" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">2324f1e</text>
-<text x="590.0" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">70d03a2</text>
-<text x="848.0" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">5c7d270</text>
+<text x="267.5" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">2324f1e</text>
+<text x="461.0" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">70d03a2</text>
+<text x="654.5" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">5c7d270</text>
+<text x="848.0" y="276" text-anchor="middle" fill="#94a3b8" font-family="monospace" font-size="10">db0e90a</text>
 <line x1="74" y1="48" x2="74" y2="258" stroke="#475569" stroke-width="1.2"/>
 <line x1="74" y1="258" x2="848" y2="258" stroke="#475569" stroke-width="1.2"/>
-<path d="M74.0,92.8 L332.0,92.8 L590.0,92.8 L848.0,92.8" fill="none" stroke="#fb923c" stroke-width="2.2"/>
-<circle cx="74.0" cy="92.8" r="3.4" fill="#fb923c"/>
-<circle cx="332.0" cy="92.8" r="3.4" fill="#fb923c"/>
-<circle cx="590.0" cy="92.8" r="3.4" fill="#fb923c"/>
-<circle cx="848.0" cy="92.8" r="3.4" fill="#fb923c"/>
-<text x="848.0" y="84.8" text-anchor="end" fill="#fb923c" font-family="monospace" font-size="10" font-weight="600">8.28M</text>
-<path d="M74.0,75.4 L332.0,75.4 L590.0,75.4 L848.0,75.4" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-dasharray="6,3"/>
-<circle cx="74.0" cy="75.4" r="3.4" fill="#38bdf8"/>
-<circle cx="332.0" cy="75.4" r="3.4" fill="#38bdf8"/>
-<circle cx="590.0" cy="75.4" r="3.4" fill="#38bdf8"/>
+<path d="M74.0,93.9 L267.5,93.9 L461.0,93.9 L654.5,93.9 L848.0,85.1" fill="none" stroke="#fb923c" stroke-width="2.2"/>
+<circle cx="74.0" cy="93.9" r="3.4" fill="#fb923c"/>
+<circle cx="267.5" cy="93.9" r="3.4" fill="#fb923c"/>
+<circle cx="461.0" cy="93.9" r="3.4" fill="#fb923c"/>
+<circle cx="654.5" cy="93.9" r="3.4" fill="#fb923c"/>
+<circle cx="848.0" cy="85.1" r="3.4" fill="#fb923c"/>
+<text x="848.0" y="77.1" text-anchor="end" fill="#fb923c" font-family="monospace" font-size="10" font-weight="600">8.72M</text>
+<path d="M74.0,76.7 L267.5,76.7 L461.0,76.7 L654.5,76.7 L848.0,75.4" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-dasharray="6,3"/>
+<circle cx="74.0" cy="76.7" r="3.4" fill="#38bdf8"/>
+<circle cx="267.5" cy="76.7" r="3.4" fill="#38bdf8"/>
+<circle cx="461.0" cy="76.7" r="3.4" fill="#38bdf8"/>
+<circle cx="654.5" cy="76.7" r="3.4" fill="#38bdf8"/>
 <circle cx="848.0" cy="75.4" r="3.4" fill="#38bdf8"/>
-<text x="848.0" y="67.4" text-anchor="end" fill="#38bdf8" font-family="monospace" font-size="10" font-weight="600">9.15M</text>
+<text x="848.0" y="91.1" text-anchor="end" fill="#38bdf8" font-family="monospace" font-size="10" font-weight="600">9.21M</text>
 </svg>
