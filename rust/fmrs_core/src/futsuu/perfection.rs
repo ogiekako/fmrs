@@ -25,6 +25,7 @@ use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use std::sync::Mutex;
 
+use crate::futsuu::solver::{analyze_tsume_pv, effective_tsume_pv_plies};
 use crate::futsuu::tbase::TBase;
 use crate::futsuu::time::Instant;
 use crate::futsuu::types::{MKey, MvItem, Turn, FU, GI, HI, KA, KE, KI, KY, SOU, TSUME_MAX_DEPTH};
@@ -253,10 +254,14 @@ impl Default for BoundedDfPn {
 
 impl BoundedDfPn {
     pub fn new() -> Self {
+        Self::with_capacity(16_384)
+    }
+
+    pub(crate) fn with_capacity(cap: usize) -> Self {
         Self {
-            bounds_tt: HashMap::with_capacity(16_384),
-            work_tt: HashMap::with_capacity(16_384),
-            disproof_dom: HashMap::with_capacity(16_384),
+            bounds_tt: HashMap::with_capacity(cap),
+            work_tt: HashMap::with_capacity(cap),
+            disproof_dom: HashMap::with_capacity(cap),
             active_and: HashMap::with_capacity(128),
             scratch_tb: TBase::new(1),
             nodes: 0,
@@ -400,7 +405,7 @@ impl BoundedDfPn {
         out: &mut HashMap<(u64, MKey), Move>,
         vis: &mut HashSet<(u64, u64, u64, u16)>,
     ) {
-        if out.len() >= 128 {
+        if out.len() >= 2_048 {
             return;
         }
         let s_mk = pos.mkey(Turn::Sente);
@@ -696,7 +701,7 @@ impl BoundedDfPn {
                     BoundedMode::DisproveNoStall => true,
                     BoundedMode::ProveTsume { require_clean } => {
                         !require_clean
-                            || (m1.mv.is_board_move() && s_mk.is_empty())
+                            || (m1.mv.is_board_move() && m1.cap_koma == 0 && s_mk.is_empty())
                             || (m1.mv.is_drop() && s_mk.total() == 1)
                     }
                 };
@@ -1432,13 +1437,391 @@ fn extract_mate_witness_from_tb(
     }
 }
 
+/// Count unused attacker hand pieces at the end of `pv`, excluding any pieces gained solely from
+/// capturing collapsed futile interpositions (`打無駄合` / `移動無駄合`).
 #[inline]
-fn unused_atk_pieces_after_pv(start_or: &FmrsPos, pv: &[Move], atk_tn: Turn) -> u8 {
-    let mut p = start_or.clone();
-    for &m in pv {
-        p = p.move_forward(m);
+fn unused_atk_pieces_effective(start_or: &FmrsPos, pv: &[Move], _atk_tn: Turn) -> u8 {
+    analyze_tsume_pv(start_or, pv).2
+}
+
+/// Compute per-ply Tsume-Shogi step weights (`1` for genuine plies, `0` for collapsed futile
+/// interposition+recapture pairs) and remaining effective Tsume-Shogi plies `rem_eff[ply]`.
+#[inline]
+fn compute_pv_effective_rem(root: &FmrsPos, pv: &[Move]) -> (Vec<u8>, Vec<u16>) {
+    let (step_delta, rem_eff, _) = analyze_tsume_pv(root, pv);
+    (step_delta, rem_eff)
+}
+
+/// Deterministically play out any trailing physical `無駄合` (`合い利かず` drops or `移動無駄合`)
+/// after Tsume-Shogi checkmate has already been achieved (`generate_evasion.0.is_empty()`),
+/// so `out` terminates at a physical Shogi checkmate (`generate_evasion_simple.is_empty()`).
+fn all_evasions_constructively_futile(and_pos: &FmrsPos, scratch: &mut TBase) -> bool {
+    scratch.clear();
+    let tsume_evs = and_pos.generate_evasion(scratch).0;
+    if tsume_evs.is_empty() {
+        return true;
     }
-    p.mkey(atk_tn).total()
+    let ou = and_pos.self_ou();
+    let atk_sq = and_pos.attack_sq();
+    let mut rep_evs: Vec<Move> = Vec::new();
+    for it in &tsume_evs {
+        for em in it.all_moves() {
+            if !em.is_drop()
+                && ((and_pos.n_oute() == 1 && em.dest() == atk_sq) || em.prev_pos as usize == ou)
+            {
+                return false;
+            }
+            if !rep_evs.iter().any(|x| x.is_drop() == em.is_drop() && x.dest() == em.dest() && x.prev_pos == em.prev_pos) {
+                if em.is_drop() && rep_evs.iter().any(|x| x.is_drop() && x.dest() == em.dest()) {
+                    continue;
+                }
+                rep_evs.push(em);
+            }
+        }
+    }
+    !rep_evs.is_empty()
+        && rep_evs
+            .into_iter()
+            .all(|em| is_constructive_futile_inter_ev(and_pos, em, scratch, 0))
+}
+
+fn playout_trailing_futile_evasions(
+    cur: &mut FmrsPos,
+    out: &mut Vec<Move>,
+    scratch: &mut TBase,
+) -> bool {
+    for _ in 0..24 {
+        scratch.clear();
+        let phys_evs = cur.generate_evasion_simple(scratch);
+        if phys_evs.is_empty() {
+            return true;
+        }
+        if !all_evasions_constructively_futile(cur, scratch) {
+            return false;
+        }
+        let emv = phys_evs[0].head_move();
+        let next_or = cur.move_forward(emv);
+        scratch.clear();
+        let checks = next_or.generate_check(scratch);
+        let all_cmvs: Vec<Move> = checks.into_iter().flat_map(|it| it.all_moves()).collect();
+        let recap_opt = all_cmvs
+            .iter()
+            .copied()
+            .find(|&cm| {
+                cm.is_board_move() && cm.dest() == emv.dest() && {
+                    let c2 = next_or.move_forward(cm);
+                    scratch.clear();
+                    c2.generate_evasion_simple(scratch).is_empty()
+                }
+            })
+            .or_else(|| {
+                all_cmvs.iter().copied().find(|&cm| {
+                    cm.is_board_move() && cm.dest() == emv.dest() && {
+                        let c2 = next_or.move_forward(cm);
+                        all_evasions_constructively_futile(&c2, scratch)
+                    }
+                })
+            })
+            .or_else(|| {
+                all_cmvs.into_iter().find(|&cm| {
+                    let c2 = next_or.move_forward(cm);
+                    all_evasions_constructively_futile(&c2, scratch)
+                })
+            });
+        let Some(rmv) = recap_opt else {
+            return false;
+        };
+        out.push(emv);
+        out.push(rmv);
+        *cur = next_or.move_forward(rmv);
+    }
+    scratch.clear();
+    cur.generate_evasion_simple(scratch).is_empty()
+}
+
+fn backend_to_sfen<P: PositionBackend>(pos: &P) -> String {
+    use crate::futsuu::types::{
+        GGI, GHI, GKA, GKE, GKI, GKY, GNG, GNK, GNY, GOU, GRY, GTO, GUM, SGI, SHI, SKA, SKE, SKI,
+        SKY, SNG, SNK, SNY, SPC, SRY, STO, SUM,
+    };
+    let mut s = String::with_capacity(96);
+    for r in 0..9 {
+        if r > 0 {
+            s.push('/');
+        }
+        let mut empty = 0u8;
+        for f in (0..9).rev() {
+            let k = pos.board_at(r * 9 + f);
+            if k == SPC {
+                empty += 1;
+                continue;
+            }
+            if empty > 0 {
+                s.push((b'0' + empty) as char);
+                empty = 0;
+            }
+            let tok = match k {
+                1 => "P",
+                SKY => "L",
+                SKE => "N",
+                SGI => "S",
+                SKI => "G",
+                SKA => "B",
+                SHI => "R",
+                SOU => "K",
+                STO => "+P",
+                SNY => "+L",
+                SNK => "+N",
+                SNG => "+S",
+                SUM => "+B",
+                SRY => "+R",
+                17 => "p",
+                GKY => "l",
+                GKE => "n",
+                GGI => "s",
+                GKI => "g",
+                GKA => "b",
+                GHI => "r",
+                GOU => "k",
+                GTO => "+p",
+                GNY => "+l",
+                GNK => "+n",
+                GNG => "+s",
+                GUM => "+b",
+                GRY => "+r",
+                _ => "?",
+            };
+            s.push_str(tok);
+        }
+        if empty > 0 {
+            s.push((b'0' + empty) as char);
+        }
+    }
+    s.push_str(if pos.turn() == Turn::Sente { " b " } else { " w " });
+    let sm = pos.mkey(Turn::Sente);
+    let gm = pos.mkey(Turn::Gote);
+    if sm.is_empty() && gm.is_empty() {
+        s.push('-');
+    } else {
+        for &(kt, ch) in &[
+            (HI, 'R'),
+            (KA, 'B'),
+            (KI, 'G'),
+            (GI, 'S'),
+            (KE, 'N'),
+            (KY, 'L'),
+            (FU, 'P'),
+        ] {
+            let cnt = sm.get(kt);
+            if cnt > 1 {
+                s.push_str(&cnt.to_string());
+            }
+            if cnt >= 1 {
+                s.push(ch);
+            }
+        }
+        for &(kt, ch) in &[
+            (HI, 'r'),
+            (KA, 'b'),
+            (KI, 'g'),
+            (GI, 's'),
+            (KE, 'n'),
+            (KY, 'l'),
+            (FU, 'p'),
+        ] {
+            let cnt = gm.get(kt);
+            if cnt > 1 {
+                s.push_str(&cnt.to_string());
+            }
+            if cnt >= 1 {
+                s.push(ch);
+            }
+        }
+    }
+    s.push_str(" 1");
+    s
+}
+
+/// Lightweight post-solve refiner invoked ONLY on very short mates (`mate_steps <= 13`,
+/// zero cost on any medium/long problem) to resolve `shtsume`'s `super_tsumi` / `not_inc`
+/// shadowing of clean short mates and `inc`-skipping of longer Defender evasions.
+pub(crate) fn refine_short_tsume_pv_if_needed<P: PositionBackend>(
+    root: &P,
+    pv: &mut Vec<Move>,
+    mate_steps: &mut u16,
+    redundant: &mut bool,
+    extra_nodes: &mut u64,
+) {
+    if pv.is_empty()
+        || pv.len() % 2 == 0
+        || *mate_steps > 13
+        || (!*redundant && *mate_steps > 7)
+        || root.turn() != Turn::Sente
+    {
+        return;
+    }
+    let Ok(froot) = FmrsPos::from_sfen(&backend_to_sfen(root)) else {
+        return;
+    };
+    let root_tn = froot.turn();
+    let mut bnd = BoundedDfPn::with_capacity(512);
+    let mut scratch = TBase::new(1);
+
+    // 1. If `redundant`, check whether a clean Tsume-Shogi mate exists within `mate_steps + 2`:
+    if *redundant {
+        let probe_cap = (*mate_steps).saturating_add(2).min(15);
+        let (clean_opt, b_nodes) =
+            bnd.prove_tsume_mate_within(&froot, probe_cap, None, true, 4_096);
+        *extra_nodes += b_nodes;
+        if let Some(csh) = clean_opt {
+            let mut witnesses = HashMap::new();
+            bnd.extract_witness_map(&froot, csh, None, root_tn, &mut witnesses);
+            if let Some(w_pv) =
+                extract_witness_line(&froot, root_tn, csh as usize, &witnesses, true, &mut scratch)
+            {
+                if let Some((clean_pv, c_eff)) =
+                    validate_and_measure_mate_line(&froot, &w_pv, &mut scratch)
+                {
+                    *pv = clean_pv;
+                    *mate_steps = c_eff as u16;
+                    *redundant = false;
+                }
+            }
+        }
+    }
+
+    // 2. For `mate_steps <= 7`, verify along the `<= 3` AND-nodes of `pv` that no non-futile
+    //    Defender evasion survives strictly longer than `rem_next`:
+    for _pass in 0..4 {
+        if *mate_steps > 7 || pv.is_empty() || pv.len() % 2 == 0 {
+            break;
+        }
+        let (step_delta, rem_eff, eff_unused) = analyze_tsume_pv(&froot, pv);
+        *mate_steps = rem_eff[0];
+        *redundant = eff_unused > 0;
+
+        let mut and_nodes: Vec<(usize, FmrsPos, Move, u16, bool)> = Vec::with_capacity(4);
+        {
+            let mut cur = froot.clone();
+            for (ply, &mv) in pv.iter().enumerate() {
+                if ply % 2 == 1 {
+                    and_nodes.push((
+                        ply,
+                        cur.clone(),
+                        mv,
+                        rem_eff[ply].saturating_sub(1),
+                        step_delta[ply] == 0,
+                    ));
+                }
+                cur = cur.move_forward(mv);
+            }
+        }
+
+        let mut spliced = false;
+        for &(ply, ref and_pos, pv_ev, rem_next, cur_is_futile) in and_nodes.iter().rev() {
+            if cur_is_futile {
+                continue;
+            }
+            let checker_dest = pv[ply - 1].dest();
+            scratch.clear();
+            let (evs, _, invalid_flag) = and_pos.generate_evasion(&mut scratch);
+            let mut best_longer: Option<(u16, bool, Move, Vec<Move>)> = None;
+
+            for it in &evs {
+                for emv in it.all_moves() {
+                    if emv == pv_ev || (invalid_flag && emv.is_drop()) {
+                        continue;
+                    }
+                    let is_king_or_cap = !emv.is_drop()
+                        && (emv.dest() == checker_dest
+                            || (and_pos.board_at(emv.prev_pos as usize) & 15) == SOU);
+                    let init_ud: Option<(u8, u8)> = None;
+                    let next_or = and_pos.move_forward(emv).with_count(0);
+                    bnd.clear_for_root();
+                    let (within_opt, n1) =
+                        bnd.prove_tsume_mate_within(&next_or, rem_next, init_ud, false, 2_048);
+                    *extra_nodes += n1;
+                    if within_opt.is_some() || bnd.suspended {
+                        continue;
+                    }
+                    // `next_or` is proven NOT to mate within `<= rem_next` plies!
+                    let cap_hi = rem_next.saturating_add(6).min(13);
+                    let (clean_opt, n2) =
+                        bnd.prove_tsume_mate_within(&next_or, cap_hi, init_ud, true, 4_096);
+                    *extra_nodes += n2;
+                    let (chosen_sh, chosen_clean) = if let Some(csh) = clean_opt {
+                        (csh, true)
+                    } else {
+                        let (any_opt, n3) =
+                            bnd.prove_tsume_mate_within(&next_or, cap_hi, init_ud, false, 4_096);
+                        *extra_nodes += n3;
+                        let Some(ash) = any_opt else {
+                            continue;
+                        };
+                        (ash, false)
+                    };
+                    let mut witnesses = HashMap::new();
+                    bnd.extract_witness_map(&next_or, chosen_sh, init_ud, root_tn, &mut witnesses);
+                    let Some(w_pv) = extract_witness_line(
+                        &next_or,
+                        root_tn,
+                        chosen_sh as usize,
+                        &witnesses,
+                        chosen_clean,
+                        &mut scratch,
+                    ) else {
+                        continue;
+                    };
+                    let Some((tail_pv, eff_len)) =
+                        validate_and_measure_mate_line(&next_or, &w_pv, &mut scratch)
+                    else {
+                        continue;
+                    };
+                    let tail_unused = unused_atk_pieces_effective(&next_or, &tail_pv, root_tn);
+                    let tail_red = tail_unused > 0;
+                    if !is_king_or_cap && tail_red && tail_unused > and_pos.mkey(root_tn).total() {
+                        if let Some(&m0) = tail_pv.first() {
+                            if m0.is_board_move() && m0.dest() == emv.dest() {
+                                let after_recap = next_or.move_forward(m0);
+                                scratch.clear();
+                                let r_evs = after_recap.generate_evasion_simple(&mut scratch);
+                                let recap_defended = r_evs.iter().any(|rit| {
+                                    rit.all_moves()
+                                        .into_iter()
+                                        .any(|rm| rm.is_board_move() && rm.dest() == emv.dest())
+                                });
+                                if !recap_defended {
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                    let eff_u16 = eff_len as u16;
+                    if eff_u16 > rem_next
+                        && best_longer
+                            .as_ref()
+                            .is_none_or(|b| (eff_u16, tail_red) > (b.0, b.1))
+                    {
+                        best_longer = Some((eff_u16, tail_red, emv, tail_pv));
+                    }
+                }
+            }
+
+            if let Some((_, _, best_emv, best_tail)) = best_longer {
+                pv.truncate(ply);
+                pv.push(best_emv);
+                pv.extend(best_tail);
+                let (_, rem2, un2) = analyze_tsume_pv(&froot, pv);
+                *mate_steps = rem2[0];
+                *redundant = un2 > 0;
+                spliced = true;
+                break;
+            }
+        }
+        if !spliced {
+            break;
+        }
+    }
 }
 
 /// Sound, uncapped resolver for an alternative check `mv` leading to `child_and` (`rem_sh >= 3`).
@@ -1767,7 +2150,7 @@ pub fn resolve_alt_check_sound(
                         }
                     }
                     let nouse2 = if std_red {
-                        unused_atk_pieces_after_pv(&slot.next_or, &sub_res.pv, root_tn).max(1)
+                        unused_atk_pieces_effective(&slot.next_or, &sub_res.pv, root_tn).max(1)
                     } else {
                         0
                     };
@@ -1825,6 +2208,13 @@ pub fn resolve_alt_check_sound(
                                 std_br_sh = csh;
                                 std_red = false;
                                 min_any_sh = min_any_sh.min(csh);
+                                bounded.extract_witness_map(
+                                    &slot.next_or,
+                                    csh,
+                                    slot.init_undef_drop,
+                                    root_tn,
+                                    &mut extra_witnesses,
+                                );
                             } else if std_br_sh >= rem_sh && slot.is_king_or_cap {
                                 if !require_exact_disproof {
                                     return Ok(AltResolved::Refuted {
@@ -1961,21 +2351,28 @@ pub fn resolve_alt_check_sound(
 
     let solved_evs: Vec<EvSolved> = slots.into_iter().map(|s| s.solved.unwrap()).collect();
 
-    // Multi-ply futile-drop 1-ply mate check (`遅れ無駄合による1手詰`):
-    // When Defender has ONLY undefended drop interpositions and every drop is immediately recaptured
-    // leaving an extra unused piece compared to `child_and`, all drops are futile (`1-ply mate`).
+    // Constructive Tsume-Shogi futile-interposition (`無駄合`) predicate on solved evasions:
+    // 1. All-evasions 1-ply collapse (`all_futile`) applies ONLY when every evasion is constructively
+    //    `合い利かず` or immediately recaptured without Defender recapture leaving extra unused pieces.
+    // 2. When computing resistance across mixed evasions (`std_steps >= 3`), undefended drops
+    //    (`!self_effect_contains`) that leave strictly more unused pieces than `min_nouse2`
+    //    (`即時無駄合` or `遅れ無駄合`) are also excluded as futile, while defended `捨て合` and
+    //    board-move `中合` are preserved unless constructively futile.
     let base_atk_hand = child_and.mkey(root_tn).total();
-    let all_futile_drops = !solved_evs.is_empty()
-        && solved_evs.iter().all(|s| {
-            s.emv.is_drop()
-                && !child_and.self_effect_contains(s.emv.dest())
-                && s.std_red
-                && s.nouse2 > base_atk_hand
-                && s.pv
-                    .first()
-                    .is_some_and(|m0| m0.is_board_move() && m0.dest() == s.emv.dest())
-        });
-    if all_futile_drops || (invalid_flag && solved_evs.iter().all(|s| s.std_red && !s.is_king_or_cap)) {
+    let mut constructive_futile: Vec<bool> = Vec::with_capacity(solved_evs.len());
+    for s in &solved_evs {
+        let futile = is_futile_solved_interposition(child_and, s, base_atk_hand, scratch_tb);
+        constructive_futile.push(futile);
+    }
+
+    let all_futile = !solved_evs.is_empty() && constructive_futile.iter().all(|&f| f);
+    if all_futile
+        || (invalid_flag
+            && solved_evs
+                .iter()
+                .zip(constructive_futile.iter())
+                .all(|(s, &f)| f || (s.std_red && !s.is_king_or_cap && s.nouse2 > base_atk_hand)))
+    {
         let atk_hand_empty = base_atk_hand == 0;
         return Ok(AltResolved::Mated {
             std_steps: 1,
@@ -1985,39 +2382,167 @@ pub fn resolve_alt_check_sound(
         });
     }
 
-    // Exact Tsume-Shogi non-futile evasion filter:
-    // - King moves and checker captures (`is_king_or_cap`) are ALWAYS valid evasions (never `無駄合`).
-    // - Clean interpositions (`!std_red`) are ALWAYS valid `有効合`.
-    // - Redundant interpositions (`std_red`) are valid `有効合` iff `nouse2 <= min_nouse2`
-    //   (i.e. they did not inflate unused pieces beyond Defender's cleanest resistance).
     let min_nouse2 = solved_evs.iter().map(|s| s.nouse2).min().unwrap_or(0);
-    let is_valid = |s: &EvSolved| s.is_king_or_cap || !s.std_red || s.nouse2 <= min_nouse2;
+    let is_futile_flags: Vec<bool> = solved_evs
+        .iter()
+        .zip(constructive_futile.iter())
+        .map(|(s, &cf)| {
+            cf || is_futile_solved_interposition(child_and, s, min_nouse2, scratch_tb)
+                || (s.emv.is_drop()
+                    && !child_and.self_effect_contains(s.emv.dest())
+                    && s.std_red
+                    && s.nouse2 > min_nouse2)
+        })
+        .collect();
 
     let max_any_sh = solved_evs
         .iter()
-        .filter(|s| is_valid(s))
-        .map(|s| s.min_any_sh)
+        .zip(is_futile_flags.iter())
+        .filter(|(_, &futile)| !futile)
+        .map(|(s, _)| s.min_any_sh)
         .max()
         .unwrap_or(0);
     let any_steps = max_any_sh.saturating_add(2);
 
     let max_std_sh = solved_evs
         .iter()
-        .filter(|s| is_valid(s))
-        .map(|s| s.std_br_sh)
+        .zip(is_futile_flags.iter())
+        .filter(|(_, &futile)| !futile)
+        .map(|(s, _)| s.std_br_sh)
         .max()
         .unwrap_or(0);
     let std_steps = max_std_sh.saturating_add(2);
-    let non_redundant = solved_evs
-        .iter()
-        .filter(|s| is_valid(s) && s.std_br_sh == max_std_sh)
-        .all(|s| !s.std_red);
+    let non_redundant = if max_std_sh <= 3 {
+        // Under All-Japan Tsume-Shogi Rules Art. 5 (`最終手付近の同手数変化駒余り`),
+        // equal-length dirty sidelines within `max_std_sh <= 3` (`<= 4` plies remaining)
+        // are permitted if at least one longest-resistance evasion mates cleanly.
+        solved_evs
+            .iter()
+            .zip(is_futile_flags.iter())
+            .filter(|(s, &futile)| !futile && s.std_br_sh == max_std_sh)
+            .any(|(s, _)| !s.std_red)
+    } else {
+        solved_evs
+            .iter()
+            .zip(is_futile_flags.iter())
+            .filter(|(s, &futile)| !futile && s.std_br_sh == max_std_sh)
+            .all(|(s, _)| !s.std_red)
+    };
 
     Ok(AltResolved::Mated {
         std_steps,
         non_redundant,
         any_steps,
         solved_evs,
+    })
+}
+
+fn is_constructive_futile_inter_ev(
+    and_pos: &FmrsPos,
+    emv: Move,
+    scratch_tb: &mut TBase,
+    depth: u8,
+) -> bool {
+    is_constructive_futile_inter_rec(and_pos, emv, None, usize::MAX, scratch_tb, depth)
+}
+
+fn is_constructive_futile_inter_rec(
+    and_pos: &FmrsPos,
+    emv: Move,
+    prev_slider_sq: Option<usize>,
+    prev_drops_len: usize,
+    scratch_tb: &mut TBase,
+    depth: u8,
+) -> bool {
+    let dest = emv.dest();
+    let next_or = and_pos.move_forward(emv);
+    scratch_tb.clear();
+    let checks = next_or.generate_check(scratch_tb);
+    for it in &checks {
+        for m_rec in it.all_moves() {
+            if !m_rec.is_board_move() || m_rec.dest() != dest {
+                continue;
+            }
+            if let Some(ps) = prev_slider_sq {
+                if m_rec.prev_pos as usize != ps {
+                    continue;
+                }
+            }
+            let after = next_or.move_forward(m_rec);
+            scratch_tb.clear();
+            let evs = after.generate_evasion_simple(scratch_tb);
+            if evs.is_empty() {
+                return true;
+            }
+            if depth >= 5 {
+                continue;
+            }
+            let mut only_drops = true;
+            let mut rep_drops: Vec<Move> = Vec::new();
+            for eit in &evs {
+                for e2 in eit.all_moves() {
+                    if !e2.is_drop() {
+                        only_drops = false;
+                        break;
+                    }
+                    if !rep_drops.iter().any(|x| x.dest() == e2.dest()) {
+                        rep_drops.push(e2);
+                    }
+                }
+                if !only_drops {
+                    break;
+                }
+            }
+            let d_len = rep_drops.len();
+            if only_drops
+                && d_len > 0
+                && d_len < prev_drops_len
+                && rep_drops.iter().all(|&d_mv| {
+                    is_constructive_futile_inter_rec(
+                        &after,
+                        d_mv,
+                        Some(dest),
+                        d_len,
+                        scratch_tb,
+                        depth + 1,
+                    )
+                })
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn is_futile_solved_interposition(
+    child_and: &FmrsPos,
+    s: &EvSolved,
+    base_atk_hand: u8,
+    scratch_tb: &mut TBase,
+) -> bool {
+    if s.is_king_or_cap {
+        return false;
+    }
+    if is_constructive_futile_inter_ev(child_and, s.emv, scratch_tb, 0) {
+        return true;
+    }
+    if !s.std_red || s.nouse2 <= base_atk_hand {
+        return false;
+    }
+    let Some(&m0) = s.pv.first() else {
+        return false;
+    };
+    if !m0.is_board_move() || m0.dest() != s.emv.dest() {
+        return false;
+    }
+    let after_recap = child_and.move_forward(s.emv).move_forward(m0);
+    scratch_tb.clear();
+    let evs = after_recap.generate_evasion_simple(scratch_tb);
+    !evs.iter().any(|it| {
+        it.all_moves()
+            .into_iter()
+            .any(|em| em.is_board_move() && em.dest() == s.emv.dest())
     })
 }
 
@@ -2098,46 +2623,60 @@ pub fn stabilize_main_line_pv(
 ) -> Result<SearchResult, PerfectionStatus> {
     let root_tn = root.turn();
     let def_tn = root_tn.flip();
+    let mut lazy_bounded: Option<BoundedDfPn> = None;
 
     for _pass in 0..16 {
-        let total_sh = res.pv.len();
-        if total_sh == 0 || total_sh % 2 == 0 {
+        let mut total_phys = res.pv.len();
+        if total_phys == 0 || total_phys % 2 == 0 {
             return Err(PerfectionStatus::Timeout);
         }
+        {
+            let mut end_cur = root.clone();
+            for &mv in &res.pv {
+                end_cur = end_cur.move_forward(mv);
+            }
+            if !playout_trailing_futile_evasions(&mut end_cur, &mut res.pv, scratch_tb) {
+                return Err(PerfectionStatus::Timeout);
+            }
+            total_phys = res.pv.len();
+        }
+
+        let (step_delta, rem_eff) = compute_pv_effective_rem(root, &res.pv);
+        res.mate_steps = rem_eff[0];
+        let pv_nouse = unused_atk_pieces_effective(root, &res.pv, root_tn);
+        res.redundant = pv_nouse > 0;
+
         let mut pv_or_dom: HashMap<u64, Vec<(MKey, MKey, u16)>> =
-            HashMap::with_capacity(total_sh / 2 + 1);
-        let mut and_nodes: Vec<(usize, FmrsPos, Move)> = Vec::with_capacity(total_sh / 2);
+            HashMap::with_capacity(total_phys / 2 + 1);
+        let mut and_nodes: Vec<(usize, FmrsPos, Move, u16, bool)> =
+            Vec::with_capacity(total_phys / 2);
         {
             let mut cur = root.clone();
             for (ply, &mv) in res.pv.iter().enumerate() {
-                let rem_sh = (total_sh - ply) as u16;
                 if ply % 2 == 0 {
-                    pv_or_dom.entry(cur.zkey()).or_default().push((
-                        cur.mkey(root_tn),
-                        cur.mkey(def_tn),
-                        rem_sh,
-                    ));
+                    if step_delta[ply] == 1 {
+                        pv_or_dom.entry(cur.zkey()).or_default().push((
+                            cur.mkey(root_tn),
+                            cur.mkey(def_tn),
+                            rem_eff[ply],
+                        ));
+                    }
                 } else {
-                    and_nodes.push((ply, cur.clone(), mv));
+                    let rem_next = rem_eff[ply].saturating_sub(1);
+                    let cur_is_futile = step_delta[ply] == 0;
+                    and_nodes.push((ply, cur.clone(), mv, rem_next, cur_is_futile));
                 }
                 cur = cur.move_forward(mv);
-            }
-            scratch_tb.clear();
-            if !cur.generate_evasion(scratch_tb).0.is_empty() {
-                return Err(PerfectionStatus::Timeout);
-            }
-            if !cur.mkey(root_tn).is_empty() {
-                return Err(PerfectionStatus::RedundantHand);
             }
         }
 
         let mut spliced = false;
-        for &(ply, ref and_pos, pv_ev) in and_nodes.iter().rev() {
-            let rem_next = (total_sh - 1 - ply) as u16;
+        for &(ply, ref and_pos, pv_ev, rem_next, cur_is_futile) in and_nodes.iter().rev() {
+            let checker_dest = res.pv[ply - 1].dest();
             scratch_tb.clear();
             let (evs, _, invalid_flag) = and_pos.generate_evasion(scratch_tb);
             if evs.is_empty() {
-                return Err(PerfectionStatus::Timeout);
+                continue;
             }
             let alt_evs: Vec<Move> = evs
                 .iter()
@@ -2148,7 +2687,7 @@ pub fn stabilize_main_line_pv(
                 continue;
             }
 
-            let mut best_longer: Option<(u16, Move, Vec<Move>)> = None;
+            let mut best_longer: Option<(u16, bool, Move, Vec<Move>)> = None;
             for emv in alt_evs {
                 if abort_flag.is_some_and(|f| f.load(Ordering::Relaxed))
                     || deadline.is_some_and(|(t0, lim)| t0.elapsed().as_secs_f64() >= lim)
@@ -2156,6 +2695,12 @@ pub fn stabilize_main_line_pv(
                     return Err(PerfectionStatus::Timeout);
                 }
                 if invalid_flag && emv.is_drop() {
+                    continue;
+                }
+                let is_king_or_cap = !emv.is_drop()
+                    && (emv.dest() == checker_dest
+                        || (and_pos.board_at(emv.prev_pos as usize) & 15) == SOU);
+                if !is_king_or_cap && is_constructive_futile_inter_ev(and_pos, emv, scratch_tb, 0) {
                     continue;
                 }
                 let next_or_raw = and_pos.move_forward(emv);
@@ -2172,9 +2717,14 @@ pub fn stabilize_main_line_pv(
                     }
                 }
 
-                // 2. Constructive `O(1)` undefended futile-drop dominance (`無駄合`):
+                // 2. Constructive futile-interposition dominance (`打無駄合` / `移動無駄合`; defended `捨て合` excluded via `any_recap_suteai`):
                 let is_undef_drop = emv.is_drop() && !and_pos.self_effect_contains(emv.dest());
-                if is_undef_drop {
+                if emv.is_drop() || (!is_king_or_cap && rem_next <= 9) {
+                    let stripped_kt = if emv.is_drop() {
+                        emv.hand_ktype()
+                    } else {
+                        and_pos.board_at(emv.prev_pos as usize) & 7
+                    };
                     scratch_tb.clear();
                     let recap_checks = next_or_raw.generate_check(scratch_tb);
                     let mut futile_proven = false;
@@ -2185,7 +2735,7 @@ pub fn stabilize_main_line_pv(
                             }
                             let st = next_or_raw
                                 .move_forward(m_rec)
-                                .without_attacker_hand_piece(emv.hand_ktype());
+                                .without_attacker_hand_piece(stripped_kt);
                             scratch_tb.clear();
                             let (evs3, _, _) = st.generate_evasion(scratch_tb);
                             if evs3.is_empty() {
@@ -2201,15 +2751,60 @@ pub fn stabilize_main_line_pv(
                                         any_recap_suteai = true;
                                         break;
                                     }
-                                    if !e3.is_drop() {
-                                        has_non_drop = true;
-                                        let or2 = st.move_forward(e3);
+                                    if emv.is_drop() {
+                                        if !e3.is_drop() {
+                                            has_non_drop = true;
+                                            let or2 = st.move_forward(e3);
+                                            let a2 = or2.mkey(root_tn);
+                                            let d2 = or2.mkey(def_tn);
+                                            let dom = pv_or_dom.get(&or2.zkey()).is_some_and(
+                                                |ents| {
+                                                    ents.iter().any(|&(pa, pd, _)| {
+                                                        a2.ge_all(pa) && pd.ge_all(d2)
+                                                    })
+                                                },
+                                            );
+                                            if !dom {
+                                                all_dom = false;
+                                                break;
+                                            }
+                                        }
+                                    } else {
+                                        if !e3.is_drop() {
+                                            has_non_drop = true;
+                                        } else if is_constructive_futile_inter_ev(
+                                            &st, e3, scratch_tb, 0,
+                                        ) {
+                                            continue;
+                                        }
+                                        let or2 = st.move_forward(e3).with_count(2);
                                         let a2 = or2.mkey(root_tn);
                                         let d2 = or2.mkey(def_tn);
-                                        let dom = pv_or_dom.get(&or2.zkey()).is_some_and(|ents| {
-                                            ents.iter()
-                                                .any(|&(pa, pd, _)| a2.ge_all(pa) && pd.ge_all(d2))
-                                        });
+                                        let mut dom =
+                                            pv_or_dom.get(&or2.zkey()).is_some_and(|ents| {
+                                                ents.iter().any(|&(pa, pd, pr)| {
+                                                    pr <= rem_next
+                                                        && pd.ge_all(d2)
+                                                        && if res.redundant {
+                                                            a2.ge_all(pa)
+                                                        } else {
+                                                            a2 == pa
+                                                        }
+                                                })
+                                            });
+                                        if !dom {
+                                            let bnd =
+                                                lazy_bounded.get_or_insert_with(BoundedDfPn::new);
+                                            let (m_opt, bn) = bnd.prove_tsume_mate_within(
+                                                &or2,
+                                                rem_next,
+                                                None,
+                                                !res.redundant,
+                                                1_024,
+                                            );
+                                            *solve_nodes_acc += bn;
+                                            dom = m_opt.is_some();
+                                        }
                                         if !dom {
                                             all_dom = false;
                                             break;
@@ -2255,7 +2850,7 @@ pub fn stabilize_main_line_pv(
                     }
                 }
 
-                // 4. Solve `next_or` to check for `NoMate` or a strictly longer clean main-line defense:
+                // 4. Solve `next_or` to check for `NoMate` or a strictly longer optimal defense:
                 let b_and = if !is_undef_drop {
                     if rem_next <= 15 {
                         per_check_limit.clamp(80_000, 524_288)
@@ -2269,7 +2864,7 @@ pub fn stabilize_main_line_pv(
                 } else {
                     16_384
                 };
-                let next_or = next_or_raw.with_count(0);
+                let next_or = next_or_raw.with_count(2);
                 sub_solver.set_node_limit(Some(b_and));
                 let mut r2 = sub_solver.solve_unbounded_pn(&next_or);
                 *solve_nodes_acc += r2.nodes;
@@ -2284,21 +2879,126 @@ pub fn stabilize_main_line_pv(
                 if r2.mate == Some(true)
                     && !sub_solver.is_suspended()
                     && !r2.error
-                    && !r2.redundant
-                    && r2.mate_steps > rem_next
                     && r2.mate_steps % 2 == 1
-                    && r2.pv.len() == r2.mate_steps as usize
-                    && best_longer.as_ref().is_none_or(|b| r2.mate_steps > b.0)
+                    && !r2.pv.is_empty()
+                    && r2.pv.len() % 2 == 1
                 {
-                    best_longer = Some((r2.mate_steps, emv, r2.pv));
+                    let init_ud: Option<(u8, u8)> = None;
+                    if !r2.redundant {
+                        let mut true_steps = r2.mate_steps;
+                        if true_steps > rem_next && !cur_is_futile && rem_next <= 11 {
+                            let bnd = lazy_bounded.get_or_insert_with(BoundedDfPn::new);
+                            let (any_le_rem, an) = bnd.prove_tsume_mate_within(
+                                &next_or, rem_next, init_ud, false, 4_096,
+                            );
+                            *solve_nodes_acc += an;
+                            if let Some(ash) = any_le_rem {
+                                if ash < rem_next || rem_next <= 3 || emv.is_drop() {
+                                    continue;
+                                }
+                                let (cl_le_rem, cn) = bnd.prove_tsume_mate_within(
+                                    &next_or, rem_next, init_ud, true, 4_096,
+                                );
+                                *solve_nodes_acc += cn;
+                                if cl_le_rem.is_some() {
+                                    continue;
+                                }
+                            }
+                        }
+                        let beats =
+                            true_steps > rem_next || (cur_is_futile && true_steps >= rem_next);
+                        if beats
+                            && best_longer
+                                .as_ref()
+                                .is_none_or(|b| (true_steps, false) > (b.0, b.1))
+                        {
+                            true_steps = r2.mate_steps;
+                            best_longer = Some((true_steps, false, emv, r2.pv));
+                        }
+                    } else if r2.mate_steps <= 13 && rem_next <= 9 {
+                        // `r2.redundant == true`: `shtsume`'s `super_tsumi` may have returned a
+                        // shorter dirty mate `<= rem_next` when the true CLEAN mate is `> rem_next`!
+                        let r2_nouse =
+                            unused_atk_pieces_effective(&next_or, &r2.pv, root_tn).max(1);
+                        if is_undef_drop && r2_nouse > pv_nouse {
+                            continue;
+                        }
+                        let bnd = lazy_bounded.get_or_insert_with(BoundedDfPn::new);
+                        if !cur_is_futile {
+                            let (any_le, an) = bnd.prove_tsume_mate_within(
+                                &next_or, rem_next, init_ud, false, 4_096,
+                            );
+                            *solve_nodes_acc += an;
+                            if let Some(ash) = any_le {
+                                // By Tsume-Shogi Rules Art. 5:
+                                // - Strictly shorter variations (`ash < rem_next`) mate in `ash`
+                                //   plies even with surplus pieces (never stretched by piece-dumping).
+                                // - Equal-length (`ash == rem_next`) allows surplus pieces at
+                                //   `rem_next <= 3` (`最終手付近`) or on drop interpositions.
+                                if ash < rem_next || rem_next <= 3 || emv.is_drop() {
+                                    continue;
+                                }
+                                let (cl_le, cn) = bnd.prove_tsume_mate_within(
+                                    &next_or, rem_next, init_ud, true, 4_096,
+                                );
+                                *solve_nodes_acc += cn;
+                                if cl_le.is_some() {
+                                    continue;
+                                }
+                            }
+                        }
+                        let probe_cap = r2.mate_steps.max(rem_next.saturating_add(4)).min(13);
+                        let (clean_opt, b_nodes) =
+                            bnd.prove_tsume_mate_within(&next_or, probe_cap, init_ud, true, 4_096);
+                        *solve_nodes_acc += b_nodes;
+                        if let Some(csh) = clean_opt {
+                            if csh > rem_next || (cur_is_futile && csh >= rem_next) {
+                                let mut witnesses = HashMap::new();
+                                bnd.extract_witness_map(
+                                    &next_or,
+                                    csh,
+                                    init_ud,
+                                    root_tn,
+                                    &mut witnesses,
+                                );
+                                if let Some(w_pv) = extract_witness_line(
+                                    &next_or,
+                                    root_tn,
+                                    csh as usize,
+                                    &witnesses,
+                                    true,
+                                    scratch_tb,
+                                ) {
+                                    if let Some((clean_pv, c_eff)) =
+                                        validate_and_measure_mate_line(&next_or, &w_pv, scratch_tb)
+                                    {
+                                        let eff_sh = c_eff as u16;
+                                        if (eff_sh > rem_next
+                                            || (cur_is_futile && eff_sh >= rem_next))
+                                            && best_longer
+                                                .as_ref()
+                                                .is_none_or(|b| (eff_sh, false) > (b.0, b.1))
+                                        {
+                                            best_longer = Some((eff_sh, false, emv, clean_pv));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
-            if let Some((_, best_emv, best_pv)) = best_longer {
+            if let Some((_, best_red, best_emv, best_pv)) = best_longer {
                 res.pv.truncate(ply);
                 res.pv.push(best_emv);
                 res.pv.extend(best_pv);
-                res.mate_steps = res.pv.len() as u16;
+                res.mate_steps = effective_tsume_pv_plies(root, &res.pv);
+                if best_red {
+                    res.redundant = true;
+                } else {
+                    res.redundant = unused_atk_pieces_effective(root, &res.pv, root_tn) > 0;
+                }
                 warm_root_tb = None;
                 spliced = true;
                 break;
@@ -2310,15 +3010,144 @@ pub fn stabilize_main_line_pv(
         }
     }
 
+    // Phase 2 (short problems `<= 11` plies only, AFTER clean stabilization has converged so no
+    // suboptimal Defender branch can shadow a longer clean branch): check whether any King/capture
+    // evasion on the final stabilized PV forces a dirty mate (`rem_next > 3` equal-length or strictly longer).
+    if !res.redundant && res.mate_steps <= 11 {
+        let (step_delta, rem_eff) = compute_pv_effective_rem(root, &res.pv);
+        let mut cur = root.clone();
+        for (ply, &mv) in res.pv.iter().enumerate() {
+            if ply % 2 == 1 && step_delta[ply] == 1 {
+                let rem_next = rem_eff[ply].saturating_sub(1);
+                let checker_dest = res.pv[ply - 1].dest();
+                scratch_tb.clear();
+                let (evs, _, _) = cur.generate_evasion(scratch_tb);
+                let mut forced_dirty = false;
+                for it in &evs {
+                    for emv in it.all_moves() {
+                        if emv == mv || emv.is_drop() {
+                            continue;
+                        }
+                        let is_king_or_cap = emv.dest() == checker_dest
+                            || (cur.board_at(emv.prev_pos as usize) & 15) == SOU;
+                        if !is_king_or_cap {
+                            continue;
+                        }
+                        let next_or = cur.move_forward(emv).with_count(2);
+                        let bnd = lazy_bounded.get_or_insert_with(BoundedDfPn::new);
+                        // If a clean mate `<= rem_next` exists, Defender cannot force dirty here.
+                        let (cl_opt, cn) =
+                            bnd.prove_tsume_mate_within(&next_or, rem_next, None, true, 4_096);
+                        *solve_nodes_acc += cn;
+                        if cl_opt.is_some() || bnd.suspended {
+                            continue;
+                        }
+                        let (any_opt, an) =
+                            bnd.prove_tsume_mate_within(&next_or, rem_next, None, false, 4_096);
+                        *solve_nodes_acc += an;
+                        if let Some(ash) = any_opt {
+                            if ash < rem_next || rem_next <= 3 {
+                                continue;
+                            }
+                            // `ash == rem_next && rem_next > 3` with NO clean mate `<= rem_next`:
+                            // verify no longer clean mate exists within `rem_next + 4` either!
+                            let (cl_long, cln) = bnd.prove_tsume_mate_within(
+                                &next_or,
+                                rem_next.saturating_add(4).min(13),
+                                None,
+                                true,
+                                4_096,
+                            );
+                            *solve_nodes_acc += cln;
+                            if cl_long.is_none() && !bnd.suspended {
+                                forced_dirty = true;
+                                break;
+                            }
+                        } else if !bnd.suspended {
+                            // Neither clean nor dirty mate within `<= rem_next` (`strictly > rem_next` dirty escape!):
+                            let (cl_long, cln) = bnd.prove_tsume_mate_within(
+                                &next_or,
+                                rem_next.saturating_add(6).min(13),
+                                None,
+                                true,
+                                4_096,
+                            );
+                            *solve_nodes_acc += cln;
+                            if cl_long.is_none() && !bnd.suspended {
+                                forced_dirty = true;
+                                break;
+                            }
+                        }
+                    }
+                    if forced_dirty {
+                        break;
+                    }
+                }
+                if forced_dirty {
+                    res.redundant = true;
+                    break;
+                }
+            }
+            cur = cur.move_forward(mv);
+        }
+    }
+
+    res.mate_steps = effective_tsume_pv_plies(root, &res.pv);
+    if !res.redundant {
+        res.redundant = unused_atk_pieces_effective(root, &res.pv, root_tn) > 0;
+    }
+    if res.redundant && res.mate_steps <= 13 {
+        let bnd = lazy_bounded.get_or_insert_with(BoundedDfPn::new);
+        bnd.clear_for_root();
+        let probe_cap = res.mate_steps.saturating_add(2).min(15);
+        let (clean_opt, b_nodes) =
+            bnd.prove_tsume_mate_within(root, probe_cap, None, true, 8_192);
+        *solve_nodes_acc += b_nodes;
+        if let Some(csh) = clean_opt {
+            if csh <= res.mate_steps {
+                let mut witnesses = HashMap::new();
+                bnd.extract_witness_map(root, csh, None, root_tn, &mut witnesses);
+                if let Some(w_pv) = extract_witness_line(
+                    root,
+                    root_tn,
+                    csh as usize,
+                    &witnesses,
+                    true,
+                    scratch_tb,
+                ) {
+                    if let Some((clean_pv, c_eff)) =
+                        validate_and_measure_mate_line(root, &w_pv, scratch_tb)
+                    {
+                        res.pv = clean_pv;
+                        res.mate_steps = c_eff as u16;
+                        res.redundant = false;
+                    }
+                }
+            }
+        }
+    }
+    if res.redundant {
+        return Err(PerfectionStatus::RedundantHand);
+    }
     Ok(res)
 }
 
-fn is_complete_mate_line(start_or: &FmrsPos, tail: &[Move], scratch: &mut TBase) -> bool {
-    if tail.is_empty() || tail.len() % 2 == 0 {
-        return false;
+/// Validate a checkmate line `raw_tail` from `start_or`, ensuring the returned sequence terminates
+/// at a physical Shogi checkmate (`generate_evasion_simple.is_empty()`, playing out any trailing
+/// `合い利かず` drops if `raw_tail` stopped at Tsume-Shogi mate) and returning
+/// `(complete_tail, effective_tsume_plies)` where futile interposition+recapture pairs count as `0`.
+fn validate_and_measure_mate_line(
+    start_or: &FmrsPos,
+    raw_tail: &[Move],
+    scratch: &mut TBase,
+) -> Option<(Vec<Move>, usize)> {
+    if raw_tail.is_empty() {
+        return None;
     }
     let mut cur = start_or.clone();
-    for (i, &m) in tail.iter().enumerate() {
+    let mut out = Vec::with_capacity(raw_tail.len() + 8);
+
+    for (i, &m) in raw_tail.iter().enumerate() {
         scratch.clear();
         let legal = if i % 2 == 0 {
             cur.generate_check(scratch)
@@ -2326,19 +3155,61 @@ fn is_complete_mate_line(start_or: &FmrsPos, tail: &[Move], scratch: &mut TBase)
                 .flat_map(|it| it.all_moves())
                 .any(|x| x == m)
         } else {
-            cur.generate_evasion(scratch)
-                .0
+            cur.generate_evasion_simple(scratch)
                 .into_iter()
                 .flat_map(|it| it.all_moves())
                 .any(|x| x == m)
         };
         if !legal {
-            return false;
+            return None;
         }
+        out.push(m);
         cur = cur.move_forward(m);
+        if i % 2 == 0 {
+            scratch.clear();
+            if cur.generate_evasion_simple(scratch).is_empty() {
+                let eff = effective_tsume_pv_plies(start_or, &out) as usize;
+                return Some((out, eff));
+            }
+        }
     }
-    scratch.clear();
-    cur.generate_evasion(scratch).0.is_empty()
+
+    if out.len() % 2 == 1 && playout_trailing_futile_evasions(&mut cur, &mut out, scratch) {
+        let eff = effective_tsume_pv_plies(start_or, &out) as usize;
+        return Some((out, eff));
+    }
+    None
+}
+
+fn find_1ply_witness_move(
+    pos: &FmrsPos,
+    root_tn: Turn,
+    prefer_clean: bool,
+    scratch: &mut TBase,
+) -> Option<Move> {
+    if prefer_clean {
+        let hand = pos.mkey(root_tn);
+        if let Some(m1) = pos.find_1ply_mate() {
+            let clean = (m1.mv.is_board_move() && m1.cap_koma == 0 && hand.is_empty())
+                || (m1.mv.is_drop() && hand.total() == 1);
+            if clean {
+                return Some(m1.mv);
+            }
+        }
+        scratch.clear();
+        for it in pos.generate_check(scratch) {
+            for mv in it.all_moves() {
+                let c = pos.move_forward(mv);
+                scratch.clear();
+                if c.mkey(root_tn).is_empty() && c.generate_evasion(scratch).0.is_empty() {
+                    return Some(mv);
+                }
+            }
+        }
+        None
+    } else {
+        pos.find_1ply_mate_simple().map(|m1| m1.mv)
+    }
 }
 
 fn extract_witness_line(
@@ -2346,59 +3217,157 @@ fn extract_witness_line(
     root_tn: Turn,
     max_plies: usize,
     witnesses: &HashMap<(u64, MKey), Move>,
+    prefer_clean: bool,
     scratch: &mut TBase,
 ) -> Option<Vec<Move>> {
-    let mut out = Vec::new();
-    let mut cur = start_or.clone();
-    for _step in 0..((max_plies + 1) / 2) {
-        let cmv = if let Some(&w) = witnesses.get(&(cur.zkey(), cur.mkey(root_tn))) {
-            scratch.clear();
-            let ok = cur
-                .generate_check(scratch)
-                .into_iter()
-                .flat_map(|it| it.all_moves())
-                .any(|x| x == w);
-            if ok {
-                Some(w)
-            } else {
-                cur.find_1ply_mate_simple().map(|m1| m1.mv)
-            }
-        } else {
-            cur.find_1ply_mate_simple().map(|m1| m1.mv)
-        }?;
-        out.push(cmv);
-        let cand = cur.move_forward(cmv);
-        scratch.clear();
-        let (evs, _, _) = cand.generate_evasion(scratch);
-        if evs.is_empty() {
-            return Some(out);
-        }
-        if out.len() + 2 > max_plies {
-            return None;
-        }
-        // Prefer King/capture/non-drop evasion that stays inside `witnesses`:
-        let all_emvs: Vec<Move> = evs.into_iter().flat_map(|it| it.all_moves()).collect();
-        let chosen_ev = all_emvs
-            .iter()
-            .copied()
-            .find(|e| {
-                !e.is_drop() && {
-                    let n = cand.move_forward(*e);
-                    n.find_1ply_mate_simple().is_some()
-                        || witnesses.contains_key(&(n.zkey(), n.mkey(root_tn)))
-                }
-            })
-            .or_else(|| {
-                all_emvs.iter().copied().find(|e| {
-                    let n = cand.move_forward(*e);
-                    n.find_1ply_mate_simple().is_some()
-                        || witnesses.contains_key(&(n.zkey(), n.mkey(root_tn)))
-                })
-            })?;
-        out.push(chosen_ev);
-        cur = cand.move_forward(chosen_ev);
+    let phys_cap = max_plies.saturating_add(14);
+    let mut active = HashSet::new();
+    let mut memo: HashMap<(u64, MKey, usize), Option<(u16, Vec<Move>)>> = HashMap::new();
+    let mut node_budget = 512usize;
+    extract_witness_line_rec(
+        start_or,
+        root_tn,
+        phys_cap,
+        witnesses,
+        prefer_clean,
+        scratch,
+        &mut active,
+        &mut memo,
+        &mut node_budget,
+    )
+    .map(|(_, line)| line)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn extract_witness_line_rec(
+    cur: &FmrsPos,
+    root_tn: Turn,
+    rem_phys: usize,
+    witnesses: &HashMap<(u64, MKey), Move>,
+    prefer_clean: bool,
+    scratch: &mut TBase,
+    active: &mut HashSet<(u64, MKey)>,
+    memo: &mut HashMap<(u64, MKey, usize), Option<(u16, Vec<Move>)>>,
+    node_budget: &mut usize,
+) -> Option<(u16, Vec<Move>)> {
+    if rem_phys == 0 || *node_budget == 0 {
+        return None;
     }
-    None
+    let state_key = (cur.zkey(), cur.mkey(root_tn));
+    if let Some(cached) = memo.get(&(state_key.0, state_key.1, rem_phys)) {
+        return cached.clone();
+    }
+    if !active.insert(state_key) {
+        return None;
+    }
+    *node_budget = node_budget.saturating_sub(1);
+
+    let cmv_opt = if let Some(&w) = witnesses.get(&state_key) {
+        scratch.clear();
+        let ok = cur
+            .generate_check(scratch)
+            .into_iter()
+            .flat_map(|it| it.all_moves())
+            .any(|x| x == w);
+        if ok {
+            Some(w)
+        } else {
+            find_1ply_witness_move(cur, root_tn, prefer_clean, scratch)
+        }
+    } else {
+        find_1ply_witness_move(cur, root_tn, prefer_clean, scratch)
+    };
+    let Some(cmv) = cmv_opt else {
+        active.remove(&state_key);
+        memo.insert((state_key.0, state_key.1, rem_phys), None);
+        return None;
+    };
+
+    let cand = cur.move_forward(cmv);
+    scratch.clear();
+    let (evs, _, invalid_flag) = cand.generate_evasion(scratch);
+    if evs.is_empty() {
+        active.remove(&state_key);
+        let res = Some((1u16, vec![cmv]));
+        memo.insert((state_key.0, state_key.1, rem_phys), res.clone());
+        return res;
+    }
+    if rem_phys < 3 {
+        active.remove(&state_key);
+        memo.insert((state_key.0, state_key.1, rem_phys), None);
+        return None;
+    }
+
+    let all_emvs: Vec<Move> = evs.into_iter().flat_map(|it| it.all_moves()).collect();
+    let mut best_non_futile: Option<(u16, bool, Move, Vec<Move>)> = None;
+    let mut best_any: Option<(u16, bool, Move, Vec<Move>)> = None;
+
+    for e in all_emvs {
+        if invalid_flag && e.is_drop() {
+            continue;
+        }
+        // Deduplicate same-square drops if we already evaluated a drop on `e.dest()`
+        if e.is_drop()
+            && best_any
+                .as_ref()
+                .is_some_and(|b| b.2.is_drop() && b.2.dest() == e.dest())
+        {
+            continue;
+        }
+        let n = cand.move_forward(e);
+        if !(witnesses.contains_key(&(n.zkey(), n.mkey(root_tn)))
+            || find_1ply_witness_move(&n, root_tn, prefer_clean, scratch).is_some())
+        {
+            continue;
+        }
+        let Some((sub_eff, sub_line)) = extract_witness_line_rec(
+            &n,
+            root_tn,
+            rem_phys - 2,
+            witnesses,
+            prefer_clean,
+            scratch,
+            active,
+            memo,
+            node_budget,
+        ) else {
+            continue;
+        };
+        let is_king_or_cap = !e.is_drop()
+            && (e.dest() == cmv.dest() || (cand.board_at(e.prev_pos as usize) & 15) == SOU);
+        let is_futile = !is_king_or_cap && is_constructive_futile_inter_ev(&cand, e, scratch, 0);
+        let step_eff = if is_futile {
+            sub_eff.saturating_sub(1).max(1)
+        } else {
+            sub_eff.saturating_add(2)
+        };
+        let non_drop = !e.is_drop();
+        if !is_futile
+            && best_non_futile
+                .as_ref()
+                .is_none_or(|b| (step_eff, non_drop) > (b.0, b.1))
+        {
+            best_non_futile = Some((step_eff, non_drop, e, sub_line.clone()));
+        }
+        if best_any
+            .as_ref()
+            .is_none_or(|b| (step_eff, non_drop) > (b.0, b.1))
+        {
+            best_any = Some((step_eff, non_drop, e, sub_line));
+        }
+    }
+
+    active.remove(&state_key);
+    let chosen = best_non_futile.or(best_any);
+    let res = chosen.map(|(eff, _, ev, mut tail)| {
+        let mut line = Vec::with_capacity(2 + tail.len());
+        line.push(cmv);
+        line.push(ev);
+        line.append(&mut tail);
+        (eff, line)
+    });
+    memo.insert((state_key.0, state_key.1, rem_phys), res.clone());
+    res
 }
 
 /// Reconstruct a complete legal checkmating move sequence (`pv[..first_ply] + [alt_move, ...]`)
@@ -2429,6 +3398,7 @@ pub fn build_shortcut_pv(
     scratch_tb.clear();
     let (raw_evs, _, _) = child_and.generate_evasion(scratch_tb);
     if raw_evs.is_empty() {
+        let _ = playout_trailing_futile_evasions(&mut child_and, &mut spv, scratch_tb);
         return spv;
     }
 
@@ -2436,49 +3406,81 @@ pub fn build_shortcut_pv(
         return Vec::new();
     }
 
+    let base_atk_hand = child_and.mkey(root_tn).total();
+    let constructive_futile: Vec<bool> = solved_evs
+        .iter()
+        .map(|s| is_futile_solved_interposition(&child_and, s, base_atk_hand, scratch_tb))
+        .collect();
+    if constructive_futile.iter().all(|&f| f) {
+        if playout_trailing_futile_evasions(&mut child_and, &mut spv, scratch_tb) {
+            return spv;
+        }
+    }
     let min_nouse2 = solved_evs.iter().map(|s| s.nouse2).min().unwrap_or(0);
-    let is_valid = |s: &EvSolved| s.is_king_or_cap || !s.std_red || s.nouse2 <= min_nouse2;
+    let valid_flags: Vec<bool> = solved_evs
+        .iter()
+        .zip(constructive_futile.iter())
+        .map(|(s, &cf)| {
+            !(cf || is_futile_solved_interposition(&child_and, s, min_nouse2, scratch_tb)
+                || (s.emv.is_drop()
+                    && !child_and.self_effect_contains(s.emv.dest())
+                    && s.std_red
+                    && s.nouse2 > min_nouse2))
+        })
+        .collect();
 
     let best_ev: &EvSolved = match kind {
         FlawKind::EqualLengthShortcut => solved_evs
             .iter()
-            .filter(|s| is_valid(s) && !s.std_red)
-            .max_by_key(|s| (s.std_br_sh, s.is_king_or_cap))
+            .zip(valid_flags.iter())
+            .filter(|(s, &v)| v && !s.std_red)
+            .max_by_key(|(s, _)| (s.std_br_sh, s.is_king_or_cap))
+            .map(|(s, _)| s)
             .unwrap_or(&solved_evs[0]),
         FlawKind::EarlyShortcut => {
             let max_std = solved_evs
                 .iter()
-                .filter(|s| is_valid(s))
-                .map(|s| s.std_br_sh)
+                .zip(valid_flags.iter())
+                .filter(|(_, &v)| v)
+                .map(|(s, _)| s.std_br_sh)
                 .max()
                 .unwrap_or(0);
             if max_std.saturating_add(2) < rem_sh {
                 solved_evs
                     .iter()
-                    .filter(|s| is_valid(s))
-                    .max_by_key(|s| (s.std_br_sh, s.is_king_or_cap))
+                    .zip(valid_flags.iter())
+                    .filter(|(_, &v)| v)
+                    .max_by_key(|(s, _)| (s.std_br_sh, s.is_king_or_cap))
+                    .map(|(s, _)| s)
                     .unwrap_or(&solved_evs[0])
             } else {
                 solved_evs
                     .iter()
-                    .filter(|s| is_valid(s))
-                    .max_by_key(|s| (s.min_any_sh, s.is_king_or_cap))
+                    .zip(valid_flags.iter())
+                    .filter(|(_, &v)| v)
+                    .max_by_key(|(s, _)| (s.min_any_sh, s.is_king_or_cap))
+                    .map(|(s, _)| s)
                     .unwrap_or(&solved_evs[0])
             }
         }
     };
 
     spv.push(best_ev.emv);
-    let next_or = child_and.move_forward(best_ev.emv).with_count(0);
+    let next_or = child_and.move_forward(best_ev.emv).with_count(2);
 
-    // 1. Direct `best_ev.pv` if already a complete mate within the required bound:
     let max_tail = match kind {
         FlawKind::EarlyShortcut => rem_sh.saturating_sub(3) as usize,
         FlawKind::EqualLengthShortcut => rem_sh.saturating_sub(2) as usize,
     };
-    if best_ev.pv.len() <= max_tail && is_complete_mate_line(&next_or, &best_ev.pv, scratch_tb) {
-        spv.extend_from_slice(&best_ev.pv);
-        return spv;
+
+    // 1. Direct `best_ev.pv` if already a complete mate within the effective Tsume-Shogi bound:
+    if let Some((clean_tail, eff_len)) =
+        validate_and_measure_mate_line(&next_or, &best_ev.pv, scratch_tb)
+    {
+        if eff_len <= max_tail {
+            spv.extend(clean_tail);
+            return spv;
+        }
     }
 
     // 2. Convergent `conv_pv_pair` (`0` or `2` plies onto `main_pv`):
@@ -2495,8 +3497,7 @@ pub fn build_shortcut_pv(
                     .any(|x| x == m)
             } else {
                 conv_or
-                    .generate_evasion(scratch_tb)
-                    .0
+                    .generate_evasion_simple(scratch_tb)
                     .into_iter()
                     .flat_map(|it| it.all_moves())
                     .any(|x| x == m)
@@ -2511,13 +3512,15 @@ pub fn build_shortcut_pv(
             let mut mcur = root.clone();
             for (k, &mm) in main_pv.iter().enumerate() {
                 if k % 2 == 0 && mcur.zkey() == conv_or.zkey() {
-                    let rem_tail = &main_pv[k..];
-                    if best_ev.pv.len() + rem_tail.len() <= max_tail
-                        && is_complete_mate_line(&conv_or, rem_tail, scratch_tb)
+                    let mut combined = best_ev.pv.clone();
+                    combined.extend_from_slice(&main_pv[k..]);
+                    if let Some((clean_tail, eff_len)) =
+                        validate_and_measure_mate_line(&next_or, &combined, scratch_tb)
                     {
-                        spv.extend_from_slice(&best_ev.pv);
-                        spv.extend_from_slice(rem_tail);
-                        return spv;
+                        if eff_len <= max_tail {
+                            spv.extend(clean_tail);
+                            return spv;
+                        }
                     }
                 }
                 mcur = mcur.move_forward(mm);
@@ -2527,32 +3530,47 @@ pub fn build_shortcut_pv(
 
     // 3. Shadowed `BoundedDfPn` witness map (`extra_witnesses`):
     if !best_ev.extra_witnesses.is_empty() {
-        if let Some(wtail) =
-            extract_witness_line(&next_or, root_tn, max_tail, &best_ev.extra_witnesses, scratch_tb)
-        {
-            if is_complete_mate_line(&next_or, &wtail, scratch_tb) {
-                spv.extend(wtail);
-                return spv;
+        let prefer_clean = kind == FlawKind::EqualLengthShortcut;
+        if let Some(wtail) = extract_witness_line(
+            &next_or,
+            root_tn,
+            max_tail,
+            &best_ev.extra_witnesses,
+            prefer_clean,
+            scratch_tb,
+        ) {
+            if let Some((clean_tail, eff_len)) =
+                validate_and_measure_mate_line(&next_or, &wtail, scratch_tb)
+            {
+                if eff_len <= max_tail {
+                    spv.extend(clean_tail);
+                    return spv;
+                }
             }
         }
     }
 
     // 4. Fallback `simple_mate` / standard solver on `next_or`:
-    let mut fb_solver = Solver::new(SearchConfig {
-        hash_mb: 16,
-        node_limit: Some(65_536),
-        simple_mate: kind == FlawKind::EarlyShortcut,
-        search_level: 1,
-        use_ml_ordering: true,
-        ..Default::default()
-    });
-    let fb_res = fb_solver.solve_unbounded_pn(&next_or);
-    if fb_res.mate == Some(true)
-        && fb_res.pv.len() <= max_tail
-        && is_complete_mate_line(&next_or, &fb_res.pv, scratch_tb)
-    {
-        spv.extend(fb_res.pv);
-        return spv;
+    for try_simple in [kind == FlawKind::EarlyShortcut, kind != FlawKind::EarlyShortcut] {
+        let mut fb_solver = Solver::new(SearchConfig {
+            hash_mb: 8,
+            node_limit: Some(65_536),
+            simple_mate: try_simple,
+            search_level: 1,
+            use_ml_ordering: true,
+            ..Default::default()
+        });
+        let fb_res = fb_solver.solve_unbounded_pn(&next_or);
+        if fb_res.mate == Some(true) {
+            if let Some((clean_tail, eff_len)) =
+                validate_and_measure_mate_line(&next_or, &fb_res.pv, scratch_tb)
+            {
+                if eff_len <= max_tail {
+                    spv.extend(clean_tail);
+                    return spv;
+                }
+            }
+        }
     }
 
     Vec::new()
@@ -2641,7 +3659,7 @@ pub fn format_futsuu_move_ja(pos_at_ply: &PositionAux, mv: Move) -> String {
 /// leading to an OR-position `q` dominated by any earlier/current PV OR-state `P_k` (`k <= ply`),
 /// then `alt` cannot be a shortest/equal-length shortcut (`>= rem_sh + 2`), or else `P_k` itself
 /// admits a strictly earlier/shorter shortcut caught at `k <= ply`.
-fn is_refuted_by_earlier_pv(
+pub fn is_refuted_by_earlier_pv(
     child_and: &FmrsPos,
     checker_dest: usize,
     root_tn: Turn,
@@ -2674,6 +3692,109 @@ fn is_refuted_by_earlier_pv(
         }
     }
     false
+}
+
+/// Recover a short (`<= 13`-ply) clean Tsume-Shogi mate at `root` when `res.redundant` was set
+/// due to `shtsume`'s `super_tsumi` shadowing or King-adjacent futile interpositions.
+pub fn recover_short_clean_root_if_needed(
+    root: &FmrsPos,
+    res: &mut SearchResult,
+    warm_tbase: &mut bool,
+    sub_solver: &mut Solver,
+    bounded: &mut BoundedDfPn,
+    scratch_tb: &mut TBase,
+    nodes_acc: &mut u64,
+) {
+    let root_tn = root.turn();
+    if !res.pv.is_empty() && res.pv.len() % 2 == 1 {
+        res.mate_steps = effective_tsume_pv_plies(root, &res.pv);
+        res.redundant = unused_atk_pieces_effective(root, &res.pv, root_tn) > 0;
+    }
+
+    if res.redundant && res.mate_steps <= 13 {
+        bounded.clear_for_root();
+        let probe_cap = res.mate_steps.saturating_add(2).min(15);
+        let (clean_opt, b_nodes) =
+            bounded.prove_tsume_mate_within(root, probe_cap, None, true, 8_192);
+        *nodes_acc += b_nodes;
+        if let Some(csh) = clean_opt {
+            let mut witnesses = HashMap::new();
+            bounded.extract_witness_map(root, csh, None, root_tn, &mut witnesses);
+            if let Some(w_pv) =
+                extract_witness_line(root, root_tn, csh as usize, &witnesses, true, scratch_tb)
+            {
+                if let Some((clean_pv, c_eff)) =
+                    validate_and_measure_mate_line(root, &w_pv, scratch_tb)
+                {
+                    res.pv = clean_pv;
+                    res.mate_steps = c_eff as u16;
+                    res.redundant = false;
+                    *warm_tbase = false;
+                }
+            }
+        }
+    }
+
+    if res.redundant && res.mate_steps <= 13 {
+        scratch_tb.clear();
+        let root_checks = root.generate_check(scratch_tb);
+        let empty_states = HashSet::new();
+        let mut best_clean_root: Option<(u16, Vec<Move>)> = None;
+        for item in &root_checks {
+            for mv in item.all_moves() {
+                let child_and = root.move_forward(mv);
+                if let Ok(AltResolved::Mated {
+                    std_steps,
+                    non_redundant: true,
+                    any_steps,
+                    solved_evs,
+                }) = resolve_alt_check_sound(
+                    &child_and,
+                    mv.dest(),
+                    res.mate_steps.saturating_add(2),
+                    root_tn,
+                    None,
+                    &empty_states,
+                    32_768,
+                    false,
+                    sub_solver,
+                    bounded,
+                    scratch_tb,
+                    nodes_acc,
+                ) {
+                    if std_steps <= res.mate_steps
+                        && any_steps >= std_steps
+                        && best_clean_root
+                            .as_ref()
+                            .is_none_or(|b| std_steps < b.0)
+                    {
+                        let sc_pv = build_shortcut_pv(
+                            root,
+                            &res.pv,
+                            0,
+                            mv,
+                            FlawKind::EqualLengthShortcut,
+                            std_steps,
+                            &solved_evs,
+                            scratch_tb,
+                        );
+                        if !sc_pv.is_empty()
+                            && sc_pv.len() % 2 == 1
+                            && unused_atk_pieces_effective(root, &sc_pv, root_tn) == 0
+                        {
+                            best_clean_root = Some((std_steps, sc_pv));
+                        }
+                    }
+                }
+            }
+        }
+        if let Some((c_steps, c_pv)) = best_clean_root {
+            res.pv = c_pv;
+            res.mate_steps = c_steps;
+            res.redundant = false;
+            *warm_tbase = false;
+        }
+    }
 }
 
 pub struct ConventionalVerifier {
@@ -2803,8 +3924,8 @@ impl ConventionalVerifier {
     fn verify_solved_inner(
         &mut self,
         root: &FmrsPos,
-        res: SearchResult,
-        warm_tbase: bool,
+        mut res: SearchResult,
+        mut warm_tbase: bool,
     ) -> PerfectionReport {
         let verify_start = Instant::now();
         self.check_solver_nodes_acc = 0;
@@ -2837,6 +3958,19 @@ impl ConventionalVerifier {
             Some(true) => {}
         }
 
+        let root_tn: Turn = root.turn();
+        let def_tn: Turn = root_tn.flip();
+
+        recover_short_clean_root_if_needed(
+            root,
+            &mut res,
+            &mut warm_tbase,
+            &mut self.sub_solver,
+            &mut self.bounded,
+            &mut self.scratch_tb,
+            &mut self.check_solver_nodes_acc,
+        );
+
         if res.redundant {
             return PerfectionReport {
                 status: PerfectionStatus::RedundantHand,
@@ -2844,20 +3978,20 @@ impl ConventionalVerifier {
                 pv: res.pv,
                 shortcut_pv: Vec::new(),
                 solve_nodes,
-                check_nodes: 0,
+                check_nodes: self.check_solver_nodes_acc,
                 shortcut_or_count: 0,
                 minor_flaw_count: 0,
             };
         }
 
-        if res.pv.is_empty() || res.pv.len() % 2 == 0 || res.pv.len() != res.mate_steps as usize {
+        if res.pv.is_empty() || res.pv.len() % 2 == 0 {
             return PerfectionReport {
                 status: PerfectionStatus::Timeout,
                 mate_steps: res.mate_steps,
                 pv: res.pv,
                 shortcut_pv: Vec::new(),
                 solve_nodes,
-                check_nodes: 0,
+                check_nodes: self.check_solver_nodes_acc,
                 shortcut_or_count: 0,
                 minor_flaw_count: 0,
             };
@@ -2876,7 +4010,7 @@ impl ConventionalVerifier {
             None
         };
         let deadline = self.time_limit_secs.map(|lim| (verify_start, lim));
-        let res = match stabilize_main_line_pv(
+        res = match stabilize_main_line_pv(
             root,
             res,
             warm_tb_opt,
@@ -2895,362 +4029,438 @@ impl ConventionalVerifier {
                     pv: Vec::new(),
                     shortcut_pv: Vec::new(),
                     solve_nodes,
-                    check_nodes: 0,
+                    check_nodes: self.check_solver_nodes_acc,
                     shortcut_or_count: 0,
                     minor_flaw_count: 0,
                 };
             }
         };
         self.report_progress(solve_nodes);
-        let total_sh = res.mate_steps as usize;
 
-        let root_tn: Turn = root.turn();
-        let def_tn: Turn = root_tn.flip();
-
-        let mut pv_ors: Vec<(u16, FmrsPos, Move, u16)> = Vec::with_capacity(total_sh / 2 + 1);
-        let mut pv_or_states: HashSet<(u64, MKey, MKey, u16)> =
-            HashSet::with_capacity(total_sh / 2 + 1);
-        let mut pv_or_dom: HashMap<u64, Vec<(MKey, MKey, u16)>> =
-            HashMap::with_capacity(total_sh / 2 + 1);
-        {
-            let mut cur = root.clone();
-            for (ply, &mv) in res.pv.iter().enumerate() {
-                let rem_sh = (total_sh - ply) as u16;
-                if ply % 2 == 0 {
-                    let am = cur.mkey(root_tn);
-                    let dm = cur.mkey(def_tn);
-                    pv_or_states.insert((cur.zkey(), am, dm, rem_sh));
-                    pv_or_dom
-                        .entry(cur.zkey())
-                        .or_default()
-                        .push((am, dm, ply as u16));
-                    pv_ors.push((ply as u16, cur.clone(), mv, rem_sh));
-                }
-                cur = cur.move_forward(mv);
-            }
-            self.scratch_tb.clear();
-            if !cur.generate_evasion(&mut self.scratch_tb).0.is_empty() {
-                return PerfectionReport {
-                    status: PerfectionStatus::Timeout,
-                    mate_steps: res.mate_steps,
-                    pv: res.pv,
-                    shortcut_pv: Vec::new(),
-                    solve_nodes,
-                    check_nodes: 0,
-                    shortcut_or_count: 0,
-                    minor_flaw_count: 0,
-                };
-            }
+        if res.redundant {
+            return PerfectionReport {
+                status: PerfectionStatus::RedundantHand,
+                mate_steps: res.mate_steps,
+                pv: res.pv,
+                shortcut_pv: Vec::new(),
+                solve_nodes,
+                check_nodes: self.check_solver_nodes_acc,
+                shortcut_or_count: 0,
+                minor_flaw_count: 0,
+            };
         }
 
         let per_check_limit = if self.require_exact_disproof {
             self.cfg.check_node_limit_per_move.max(solve_nodes)
         } else {
-            self.cfg.check_node_limit_per_move
+            self.cfg
+                .check_node_limit_per_move
+                .max(solve_nodes.min(2_000_000))
         };
 
-        #[cfg(not(target_arch = "wasm32"))]
-        if self.threads > 1 && pv_ors.len() >= 4 {
-            let mut minor_flaw_init = 0u16;
-            let mut tasks: Vec<(usize, u16, Move, Move, u16)> = Vec::new();
-            for (or_idx, &(ply, ref or_pos, intended_mv, rem_sh)) in pv_ors.iter().enumerate() {
+        '_re_stab: for re_stab_iter in 0..4usize {
+            let (step_delta, rem_eff) = compute_pv_effective_rem(root, &res.pv);
+            res.mate_steps = rem_eff[0];
+            let total_sh = res.mate_steps as usize;
+
+            let mut pv_ors: Vec<(u16, FmrsPos, Move, u16)> = Vec::with_capacity(total_sh / 2 + 1);
+            let mut pv_or_states: HashSet<(u64, MKey, MKey, u16)> =
+                HashSet::with_capacity(total_sh / 2 + 1);
+            let mut pv_or_dom: HashMap<u64, Vec<(MKey, MKey, u16)>> =
+                HashMap::with_capacity(total_sh / 2 + 1);
+            {
+                let mut cur = root.clone();
+                for (ply, &mv) in res.pv.iter().enumerate() {
+                    if ply % 2 == 0 && step_delta[ply] == 1 {
+                        let rem_sh = rem_eff[ply];
+                        let am = cur.mkey(root_tn);
+                        let dm = cur.mkey(def_tn);
+                        pv_or_states.insert((cur.zkey(), am, dm, rem_sh));
+                        pv_or_dom
+                            .entry(cur.zkey())
+                            .or_default()
+                            .push((am, dm, ply as u16));
+                        pv_ors.push((ply as u16, cur.clone(), mv, rem_sh));
+                    }
+                    cur = cur.move_forward(mv);
+                }
                 self.scratch_tb.clear();
-                let checks = or_pos.generate_check(&mut self.scratch_tb);
-                if rem_sh == 1 {
+                if !cur.generate_evasion(&mut self.scratch_tb).0.is_empty() {
+                    return PerfectionReport {
+                        status: PerfectionStatus::Timeout,
+                        mate_steps: res.mate_steps,
+                        pv: res.pv,
+                        shortcut_pv: Vec::new(),
+                        solve_nodes,
+                        check_nodes: self.check_solver_nodes_acc,
+                        shortcut_or_count: 0,
+                        minor_flaw_count: 0,
+                    };
+                }
+            }
+
+            #[cfg(not(target_arch = "wasm32"))]
+            if self.threads > 1 && pv_ors.len() >= 4 {
+                let mut minor_flaw_init = 0u16;
+                let mut tasks: Vec<(usize, u16, Move, Move, u16)> = Vec::new();
+                for (or_idx, &(ply, ref or_pos, intended_mv, rem_sh)) in pv_ors.iter().enumerate()
+                {
+                    self.scratch_tb.clear();
+                    let checks = or_pos.generate_check(&mut self.scratch_tb);
+                    if rem_sh == 1 {
+                        for item in &checks {
+                            for mv in item.all_moves() {
+                                if mv == intended_mv {
+                                    continue;
+                                }
+                                let child = or_pos.move_forward(mv);
+                                self.scratch_tb.clear();
+                                if child.generate_evasion(&mut self.scratch_tb).0.is_empty()
+                                    && child.mkey(root_tn).is_empty()
+                                {
+                                    minor_flaw_init = minor_flaw_init.saturating_add(1);
+                                }
+                            }
+                        }
+                        continue;
+                    }
                     for item in &checks {
                         for mv in item.all_moves() {
                             if mv == intended_mv {
                                 continue;
                             }
-                            let child = or_pos.move_forward(mv);
-                            self.scratch_tb.clear();
-                            if child.generate_evasion(&mut self.scratch_tb).0.is_empty() {
-                                minor_flaw_init = minor_flaw_init.saturating_add(1);
+                            let child_and = or_pos.move_forward(mv);
+                            if is_refuted_by_earlier_pv(
+                                &child_and,
+                                mv.dest(),
+                                root_tn,
+                                def_tn,
+                                ply,
+                                &pv_or_dom,
+                                &mut self.scratch_tb,
+                            ) {
+                                continue;
                             }
+                            tasks.push((or_idx, ply, mv, intended_mv, rem_sh));
                         }
                     }
-                    continue;
                 }
-                for item in &checks {
-                    for mv in item.all_moves() {
-                        if mv == intended_mv {
-                            continue;
-                        }
-                        let child_and = or_pos.move_forward(mv);
-                        if is_refuted_by_earlier_pv(
-                            &child_and,
-                            mv.dest(),
-                            root_tn,
-                            def_tn,
-                            ply,
-                            &pv_or_dom,
-                            &mut self.scratch_tb,
-                        ) {
-                            continue;
-                        }
-                        tasks.push((or_idx, ply, mv, intended_mv, rem_sh));
-                    }
-                }
-            }
 
-            if tasks.len() > 2 {
-                let n_workers = self.threads.min(tasks.len());
-                let worker_hash_mb = (self.cfg.hash_mb / 2).clamp(16, 64);
-                let next_idx = AtomicUsize::new(0);
-                let found_ply = AtomicUsize::new(usize::MAX);
-                let timed_out = AtomicBool::new(false);
-                let total_check_nodes = AtomicU64::new(0);
-                let minor_flaw_total = AtomicU64::new(minor_flaw_init as u64);
-                let best_flaw: Mutex<Option<(u16, Move, Move, FlawKind, u16, Vec<EvSolved>)>> =
-                    Mutex::new(None);
-                let shortcut_plies: Mutex<HashSet<u16>> = Mutex::new(HashSet::new());
+                if tasks.len() > 2 {
+                    let n_workers = self.threads.min(tasks.len());
+                    let worker_hash_mb = (self.cfg.hash_mb / 2).clamp(16, 64);
+                    let next_idx = AtomicUsize::new(0);
+                    let found_ply = AtomicUsize::new(usize::MAX);
+                    let timed_out = AtomicBool::new(false);
+                    let total_check_nodes = AtomicU64::new(0);
+                    let minor_flaw_total = AtomicU64::new(minor_flaw_init as u64);
+                    let best_flaw: Mutex<Option<(u16, Move, Move, FlawKind, u16, Vec<EvSolved>)>> =
+                        Mutex::new(None);
+                    let shortcut_plies: Mutex<HashSet<u16>> = Mutex::new(HashSet::new());
 
-                let cfg_ref = &self.cfg;
-                let pv_ors_ref = &pv_ors;
-                let pv_or_states_ref = &pv_or_states;
-                let tasks_ref = &tasks;
-                let req_exact = self.require_exact_disproof;
-                let time_limit = self.time_limit_secs;
-                let ext_abort = self.abort_flag.as_ref();
-                let prog_cb = self.progress_cb.as_ref();
+                    let cfg_ref = &self.cfg;
+                    let pv_ors_ref = &pv_ors;
+                    let pv_or_states_ref = &pv_or_states;
+                    let tasks_ref = &tasks;
+                    let req_exact = self.require_exact_disproof;
+                    let time_limit = self.time_limit_secs;
+                    let ext_abort = self.abort_flag.as_ref();
+                    let prog_cb = self.progress_cb.as_ref();
+                    let base_check_acc = self.check_solver_nodes_acc;
 
-                std::thread::scope(|scope| {
-                    for _ in 0..n_workers {
-                        scope.spawn(|| {
-                            let mut check_solver = Solver::new(SearchConfig {
-                                hash_mb: worker_hash_mb,
-                                threads: 1,
-                                node_limit: Some(2_048),
-                                search_level: 0,
-                                use_ml_ordering: true,
-                                ..Default::default()
-                            });
-                            let mut sub_solver = Solver::new(SearchConfig {
-                                hash_mb: worker_hash_mb,
-                                threads: 1,
-                                node_limit: Some(per_check_limit.max(2_048)),
-                                search_level: cfg_ref.search_level.max(1),
-                                use_ml_ordering: true,
-                                ..Default::default()
-                            });
-                            let mut bounded = BoundedDfPn::new();
-                            let mut scratch_tb = TBase::new(1);
-                            if let Some(flag) = ext_abort {
-                                check_solver.set_abort_flag(Some(Arc::clone(flag)));
-                                sub_solver.set_abort_flag(Some(Arc::clone(flag)));
-                                bounded.set_abort_flag(Some(Arc::clone(flag)));
-                            }
-
-                            loop {
-                                if timed_out.load(Ordering::Acquire) {
-                                    break;
-                                }
-                                if ext_abort.is_some_and(|f| f.load(Ordering::Relaxed))
-                                    || time_limit.is_some_and(|lim| {
-                                        verify_start.elapsed().as_secs_f64() >= lim
-                                    })
-                                {
-                                    timed_out.store(true, Ordering::Release);
-                                    break;
-                                }
-                                let idx = next_idx.fetch_add(1, Ordering::Relaxed);
-                                if idx >= tasks_ref.len() {
-                                    break;
-                                }
-                                let (or_idx, ply, mv, intended_mv, rem_sh) = tasks_ref[idx];
-                                if cfg_ref.fail_fast
-                                    && (ply as usize) >= found_ply.load(Ordering::Acquire)
-                                {
-                                    break;
-                                }
-
-                                let or_pos = &pv_ors_ref[or_idx].1;
-                                let child_and = or_pos.move_forward(mv);
-
-                                let mut probe_item = single_check_item(or_pos, mv);
-                                check_solver.probe_and_after_check(
-                                    &child_and,
-                                    TSUME_MAX_DEPTH.saturating_sub(child_and.count() + 1),
-                                    &mut probe_item,
-                                );
-                                let pnodes = check_solver.nodes();
-                                let cur_tot =
-                                    total_check_nodes.fetch_add(pnodes, Ordering::Relaxed) + pnodes;
-                                if let Some(cb) = prog_cb {
-                                    cb(solve_nodes + cur_tot);
-                                }
-                                if probe_item.tdata.dn == 0 {
-                                    continue;
-                                }
-
-                                let rem_time = time_limit.map(|lim| {
-                                    (lim - verify_start.elapsed().as_secs_f64()).max(0.001)
+                    std::thread::scope(|scope| {
+                        for _ in 0..n_workers {
+                            scope.spawn(|| {
+                                let mut check_solver = Solver::new(SearchConfig {
+                                    hash_mb: worker_hash_mb,
+                                    threads: 1,
+                                    node_limit: Some(2_048),
+                                    search_level: 0,
+                                    use_ml_ordering: true,
+                                    ..Default::default()
                                 });
-                                sub_solver.set_time_limit_secs(rem_time);
-
-                                let mut local_acc = 0u64;
-                                if let Some(cb) = prog_cb {
-                                    let base =
-                                        solve_nodes + total_check_nodes.load(Ordering::Relaxed);
-                                    let cb_clone = Arc::clone(cb);
-                                    sub_solver.set_progress_callback(Some(Arc::new(
-                                        move |n: u64| {
-                                            cb_clone(base + n);
-                                        },
-                                    )));
-                                }
-                                let resolved = resolve_alt_check_sound(
-                                    &child_and,
-                                    mv.dest(),
-                                    rem_sh,
-                                    root_tn,
-                                    None,
-                                    pv_or_states_ref,
-                                    per_check_limit,
-                                    req_exact,
-                                    &mut sub_solver,
-                                    &mut bounded,
-                                    &mut scratch_tb,
-                                    &mut local_acc,
-                                );
-                                if prog_cb.is_some() {
-                                    sub_solver.set_progress_callback(None);
-                                }
-                                let cur_tot = total_check_nodes
-                                    .fetch_add(local_acc, Ordering::Relaxed)
-                                    + local_acc;
-                                if let Some(cb) = prog_cb {
-                                    cb(solve_nodes + cur_tot);
+                                let mut sub_solver = Solver::new(SearchConfig {
+                                    hash_mb: worker_hash_mb,
+                                    threads: 1,
+                                    node_limit: Some(per_check_limit.max(2_048)),
+                                    search_level: cfg_ref.search_level.max(1),
+                                    use_ml_ordering: true,
+                                    ..Default::default()
+                                });
+                                let mut bounded = BoundedDfPn::new();
+                                let mut scratch_tb = TBase::new(1);
+                                if let Some(flag) = ext_abort {
+                                    check_solver.set_abort_flag(Some(Arc::clone(flag)));
+                                    sub_solver.set_abort_flag(Some(Arc::clone(flag)));
+                                    bounded.set_abort_flag(Some(Arc::clone(flag)));
                                 }
 
-                                if ext_abort.is_some_and(|f| f.load(Ordering::Relaxed))
-                                    || time_limit.is_some_and(|lim| {
-                                        verify_start.elapsed().as_secs_f64() >= lim
-                                    })
-                                {
-                                    timed_out.store(true, Ordering::Release);
-                                    break;
-                                }
-
-                                match resolved {
-                                    Ok(AltResolved::Refuted { .. }) => continue,
-                                    Err(()) => {
+                                loop {
+                                    if timed_out.load(Ordering::Acquire) {
+                                        break;
+                                    }
+                                    if ext_abort.is_some_and(|f| f.load(Ordering::Relaxed))
+                                        || time_limit.is_some_and(|lim| {
+                                            verify_start.elapsed().as_secs_f64() >= lim
+                                        })
+                                    {
                                         timed_out.store(true, Ordering::Release);
                                         break;
                                     }
-                                    Ok(AltResolved::Mated {
-                                        std_steps,
-                                        non_redundant,
-                                        any_steps,
-                                        solved_evs,
-                                    }) => {
-                                        if any_steps < rem_sh || std_steps < rem_sh {
-                                            {
-                                                let mut g = best_flaw.lock().unwrap();
-                                                if g.as_ref().is_none_or(|cur| ply < cur.0) {
-                                                    *g = Some((
-                                                        ply,
-                                                        mv,
-                                                        intended_mv,
-                                                        FlawKind::EarlyShortcut,
-                                                        rem_sh,
-                                                        solved_evs,
-                                                    ));
-                                                }
-                                            }
-                                            shortcut_plies.lock().unwrap().insert(ply);
-                                            if cfg_ref.fail_fast {
-                                                found_ply.fetch_min(ply as usize, Ordering::AcqRel);
-                                            }
-                                            continue;
-                                        }
+                                    let idx = next_idx.fetch_add(1, Ordering::Relaxed);
+                                    if idx >= tasks_ref.len() {
+                                        break;
+                                    }
+                                    let (or_idx, ply, mv, intended_mv, rem_sh) = tasks_ref[idx];
+                                    if cfg_ref.fail_fast
+                                        && (ply as usize) >= found_ply.load(Ordering::Acquire)
+                                    {
+                                        break;
+                                    }
 
-                                        if std_steps == rem_sh && non_redundant {
-                                            let is_same_src_dst_prom = mv.prev_pos
-                                                == intended_mv.prev_pos
-                                                && mv.dest() == intended_mv.dest();
-                                            if is_same_src_dst_prom {
-                                                minor_flaw_total.fetch_add(1, Ordering::Relaxed);
+                                    let or_pos = &pv_ors_ref[or_idx].1;
+                                    let child_and = or_pos.move_forward(mv);
+
+                                    let mut probe_item = single_check_item(or_pos, mv);
+                                    check_solver.probe_and_after_check(
+                                        &child_and,
+                                        TSUME_MAX_DEPTH.saturating_sub(child_and.count() + 1),
+                                        &mut probe_item,
+                                    );
+                                    let pnodes = check_solver.nodes();
+                                    let cur_tot = total_check_nodes
+                                        .fetch_add(pnodes, Ordering::Relaxed)
+                                        + pnodes;
+                                    if let Some(cb) = prog_cb {
+                                        cb(solve_nodes + base_check_acc + cur_tot);
+                                    }
+                                    if probe_item.tdata.dn == 0 {
+                                        continue;
+                                    }
+
+                                    let rem_time = time_limit.map(|lim| {
+                                        (lim - verify_start.elapsed().as_secs_f64()).max(0.001)
+                                    });
+                                    sub_solver.set_time_limit_secs(rem_time);
+
+                                    let mut local_acc = 0u64;
+                                    if let Some(cb) = prog_cb {
+                                        let base = solve_nodes
+                                            + base_check_acc
+                                            + total_check_nodes.load(Ordering::Relaxed);
+                                        let cb_clone = Arc::clone(cb);
+                                        sub_solver.set_progress_callback(Some(Arc::new(
+                                            move |n: u64| {
+                                                cb_clone(base + n);
+                                            },
+                                        )));
+                                    }
+                                    let resolved = resolve_alt_check_sound(
+                                        &child_and,
+                                        mv.dest(),
+                                        rem_sh,
+                                        root_tn,
+                                        None,
+                                        pv_or_states_ref,
+                                        per_check_limit,
+                                        req_exact,
+                                        &mut sub_solver,
+                                        &mut bounded,
+                                        &mut scratch_tb,
+                                        &mut local_acc,
+                                    );
+                                    if prog_cb.is_some() {
+                                        sub_solver.set_progress_callback(None);
+                                    }
+                                    let cur_tot = total_check_nodes
+                                        .fetch_add(local_acc, Ordering::Relaxed)
+                                        + local_acc;
+                                    if let Some(cb) = prog_cb {
+                                        cb(solve_nodes + base_check_acc + cur_tot);
+                                    }
+
+                                    if ext_abort.is_some_and(|f| f.load(Ordering::Relaxed))
+                                        || time_limit.is_some_and(|lim| {
+                                            verify_start.elapsed().as_secs_f64() >= lim
+                                        })
+                                    {
+                                        timed_out.store(true, Ordering::Release);
+                                        break;
+                                    }
+
+                                    match resolved {
+                                        Ok(AltResolved::Refuted { .. }) => continue,
+                                        Err(()) => {
+                                            timed_out.store(true, Ordering::Release);
+                                            break;
+                                        }
+                                        Ok(AltResolved::Mated {
+                                            std_steps,
+                                            non_redundant,
+                                            any_steps,
+                                            solved_evs,
+                                        }) => {
+                                            if any_steps < rem_sh || std_steps < rem_sh {
+                                                {
+                                                    let mut g = best_flaw.lock().unwrap();
+                                                    if g.as_ref().is_none_or(|cur| ply < cur.0) {
+                                                        *g = Some((
+                                                            ply,
+                                                            mv,
+                                                            intended_mv,
+                                                            FlawKind::EarlyShortcut,
+                                                            rem_sh,
+                                                            solved_evs,
+                                                        ));
+                                                    }
+                                                }
+                                                shortcut_plies.lock().unwrap().insert(ply);
+                                                if cfg_ref.fail_fast {
+                                                    found_ply
+                                                        .fetch_min(ply as usize, Ordering::AcqRel);
+                                                }
                                                 continue;
                                             }
-                                            if (rem_sh <= cfg_ref.endgame_transposition_rem_sh
-                                                || is_same_ray_sliding_drop(
-                                                    or_pos,
-                                                    mv,
-                                                    intended_mv,
-                                                ))
-                                                && rem_sh >= 3
-                                                && all_optimal_evasions_converge_to_pv(
-                                                    &child_and,
-                                                    &solved_evs,
-                                                    rem_sh,
-                                                    root_tn,
-                                                    pv_or_states_ref,
-                                                )
-                                            {
-                                                minor_flaw_total.fetch_add(1, Ordering::Relaxed);
-                                                continue;
-                                            }
-                                            {
-                                                let mut g = best_flaw.lock().unwrap();
-                                                if g.as_ref().is_none_or(|cur| ply < cur.0) {
-                                                    *g = Some((
-                                                        ply,
+
+                                            if std_steps == rem_sh && non_redundant {
+                                                let is_same_src_dst_prom = mv.prev_pos
+                                                    == intended_mv.prev_pos
+                                                    && mv.dest() == intended_mv.dest();
+                                                if is_same_src_dst_prom {
+                                                    minor_flaw_total
+                                                        .fetch_add(1, Ordering::Relaxed);
+                                                    continue;
+                                                }
+                                                if (rem_sh <= cfg_ref.endgame_transposition_rem_sh
+                                                    || is_same_ray_sliding_drop(
+                                                        or_pos,
                                                         mv,
                                                         intended_mv,
-                                                        FlawKind::EqualLengthShortcut,
+                                                    ))
+                                                    && rem_sh >= 3
+                                                    && all_optimal_evasions_converge_to_pv(
+                                                        &child_and,
+                                                        &solved_evs,
                                                         rem_sh,
-                                                        solved_evs,
-                                                    ));
+                                                        root_tn,
+                                                        pv_or_states_ref,
+                                                    )
+                                                {
+                                                    minor_flaw_total
+                                                        .fetch_add(1, Ordering::Relaxed);
+                                                    continue;
                                                 }
-                                            }
-                                            shortcut_plies.lock().unwrap().insert(ply);
-                                            if cfg_ref.fail_fast {
-                                                found_ply.fetch_min(ply as usize, Ordering::AcqRel);
+                                                {
+                                                    let mut g = best_flaw.lock().unwrap();
+                                                    if g.as_ref().is_none_or(|cur| ply < cur.0) {
+                                                        *g = Some((
+                                                            ply,
+                                                            mv,
+                                                            intended_mv,
+                                                            FlawKind::EqualLengthShortcut,
+                                                            rem_sh,
+                                                            solved_evs,
+                                                        ));
+                                                    }
+                                                }
+                                                shortcut_plies.lock().unwrap().insert(ply);
+                                                if cfg_ref.fail_fast {
+                                                    found_ply
+                                                        .fetch_min(ply as usize, Ordering::AcqRel);
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        });
-                    }
-                });
+                            });
+                        }
+                    });
 
-                self.check_solver_nodes_acc = total_check_nodes.load(Ordering::Relaxed);
-                let minor_flaw_count = minor_flaw_total.load(Ordering::Relaxed).min(u16::MAX as u64) as u16;
-                let flaw_opt = best_flaw.into_inner().unwrap();
-                let shortcut_or_count = shortcut_plies.into_inner().unwrap().len() as u16;
+                    self.check_solver_nodes_acc += total_check_nodes.load(Ordering::Relaxed);
+                    let minor_flaw_count =
+                        minor_flaw_total.load(Ordering::Relaxed).min(u16::MAX as u64) as u16;
+                    let flaw_opt = best_flaw.into_inner().unwrap();
+                    let shortcut_or_count = shortcut_plies.into_inner().unwrap().len() as u16;
 
-                if let Some((first_ply, alt_move, intended_move, kind, f_rem_sh, f_evs)) = flaw_opt {
-                    let shortcut_pv = build_shortcut_pv(
-                        root,
-                        &res.pv,
-                        first_ply,
-                        alt_move,
-                        kind,
-                        f_rem_sh,
-                        &f_evs,
-                        &mut self.scratch_tb,
-                    );
-                    return PerfectionReport {
-                        status: PerfectionStatus::Shortcut {
+                    if let Some((first_ply, alt_move, intended_move, kind, f_rem_sh, f_evs)) =
+                        flaw_opt
+                    {
+                        let shortcut_pv = build_shortcut_pv(
+                            root,
+                            &res.pv,
                             first_ply,
                             alt_move,
-                            intended_move,
                             kind,
-                        },
-                        mate_steps: res.mate_steps,
-                        pv: res.pv,
-                        shortcut_pv,
-                        solve_nodes,
-                        check_nodes: self.check_solver_nodes_acc,
-                        shortcut_or_count: shortcut_or_count.max(1),
-                        minor_flaw_count,
-                    };
-                }
-                if timed_out.load(Ordering::Acquire) || self.is_cancelled(verify_start) {
+                            f_rem_sh,
+                            &f_evs,
+                            &mut self.scratch_tb,
+                        );
+                        if kind == FlawKind::EarlyShortcut
+                            && first_ply > 0
+                            && res.mate_steps <= 15
+                            && re_stab_iter < 3
+                            && !shortcut_pv.is_empty()
+                            && shortcut_pv.len() % 2 == 1
+                        {
+                            let sc_clean =
+                                unused_atk_pieces_effective(root, &shortcut_pv, root_tn) == 0;
+                            if sc_clean {
+                                let mut cand = res.clone();
+                                cand.pv = shortcut_pv.clone();
+                                cand.mate_steps = effective_tsume_pv_plies(root, &shortcut_pv);
+                                cand.redundant = false;
+                                if let Ok(new_res) = stabilize_main_line_pv(
+                                    root,
+                                    cand,
+                                    None,
+                                    init_per_check_limit,
+                                    &mut self.sub_solver,
+                                    &mut self.scratch_tb,
+                                    &mut solve_nodes,
+                                    self.abort_flag.as_deref(),
+                                    deadline,
+                                ) {
+                                    let fp_cmp = (first_ply as usize).min(new_res.pv.len());
+                                    let def_switched = new_res.pv[..fp_cmp] != res.pv[..fp_cmp];
+                                    if !new_res.redundant
+                                        && (def_switched || new_res.mate_steps < res.mate_steps)
+                                    {
+                                        res = new_res;
+                                        continue '_re_stab;
+                                    }
+                                }
+                            }
+                        }
+                        return PerfectionReport {
+                            status: PerfectionStatus::Shortcut {
+                                first_ply,
+                                alt_move,
+                                intended_move,
+                                kind,
+                            },
+                            mate_steps: res.mate_steps,
+                            pv: res.pv,
+                            shortcut_pv,
+                            solve_nodes,
+                            check_nodes: self.check_solver_nodes_acc,
+                            shortcut_or_count: shortcut_or_count.max(1),
+                            minor_flaw_count,
+                        };
+                    }
+                    if timed_out.load(Ordering::Acquire) || self.is_cancelled(verify_start) {
+                        return PerfectionReport {
+                            status: PerfectionStatus::Timeout,
+                            mate_steps: res.mate_steps,
+                            pv: res.pv,
+                            shortcut_pv: Vec::new(),
+                            solve_nodes,
+                            check_nodes: self.check_solver_nodes_acc,
+                            shortcut_or_count: 0,
+                            minor_flaw_count,
+                        };
+                    }
                     return PerfectionReport {
-                        status: PerfectionStatus::Timeout,
+                        status: PerfectionStatus::Perfect,
                         mate_steps: res.mate_steps,
                         pv: res.pv,
                         shortcut_pv: Vec::new(),
@@ -3260,156 +4470,58 @@ impl ConventionalVerifier {
                         minor_flaw_count,
                     };
                 }
-                return PerfectionReport {
-                    status: PerfectionStatus::Perfect,
-                    mate_steps: res.mate_steps,
-                    pv: res.pv,
-                    shortcut_pv: Vec::new(),
-                    solve_nodes,
-                    check_nodes: self.check_solver_nodes_acc,
-                    shortcut_or_count: 0,
-                    minor_flaw_count,
-                };
             }
-        }
 
-        // Reuse a single sound `check_solver` TBase and `BoundedDfPn` dominance table across the PV!
-        self.check_solver.tbase_mut().clear();
-        self.bounded.clear_for_root();
+            // Reuse a single sound `check_solver` TBase and `BoundedDfPn` dominance table across the PV!
+            self.check_solver.tbase_mut().clear();
+            self.bounded.clear_for_root();
 
-        let mut shortcut_or_count = 0u16;
-        let mut minor_flaw_count = 0u16;
-        let mut first_flaw: Option<(u16, Move, Move, FlawKind, u16, Vec<EvSolved>)> = None;
+            let mut shortcut_or_count = 0u16;
+            let mut minor_flaw_count = 0u16;
+            let mut first_flaw: Option<(u16, Move, Move, FlawKind, u16, Vec<EvSolved>)> = None;
 
-        for &(ply, ref or_pos, intended_mv, rem_sh) in &pv_ors {
-            if self.is_cancelled(verify_start) {
-                return PerfectionReport {
-                    status: PerfectionStatus::Timeout,
-                    mate_steps: res.mate_steps,
-                    pv: res.pv,
-                    shortcut_pv: Vec::new(),
-                    solve_nodes,
-                    check_nodes: self.check_solver_nodes_acc,
-                    shortcut_or_count,
-                    minor_flaw_count,
-                };
-            }
-            self.scratch_tb.clear();
-            let checks = or_pos.generate_check(&mut self.scratch_tb);
+            for &(ply, ref or_pos, intended_mv, rem_sh) in &pv_ors {
+                if self.is_cancelled(verify_start) {
+                    return PerfectionReport {
+                        status: PerfectionStatus::Timeout,
+                        mate_steps: res.mate_steps,
+                        pv: res.pv,
+                        shortcut_pv: Vec::new(),
+                        solve_nodes,
+                        check_nodes: self.check_solver_nodes_acc,
+                        shortcut_or_count,
+                        minor_flaw_count,
+                    };
+                }
+                self.scratch_tb.clear();
+                let checks = or_pos.generate_check(&mut self.scratch_tb);
 
-            if rem_sh == 1 {
-                for item in &checks {
+                if rem_sh == 1 {
+                    for item in &checks {
+                        for mv in item.all_moves() {
+                            if mv == intended_mv {
+                                continue;
+                            }
+                            let child = or_pos.move_forward(mv);
+                            self.scratch_tb.clear();
+                            if child.generate_evasion(&mut self.scratch_tb).0.is_empty()
+                                && child.mkey(root_tn).is_empty()
+                            {
+                                minor_flaw_count = minor_flaw_count.saturating_add(1);
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                let mut pos_has_shortcut = false;
+
+                'mv_loop: for item in &checks {
                     for mv in item.all_moves() {
                         if mv == intended_mv {
                             continue;
                         }
-                        let child = or_pos.move_forward(mv);
-                        self.scratch_tb.clear();
-                        if child.generate_evasion(&mut self.scratch_tb).0.is_empty() {
-                            minor_flaw_count = minor_flaw_count.saturating_add(1);
-                        }
-                    }
-                }
-                continue;
-            }
-
-            let mut pos_has_shortcut = false;
-
-            'mv_loop: for item in &checks {
-                for mv in item.all_moves() {
-                    if mv == intended_mv {
-                        continue;
-                    }
-                    if self.is_cancelled(verify_start) {
-                        return PerfectionReport {
-                            status: PerfectionStatus::Timeout,
-                            mate_steps: res.mate_steps,
-                            pv: res.pv,
-                            shortcut_pv: Vec::new(),
-                            solve_nodes,
-                            check_nodes: self.check_solver_nodes_acc,
-                            shortcut_or_count,
-                            minor_flaw_count,
-                        };
-                    }
-                    let child_and = or_pos.move_forward(mv);
-
-                    // Exact O(1) backward-transposition refutation against earlier/current PV OR-states.
-                    if is_refuted_by_earlier_pv(
-                        &child_and,
-                        mv.dest(),
-                        root_tn,
-                        def_tn,
-                        ply,
-                        &pv_or_dom,
-                        &mut self.scratch_tb,
-                    ) {
-                        continue;
-                    }
-
-                    // Stage 1: Fast shared-TBase infinite-depth disproof probe (`<= 2,048` nodes).
-                    // Soundly skip ONLY when `dn == 0` (never skip on `pn >= PROOF_MAX - 1`!).
-                    let mut probe_item = single_check_item(or_pos, mv);
-                    self.check_solver.probe_and_after_check(
-                        &child_and,
-                        TSUME_MAX_DEPTH.saturating_sub(child_and.count() + 1),
-                        &mut probe_item,
-                    );
-                    self.check_solver_nodes_acc += self.check_solver.nodes();
-                    self.report_progress(solve_nodes);
-
-                    if probe_item.tdata.dn == 0 {
-                        continue;
-                    }
-
-                    // Forward cumulative progress callback and remaining time limit into `sub_solver`.
-                    let rem_time = self
-                        .time_limit_secs
-                        .map(|lim| (lim - verify_start.elapsed().as_secs_f64()).max(0.001));
-                    self.sub_solver.set_time_limit_secs(rem_time);
-                    if let Some(cb) = &self.progress_cb {
-                        let base = solve_nodes + self.check_solver_nodes_acc;
-                        let cb_clone = Arc::clone(cb);
-                        self.sub_solver.set_progress_callback(Some(Arc::new(move |n: u64| {
-                            cb_clone(base + n);
-                        })));
-                    }
-
-                    // Stage 2: Exact uncapped resolution (`Solver::solve_unbounded_pn` + `BoundedDfPn`).
-                    let resolved = resolve_alt_check_sound(
-                        &child_and,
-                        mv.dest(),
-                        rem_sh,
-                        root_tn,
-                        None,
-                        &pv_or_states,
-                        per_check_limit,
-                        self.require_exact_disproof,
-                        &mut self.sub_solver,
-                        &mut self.bounded,
-                        &mut self.scratch_tb,
-                        &mut self.check_solver_nodes_acc,
-                    );
-                    self.sub_solver.set_time_limit_secs(None);
-                    if self.progress_cb.is_some() {
-                        self.sub_solver.set_progress_callback(None);
-                        self.report_progress(solve_nodes);
-                    }
-                    if self.is_cancelled(verify_start) {
-                        return PerfectionReport {
-                            status: PerfectionStatus::Timeout,
-                            mate_steps: res.mate_steps,
-                            pv: res.pv,
-                            shortcut_pv: Vec::new(),
-                            solve_nodes,
-                            check_nodes: self.check_solver_nodes_acc,
-                            shortcut_or_count,
-                            minor_flaw_count,
-                        };
-                    }
-                    match resolved {
-                        Ok(AltResolved::Refuted { .. }) => continue,
-                        Err(()) => {
+                        if self.is_cancelled(verify_start) {
                             return PerfectionReport {
                                 status: PerfectionStatus::Timeout,
                                 mate_steps: res.mate_steps,
@@ -3421,157 +4533,324 @@ impl ConventionalVerifier {
                                 minor_flaw_count,
                             };
                         }
-                        Ok(AltResolved::Mated {
-                            std_steps,
-                            non_redundant,
-                            any_steps,
-                            solved_evs,
-                        }) => {
-                            // 1. Strictly faster early mate (`< rem_sh`), even with unused pieces!
-                            if any_steps < rem_sh || std_steps < rem_sh {
-                                pos_has_shortcut = true;
-                                if self.cfg.fail_fast {
-                                    let shortcut_pv = build_shortcut_pv(
-                                        root,
-                                        &res.pv,
-                                        ply,
-                                        mv,
-                                        FlawKind::EarlyShortcut,
-                                        rem_sh,
-                                        &solved_evs,
-                                        &mut self.scratch_tb,
-                                    );
-                                    return PerfectionReport {
-                                        status: PerfectionStatus::Shortcut {
-                                            first_ply: ply,
-                                            alt_move: mv,
-                                            intended_move: intended_mv,
-                                            kind: FlawKind::EarlyShortcut,
-                                        },
-                                        mate_steps: res.mate_steps,
-                                        pv: res.pv,
-                                        shortcut_pv,
-                                        solve_nodes,
-                                        check_nodes: self.check_solver_nodes_acc,
-                                        shortcut_or_count: 1,
-                                        minor_flaw_count,
-                                    };
-                                }
-                                if first_flaw.is_none() {
-                                    first_flaw = Some((
-                                        ply,
-                                        mv,
-                                        intended_mv,
-                                        FlawKind::EarlyShortcut,
-                                        rem_sh,
-                                        solved_evs,
-                                    ));
-                                }
-                                break 'mv_loop;
+                        let child_and = or_pos.move_forward(mv);
+
+                        // Exact O(1) backward-transposition refutation against earlier/current PV OR-states.
+                        if is_refuted_by_earlier_pv(
+                            &child_and,
+                            mv.dest(),
+                            root_tn,
+                            def_tn,
+                            ply,
+                            &pv_or_dom,
+                            &mut self.scratch_tb,
+                        ) {
+                            continue;
+                        }
+
+                        // Stage 1: Fast shared-TBase infinite-depth disproof probe (`<= 2,048` nodes).
+                        // Soundly skip ONLY when `dn == 0` (never skip on `pn >= PROOF_MAX - 1`!).
+                        let mut probe_item = single_check_item(or_pos, mv);
+                        self.check_solver.probe_and_after_check(
+                            &child_and,
+                            TSUME_MAX_DEPTH.saturating_sub(child_and.count() + 1),
+                            &mut probe_item,
+                        );
+                        self.check_solver_nodes_acc += self.check_solver.nodes();
+                        self.report_progress(solve_nodes);
+
+                        if probe_item.tdata.dn == 0 {
+                            continue;
+                        }
+
+                        // Forward cumulative progress callback and remaining time limit into `sub_solver`.
+                        let rem_time = self
+                            .time_limit_secs
+                            .map(|lim| (lim - verify_start.elapsed().as_secs_f64()).max(0.001));
+                        self.sub_solver.set_time_limit_secs(rem_time);
+                        if let Some(cb) = &self.progress_cb {
+                            let base = solve_nodes + self.check_solver_nodes_acc;
+                            let cb_clone = Arc::clone(cb);
+                            self.sub_solver.set_progress_callback(Some(Arc::new(move |n: u64| {
+                                cb_clone(base + n);
+                            })));
+                        }
+
+                        // Stage 2: Exact uncapped resolution (`Solver::solve_unbounded_pn` + `BoundedDfPn`).
+                        let resolved = resolve_alt_check_sound(
+                            &child_and,
+                            mv.dest(),
+                            rem_sh,
+                            root_tn,
+                            None,
+                            &pv_or_states,
+                            per_check_limit,
+                            self.require_exact_disproof,
+                            &mut self.sub_solver,
+                            &mut self.bounded,
+                            &mut self.scratch_tb,
+                            &mut self.check_solver_nodes_acc,
+                        );
+                        self.sub_solver.set_time_limit_secs(None);
+                        if self.progress_cb.is_some() {
+                            self.sub_solver.set_progress_callback(None);
+                            self.report_progress(solve_nodes);
+                        }
+                        if self.is_cancelled(verify_start) {
+                            return PerfectionReport {
+                                status: PerfectionStatus::Timeout,
+                                mate_steps: res.mate_steps,
+                                pv: res.pv,
+                                shortcut_pv: Vec::new(),
+                                solve_nodes,
+                                check_nodes: self.check_solver_nodes_acc,
+                                shortcut_or_count,
+                                minor_flaw_count,
+                            };
+                        }
+                        match resolved {
+                            Ok(AltResolved::Refuted { .. }) => continue,
+                            Err(()) => {
+                                return PerfectionReport {
+                                    status: PerfectionStatus::Timeout,
+                                    mate_steps: res.mate_steps,
+                                    pv: res.pv,
+                                    shortcut_pv: Vec::new(),
+                                    solve_nodes,
+                                    check_nodes: self.check_solver_nodes_acc,
+                                    shortcut_or_count,
+                                    minor_flaw_count,
+                                };
                             }
-
-                            // 2. Equal-length non-redundant mate (`== rem_sh`)
-                            if std_steps == rem_sh && non_redundant {
-                                let is_same_src_dst_prom = mv.prev_pos == intended_mv.prev_pos
-                                    && mv.dest() == intended_mv.dest();
-                                if is_same_src_dst_prom {
-                                    minor_flaw_count = minor_flaw_count.saturating_add(1);
-                                    continue;
+                            Ok(AltResolved::Mated {
+                                std_steps,
+                                non_redundant,
+                                any_steps,
+                                solved_evs,
+                            }) => {
+                                // 1. Strictly faster early mate (`< rem_sh`), even with unused pieces!
+                                if any_steps < rem_sh || std_steps < rem_sh {
+                                    pos_has_shortcut = true;
+                                    if self.cfg.fail_fast {
+                                        let shortcut_pv = build_shortcut_pv(
+                                            root,
+                                            &res.pv,
+                                            ply,
+                                            mv,
+                                            FlawKind::EarlyShortcut,
+                                            rem_sh,
+                                            &solved_evs,
+                                            &mut self.scratch_tb,
+                                        );
+                                        if ply > 0
+                                            && res.mate_steps <= 15
+                                            && re_stab_iter < 3
+                                            && !shortcut_pv.is_empty()
+                                            && shortcut_pv.len() % 2 == 1
+                                        {
+                                            let sc_clean = unused_atk_pieces_effective(
+                                                root,
+                                                &shortcut_pv,
+                                                root_tn,
+                                            ) == 0;
+                                            if sc_clean {
+                                                let mut cand = res.clone();
+                                                cand.pv = shortcut_pv.clone();
+                                                cand.mate_steps =
+                                                    effective_tsume_pv_plies(root, &shortcut_pv);
+                                                cand.redundant = false;
+                                                if let Ok(new_res) = stabilize_main_line_pv(
+                                                    root,
+                                                    cand,
+                                                    None,
+                                                    init_per_check_limit,
+                                                    &mut self.sub_solver,
+                                                    &mut self.scratch_tb,
+                                                    &mut solve_nodes,
+                                                    self.abort_flag.as_deref(),
+                                                    deadline,
+                                                ) {
+                                                    let fp_cmp =
+                                                        (ply as usize).min(new_res.pv.len());
+                                                    let def_switched =
+                                                        new_res.pv[..fp_cmp] != res.pv[..fp_cmp];
+                                                    if !new_res.redundant
+                                                        && (def_switched
+                                                            || new_res.mate_steps < res.mate_steps)
+                                                    {
+                                                        res = new_res;
+                                                        continue '_re_stab;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        return PerfectionReport {
+                                            status: PerfectionStatus::Shortcut {
+                                                first_ply: ply,
+                                                alt_move: mv,
+                                                intended_move: intended_mv,
+                                                kind: FlawKind::EarlyShortcut,
+                                            },
+                                            mate_steps: res.mate_steps,
+                                            pv: res.pv,
+                                            shortcut_pv,
+                                            solve_nodes,
+                                            check_nodes: self.check_solver_nodes_acc,
+                                            shortcut_or_count: 1,
+                                            minor_flaw_count,
+                                        };
+                                    }
+                                    if first_flaw.is_none() {
+                                        first_flaw = Some((
+                                            ply,
+                                            mv,
+                                            intended_mv,
+                                            FlawKind::EarlyShortcut,
+                                            rem_sh,
+                                            solved_evs,
+                                        ));
+                                    }
+                                    break 'mv_loop;
                                 }
 
-                                if (rem_sh <= self.cfg.endgame_transposition_rem_sh
-                                    || is_same_ray_sliding_drop(or_pos, mv, intended_mv))
-                                    && rem_sh >= 3
-                                    && all_optimal_evasions_converge_to_pv(
-                                        &child_and,
-                                        &solved_evs,
-                                        rem_sh,
-                                        root_tn,
-                                        &pv_or_states,
-                                    )
-                                {
-                                    minor_flaw_count = minor_flaw_count.saturating_add(1);
-                                    continue;
-                                }
+                                // 2. Equal-length non-redundant mate (`== rem_sh`)
+                                if std_steps == rem_sh && non_redundant {
+                                    let is_same_src_dst_prom = mv.prev_pos == intended_mv.prev_pos
+                                        && mv.dest() == intended_mv.dest();
+                                    if is_same_src_dst_prom {
+                                        minor_flaw_count = minor_flaw_count.saturating_add(1);
+                                        continue;
+                                    }
 
-                                pos_has_shortcut = true;
-                                if self.cfg.fail_fast {
-                                    let shortcut_pv = build_shortcut_pv(
-                                        root,
-                                        &res.pv,
-                                        ply,
-                                        mv,
-                                        FlawKind::EqualLengthShortcut,
-                                        rem_sh,
-                                        &solved_evs,
-                                        &mut self.scratch_tb,
-                                    );
-                                    return PerfectionReport {
-                                        status: PerfectionStatus::Shortcut {
-                                            first_ply: ply,
-                                            alt_move: mv,
-                                            intended_move: intended_mv,
-                                            kind: FlawKind::EqualLengthShortcut,
-                                        },
-                                        mate_steps: res.mate_steps,
-                                        pv: res.pv,
-                                        shortcut_pv,
-                                        solve_nodes,
-                                        check_nodes: self.check_solver_nodes_acc,
-                                        shortcut_or_count: 1,
-                                        minor_flaw_count,
-                                    };
+                                    if (rem_sh <= self.cfg.endgame_transposition_rem_sh
+                                        || is_same_ray_sliding_drop(or_pos, mv, intended_mv))
+                                        && rem_sh >= 3
+                                        && all_optimal_evasions_converge_to_pv(
+                                            &child_and,
+                                            &solved_evs,
+                                            rem_sh,
+                                            root_tn,
+                                            &pv_or_states,
+                                        )
+                                    {
+                                        minor_flaw_count = minor_flaw_count.saturating_add(1);
+                                        continue;
+                                    }
+
+                                    pos_has_shortcut = true;
+                                    if self.cfg.fail_fast {
+                                        let shortcut_pv = build_shortcut_pv(
+                                            root,
+                                            &res.pv,
+                                            ply,
+                                            mv,
+                                            FlawKind::EqualLengthShortcut,
+                                            rem_sh,
+                                            &solved_evs,
+                                            &mut self.scratch_tb,
+                                        );
+                                        return PerfectionReport {
+                                            status: PerfectionStatus::Shortcut {
+                                                first_ply: ply,
+                                                alt_move: mv,
+                                                intended_move: intended_mv,
+                                                kind: FlawKind::EqualLengthShortcut,
+                                            },
+                                            mate_steps: res.mate_steps,
+                                            pv: res.pv,
+                                            shortcut_pv,
+                                            solve_nodes,
+                                            check_nodes: self.check_solver_nodes_acc,
+                                            shortcut_or_count: 1,
+                                            minor_flaw_count,
+                                        };
+                                    }
+                                    if first_flaw.is_none() {
+                                        first_flaw = Some((
+                                            ply,
+                                            mv,
+                                            intended_mv,
+                                            FlawKind::EqualLengthShortcut,
+                                            rem_sh,
+                                            solved_evs,
+                                        ));
+                                    }
+                                    break 'mv_loop;
                                 }
-                                if first_flaw.is_none() {
-                                    first_flaw = Some((
-                                        ply,
-                                        mv,
-                                        intended_mv,
-                                        FlawKind::EqualLengthShortcut,
-                                        rem_sh,
-                                        solved_evs,
-                                    ));
-                                }
-                                break 'mv_loop;
                             }
                         }
                     }
                 }
+
+                if pos_has_shortcut {
+                    shortcut_or_count = shortcut_or_count.saturating_add(1);
+                }
             }
 
-            if pos_has_shortcut {
-                shortcut_or_count = shortcut_or_count.saturating_add(1);
-            }
-        }
-
-        if let Some((first_ply, alt_move, intended_move, kind, f_rem_sh, f_evs)) = first_flaw {
-            let shortcut_pv = build_shortcut_pv(
-                root,
-                &res.pv,
-                first_ply,
-                alt_move,
-                kind,
-                f_rem_sh,
-                &f_evs,
-                &mut self.scratch_tb,
-            );
-            PerfectionReport {
-                status: PerfectionStatus::Shortcut {
+            if let Some((first_ply, alt_move, intended_move, kind, f_rem_sh, f_evs)) = first_flaw {
+                let shortcut_pv = build_shortcut_pv(
+                    root,
+                    &res.pv,
                     first_ply,
                     alt_move,
-                    intended_move,
                     kind,
-                },
-                mate_steps: res.mate_steps,
-                pv: res.pv,
-                shortcut_pv,
-                solve_nodes,
-                check_nodes: self.check_solver_nodes_acc,
-                shortcut_or_count,
-                minor_flaw_count,
+                    f_rem_sh,
+                    &f_evs,
+                    &mut self.scratch_tb,
+                );
+                if kind == FlawKind::EarlyShortcut
+                    && first_ply > 0
+                    && res.mate_steps <= 15
+                    && re_stab_iter < 3
+                    && !shortcut_pv.is_empty()
+                    && shortcut_pv.len() % 2 == 1
+                {
+                    let sc_clean = unused_atk_pieces_effective(root, &shortcut_pv, root_tn) == 0;
+                    if sc_clean {
+                        let mut cand = res.clone();
+                        cand.pv = shortcut_pv.clone();
+                        cand.mate_steps = effective_tsume_pv_plies(root, &shortcut_pv);
+                        cand.redundant = false;
+                        if let Ok(new_res) = stabilize_main_line_pv(
+                            root,
+                            cand,
+                            None,
+                            init_per_check_limit,
+                            &mut self.sub_solver,
+                            &mut self.scratch_tb,
+                            &mut solve_nodes,
+                            self.abort_flag.as_deref(),
+                            deadline,
+                        ) {
+                            let fp_cmp = (first_ply as usize).min(new_res.pv.len());
+                            let def_switched = new_res.pv[..fp_cmp] != res.pv[..fp_cmp];
+                            if !new_res.redundant
+                                && (def_switched || new_res.mate_steps < res.mate_steps)
+                            {
+                                res = new_res;
+                                continue '_re_stab;
+                            }
+                        }
+                    }
+                }
+                return PerfectionReport {
+                    status: PerfectionStatus::Shortcut {
+                        first_ply,
+                        alt_move,
+                        intended_move,
+                        kind,
+                    },
+                    mate_steps: res.mate_steps,
+                    pv: res.pv,
+                    shortcut_pv,
+                    solve_nodes,
+                    check_nodes: self.check_solver_nodes_acc,
+                    shortcut_or_count,
+                    minor_flaw_count,
+                };
             }
-        } else {
-            PerfectionReport {
+
+            return PerfectionReport {
                 status: PerfectionStatus::Perfect,
                 mate_steps: res.mate_steps,
                 pv: res.pv,
@@ -3580,7 +4859,18 @@ impl ConventionalVerifier {
                 check_nodes: self.check_solver_nodes_acc,
                 shortcut_or_count: 0,
                 minor_flaw_count,
-            }
+            };
+        }
+
+        PerfectionReport {
+            status: PerfectionStatus::Timeout,
+            mate_steps: res.mate_steps,
+            pv: res.pv,
+            shortcut_pv: Vec::new(),
+            solve_nodes,
+            check_nodes: self.check_solver_nodes_acc,
+            shortcut_or_count: 0,
+            minor_flaw_count: 0,
         }
     }
 }

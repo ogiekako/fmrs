@@ -281,6 +281,39 @@ test("普通詰将棋 wasm 解図 (solve_futsuu)", () => {
     () => wasm.solve_futsuu("4k4/9/4O4/9/9/9/9/9/9 b G 1", 16),
     /普通詰将棋では石/,
   );
+  assert.throws(
+    () => wasm.solve_futsuu("4k4/9/4P4/9/9/9/9/9/9 w G 1", 16),
+    /先手（攻方）番/,
+  );
+
+  // 玉隣接の打無駄合を除外して1手詰完全作と判定すること
+  const futileRes = wasm.solve_futsuu(
+    "3lkl3/3p1p3/3G4R/9/9/9/9/9/9 b p 1",
+    16,
+    true,
+  );
+  try {
+    assert.strictEqual(futileRes.is_mate(), true);
+    assert.strictEqual(futileRes.steps(), 1);
+    assert.strictEqual(futileRes.redundant(), false);
+    assert.strictEqual(futileRes.perfection_status(), "perfect");
+  } finally {
+    futileRes.free();
+  }
+
+  // 将棋図巧 第5番（最終手付近の同手数変化駒余り許容）が21手完全作と判定されること
+  const zuko5Res = wasm.solve_futsuu(
+    "n+B1sS4/1R1g5/1Ls6/2k6/2n6/3L5/R8/9/9 b B2P3gs2n2l16p 1",
+    32,
+    true,
+  );
+  try {
+    assert.strictEqual(zuko5Res.is_mate(), true);
+    assert.strictEqual(zuko5Res.steps(), 21);
+    assert.strictEqual(zuko5Res.perfection_status(), "perfect");
+  } finally {
+    zuko5Res.free();
+  }
 
   const okRes = wasm.solve_futsuu(
     "7n1/7kP/8s/7+B1/9/9/9/9/9 b R6Prb4g3s3n4l11p 1",

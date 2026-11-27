@@ -137,18 +137,7 @@ pub fn solve_futsuu_core(
 
     let (mate_status, steps, redundant, kif, moves_sfen) = match res.mate {
         Some(true) => {
-            if check_perfection && res.redundant {
-                perfection_status = "redundant".to_string();
-                let movements = pv_to_movements(&res.pv);
-                let kif =
-                    converter::convert_to_kif(&mut position, std::slice::from_ref(&movements));
-                let moves_sfen = movements
-                    .iter()
-                    .map(sfen::encode_move)
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                (1, res.mate_steps as u32, true, kif, moves_sfen)
-            } else if check_perfection {
+            if check_perfection {
                 // Drop main solver table before allocating verifier tables inside 32-bit WASM memory.
                 drop(solver);
                 let mut verifier = ConventionalVerifier::new(PerfectionConfig {
@@ -203,7 +192,11 @@ pub fn solve_futsuu_core(
                             intended_move_kif = format_futsuu_move_ja(&pos_at_ply, intended_move);
                             if !rep.shortcut_pv.is_empty() {
                                 let sc_movements = pv_to_movements(&rep.shortcut_pv);
-                                shortcut_total_steps = sc_movements.len() as u32;
+                                shortcut_total_steps =
+                                    fmrs_core::futsuu::solver::effective_tsume_pv_plies(
+                                        &root,
+                                        &rep.shortcut_pv,
+                                    ) as u32;
                                 solutions.push(sc_movements);
                             }
                         }
@@ -367,5 +360,44 @@ mod tests {
                 .unwrap(),
             "普通詰将棋では石（壁駒）は使用できません。"
         );
+        assert_eq!(
+            solve_futsuu_core("4k4/9/4P4/9/9/9/9/9/9 w G 1", 16, false, None)
+                .err()
+                .unwrap(),
+            "普通詰将棋は先手（攻方）番の局面のみ対応しています。"
+        );
+    }
+
+    #[test]
+    fn test_solve_futsuu_perfection_futile_and_dirty_escape_regressions() {
+        // King-adjacent 打無駄合 (`P*5b` collapsed -> 1-ply "perfect", not 3-ply "redundant")
+        let res_futile =
+            solve_futsuu_core("3lkl3/3p1p3/3G4R/9/9/9/9/9/9 b p 1", 16, true, None).unwrap();
+        assert!(res_futile.is_mate());
+        assert_eq!(res_futile.steps(), 1);
+        assert!(!res_futile.redundant());
+        assert_eq!(res_futile.perfection_status(), "perfect");
+
+        // Longer dirty King escape (`2. 5c6b` -> 5-ply "redundant", not 3-ply "perfect")
+        let res_dirty = solve_futsuu_core(
+            "1n1n4R/1pp1p1n1p/1Sn1k1p2/9/5G3/9/9/9/9 b GS 1",
+            16,
+            true,
+            None,
+        )
+        .unwrap();
+        assert!(res_dirty.is_mate());
+        assert_eq!(res_dirty.steps(), 5);
+        assert!(res_dirty.redundant());
+        assert_eq!(res_dirty.perfection_status(), "redundant");
+
+        // EqualLengthShortcut with effective Tsume-Shogi shortcut_total_steps and KIF `変化：` fork
+        let res_eq =
+            solve_futsuu_core("9/6k2/4n4/3L5/4+P2K1/9/9/9/9 b 2BS 1", 32, true, None).unwrap();
+        assert!(res_eq.is_mate());
+        assert_eq!(res_eq.steps(), 13);
+        assert_eq!(res_eq.perfection_status(), "equal_shortcut");
+        assert_eq!(res_eq.shortcut_total_steps(), 13);
+        assert!(res_eq.kif().contains("変化："), "{}", res_eq.kif());
     }
 }

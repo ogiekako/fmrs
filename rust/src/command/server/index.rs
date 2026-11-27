@@ -310,29 +310,6 @@ async fn solve_futsuu(
                                 perfection: None,
                             },
                         }
-                    } else if res.redundant {
-                        let movements = pv_to_movements(&res.pv);
-                        let kif = fmrs_core::converter::convert_to_kif(
-                            &mut problem,
-                            std::slice::from_ref(&movements),
-                        );
-                        FutsuuSolveResponse::Solved {
-                            response: FutsuuClientSolveResponse {
-                                steps: res.mate_steps,
-                                redundant: true,
-                                nodes: res.nodes,
-                                kif,
-                                sfen: problem.sfen(),
-                                perfection: Some(FutsuuPerfectionInfo {
-                                    status: "redundant",
-                                    shortcut_ply: None,
-                                    shortcut_total_steps: None,
-                                    shortcut_move_kif: None,
-                                    intended_move_kif: None,
-                                    minor_flaw_count: 0,
-                                }),
-                            },
-                        }
                     } else {
                         drop(solver);
                         let rem_secs = total_time_limit
@@ -392,7 +369,11 @@ async fn solve_futsuu(
                                         format_futsuu_move_ja(&pos_at_ply, intended_move);
                                     let sc_total = if !rep.shortcut_pv.is_empty() {
                                         let sc_movements = pv_to_movements(&rep.shortcut_pv);
-                                        let len = sc_movements.len() as u16;
+                                        let len =
+                                            fmrs_core::futsuu::solver::effective_tsume_pv_plies(
+                                                &root,
+                                                &rep.shortcut_pv,
+                                            );
                                         solutions.push(sc_movements);
                                         Some(len)
                                     } else {

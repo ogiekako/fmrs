@@ -1727,6 +1727,10 @@ impl PositionBackend for FmrsPos {
         let dest = sq_to_fmrs(mv.dest());
         let dst_bit = 1u128 << dest.index();
         let mut mask = (1u128 << wk.index()) | king_power(wk).u128() | dst_bit;
+        if self.black_ou != NO_SQ {
+            let bk = sq_to_fmrs(self.black_ou as usize);
+            mask |= ni_white_attack_guard_smart(occ, bk, w_bish, w_rook, w_lance, &mut req_absent);
+        }
 
         if mv.is_drop() {
             if mv.hand_ktype() == FU {
@@ -2002,6 +2006,30 @@ impl FmrsPos {
         let wk = sq_to_fmrs(self.white_ou as usize);
         let white_bb = p.white_bb().u128();
         let mut mask = (1u128 << wk.index()) | king_power(wk).u128();
+        if self.black_ou != NO_SQ {
+            let bk = sq_to_fmrs(self.black_ou as usize);
+            mask |= ni_white_attack_guard_smart(occ, bk, w_bish, w_rook, w_lance, &mut req_absent);
+            for it in evasions {
+                let mv = it.head_move();
+                let d = sq_to_fmrs(mv.dest());
+                if d.col() == bk.col()
+                    || d.row() == bk.row()
+                    || d.col().abs_diff(bk.col()) == d.row().abs_diff(bk.row())
+                {
+                    mask |= (1u128 << d.index()) | BitBoard::between(d, bk).u128();
+                }
+                if mv.is_board_move() {
+                    let s = sq_to_fmrs(mv.prev_pos as usize);
+                    if s.col() == bk.col() || s.row() == bk.row() {
+                        let occ_no_s = BitBoard::from_u128(occ.u128() & !(1u128 << s.index()));
+                        mask |= rook_reachable(occ_no_s, bk).u128();
+                    } else if s.col().abs_diff(bk.col()) == s.row().abs_diff(bk.row()) {
+                        let occ_no_s = BitBoard::from_u128(occ.u128() & !(1u128 << s.index()));
+                        mask |= bishop_reachable(occ_no_s, bk).u128();
+                    }
+                }
+            }
+        }
 
         mask |= (1u128 << atk.pos.index()) | BitBoard::between(atk.pos, wk).u128();
         if let Some((sq2, _)) = atk.double_check {

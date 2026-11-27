@@ -179,6 +179,91 @@ fn split_tail_item<P: PositionBackend>(pos: &P, tail: MoveChain) -> MvItem {
 const SIMPLE_MAX_DEPTH: u16 = 8000;
 pub(crate) const NO_CU: u16 = u16::MAX;
 
+/// Analyze a physical checkmating sequence `pv` from `root`, returning
+/// `(step_delta, rem_eff, eff_unused_atk_pieces)` where trailing checkmate futile interpositions
+/// (`合い利かず` drops and `移動無駄合` played out to physical 0-evasion mate) are collapsed as `0`
+/// effective Tsume-Shogi plies and deducted 1-for-1 from the final attacker hand.
+pub fn analyze_tsume_pv<P: PositionBackend>(root: &P, pv: &[Move]) -> (Vec<u8>, Vec<u16>, u8) {
+    let n = pv.len();
+    if n == 0 {
+        return (Vec::new(), Vec::new(), root.mkey(root.turn()).total());
+    }
+    let atk_tn = root.turn();
+    let mut step_delta = vec![1u8; n];
+    // (recap_idx, cap_kt, no_king_or_recap, all_drops_or_empty)
+    let mut cand_pairs: Vec<(usize, u8, bool, bool)> = Vec::new();
+    let mut cur = root.clone();
+    let mut prev_was_inter_sq: Option<usize> = None;
+    let mut ev_buf = Vec::with_capacity(16);
+
+    for (i, &mv) in pv.iter().enumerate() {
+        if i % 2 == 0 {
+            if let Some(isq) = prev_was_inter_sq {
+                if mv.is_board_move() && mv.dest() == isq {
+                    let cap_kt = cur.board_at(isq) & 7;
+                    let after_recap = cur.move_forward(mv);
+                    ev_buf.clear();
+                    after_recap.generate_evasion_simple_fast(&mut ev_buf);
+                    let ou = after_recap.self_ou();
+                    let has_king_or_recap = ev_buf.iter().any(|it| {
+                        it.all_moves().into_iter().any(|em| {
+                            !em.is_drop() && (em.prev_pos as usize == ou || em.dest() == isq)
+                        })
+                    });
+                    let all_drops_or_empty = ev_buf
+                        .iter()
+                        .all(|it| it.all_moves().into_iter().all(|em| em.is_drop()));
+                    cand_pairs.push((i, cap_kt, !has_king_or_recap, all_drops_or_empty));
+                } else {
+                    cand_pairs.push((i, 0, false, false));
+                }
+            } else if i >= 2 {
+                cand_pairs.push((i, 0, false, false));
+            }
+            prev_was_inter_sq = None;
+        } else {
+            let atk_sq = cur.attack_sq();
+            let is_king_or_cap = !mv.is_drop()
+                && ((cur.n_oute() == 1 && mv.dest() == atk_sq)
+                    || (cur.board_at(mv.prev_pos as usize) & 15) == crate::futsuu::types::SOU);
+            prev_was_inter_sq = if is_king_or_cap { None } else { Some(mv.dest()) };
+        }
+        cur = cur.move_forward(mv);
+    }
+
+    let mut rem_final_mkey = cur.mkey(atk_tn);
+    let mut still_at_tail = n % 2 == 1;
+    for &(i, cap_kt, no_king_or_recap, all_drops_or_empty) in cand_pairs.iter().rev() {
+        let can_deduct = (1..=7).contains(&cap_kt) && rem_final_mkey.get(cap_kt) > 0;
+        if still_at_tail && i < n && no_king_or_recap && can_deduct {
+            rem_final_mkey.dec(cap_kt);
+            step_delta[i - 1] = 0;
+            step_delta[i] = 0;
+        } else {
+            still_at_tail = false;
+            if pv[i - 1].is_drop() && no_king_or_recap && all_drops_or_empty && can_deduct {
+                rem_final_mkey.dec(cap_kt);
+                step_delta[i - 1] = 0;
+                step_delta[i] = 0;
+            }
+        }
+    }
+
+    let mut rem_eff = vec![0u16; n];
+    let mut acc = 0u16;
+    for i in (0..n).rev() {
+        acc = acc.saturating_add(step_delta[i] as u16);
+        rem_eff[i] = acc;
+    }
+    (step_delta, rem_eff, rem_final_mkey.total())
+}
+
+/// Compute the effective Tsume-Shogi ply count of a physical checkmating sequence `pv` from `root`.
+#[inline]
+pub fn effective_tsume_pv_plies<P: PositionBackend>(root: &P, pv: &[Move]) -> u16 {
+    analyze_tsume_pv(root, pv).1.first().copied().unwrap_or(0)
+}
+
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct SimpleDagEntry {
     pub sh: u16,
@@ -868,7 +953,26 @@ impl Solver {
                 self.simple_dag.clear();
                 p
             } else {
-                self.extract_pv(root)
+                let mut p = self.extract_pv(root);
+                if !p.is_empty() && p.len() % 2 == 1 {
+                    let (_, rem_eff, eff_unused) = analyze_tsume_pv(root, &p);
+                    mvlist.tdata.sh = rem_eff[0];
+                    self.redundant = eff_unused > 0;
+                    if root.count() == 0
+                        && !self.suspend
+                        && !self.error
+                        && mvlist.tdata.sh <= 13
+                    {
+                        crate::futsuu::perfection::refine_short_tsume_pv_if_needed(
+                            root,
+                            &mut p,
+                            &mut mvlist.tdata.sh,
+                            &mut self.redundant,
+                            &mut self.nodes,
+                        );
+                    }
+                }
+                p
             }
         } else {
             self.simple_dag.clear();
@@ -4031,6 +4135,26 @@ impl Solver {
                 let mv = list[0].head_move();
                 pv.push(mv);
                 pos = pos.move_forward(mv);
+            }
+        }
+
+        let rem_simp = pos.generate_evasion_simple(&mut self.tbase);
+        if !pv.is_empty()
+            && pv.len() % 2 == 1
+            && !rem_simp.is_empty()
+            && pos.generate_evasion(&mut self.tbase).0.is_empty()
+        {
+            let emv = rem_simp[0].head_move();
+            let next_or = pos.move_forward(emv);
+            let saved_nl = self.config.node_limit.take();
+            let saved_tl = self.config.time_limit_secs.take();
+            let tail = self.extract_pv_simple(&next_or);
+            self.config.node_limit = saved_nl;
+            self.config.time_limit_secs = saved_tl;
+            if !tail.is_empty() && tail.len() % 2 == 1 {
+                pv.push(emv);
+                pv.extend(tail);
+                return pv;
             }
         }
 

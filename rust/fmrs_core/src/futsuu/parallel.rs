@@ -26,8 +26,8 @@ use crate::futsuu::proof::{
 };
 use crate::futsuu::shared_tbase::{LocalTerminalEntry, SharedTBase, LOCAL_TT_SIZE};
 use crate::futsuu::solver::{
-    compute_spare_mask, copy_proof_fields, initial_or_pn0, sort_and_simple_ab, DefaultHeuristic,
-    SearchHeuristic, SimpleDag, SimpleDagEntry, NO_CU,
+    analyze_tsume_pv, compute_spare_mask, copy_proof_fields, initial_or_pn0, sort_and_simple_ab,
+    DefaultHeuristic, SearchHeuristic, SimpleDag, SimpleDagEntry, NO_CU,
 };
 use crate::futsuu::types::{
     sq_file, sq_rank, KeyState, MKey, Move, MoveChain, MvItem, SearchConfig, SearchResult, TData,
@@ -5980,6 +5980,28 @@ impl<'a, H, F> PostTreeBuilder<'a, H, F> {
 
         let mut rem_ev = Vec::with_capacity(8);
         pos.generate_evasion_simple_fast(&mut rem_ev);
+        if !pv.is_empty() && pv.len() % 2 == 1 && !rem_ev.is_empty() {
+            let mut tsume_ev = Vec::with_capacity(8);
+            let mut oracle = WorkerOracle {
+                tbase: self.tbase,
+                local_tt: self.probe_raw.as_mut().map(|r| &mut *r.local_tt),
+                hs_depth: 0,
+            };
+            pos.generate_evasion_with(&mut oracle, &mut tsume_ev);
+            if tsume_ev.is_empty() {
+                let emv = rem_ev[0].head_move();
+                let next_or = pos.move_forward(emv);
+                let saved_susp = self.suspend;
+                self.suspend = false;
+                let tail = self.extract_pv_simple(&next_or);
+                self.suspend = saved_susp;
+                if !tail.is_empty() && tail.len() % 2 == 1 {
+                    pv.push(emv);
+                    pv.extend(tail);
+                    return pv;
+                }
+            }
+        }
         if pv.is_empty() || pv.len() % 2 == 0 || !rem_ev.is_empty() {
             let saved_susp = self.suspend;
             self.suspend = false;
@@ -6528,7 +6550,7 @@ impl ParallelEngine {
                 }
                 p
             } else {
-                let p = post.extract_pv(root);
+                let mut p = post.extract_pv(root);
                 if suspend {
                     if p.is_empty() || p.len() % 2 == 0 {
                         mate = None;
@@ -6542,8 +6564,23 @@ impl ParallelEngine {
                         if !rem_ev.is_empty() {
                             mate = None;
                         } else {
-                            mvlist.tdata.sh = p.len() as u16;
+                            let (_, rem_eff, eff_unused) = analyze_tsume_pv(root, &p);
+                            mvlist.tdata.sh = rem_eff[0];
+                            post.redundant = eff_unused > 0;
                         }
+                    }
+                } else if !p.is_empty() && p.len() % 2 == 1 {
+                    let (_, rem_eff, eff_unused) = analyze_tsume_pv(root, &p);
+                    mvlist.tdata.sh = rem_eff[0];
+                    post.redundant = eff_unused > 0;
+                    if root.count() == 0 && !post.error && mvlist.tdata.sh <= 13 {
+                        crate::futsuu::perfection::refine_short_tsume_pv_if_needed(
+                            root,
+                            &mut p,
+                            &mut mvlist.tdata.sh,
+                            &mut post.redundant,
+                            &mut post.nodes,
+                        );
                     }
                 }
                 if mate == Some(true) { p } else { Vec::new() }
