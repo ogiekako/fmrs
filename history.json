@@ -342,6 +342,355 @@
       "reasons": [
         "initial baseline"
       ]
+    },
+    {
+      "timestamp": "2026-11-27T01:51:02Z",
+      "commit": "2324f1e0e7b6b40768464b9bad1ec769d1951d42",
+      "commit_short": "2324f1e",
+      "commit_url": "https://github.com/ogiekako/fmrs/commit/2324f1e0e7b6b40768464b9bad1ec769d1951d42",
+      "message": "feat(futsuu): add solve_unbounded_pn and without_attacker_hand_piece for sound perfection verification",
+      "note": "",
+      "event": "push",
+      "sizeof_shtsume_pos": 680,
+      "sizeof_fmrs_pos": 272,
+      "std_1t": {
+        "suite": "std",
+        "hash_mb": 256,
+        "threads": 1,
+        "timeout_secs": 30.0,
+        "sizeof_shtsume_pos": 680,
+        "sizeof_fmrs_pos": 272,
+        "total_shtsume_secs": 7.3951,
+        "total_fmrs_secs": 6.76,
+        "total_shtsume_nodes": 9145877,
+        "total_fmrs_nodes": 8275216,
+        "agg_shtsume_knps": 1236.8,
+        "agg_fmrs_knps": 1224.1,
+        "results": [
+          {
+            "name": "sample_classic_3",
+            "note": "3手 (shtsume sample)",
+            "shtsume": {
+              "mate": true,
+              "steps": 3,
+              "redundant": false,
+              "nodes": 220,
+              "elapsed_secs": 0.0001,
+              "knps": 1649.3,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 3,
+              "redundant": false,
+              "nodes": 223,
+              "elapsed_secs": 0.0004,
+              "knps": 497.4,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "yane_2_5",
+            "note": "5手 (YaneuraOu test)",
+            "shtsume": {
+              "mate": true,
+              "steps": 5,
+              "redundant": false,
+              "nodes": 360,
+              "elapsed_secs": 0.0003,
+              "knps": 1108.0,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 5,
+              "redundant": false,
+              "nodes": 244,
+              "elapsed_secs": 0.0005,
+              "knps": 499.7,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "lances_11",
+            "note": "11手 (shtsume wiki / YaneuraOu)",
+            "shtsume": {
+              "mate": true,
+              "steps": 11,
+              "redundant": false,
+              "nodes": 1079,
+              "elapsed_secs": 0.0008,
+              "knps": 1340.8,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 11,
+              "redundant": false,
+              "nodes": 1447,
+              "elapsed_secs": 0.0009,
+              "knps": 1551.2,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "zuko_05_21",
+            "note": "21手 (将棋図巧 第5番)",
+            "shtsume": {
+              "mate": true,
+              "steps": 21,
+              "redundant": false,
+              "nodes": 3996,
+              "elapsed_secs": 0.003,
+              "knps": 1314.2,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 21,
+              "redundant": false,
+              "nodes": 3634,
+              "elapsed_secs": 0.0028,
+              "knps": 1277.8,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "yane_5_fg",
+            "note": "実戦詰 (YaneuraOu Floodgate #5)",
+            "shtsume": {
+              "mate": true,
+              "steps": 29,
+              "redundant": true,
+              "nodes": 396519,
+              "elapsed_secs": 0.3368,
+              "knps": 1177.4,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 39,
+              "redundant": true,
+              "nodes": 173002,
+              "elapsed_secs": 0.1388,
+              "knps": 1246.7,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "yane_7_fg",
+            "note": "実戦詰 (YaneuraOu Floodgate #7)",
+            "shtsume": {
+              "mate": true,
+              "steps": 27,
+              "redundant": true,
+              "nodes": 625505,
+              "elapsed_secs": 0.5576,
+              "knps": 1121.7,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 33,
+              "redundant": true,
+              "nodes": 448736,
+              "elapsed_secs": 0.3843,
+              "knps": 1167.8,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "yane_10_fg_23",
+            "note": "23手 (YaneuraOu Floodgate #10)",
+            "shtsume": {
+              "mate": true,
+              "steps": 25,
+              "redundant": false,
+              "nodes": 810600,
+              "elapsed_secs": 0.6762,
+              "knps": 1198.7,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 25,
+              "redundant": false,
+              "nodes": 1162894,
+              "elapsed_secs": 0.9407,
+              "knps": 1236.2,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "yane_13_fg",
+            "note": "実戦詰 (YaneuraOu Floodgate #13)",
+            "shtsume": {
+              "mate": true,
+              "steps": 19,
+              "redundant": false,
+              "nodes": 894186,
+              "elapsed_secs": 0.7668,
+              "knps": 1166.2,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 29,
+              "redundant": true,
+              "nodes": 855623,
+              "elapsed_secs": 0.708,
+              "knps": 1208.5,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "zuko_01_69",
+            "note": "69手 (将棋図巧 第1番)",
+            "shtsume": {
+              "mate": true,
+              "steps": 69,
+              "redundant": false,
+              "nodes": 4907079,
+              "elapsed_secs": 3.8308,
+              "knps": 1281.0,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 71,
+              "redundant": false,
+              "nodes": 3417974,
+              "elapsed_secs": 2.7117,
+              "knps": 1260.5,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "zuko_99_kemuri_117",
+            "note": "117手 (将棋図巧 第99番 煙詰)",
+            "shtsume": {
+              "mate": true,
+              "steps": 117,
+              "redundant": false,
+              "nodes": 673985,
+              "elapsed_secs": 0.5505,
+              "knps": 1224.2,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 117,
+              "redundant": false,
+              "nodes": 1801959,
+              "elapsed_secs": 1.5453,
+              "knps": 1166.1,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "zuko_100_kotobuki_611",
+            "note": "611手 (将棋図巧 第100番 寿)",
+            "shtsume": {
+              "mate": true,
+              "steps": 611,
+              "redundant": false,
+              "nodes": 832348,
+              "elapsed_secs": 0.6721,
+              "knps": 1238.5,
+              "gc_num": 0
+            },
+            "fmrs": {
+              "mate": true,
+              "steps": 611,
+              "redundant": false,
+              "nodes": 409480,
+              "elapsed_secs": 0.3265,
+              "knps": 1254.0,
+              "gc_num": 0
+            }
+          }
+        ]
+      },
+      "long_mt": {
+        "suite": "long",
+        "hash_mb": 1024,
+        "threads": 4,
+        "timeout_secs": 120.0,
+        "sizeof_shtsume_pos": 680,
+        "sizeof_fmrs_pos": 272,
+        "total_shtsume_secs": 0.0,
+        "total_fmrs_secs": 13.9675,
+        "total_shtsume_nodes": 0,
+        "total_fmrs_nodes": 33282621,
+        "agg_shtsume_knps": 0.0,
+        "agg_fmrs_knps": 2382.9,
+        "results": [
+          {
+            "name": "zuko_01_69",
+            "note": "69手 (将棋図巧 第1番)",
+            "fmrs": {
+              "mate": true,
+              "steps": 71,
+              "redundant": false,
+              "nodes": 5278891,
+              "elapsed_secs": 2.0889,
+              "knps": 2527.1,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "zuko_99_kemuri_117",
+            "note": "117手 (将棋図巧 第99番 煙詰)",
+            "fmrs": {
+              "mate": true,
+              "steps": 117,
+              "redundant": false,
+              "nodes": 2476501,
+              "elapsed_secs": 1.026,
+              "knps": 2413.8,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "zuko_100_kotobuki_611",
+            "note": "611手 (将棋図巧 第100番 寿)",
+            "fmrs": {
+              "mate": true,
+              "steps": 611,
+              "redundant": false,
+              "nodes": 564263,
+              "elapsed_secs": 0.2278,
+              "knps": 2477.4,
+              "gc_num": 0
+            }
+          },
+          {
+            "name": "microcosmos_1525",
+            "note": "1525手 (橋本孝治 ミクロコスモス)",
+            "fmrs": {
+              "mate": true,
+              "steps": 1545,
+              "redundant": false,
+              "nodes": 24962966,
+              "elapsed_secs": 10.6248,
+              "knps": 2349.5,
+              "gc_num": 0
+            }
+          }
+        ]
+      },
+      "significant": true,
+      "reasons": [
+        "1T SH time +19.09%",
+        "1T FMRS time +21.05%",
+        "1T SH kNPS -16.03%",
+        "1T FMRS kNPS -17.39%",
+        "long:zuko_01_69 verdict changed",
+        "long:microcosmos_1525 verdict changed",
+        "Long MT time +6.88%",
+        "Long MT nodes -24.85%",
+        "Long MT kNPS -29.69%"
+      ]
     }
   ]
 }
