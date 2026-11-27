@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795769696911,
+  "lastUpdate": 1795769699273,
   "repoUrl": "https://github.com/ogiekako/fmrs",
   "entries": {
     "Rust Benchmark": [
@@ -57787,6 +57787,126 @@ window.BENCHMARK_DATA = {
             "name": "bench_backward_search",
             "value": 13609,
             "range": "± 4",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "committer": {
+            "email": "ogiekako@gmail.com",
+            "name": "Keigo Oka",
+            "username": "ogiekako"
+          },
+          "distinct": true,
+          "id": "db0e90a6aef1ce633a1aeabcca849037e4345ee4",
+          "message": "Cherry-pick validated futsuu soundness fixes and safety guards from tsumegen/fmrs",
+          "timestamp": "2026-11-27T17:48:33+09:00",
+          "tree_id": "8ccb2022ee7a9587131019743ba1253a7ea61b80",
+          "url": "https://github.com/ogiekako/fmrs/commit/db0e90a6aef1ce633a1aeabcca849037e4345ee4"
+        },
+        "date": 1795769698598,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "black_advance",
+            "value": 422,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "white_advance",
+            "value": 1168,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "black_pinned",
+            "value": 201,
+            "range": "± 13",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "solve3",
+            "value": 545,
+            "range": "± 387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "oneway",
+            "value": 11159,
+            "range": "± 53",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "reachable",
+            "value": 1450,
+            "range": "± 18",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "pinned300",
+            "value": 5074,
+            "range": "± 63",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "bench_solve97",
+            "value": 1024946,
+            "range": "± 1633",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "attacker",
+            "value": 8485,
+            "range": "± 136",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish",
+            "value": 167,
+            "range": "± 3",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_heavy",
+            "value": 102,
+            "range": "± 1",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonicalize_attacker_goldish_empty",
+            "value": 44,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke",
+            "value": 144,
+            "range": "± 2",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_heavy",
+            "value": 37,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "canonical_digest_for_smoke_empty",
+            "value": 16,
+            "range": "± 0",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "near_mate",
+            "value": 12412534,
+            "range": "± 200732",
             "unit": "ns/iter"
           }
         ]
